@@ -24,3 +24,10 @@ export type OpenRouterTool = {
     parameters: Record<string, unknown>;
   };
 };
+
+export type OpenRouterModelOption = {
+  id: string;
+  name: string;
+  contextLength?: number;
+  supportsTools: boolean;
+};

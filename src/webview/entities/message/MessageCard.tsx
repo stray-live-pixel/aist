@@ -68,6 +68,7 @@ function ToolMessage({ message }: MessageCardProps) {
         </div>
         <span className="shrink-0 text-xs text-[var(--vscode-descriptionForeground)]">{message.status}</span>
       </div>
+      {message.reason ? <p className="mb-2 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">{message.reason}</p> : null}
       <details className="text-xs">
         <summary className="cursor-pointer text-[var(--vscode-textLink-foreground)]">Details</summary>
         <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--agent-border)] bg-[var(--vscode-editor-background)] p-2 font-[var(--vscode-editor-font-family)]">

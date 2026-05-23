@@ -2,12 +2,13 @@ import * as vscode from 'vscode';
 import { ChatStore } from '../chats/chatStore';
 import type { Chat } from '../chats/types';
 import { OpenRouterClient } from '../openrouter/client';
-import type { OpenRouterMessage, ToolCall } from '../openrouter/types';
-import { DEFAULT_MODEL, MODEL_OPTIONS } from '../shared/constants';
+import type { OpenRouterMessage, OpenRouterModelOption, ToolCall } from '../openrouter/types';
+import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { getErrorMessage } from '../shared/errors';
 import { getWebviewHtml } from '../shared/webviewHtml';
 import { getWorkspaceName } from '../shared/workspace';
-import { filesystemTools, runFilesystemTool } from '../tools/filesystemTools';
+import { filesystemTools, previewFilesystemTool, runFilesystemTool } from '../tools/filesystemTools';
+import { getToolPermission, getToolPermissionItems, setToolPermission, type ToolPermissionMode } from '../tools/permissions';
 import { getEditorContext, replaceSelection, stripCodeFence } from './editorContext';
 import { getSystemPrompt } from './prompts';
 
@@ -16,6 +17,7 @@ type WebviewMessage =
   | { type: 'ask'; prompt: string }
   | { type: 'newChat' }
   | { type: 'setModel'; model: string }
+  | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string }
   | { type: 'insertLastAnswer' };
@@ -23,6 +25,9 @@ type WebviewMessage =
 export class AgentController {
   private panel: vscode.WebviewPanel | undefined;
   private readonly client = new OpenRouterClient();
+  private modelOptions: OpenRouterModelOption[] = [...FALLBACK_MODEL_OPTIONS];
+  private modelsLoadedAt = 0;
+  private modelLoadPromise: Promise<void> | undefined;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -61,6 +66,7 @@ export class AgentController {
     });
 
     this.sendState();
+    void this.refreshModels();
   }
 
   createChat(): void {
@@ -126,6 +132,7 @@ export class AgentController {
   private async handleWebviewMessage(message: WebviewMessage): Promise<void> {
     if (message.type === 'webviewReady') {
       this.sendState();
+      void this.refreshModels();
     }
 
     if (message.type === 'ask') {
@@ -140,6 +147,11 @@ export class AgentController {
       const chat = this.chats.getActiveChat();
       this.chats.setModel(chat.id, message.model);
       await vscode.workspace.getConfiguration('openrouterAgent').update('model', message.model, vscode.ConfigurationTarget.Workspace);
+      this.sendState();
+    }
+
+    if (message.type === 'setToolPermission') {
+      await setToolPermission(message.toolName, message.permission);
       this.sendState();
     }
 
@@ -229,23 +241,70 @@ export class AgentController {
   }
 
   private async handleToolCall(chat: Chat, workingMessages: OpenRouterMessage[], toolCall: ToolCall): Promise<void> {
-    const toolName = toolCall.function?.name;
-    const args = parseToolArguments(toolCall.function?.arguments);
+    const toolName = toolCall.function.name;
+    const args = parseToolArguments(toolCall.function.arguments);
+    const reason = getToolReason(args);
 
     this.chats.appendMessage(chat.id, {
       role: 'tool',
       name: toolName,
-      status: 'running',
+      status: 'waiting',
+      reason,
       args
     });
     this.sendState();
 
     try {
+      const permission = getToolPermission(toolName);
+      if (permission === 'ask') {
+        const allowed = await this.askToolPermission(toolName, args, reason);
+        if (!allowed) {
+          const result = { ok: false, error: 'The user denied this tool call.' };
+          this.chats.appendMessage(chat.id, {
+            role: 'tool',
+            name: toolName,
+            status: 'denied',
+            reason,
+            args,
+            result
+          });
+          workingMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(result)
+          });
+          return;
+        }
+      }
+
+      const preview = await previewFilesystemTool(toolName, args);
+      if (preview) {
+        this.chats.appendMessage(chat.id, {
+          role: 'tool',
+          name: toolName,
+          status: 'done',
+          reason: `Diff preview: ${reason}`,
+          args,
+          result: preview
+        });
+        this.sendState();
+      }
+
+      this.chats.appendMessage(chat.id, {
+        role: 'tool',
+        name: toolName,
+        status: 'running',
+        reason,
+        args
+      });
+      this.sendState();
+
       const result = await runFilesystemTool(toolName, args);
       this.chats.appendMessage(chat.id, {
         role: 'tool',
         name: toolName,
         status: result.ok === false ? 'error' : 'done',
+        reason,
         args,
         result
       });
@@ -260,6 +319,7 @@ export class AgentController {
         role: 'tool',
         name: toolName,
         status: 'error',
+        reason,
         args,
         result
       });
@@ -273,6 +333,20 @@ export class AgentController {
     this.sendState();
   }
 
+  private async askToolPermission(toolName: string, args: Record<string, unknown>, reason: string): Promise<boolean> {
+    const answer = await vscode.window.showWarningMessage(
+      `Allow OpenRouter Agent to run ${toolName}?`,
+      {
+        modal: true,
+        detail: [`Reason: ${reason}`, '', `Arguments: ${JSON.stringify(redactLargeArgs(args), null, 2)}`].join('\n')
+      },
+      'Allow once',
+      'Deny'
+    );
+
+    return answer === 'Allow once';
+  }
+
   private sendState(): void {
     if (!this.panel) {
       return;
@@ -280,7 +354,7 @@ export class AgentController {
 
     const activeChat = this.chats.getActiveChat();
     const configuredModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
-    const models = [...new Set([...MODEL_OPTIONS, configuredModel, activeChat.model])];
+    const models = mergeModels(this.modelOptions, configuredModel, activeChat.model);
     const { history: _history, ...webviewChat } = activeChat;
 
     this.panel.webview.postMessage({
@@ -289,8 +363,34 @@ export class AgentController {
       tools: filesystemTools.map((tool) => tool.function.name),
       chats: this.chats.getSummaries(),
       activeChat: webviewChat,
-      models
+      models,
+      toolPermissions: getToolPermissionItems()
     });
+  }
+
+  private async refreshModels(): Promise<void> {
+    const now = Date.now();
+    if (this.modelLoadPromise || now - this.modelsLoadedAt < 5 * 60 * 1000) {
+      return this.modelLoadPromise || Promise.resolve();
+    }
+
+    this.modelLoadPromise = this.client
+      .listModels()
+      .then((models) => {
+        if (models.length) {
+          this.modelOptions = models;
+          this.modelsLoadedAt = Date.now();
+          this.sendState();
+        }
+      })
+      .catch((error) => {
+        vscode.window.setStatusBarMessage(`OpenRouter model list unavailable: ${getErrorMessage(error)}`, 4000);
+      })
+      .finally(() => {
+        this.modelLoadPromise = undefined;
+      });
+
+    return this.modelLoadPromise;
   }
 }
 
@@ -309,4 +409,41 @@ function parseToolArguments(rawArgs: unknown): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function getToolReason(args: Record<string, unknown>): string {
+  const reason = args.reason;
+  return typeof reason === 'string' && reason.trim() ? reason.trim() : 'No reason provided by the model.';
+}
+
+function redactLargeArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value === 'string' && value.length > 600) {
+      result[key] = `${value.slice(0, 600)}... <truncated>`;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function mergeModels(models: OpenRouterModelOption[], ...selectedModels: string[]): OpenRouterModelOption[] {
+  const byId = new Map<string, OpenRouterModelOption>();
+
+  for (const model of models) {
+    byId.set(model.id, model);
+  }
+
+  for (const modelId of selectedModels) {
+    if (!byId.has(modelId)) {
+      byId.set(modelId, {
+        id: modelId,
+        name: modelId,
+        supportsTools: true
+      });
+    }
+  }
+
+  return [...byId.values()];
 }

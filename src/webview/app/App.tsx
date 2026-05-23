@@ -3,9 +3,11 @@ import { Bot } from 'lucide-react';
 import type { AgentState, ExtensionToWebviewMessage } from '../shared/types';
 import { vscode } from '../shared/lib/vscode';
 import { ChatPage } from '../pages/chat/ChatPage';
+import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 
 export function App() {
   const [state, setState] = useState<AgentState | null>(null);
+  const [page, setPage] = useState<'chat' | 'permissions'>('chat');
 
   useEffect(() => {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
@@ -31,5 +33,9 @@ export function App() {
     );
   }
 
-  return <ChatPage state={state} />;
+  if (page === 'permissions') {
+    return <PermissionsPage tools={state.toolPermissions} onBack={() => setPage('chat')} />;
+  }
+
+  return <ChatPage state={state} onOpenPermissions={() => setPage('permissions')} />;
 }

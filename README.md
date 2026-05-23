@@ -10,7 +10,14 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 - The chat automatically includes the active file or selected code as context.
 - Messages render Markdown with GitHub-flavored Markdown support.
 - Every text message has a copy button that copies the original Markdown.
-- The composer has a model selector.
+- The composer has a searchable model selector loaded from the OpenRouter Models API.
+- File edits are previewed with VS Code's native diff editor before the tool writes changes.
+- Tool permissions can be managed in the webview:
+  - `ask` requires user confirmation before the tool runs.
+  - `auto` lets the tool run automatically.
+  - File-reading tools default to `auto`.
+  - Mutating tools default to `ask`.
+- Every tool call includes the model's short reason in chat history, even when the tool is allowed automatically.
 - The agent can call workspace filesystem tools:
   - `get_workspace_info`
   - `list_files`

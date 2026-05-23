@@ -1,10 +1,19 @@
 import * as vscode from 'vscode';
-import { DEFAULT_MODEL, OPENROUTER_URL } from '../shared/constants';
-import type { OpenRouterMessage, OpenRouterTool } from './types';
+import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
+import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool } from './types';
 
 type OpenRouterResponse = {
   choices?: Array<{
     message?: OpenRouterMessage;
+  }>;
+};
+
+type OpenRouterModelsResponse = {
+  data?: Array<{
+    id?: string;
+    name?: string;
+    context_length?: number;
+    supported_parameters?: string[];
   }>;
 };
 
@@ -49,5 +58,33 @@ export class OpenRouterClient {
     }
 
     return answer;
+  }
+
+  async listModels(): Promise<OpenRouterModelOption[]> {
+    const config = vscode.workspace.getConfiguration('openrouterAgent');
+    const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
+    const response = await fetch(`${OPENROUTER_MODELS_URL}?output_modalities=text`, {
+      method: 'GET',
+      headers: {
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`OpenRouter models request failed: ${response.status} ${response.statusText}\n${text}`);
+    }
+
+    const data = (await response.json()) as OpenRouterModelsResponse;
+    const models = (data.data || [])
+      .filter((model) => model.id)
+      .map((model) => ({
+        id: model.id!,
+        name: model.name || model.id!,
+        contextLength: model.context_length,
+        supportsTools: Boolean(model.supported_parameters?.includes('tools'))
+      }));
+
+    return models.sort((a, b) => a.name.localeCompare(b.name));
   }
 }

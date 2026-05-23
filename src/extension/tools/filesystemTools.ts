@@ -1,4 +1,5 @@
 import path from 'node:path';
+import os from 'node:os';
 import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 import type { OpenRouterTool } from '../openrouter/types';
@@ -15,7 +16,13 @@ export const filesystemTools: OpenRouterTool[] = [
       description: 'Get the current VS Code workspace folder and active editor metadata.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          reason: {
+            type: 'string',
+            description: 'A short explanation of why this tool call is needed.'
+          }
+        },
+        required: ['reason'],
         additionalProperties: false
       }
     }
@@ -28,10 +35,12 @@ export const filesystemTools: OpenRouterTool[] = [
       parameters: {
         type: 'object',
         properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
           path: { type: 'string', description: 'Workspace-relative directory path. Use "." for root.' },
           maxDepth: { type: 'number', description: 'Maximum recursive depth. Default is 2.' },
           limit: { type: 'number', description: 'Maximum number of entries. Default is 200.' }
         },
+        required: ['reason'],
         additionalProperties: false
       }
     }
@@ -44,10 +53,11 @@ export const filesystemTools: OpenRouterTool[] = [
       parameters: {
         type: 'object',
         properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
           path: { type: 'string', description: 'Workspace-relative file path.' },
           maxChars: { type: 'number', description: 'Maximum characters to return. Default is 20000.' }
         },
-        required: ['path'],
+        required: ['reason', 'path'],
         additionalProperties: false
       }
     }
@@ -60,10 +70,11 @@ export const filesystemTools: OpenRouterTool[] = [
       parameters: {
         type: 'object',
         properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
           path: { type: 'string', description: 'Workspace-relative file path.' },
           content: { type: 'string', description: 'Full file content to write.' }
         },
-        required: ['path', 'content'],
+        required: ['reason', 'path', 'content'],
         additionalProperties: false
       }
     }
@@ -76,12 +87,13 @@ export const filesystemTools: OpenRouterTool[] = [
       parameters: {
         type: 'object',
         properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
           path: { type: 'string', description: 'Workspace-relative file path.' },
           search: { type: 'string', description: 'Exact text to find.' },
           replace: { type: 'string', description: 'Replacement text.' },
           all: { type: 'boolean', description: 'Replace all matches instead of only the first.' }
         },
-        required: ['path', 'search', 'replace'],
+        required: ['reason', 'path', 'search', 'replace'],
         additionalProperties: false
       }
     }
@@ -94,9 +106,10 @@ export const filesystemTools: OpenRouterTool[] = [
       parameters: {
         type: 'object',
         properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
           path: { type: 'string', description: 'Workspace-relative directory path.' }
         },
-        required: ['path'],
+        required: ['reason', 'path'],
         additionalProperties: false
       }
     }
@@ -109,10 +122,11 @@ export const filesystemTools: OpenRouterTool[] = [
       parameters: {
         type: 'object',
         properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
           path: { type: 'string', description: 'Workspace-relative path.' },
           recursive: { type: 'boolean', description: 'Delete directories recursively.' }
         },
-        required: ['path'],
+        required: ['reason', 'path'],
         additionalProperties: false
       }
     }
@@ -138,6 +152,32 @@ export async function runFilesystemTool(toolName: string, args: Record<string, u
     default:
       throw new Error(`Unknown tool: ${toolName}`);
   }
+}
+
+export async function previewFilesystemTool(toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
+  if (toolName === 'write_file') {
+    const filePath = requireString(args.path, 'path');
+    const nextContent = requireString(args.content, 'content');
+    return showFileDiff(filePath, nextContent);
+  }
+
+  if (toolName === 'replace_in_file') {
+    const filePath = requireString(args.path, 'path');
+    const search = requireString(args.search, 'search');
+    const replace = requireString(args.replace, 'replace');
+    const replaceAll = Boolean(args.all);
+    const uri = resolveWorkspacePath(filePath);
+    const content = textDecoder.decode(await vscode.workspace.fs.readFile(uri));
+
+    if (!content.includes(search)) {
+      throw new Error(`Text was not found in ${filePath}.`);
+    }
+
+    const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
+    return showFileDiff(filePath, nextContent);
+  }
+
+  return undefined;
 }
 
 function getWorkspaceInfo(): Record<string, unknown> {
@@ -249,6 +289,56 @@ async function deletePath(args: Record<string, unknown>): Promise<Record<string,
     path: targetPath,
     recursive: Boolean(args.recursive)
   };
+}
+
+async function showFileDiff(filePath: string, nextContent: string): Promise<Record<string, unknown>> {
+  const targetUri = resolveWorkspacePath(filePath);
+  const currentContent = await readFileIfExists(targetUri);
+
+  if (currentContent === nextContent) {
+    return {
+      ok: true,
+      path: filePath,
+      diffShown: false,
+      reason: 'No file changes to preview.'
+    };
+  }
+
+  const tempRoot = vscode.Uri.file(path.join(os.tmpdir(), 'openrouter-ai-agent-diffs', Date.now().toString()));
+  await vscode.workspace.fs.createDirectory(tempRoot);
+
+  const originalUri = currentContent === undefined ? vscode.Uri.joinPath(tempRoot, `empty-${path.basename(filePath)}`) : targetUri;
+  const proposedUri = vscode.Uri.joinPath(tempRoot, `proposed-${path.basename(filePath) || 'file'}`);
+
+  if (currentContent === undefined) {
+    await vscode.workspace.fs.writeFile(originalUri, textEncoder.encode(''));
+  }
+  await vscode.workspace.fs.writeFile(proposedUri, textEncoder.encode(nextContent));
+
+  await vscode.commands.executeCommand(
+    'vscode.diff',
+    originalUri,
+    proposedUri,
+    `OpenRouter Agent Preview: ${filePath}`,
+    { preview: true }
+  );
+
+  return {
+    ok: true,
+    path: filePath,
+    diffShown: true
+  };
+}
+
+async function readFileIfExists(uri: vscode.Uri): Promise<string | undefined> {
+  try {
+    return textDecoder.decode(await vscode.workspace.fs.readFile(uri));
+  } catch (error) {
+    if (error instanceof vscode.FileSystemError) {
+      return undefined;
+    }
+    return undefined;
+  }
 }
 
 async function walkDirectory(

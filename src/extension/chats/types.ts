@@ -7,7 +7,8 @@ export type ChatMessage = {
   role: ChatMessageRole;
   content?: string;
   name?: string;
-  status?: 'running' | 'done' | 'error';
+  status?: 'waiting' | 'running' | 'done' | 'error' | 'denied';
+  reason?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
   createdAt: number;

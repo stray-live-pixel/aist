@@ -34,24 +34,25 @@ __export(extension_exports, {
   deactivate: () => deactivate
 });
 module.exports = __toCommonJS(extension_exports);
-var vscode9 = __toESM(require("vscode"));
+var vscode10 = __toESM(require("vscode"));
 
 // src/extension/agent/agentController.ts
-var vscode6 = __toESM(require("vscode"));
+var vscode7 = __toESM(require("vscode"));
 
 // src/extension/openrouter/client.ts
 var vscode = __toESM(require("vscode"));
 
 // src/extension/shared/constants.ts
 var OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+var OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
 var DEFAULT_MODEL = "openai/gpt-4o-mini";
-var MODEL_OPTIONS = [
-  "openai/gpt-4o-mini",
-  "openai/gpt-4o",
-  "anthropic/claude-3.5-sonnet",
-  "anthropic/claude-3.7-sonnet",
-  "google/gemini-2.0-flash-001",
-  "meta-llama/llama-3.3-70b-instruct"
+var FALLBACK_MODEL_OPTIONS = [
+  {
+    id: DEFAULT_MODEL,
+    name: "GPT-4o mini",
+    contextLength: void 0,
+    supportsTools: true
+  }
 ];
 
 // src/extension/openrouter/client.ts
@@ -91,6 +92,29 @@ ${text}`);
       throw new Error("OpenRouter returned an empty response.");
     }
     return answer;
+  }
+  async listModels() {
+    const config = vscode.workspace.getConfiguration("openrouterAgent");
+    const apiKey = config.get("apiKey") || process.env.OPENROUTER_API_KEY;
+    const response = await fetch(`${OPENROUTER_MODELS_URL}?output_modalities=text`, {
+      method: "GET",
+      headers: {
+        ...apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+      }
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`OpenRouter models request failed: ${response.status} ${response.statusText}
+${text}`);
+    }
+    const data = await response.json();
+    const models = (data.data || []).filter((model) => model.id).map((model) => ({
+      id: model.id,
+      name: model.name || model.id,
+      contextLength: model.context_length,
+      supportsTools: Boolean(model.supported_parameters?.includes("tools"))
+    }));
+    return models.sort((a, b) => a.name.localeCompare(b.name));
   }
 };
 
@@ -160,6 +184,7 @@ function resolveWorkspacePath(relativePath) {
 
 // src/extension/tools/filesystemTools.ts
 var import_node_path2 = __toESM(require("node:path"));
+var import_node_os = __toESM(require("node:os"));
 var import_node_util = require("node:util");
 var vscode4 = __toESM(require("vscode"));
 var textEncoder = new import_node_util.TextEncoder();
@@ -172,7 +197,13 @@ var filesystemTools = [
       description: "Get the current VS Code workspace folder and active editor metadata.",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          reason: {
+            type: "string",
+            description: "A short explanation of why this tool call is needed."
+          }
+        },
+        required: ["reason"],
         additionalProperties: false
       }
     }
@@ -185,10 +216,12 @@ var filesystemTools = [
       parameters: {
         type: "object",
         properties: {
+          reason: { type: "string", description: "A short explanation of why this tool call is needed." },
           path: { type: "string", description: 'Workspace-relative directory path. Use "." for root.' },
           maxDepth: { type: "number", description: "Maximum recursive depth. Default is 2." },
           limit: { type: "number", description: "Maximum number of entries. Default is 200." }
         },
+        required: ["reason"],
         additionalProperties: false
       }
     }
@@ -201,10 +234,11 @@ var filesystemTools = [
       parameters: {
         type: "object",
         properties: {
+          reason: { type: "string", description: "A short explanation of why this tool call is needed." },
           path: { type: "string", description: "Workspace-relative file path." },
           maxChars: { type: "number", description: "Maximum characters to return. Default is 20000." }
         },
-        required: ["path"],
+        required: ["reason", "path"],
         additionalProperties: false
       }
     }
@@ -217,10 +251,11 @@ var filesystemTools = [
       parameters: {
         type: "object",
         properties: {
+          reason: { type: "string", description: "A short explanation of why this tool call is needed." },
           path: { type: "string", description: "Workspace-relative file path." },
           content: { type: "string", description: "Full file content to write." }
         },
-        required: ["path", "content"],
+        required: ["reason", "path", "content"],
         additionalProperties: false
       }
     }
@@ -233,12 +268,13 @@ var filesystemTools = [
       parameters: {
         type: "object",
         properties: {
+          reason: { type: "string", description: "A short explanation of why this tool call is needed." },
           path: { type: "string", description: "Workspace-relative file path." },
           search: { type: "string", description: "Exact text to find." },
           replace: { type: "string", description: "Replacement text." },
           all: { type: "boolean", description: "Replace all matches instead of only the first." }
         },
-        required: ["path", "search", "replace"],
+        required: ["reason", "path", "search", "replace"],
         additionalProperties: false
       }
     }
@@ -251,9 +287,10 @@ var filesystemTools = [
       parameters: {
         type: "object",
         properties: {
+          reason: { type: "string", description: "A short explanation of why this tool call is needed." },
           path: { type: "string", description: "Workspace-relative directory path." }
         },
-        required: ["path"],
+        required: ["reason", "path"],
         additionalProperties: false
       }
     }
@@ -266,10 +303,11 @@ var filesystemTools = [
       parameters: {
         type: "object",
         properties: {
+          reason: { type: "string", description: "A short explanation of why this tool call is needed." },
           path: { type: "string", description: "Workspace-relative path." },
           recursive: { type: "boolean", description: "Delete directories recursively." }
         },
-        required: ["path"],
+        required: ["reason", "path"],
         additionalProperties: false
       }
     }
@@ -294,6 +332,27 @@ async function runFilesystemTool(toolName, args) {
     default:
       throw new Error(`Unknown tool: ${toolName}`);
   }
+}
+async function previewFilesystemTool(toolName, args) {
+  if (toolName === "write_file") {
+    const filePath = requireString(args.path, "path");
+    const nextContent = requireString(args.content, "content");
+    return showFileDiff(filePath, nextContent);
+  }
+  if (toolName === "replace_in_file") {
+    const filePath = requireString(args.path, "path");
+    const search = requireString(args.search, "search");
+    const replace = requireString(args.replace, "replace");
+    const replaceAll = Boolean(args.all);
+    const uri = resolveWorkspacePath(filePath);
+    const content = textDecoder.decode(await vscode4.workspace.fs.readFile(uri));
+    if (!content.includes(search)) {
+      throw new Error(`Text was not found in ${filePath}.`);
+    }
+    const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
+    return showFileDiff(filePath, nextContent);
+  }
+  return void 0;
 }
 function getWorkspaceInfo() {
   const folder = getWorkspaceFolder();
@@ -385,6 +444,48 @@ async function deletePath(args) {
     recursive: Boolean(args.recursive)
   };
 }
+async function showFileDiff(filePath, nextContent) {
+  const targetUri = resolveWorkspacePath(filePath);
+  const currentContent = await readFileIfExists(targetUri);
+  if (currentContent === nextContent) {
+    return {
+      ok: true,
+      path: filePath,
+      diffShown: false,
+      reason: "No file changes to preview."
+    };
+  }
+  const tempRoot = vscode4.Uri.file(import_node_path2.default.join(import_node_os.default.tmpdir(), "openrouter-ai-agent-diffs", Date.now().toString()));
+  await vscode4.workspace.fs.createDirectory(tempRoot);
+  const originalUri = currentContent === void 0 ? vscode4.Uri.joinPath(tempRoot, `empty-${import_node_path2.default.basename(filePath)}`) : targetUri;
+  const proposedUri = vscode4.Uri.joinPath(tempRoot, `proposed-${import_node_path2.default.basename(filePath) || "file"}`);
+  if (currentContent === void 0) {
+    await vscode4.workspace.fs.writeFile(originalUri, textEncoder.encode(""));
+  }
+  await vscode4.workspace.fs.writeFile(proposedUri, textEncoder.encode(nextContent));
+  await vscode4.commands.executeCommand(
+    "vscode.diff",
+    originalUri,
+    proposedUri,
+    `OpenRouter Agent Preview: ${filePath}`,
+    { preview: true }
+  );
+  return {
+    ok: true,
+    path: filePath,
+    diffShown: true
+  };
+}
+async function readFileIfExists(uri) {
+  try {
+    return textDecoder.decode(await vscode4.workspace.fs.readFile(uri));
+  } catch (error) {
+    if (error instanceof vscode4.FileSystemError) {
+      return void 0;
+    }
+    return void 0;
+  }
+}
 async function walkDirectory(uri, relativeBase, depth, maxDepth, limit, entries) {
   if (entries.length >= limit) {
     return;
@@ -426,14 +527,57 @@ function clampNumber(value, fallback, min, max) {
   return Math.min(max, Math.max(min, Math.floor(numeric)));
 }
 
-// src/extension/agent/editorContext.ts
+// src/extension/tools/permissions.ts
 var vscode5 = __toESM(require("vscode"));
+var DEFAULT_TOOL_PERMISSIONS = {
+  get_workspace_info: "auto",
+  list_files: "auto",
+  read_file: "auto",
+  write_file: "ask",
+  replace_in_file: "ask",
+  create_directory: "ask",
+  delete_path: "ask"
+};
+function getToolPermissions() {
+  const configured = vscode5.workspace.getConfiguration("openrouterAgent").get("toolPermissions") || {};
+  const permissions = {};
+  for (const tool of filesystemTools) {
+    const name = tool.function.name;
+    permissions[name] = normalizePermission(configured[name], DEFAULT_TOOL_PERMISSIONS[name] || "ask");
+  }
+  return permissions;
+}
+function getToolPermission(toolName) {
+  return getToolPermissions()[toolName] || DEFAULT_TOOL_PERMISSIONS[toolName] || "ask";
+}
+function getToolPermissionItems() {
+  const permissions = getToolPermissions();
+  return filesystemTools.map((tool) => ({
+    name: tool.function.name,
+    description: tool.function.description,
+    permission: permissions[tool.function.name] || "ask",
+    defaultPermission: DEFAULT_TOOL_PERMISSIONS[tool.function.name] || "ask"
+  }));
+}
+async function setToolPermission(toolName, permission) {
+  const nextPermissions = {
+    ...getToolPermissions(),
+    [toolName]: permission
+  };
+  await vscode5.workspace.getConfiguration("openrouterAgent").update("toolPermissions", nextPermissions, vscode5.ConfigurationTarget.Workspace);
+}
+function normalizePermission(value, fallback) {
+  return value === "auto" || value === "ask" ? value : fallback;
+}
+
+// src/extension/agent/editorContext.ts
+var vscode6 = __toESM(require("vscode"));
 function getEditorContext() {
-  const editor = vscode5.window.activeTextEditor;
+  const editor = vscode6.window.activeTextEditor;
   if (!editor) {
     return "";
   }
-  const config = vscode5.workspace.getConfiguration("openrouterAgent");
+  const config = vscode6.workspace.getConfiguration("openrouterAgent");
   const maxChars = config.get("maxContextChars") || 12e3;
   const document = editor.document;
   const selectionText = document.getText(editor.selection);
@@ -470,6 +614,7 @@ function getSystemPrompt() {
     "You are a coding agent inside VS Code.",
     "You can inspect and modify files using the provided filesystem tools.",
     "All tool paths must be workspace-relative.",
+    'Every tool call must include a short "reason" argument explaining why the tool is needed.',
     "Before editing, read the relevant files and preserve the existing project style.",
     "Keep final answers concise and mention changed files.",
     "Do not claim that a file was changed unless a tool call succeeded."
@@ -486,23 +631,26 @@ var AgentController = class {
   chats;
   panel;
   client = new OpenRouterClient();
+  modelOptions = [...FALLBACK_MODEL_OPTIONS];
+  modelsLoadedAt = 0;
+  modelLoadPromise;
   openChat(chatId) {
     if (chatId) {
       this.chats.setActiveChat(chatId);
     }
     if (this.panel) {
-      this.panel.reveal(vscode6.ViewColumn.Beside);
+      this.panel.reveal(vscode7.ViewColumn.Beside);
       this.sendState();
       return;
     }
-    this.panel = vscode6.window.createWebviewPanel(
+    this.panel = vscode7.window.createWebviewPanel(
       "openrouterAgentChat",
       "OpenRouter AI Agent",
-      vscode6.ViewColumn.Beside,
+      vscode7.ViewColumn.Beside,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode6.Uri.joinPath(this.context.extensionUri, "dist")]
+        localResourceRoots: [vscode7.Uri.joinPath(this.context.extensionUri, "dist")]
       }
     );
     this.panel.webview.html = getWebviewHtml(this.panel.webview, this.context.extensionUri);
@@ -513,19 +661,20 @@ var AgentController = class {
       void this.handleWebviewMessage(message);
     });
     this.sendState();
+    void this.refreshModels();
   }
   createChat() {
-    const configModel = vscode6.workspace.getConfiguration("openrouterAgent").get("model") || DEFAULT_MODEL;
+    const configModel = vscode7.workspace.getConfiguration("openrouterAgent").get("model") || DEFAULT_MODEL;
     this.chats.createChat(configModel);
     this.openChat();
   }
   async editSelection() {
-    const editor = vscode6.window.activeTextEditor;
+    const editor = vscode7.window.activeTextEditor;
     if (!editor) {
-      vscode6.window.showWarningMessage("Open a file first.");
+      vscode7.window.showWarningMessage("Open a file first.");
       return;
     }
-    const instruction = await vscode6.window.showInputBox({
+    const instruction = await vscode7.window.showInputBox({
       title: "OpenRouter Agent: Edit Selection",
       prompt: "Describe what should be generated or changed",
       placeHolder: "Example: refactor this function and add error handling"
@@ -533,9 +682,9 @@ var AgentController = class {
     if (!instruction) {
       return;
     }
-    await vscode6.window.withProgress(
+    await vscode7.window.withProgress(
       {
-        location: vscode6.ProgressLocation.Notification,
+        location: vscode7.ProgressLocation.Notification,
         title: "OpenRouter Agent is editing...",
         cancellable: false
       },
@@ -572,6 +721,7 @@ ${selectedText || "(empty selection at cursor)"}`
   async handleWebviewMessage(message) {
     if (message.type === "webviewReady") {
       this.sendState();
+      void this.refreshModels();
     }
     if (message.type === "ask") {
       await this.ask(message.prompt);
@@ -582,7 +732,11 @@ ${selectedText || "(empty selection at cursor)"}`
     if (message.type === "setModel") {
       const chat = this.chats.getActiveChat();
       this.chats.setModel(chat.id, message.model);
-      await vscode6.workspace.getConfiguration("openrouterAgent").update("model", message.model, vscode6.ConfigurationTarget.Workspace);
+      await vscode7.workspace.getConfiguration("openrouterAgent").update("model", message.model, vscode7.ConfigurationTarget.Workspace);
+      this.sendState();
+    }
+    if (message.type === "setToolPermission") {
+      await setToolPermission(message.toolName, message.permission);
       this.sendState();
     }
     if (message.type === "clear") {
@@ -591,14 +745,14 @@ ${selectedText || "(empty selection at cursor)"}`
       this.sendState();
     }
     if (message.type === "copyMessage") {
-      await vscode6.env.clipboard.writeText(message.markdown || "");
-      vscode6.window.setStatusBarMessage("Copied message markdown", 1800);
+      await vscode7.env.clipboard.writeText(message.markdown || "");
+      vscode7.window.setStatusBarMessage("Copied message markdown", 1800);
     }
     if (message.type === "insertLastAnswer") {
       const chat = this.chats.getActiveChat();
-      const editor = vscode6.window.activeTextEditor;
+      const editor = vscode7.window.activeTextEditor;
       if (!editor) {
-        vscode6.window.showWarningMessage("Open a file first.");
+        vscode7.window.showWarningMessage("Open a file first.");
         return;
       }
       await replaceSelection(editor, stripCodeFence(chat.lastAnswer));
@@ -635,7 +789,7 @@ ${editorContext}` : ""].join("");
     }
   }
   async runAgentLoop(chat) {
-    const config = vscode6.workspace.getConfiguration("openrouterAgent");
+    const config = vscode7.workspace.getConfiguration("openrouterAgent");
     const maxIterations = config.get("maxToolIterations") || 6;
     const workingMessages = [
       { role: "system", content: getSystemPrompt() },
@@ -659,21 +813,65 @@ ${editorContext}` : ""].join("");
     return "Stopped because the agent reached the tool iteration limit.";
   }
   async handleToolCall(chat, workingMessages, toolCall) {
-    const toolName = toolCall.function?.name;
-    const args = parseToolArguments(toolCall.function?.arguments);
+    const toolName = toolCall.function.name;
+    const args = parseToolArguments(toolCall.function.arguments);
+    const reason = getToolReason(args);
     this.chats.appendMessage(chat.id, {
       role: "tool",
       name: toolName,
-      status: "running",
+      status: "waiting",
+      reason,
       args
     });
     this.sendState();
     try {
+      const permission = getToolPermission(toolName);
+      if (permission === "ask") {
+        const allowed = await this.askToolPermission(toolName, args, reason);
+        if (!allowed) {
+          const result2 = { ok: false, error: "The user denied this tool call." };
+          this.chats.appendMessage(chat.id, {
+            role: "tool",
+            name: toolName,
+            status: "denied",
+            reason,
+            args,
+            result: result2
+          });
+          workingMessages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(result2)
+          });
+          return;
+        }
+      }
+      const preview = await previewFilesystemTool(toolName, args);
+      if (preview) {
+        this.chats.appendMessage(chat.id, {
+          role: "tool",
+          name: toolName,
+          status: "done",
+          reason: `Diff preview: ${reason}`,
+          args,
+          result: preview
+        });
+        this.sendState();
+      }
+      this.chats.appendMessage(chat.id, {
+        role: "tool",
+        name: toolName,
+        status: "running",
+        reason,
+        args
+      });
+      this.sendState();
       const result = await runFilesystemTool(toolName, args);
       this.chats.appendMessage(chat.id, {
         role: "tool",
         name: toolName,
         status: result.ok === false ? "error" : "done",
+        reason,
         args,
         result
       });
@@ -688,6 +886,7 @@ ${editorContext}` : ""].join("");
         role: "tool",
         name: toolName,
         status: "error",
+        reason,
         args,
         result
       });
@@ -699,13 +898,25 @@ ${editorContext}` : ""].join("");
     }
     this.sendState();
   }
+  async askToolPermission(toolName, args, reason) {
+    const answer = await vscode7.window.showWarningMessage(
+      `Allow OpenRouter Agent to run ${toolName}?`,
+      {
+        modal: true,
+        detail: [`Reason: ${reason}`, "", `Arguments: ${JSON.stringify(redactLargeArgs(args), null, 2)}`].join("\n")
+      },
+      "Allow once",
+      "Deny"
+    );
+    return answer === "Allow once";
+  }
   sendState() {
     if (!this.panel) {
       return;
     }
     const activeChat = this.chats.getActiveChat();
-    const configuredModel = vscode6.workspace.getConfiguration("openrouterAgent").get("model") || DEFAULT_MODEL;
-    const models = [.../* @__PURE__ */ new Set([...MODEL_OPTIONS, configuredModel, activeChat.model])];
+    const configuredModel = vscode7.workspace.getConfiguration("openrouterAgent").get("model") || DEFAULT_MODEL;
+    const models = mergeModels(this.modelOptions, configuredModel, activeChat.model);
     const { history: _history, ...webviewChat } = activeChat;
     this.panel.webview.postMessage({
       type: "state",
@@ -713,8 +924,27 @@ ${editorContext}` : ""].join("");
       tools: filesystemTools.map((tool) => tool.function.name),
       chats: this.chats.getSummaries(),
       activeChat: webviewChat,
-      models
+      models,
+      toolPermissions: getToolPermissionItems()
     });
+  }
+  async refreshModels() {
+    const now = Date.now();
+    if (this.modelLoadPromise || now - this.modelsLoadedAt < 5 * 60 * 1e3) {
+      return this.modelLoadPromise || Promise.resolve();
+    }
+    this.modelLoadPromise = this.client.listModels().then((models) => {
+      if (models.length) {
+        this.modelOptions = models;
+        this.modelsLoadedAt = Date.now();
+        this.sendState();
+      }
+    }).catch((error) => {
+      vscode7.window.setStatusBarMessage(`OpenRouter model list unavailable: ${getErrorMessage(error)}`, 4e3);
+    }).finally(() => {
+      this.modelLoadPromise = void 0;
+    });
+    return this.modelLoadPromise;
   }
 };
 function parseToolArguments(rawArgs) {
@@ -731,14 +961,45 @@ function parseToolArguments(rawArgs) {
     return {};
   }
 }
+function getToolReason(args) {
+  const reason = args.reason;
+  return typeof reason === "string" && reason.trim() ? reason.trim() : "No reason provided by the model.";
+}
+function redactLargeArgs(args) {
+  const result = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value === "string" && value.length > 600) {
+      result[key] = `${value.slice(0, 600)}... <truncated>`;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+function mergeModels(models, ...selectedModels) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const model of models) {
+    byId.set(model.id, model);
+  }
+  for (const modelId of selectedModels) {
+    if (!byId.has(modelId)) {
+      byId.set(modelId, {
+        id: modelId,
+        name: modelId,
+        supportsTools: true
+      });
+    }
+  }
+  return [...byId.values()];
+}
 
 // src/extension/chats/chatStore.ts
 var import_node_crypto = require("node:crypto");
-var vscode7 = __toESM(require("vscode"));
+var vscode8 = __toESM(require("vscode"));
 var ChatStore = class {
   chats = /* @__PURE__ */ new Map();
   activeChatId;
-  changedEmitter = new vscode7.EventEmitter();
+  changedEmitter = new vscode8.EventEmitter();
   onDidChange = this.changedEmitter.event;
   constructor(defaultModel = DEFAULT_MODEL) {
     this.createChat(defaultModel);
@@ -841,25 +1102,25 @@ var ChatStore = class {
 };
 
 // src/extension/chats/chatTreeProvider.ts
-var vscode8 = __toESM(require("vscode"));
+var vscode9 = __toESM(require("vscode"));
 var ChatTreeProvider = class {
   constructor(store) {
     this.store = store;
     this.store.onDidChange(() => this.refresh());
   }
   store;
-  changedEmitter = new vscode8.EventEmitter();
+  changedEmitter = new vscode9.EventEmitter();
   onDidChangeTreeData = this.changedEmitter.event;
   refresh() {
     this.changedEmitter.fire();
   }
   getTreeItem(chat) {
-    const item = new vscode8.TreeItem(chat.title, vscode8.TreeItemCollapsibleState.None);
+    const item = new vscode9.TreeItem(chat.title, vscode9.TreeItemCollapsibleState.None);
     item.id = chat.id;
     item.description = chat.busy ? "running" : chat.model;
     item.tooltip = `${chat.title}
 ${chat.model}`;
-    item.iconPath = new vscode8.ThemeIcon(chat.busy ? "sync~spin" : "comment-discussion");
+    item.iconPath = new vscode9.ThemeIcon(chat.busy ? "sync~spin" : "comment-discussion");
     item.command = {
       command: "openrouterAgent.openChat",
       title: "Open Chat",
@@ -874,15 +1135,15 @@ ${chat.model}`;
 
 // src/extension.ts
 function activate(context) {
-  const configModel = vscode9.workspace.getConfiguration("openrouterAgent").get("model") || DEFAULT_MODEL;
+  const configModel = vscode10.workspace.getConfiguration("openrouterAgent").get("model") || DEFAULT_MODEL;
   const chats = new ChatStore(configModel);
   const agent = new AgentController(context, chats);
   const chatTreeProvider = new ChatTreeProvider(chats);
   context.subscriptions.push(
-    vscode9.window.registerTreeDataProvider("openrouterAgent.chats", chatTreeProvider),
-    vscode9.commands.registerCommand("openrouterAgent.openChat", (chatId) => agent.openChat(chatId)),
-    vscode9.commands.registerCommand("openrouterAgent.newChat", () => agent.createChat()),
-    vscode9.commands.registerCommand("openrouterAgent.editSelection", () => agent.editSelection())
+    vscode10.window.registerTreeDataProvider("openrouterAgent.chats", chatTreeProvider),
+    vscode10.commands.registerCommand("openrouterAgent.openChat", (chatId) => agent.openChat(chatId)),
+    vscode10.commands.registerCommand("openrouterAgent.newChat", () => agent.createChat()),
+    vscode10.commands.registerCommand("openrouterAgent.editSelection", () => agent.editSelection())
   );
 }
 function deactivate() {

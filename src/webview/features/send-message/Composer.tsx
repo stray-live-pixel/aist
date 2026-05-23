@@ -1,17 +1,19 @@
-import { ClipboardPaste, Loader2, Plus, Send, Trash2, Wrench } from 'lucide-react';
+import { ClipboardPaste, Loader2, Plus, Send, Settings, Trash2, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { ModelSelect } from '../select-model/ModelSelect';
 import { vscode } from '../../shared/lib/vscode';
+import type { ModelOption } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
 
 type ComposerProps = {
   busy: boolean;
   model: string;
-  models: string[];
+  models: ModelOption[];
   toolsCount: number;
+  onOpenPermissions(): void;
 };
 
-export function Composer({ busy, model, models, toolsCount }: ComposerProps) {
+export function Composer({ busy, model, models, toolsCount, onOpenPermissions }: ComposerProps) {
   const [prompt, setPrompt] = useState('');
   const canSend = Boolean(prompt.trim()) && !busy;
 
@@ -50,6 +52,9 @@ export function Composer({ busy, model, models, toolsCount }: ComposerProps) {
           <div className="flex items-center gap-2">
             <IconButton title="New chat" disabled={busy} onClick={() => vscode.postMessage({ type: 'newChat' })}>
               <Plus size={15} />
+            </IconButton>
+            <IconButton title="Tool permissions" onClick={onOpenPermissions}>
+              <Settings size={15} />
             </IconButton>
             <IconButton title="Insert last answer" onClick={() => vscode.postMessage({ type: 'insertLastAnswer' })}>
               <ClipboardPaste size={15} />
