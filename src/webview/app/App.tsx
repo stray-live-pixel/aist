@@ -38,6 +38,9 @@ export function App() {
       <PermissionsPage
         tools={state.toolPermissions}
         maxToolIterations={state.maxToolIterations}
+        agentLanguage={state.agentLanguage}
+        agentMode={state.agentMode}
+        agentModes={state.agentModes}
         onBack={() => setPage('chat')}
       />
     );

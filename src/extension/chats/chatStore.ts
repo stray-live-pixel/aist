@@ -10,19 +10,71 @@ export class ChatStore {
 
   readonly onDidChange = this.changedEmitter.event;
 
-  constructor(defaultModel: string = DEFAULT_MODEL) {
-    this.createChat(defaultModel);
+  constructor(
+    private readonly storage: vscode.Memento,
+    defaultModel: string = DEFAULT_MODEL
+  ) {
+    this.loadFromStorage(defaultModel);
+  }
+
+  private loadFromStorage(defaultModel: string): void {
+    try {
+      const savedChats = this.storage.get<[string, Chat][]>('chats');
+      const savedActiveChatId = this.storage.get<string>('activeChatId');
+
+      if (savedChats && savedChats.length > 0) {
+        for (const [id, chat] of savedChats) {
+          // Reset transient runtime states
+          chat.busy = false;
+          chat.activity = undefined;
+
+          // Reset any stuck tool calls to error state
+          if (chat.messages) {
+            for (const msg of chat.messages) {
+              if (msg.role === 'tool' && (msg.status === 'waiting' || msg.status === 'running')) {
+                msg.status = 'error';
+                msg.result = { ok: false, error: 'Extension was restarted.' };
+              }
+            }
+          }
+
+          this.chats.set(id, chat);
+        }
+
+        if (savedActiveChatId && this.chats.has(savedActiveChatId)) {
+          this.activeChatId = savedActiveChatId;
+        } else {
+          this.activeChatId = savedChats[0][0];
+        }
+      } else {
+        this.createChat(defaultModel);
+      }
+    } catch (error) {
+      this.chats.clear();
+      this.createChat(defaultModel);
+    }
+  }
+
+  private saveToStorage(): void {
+    try {
+      const entries = Array.from(this.chats.entries());
+      void this.storage.update('chats', entries);
+      void this.storage.update('activeChatId', this.activeChatId);
+    } catch (error) {
+      console.error('Failed to save chats to storage:', error);
+    }
   }
 
   createChat(model: string = DEFAULT_MODEL): Chat {
     const now = Date.now();
     const chat: Chat = {
       id: randomUUID(),
-      title: 'New chat',
+      title: this.getDefaultChatTitle(),
       model,
       messages: [],
       history: [],
       lastAnswer: '',
+      activity: undefined,
       busy: false,
       createdAt: now,
       updatedAt: now
@@ -30,9 +82,76 @@ export class ChatStore {
 
     this.chats.set(chat.id, chat);
     this.activeChatId = chat.id;
+    this.saveToStorage();
     this.changedEmitter.fire();
 
     return chat;
+  }
+
+  duplicateChat(chatId: string): Chat {
+    const source = this.requireChat(chatId);
+    const now = Date.now();
+    const chat: Chat = {
+      id: randomUUID(),
+      title: this.getDuplicateTitle(source.title),
+      model: source.model,
+      messages: source.messages.map((message) => cloneMessage(message)),
+      history: clonePlain(source.history),
+      lastAnswer: source.lastAnswer,
+      activity: undefined,
+      busy: false,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    this.chats.set(chat.id, chat);
+    this.activeChatId = chat.id;
+    this.saveToStorage();
+    this.changedEmitter.fire();
+
+    return chat;
+  }
+
+  deleteChat(chatId: string, fallbackModel: string = DEFAULT_MODEL): Chat {
+    const chat = this.requireChat(chatId);
+    if (chat.busy) {
+      throw new Error('Cannot delete a chat while it is running.');
+    }
+
+    this.chats.delete(chatId);
+
+    if (!this.chats.size) {
+      return this.createChat(fallbackModel);
+    }
+
+    if (this.activeChatId === chatId || !this.activeChatId || !this.chats.has(this.activeChatId)) {
+      this.activeChatId = this.getSortedChats()[0].id;
+    }
+
+    const activeChat = this.getActiveChat();
+    this.saveToStorage();
+    this.changedEmitter.fire();
+
+    return activeChat;
+  }
+
+  private getDefaultChatTitle(): string {
+    const index = this.chats.size + 1;
+    return index === 1 ? 'New chat' : `New chat ${index}`;
+  }
+
+  private getDuplicateTitle(title: string): string {
+    const baseTitle = `${title} copy`;
+    if (![...this.chats.values()].some((chat) => chat.title === baseTitle)) {
+      return baseTitle;
+    }
+
+    let index = 2;
+    while ([...this.chats.values()].some((chat) => chat.title === `${baseTitle} ${index}`)) {
+      index += 1;
+    }
+
+    return `${baseTitle} ${index}`;
   }
 
   getActiveChat(): Chat {
@@ -54,19 +173,20 @@ export class ChatStore {
     }
 
     this.activeChatId = chatId;
+    this.saveToStorage();
     this.touch(chat);
     return chat;
   }
 
   getSummaries(): ChatSummary[] {
-    return [...this.chats.values()]
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+    return this.getSortedChats()
       .map((chat) => ({
         id: chat.id,
         title: chat.title,
         model: chat.model,
         messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
         busy: chat.busy,
+        lastMessageAt: getLastMessageAt(chat),
         updatedAt: chat.updatedAt
       }));
   }
@@ -107,6 +227,7 @@ export class ChatStore {
     chat.messages = [];
     chat.history = [];
     chat.lastAnswer = '';
+    chat.activity = undefined;
     chat.busy = false;
     chat.title = 'New chat';
     this.touch(chat);
@@ -130,6 +251,12 @@ export class ChatStore {
     this.touch(chat);
   }
 
+  setActivity(chatId: string, activity: Chat['activity']): void {
+    const chat = this.requireChat(chatId);
+    chat.activity = activity;
+    this.touch(chat);
+  }
+
   private requireChat(chatId: string): Chat {
     const chat = this.chats.get(chatId);
     if (!chat) {
@@ -139,8 +266,37 @@ export class ChatStore {
     return chat;
   }
 
+  private getSortedChats(): Chat[] {
+    return [...this.chats.values()].sort((a, b) => {
+      const byLastMessage = getLastMessageAt(b) - getLastMessageAt(a);
+      return byLastMessage || b.createdAt - a.createdAt;
+    });
+  }
+
   private touch(chat: Chat): void {
     chat.updatedAt = Date.now();
+    this.saveToStorage();
     this.changedEmitter.fire();
   }
+}
+
+function getLastMessageAt(chat: Chat): number {
+  return chat.messages.at(-1)?.createdAt || chat.createdAt;
+}
+
+function cloneMessage(message: ChatMessage): ChatMessage {
+  const cloned = clonePlain(message);
+  cloned.id = randomUUID();
+
+  if (cloned.role === 'tool' && (cloned.status === 'waiting' || cloned.status === 'running')) {
+    cloned.status = 'error';
+    cloned.approval = cloned.approval === 'pending' ? 'denied' : cloned.approval;
+    cloned.result = { ok: false, error: 'Chat was duplicated before this tool call finished.' };
+  }
+
+  return cloned;
+}
+
+function clonePlain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

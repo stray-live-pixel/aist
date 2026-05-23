@@ -3,6 +3,7 @@ export type OpenRouterRole = 'system' | 'user' | 'assistant' | 'tool';
 export type OpenRouterMessage = {
   role: OpenRouterRole;
   content?: string;
+  reasoning?: string;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
 };

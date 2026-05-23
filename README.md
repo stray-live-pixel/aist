@@ -12,6 +12,12 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 - Every text message has a copy button that copies the original Markdown.
 - The composer has a searchable model selector loaded from the OpenRouter Models API.
 - File edits are previewed with VS Code's native diff editor before the tool writes changes.
+- Mutating tool approvals are shown inline in chat, while the diff preview stays open in parallel.
+- Running requests can be stopped from the composer.
+- The composer shows the current agent activity and supports OpenRouter reasoning effort selection.
+- Chat opens in the Activity Bar webview by default, with a chat dropdown, duplication/deletion actions, and an action to open the current chat in editor tabs.
+- Agent language defaults to Russian and controls final answers plus tool-call explanations.
+- Agent modes provide editable working instructions that are shown above the chat.
 - Agent settings can be managed in the webview:
   - Tool iteration limit defaults to `0`, which means no limit.
   - `ask` requires user confirmation before the tool runs.
@@ -80,6 +86,18 @@ npm run build
 ```
 
 The extension host entrypoint is `src/extension.ts`.
+
+### Diagnostics
+
+Use the command `aist: Show Logs` to open the `aist` output channel. For sidebar issues, check that the log contains:
+
+- `Activating extension`
+- `Registering WebviewViewProvider`
+- `resolveWebviewView called`
+- `webviewReady received`
+- `State posted to webview`
+
+If VS Code shows `There is no data provider registered that can provide view data` and `resolveWebviewView called` is missing, reload the Extension Development Host so VS Code reads the latest `package.json` view contribution.
 
 The webview follows a lightweight FSD layout:
 

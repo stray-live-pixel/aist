@@ -8,6 +8,7 @@ export type ChatMessage = {
   content?: string;
   name?: string;
   status?: 'waiting' | 'running' | 'done' | 'error' | 'denied';
+  approval?: 'pending' | 'approved' | 'denied';
   reason?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
@@ -21,6 +22,7 @@ export type Chat = {
   messages: ChatMessage[];
   history: OpenRouterMessage[];
   lastAnswer: string;
+  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
   busy: boolean;
   createdAt: number;
   updatedAt: number;
@@ -32,5 +34,6 @@ export type ChatSummary = {
   model: string;
   messageCount: number;
   busy: boolean;
+  lastMessageAt: number;
   updatedAt: number;
 };

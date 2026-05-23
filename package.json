@@ -13,6 +13,7 @@
   "activationEvents": [
     "onCommand:openrouterAgent.openChat",
     "onCommand:openrouterAgent.newChat",
+    "onCommand:openrouterAgent.showLogs",
     "onCommand:openrouterAgent.editSelection",
     "onView:openrouterAgent.chats"
   ],
@@ -30,6 +31,7 @@
     "views": {
       "openrouterAgent": [
         {
+          "type": "webview",
           "id": "openrouterAgent.chats",
           "name": "Chats"
         }
@@ -46,14 +48,28 @@
         "icon": "$(add)"
       },
       {
+        "command": "openrouterAgent.openChatInEditor",
+        "title": "aist: Open Chat in Editor",
+        "icon": "$(split-horizontal)"
+      },
+      {
         "command": "openrouterAgent.editSelection",
         "title": "aist: Edit Selection"
+      },
+      {
+        "command": "openrouterAgent.showLogs",
+        "title": "aist: Show Logs"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "openrouterAgent.newChat",
+          "when": "view == openrouterAgent.chats",
+          "group": "navigation"
+        },
+        {
+          "command": "openrouterAgent.openChatInEditor",
           "when": "view == openrouterAgent.chats",
           "group": "navigation"
         }
@@ -93,6 +109,44 @@
           "default": 0,
           "minimum": 0,
           "description": "Maximum number of model/tool-call turns per request. Use 0 for no limit."
+        },
+        "openrouterAgent.reasoningEffort": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "auto",
+          "description": "Reasoning effort sent to OpenRouter. Auto does not send a reasoning parameter."
+        },
+        "openrouterAgent.language": {
+          "type": "string",
+          "enum": [
+            "ru",
+            "en"
+          ],
+          "enumDescriptions": [
+            "Русский",
+            "English"
+          ],
+          "default": "ru",
+          "description": "Language for agent answers and tool-call explanations."
+        },
+        "openrouterAgent.agentMode": {
+          "type": "string",
+          "enum": [
+            "default",
+            "careful"
+          ],
+          "default": "default",
+          "description": "Active agent working mode."
+        },
+        "openrouterAgent.agentModeInstructions": {
+          "type": "object",
+          "default": {},
+          "description": "Custom instructions per agent mode."
         },
         "openrouterAgent.toolPermissions": {
           "type": "object",

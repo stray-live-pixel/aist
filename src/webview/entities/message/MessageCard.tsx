@@ -1,7 +1,8 @@
-import { Bot, Loader2, User, Wrench } from 'lucide-react';
+import { Bot, Check, Loader2, User, Wrench, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { vscode } from '../../shared/lib/vscode';
 import type { ChatMessage } from '../../shared/types';
 import { getToolLabel, ToolIcon } from '../../shared/ui/ToolIcon';
 
@@ -59,6 +60,7 @@ export function MessageCard({ message, actions }: MessageCardProps) {
 function ToolMessage({ message }: MessageCardProps) {
   const isError = message.status === 'error';
   const isRunning = message.status === 'running' || message.status === 'waiting';
+  const needsApproval = message.approval === 'pending';
 
   return (
     <article className={`message-card ${isError ? 'border-[var(--vscode-errorForeground)]' : ''}`}>
@@ -68,10 +70,28 @@ function ToolMessage({ message }: MessageCardProps) {
           <span className="truncate">{getToolLabel(message.name)}</span>
         </div>
         <span className={`shrink-0 rounded border px-2 py-0.5 text-xs ${getToolStatusClass(message.status)}`}>
-          {formatToolStatus(message.status)}
+          {formatToolStatus(message)}
         </span>
       </div>
       {message.reason ? <p className="mb-2 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">{message.reason}</p> : null}
+      {needsApproval ? (
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <button
+            className="primary-button h-8 min-w-0"
+            onClick={() => vscode.postMessage({ type: 'resolveToolCall', messageId: message.id, approved: true })}
+          >
+            <Check size={14} />
+            <span>Allow</span>
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() => vscode.postMessage({ type: 'resolveToolCall', messageId: message.id, approved: false })}
+          >
+            <X size={14} />
+            <span>Deny</span>
+          </button>
+        </div>
+      ) : null}
       <details className="text-xs">
         <summary className="cursor-pointer text-[var(--vscode-textLink-foreground)]">Details</summary>
         <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--agent-border)] bg-[var(--vscode-editor-background)] p-2 font-[var(--vscode-editor-font-family)]">
@@ -82,8 +102,12 @@ function ToolMessage({ message }: MessageCardProps) {
   );
 }
 
-function formatToolStatus(status: ChatMessage['status']): string {
-  switch (status) {
+function formatToolStatus(message: ChatMessage): string {
+  if (message.approval === 'pending') {
+    return 'Approval needed';
+  }
+
+  switch (message.status) {
     case 'waiting':
       return 'Waiting';
     case 'running':

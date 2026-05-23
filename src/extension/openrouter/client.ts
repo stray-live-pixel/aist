@@ -17,13 +17,21 @@ type OpenRouterModelsResponse = {
   }>;
 };
 
+export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+
 export class OpenRouterClient {
-  async chat(messages: OpenRouterMessage[], tools?: OpenRouterTool[], modelOverride?: string): Promise<OpenRouterMessage> {
+  async chat(
+    messages: OpenRouterMessage[],
+    tools?: OpenRouterTool[],
+    modelOverride?: string,
+    signal?: AbortSignal
+  ): Promise<OpenRouterMessage> {
     const config = vscode.workspace.getConfiguration('openrouterAgent');
     const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
     const model = modelOverride || config.get<string>('model') || DEFAULT_MODEL;
     const siteUrl = config.get<string>('siteUrl') || '';
     const siteName = config.get<string>('siteName') || 'aist';
+    const reasoningEffort = normalizeReasoningEffort(config.get<string>('reasoningEffort'));
 
     if (!apiKey) {
       throw new Error('Set openrouterAgent.apiKey in VS Code settings or OPENROUTER_API_KEY in your environment.');
@@ -31,6 +39,7 @@ export class OpenRouterClient {
 
     const response = await fetch(OPENROUTER_URL, {
       method: 'POST',
+      signal,
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -41,6 +50,7 @@ export class OpenRouterClient {
         model,
         messages,
         ...(tools ? { tools, tool_choice: 'auto' } : {}),
+        ...(reasoningEffort === 'auto' ? {} : { reasoning: { effort: reasoningEffort } }),
         temperature: 0.2
       })
     });
@@ -87,4 +97,8 @@ export class OpenRouterClient {
 
     return models.sort((a, b) => a.name.localeCompare(b.name));
   }
+}
+
+function normalizeReasoningEffort(value: unknown): ReasoningEffort {
+  return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
 }
