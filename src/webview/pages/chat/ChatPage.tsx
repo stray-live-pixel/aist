@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy, ExternalLink, MessageSquare, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, ExternalLink, MessageSquare, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Composer } from '../../features/send-message/Composer';
 import { vscode } from '../../shared/lib/vscode';
@@ -8,10 +8,9 @@ import { MessageList } from '../../widgets/message-list/MessageList';
 
 type ChatPageProps = {
   state: AgentState;
-  onOpenPermissions(): void;
 };
 
-export function ChatPage({ state, onOpenPermissions }: ChatPageProps) {
+export function ChatPage({ state }: ChatPageProps) {
   const activeMode = state.agentModes.find((mode) => mode.id === state.agentMode);
   const chatSelectRef = useRef<HTMLDivElement>(null);
   const [chatSelectOpen, setChatSelectOpen] = useState(false);
@@ -174,9 +173,6 @@ export function ChatPage({ state, onOpenPermissions }: ChatPageProps) {
               </div>
             ) : null}
           </div>
-          <IconButton title="New chat" onClick={() => vscode.postMessage({ type: 'newChat' })}>
-            <Plus size={15} />
-          </IconButton>
           <IconButton
             title="Open this chat in editor"
             onClick={() => vscode.postMessage({ type: 'openChatInEditor', chatId: state.activeChat.id })}
@@ -199,7 +195,6 @@ export function ChatPage({ state, onOpenPermissions }: ChatPageProps) {
         activity={state.activeChat.activity}
         reasoningEffort={state.reasoningEffort}
         toolsCount={state.tools.length}
-        onOpenPermissions={onOpenPermissions}
       />
     </div>
   );

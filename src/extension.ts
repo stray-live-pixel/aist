@@ -27,6 +27,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerWebviewViewProvider('openrouterAgent.chats', agent),
     vscode.commands.registerCommand('openrouterAgent.openChat', (chatId?: string) => agent.openChat(chatId)),
     vscode.commands.registerCommand('openrouterAgent.openChatInEditor', (chatId?: string) => agent.openChatInEditor(chatId)),
+    vscode.commands.registerCommand('openrouterAgent.openSettings', () => agent.openSettings()),
+    vscode.commands.registerCommand('openrouterAgent.openStorage', () => agent.openStorage()),
     vscode.commands.registerCommand('openrouterAgent.newChat', () => agent.createChat()),
     vscode.commands.registerCommand('openrouterAgent.editSelection', () => agent.editSelection()),
     vscode.commands.registerCommand('openrouterAgent.showLogs', () => logger.show())

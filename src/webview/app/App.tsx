@@ -13,6 +13,8 @@ export function App() {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
       if (event.data.type === 'state') {
         setState(event.data);
+      } else if (event.data.type === 'page') {
+        setPage(event.data.page);
       }
     };
 
@@ -46,5 +48,5 @@ export function App() {
     );
   }
 
-  return <ChatPage state={state} onOpenPermissions={() => setPage('settings')} />;
+  return <ChatPage state={state} />;
 }

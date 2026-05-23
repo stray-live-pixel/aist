@@ -13,6 +13,8 @@
   "activationEvents": [
     "onCommand:openrouterAgent.openChat",
     "onCommand:openrouterAgent.newChat",
+    "onCommand:openrouterAgent.openSettings",
+    "onCommand:openrouterAgent.openStorage",
     "onCommand:openrouterAgent.showLogs",
     "onCommand:openrouterAgent.editSelection",
     "onView:openrouterAgent.chats"
@@ -53,6 +55,16 @@
         "icon": "$(split-horizontal)"
       },
       {
+        "command": "openrouterAgent.openSettings",
+        "title": "aist: Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "openrouterAgent.openStorage",
+        "title": "aist: Open Extension Storage",
+        "icon": "$(folder-opened)"
+      },
+      {
         "command": "openrouterAgent.editSelection",
         "title": "aist: Edit Selection"
       },
@@ -66,12 +78,17 @@
         {
           "command": "openrouterAgent.newChat",
           "when": "view == openrouterAgent.chats",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
-          "command": "openrouterAgent.openChatInEditor",
+          "command": "openrouterAgent.openSettings",
           "when": "view == openrouterAgent.chats",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "openrouterAgent.openStorage",
+          "when": "view == openrouterAgent.chats",
+          "group": "navigation@3"
         }
       ]
     },

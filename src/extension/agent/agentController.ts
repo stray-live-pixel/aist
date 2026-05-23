@@ -50,8 +50,7 @@ type WebviewMessage =
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
   | { type: 'stop' }
   | { type: 'clear' }
-  | { type: 'copyMessage'; markdown: string }
-  | { type: 'insertLastAnswer' };
+  | { type: 'copyMessage'; markdown: string };
 
 type WebviewSurface = {
   id: string;
@@ -64,6 +63,7 @@ type WebviewSurface = {
 export class AgentController {
   private sidebarView: vscode.WebviewView | undefined;
   private sidebarChatId: string | undefined;
+  private sidebarPage: 'chat' | 'settings' = 'chat';
   private readonly editorSurfaces = new Map<string, WebviewSurface>();
   private readonly client = new OpenRouterClient();
   private modelOptions: OpenRouterModelOption[] = [...FALLBACK_MODEL_OPTIONS];
@@ -84,6 +84,7 @@ export class AgentController {
 
   openChat(chatId?: string): void {
     this.logger.info('openChat command received', { chatId: chatId || null });
+    this.sidebarPage = 'chat';
 
     if (chatId) {
       this.sidebarChatId = chatId;
@@ -92,6 +93,22 @@ export class AgentController {
 
     void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
     this.sendState();
+    this.postSidebarPage();
+  }
+
+  openSettings(): void {
+    this.logger.info('openSettings command received');
+    this.sidebarPage = 'settings';
+    void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
+    this.postSidebarPage();
+  }
+
+  async openStorage(): Promise<void> {
+    const uri = this.context.storageUri || this.context.globalStorageUri;
+    this.logger.info('openStorage command received', { path: uri.fsPath });
+
+    await vscode.workspace.fs.createDirectory(uri);
+    await vscode.env.openExternal(uri);
   }
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
@@ -131,6 +148,7 @@ export class AgentController {
     });
 
     this.sendState(surface);
+    this.postPage(surface, this.sidebarPage);
     void this.refreshModels();
   }
 
@@ -206,6 +224,7 @@ export class AgentController {
     const configModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
     const chat = this.chats.createChat(configModel);
     this.sidebarChatId = chat.id;
+    this.sidebarPage = 'chat';
 
     this.logger.info('Chat created from command', {
       chatId: chat.id,
@@ -216,6 +235,7 @@ export class AgentController {
 
     void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
     this.sendState();
+    this.postSidebarPage();
     vscode.window.setStatusBarMessage('aist: New chat created', 1800);
   }
 
@@ -281,6 +301,7 @@ export class AgentController {
         chatId: surface.getChatId()
       });
       this.sendState(surface);
+      this.postPage(surface, surface.kind === 'sidebar' ? this.sidebarPage : 'chat');
       void this.refreshModels();
     }
 
@@ -292,6 +313,9 @@ export class AgentController {
       const configModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
       const chat = this.chats.createChat(configModel);
       surface.setChatId(chat.id);
+      if (surface.kind === 'sidebar') {
+        this.sidebarPage = 'chat';
+      }
       this.logger.info('Chat created from webview', {
         surfaceId: surface.id,
         kind: surface.kind,
@@ -300,6 +324,9 @@ export class AgentController {
         chatCount: this.chats.getSummaries().length
       });
       this.sendState();
+      if (surface.kind === 'sidebar') {
+        this.postPage(surface, 'chat');
+      }
     }
 
     if (message.type === 'duplicateChat') {
@@ -425,16 +452,6 @@ export class AgentController {
       vscode.window.setStatusBarMessage('Copied message markdown', 1800);
     }
 
-    if (message.type === 'insertLastAnswer') {
-      const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        vscode.window.showWarningMessage('Open a file first.');
-        return;
-      }
-
-      await replaceSelection(editor, stripCodeFence(chat.lastAnswer));
-    }
   }
 
   private async ask(chatId: string, prompt: string): Promise<void> {
@@ -665,6 +682,42 @@ export class AgentController {
         surface.setChatId(nextChatId);
       }
     }
+  }
+
+  private postSidebarPage(): void {
+    if (!this.sidebarView) {
+      return;
+    }
+
+    this.postPage(
+      {
+        id: 'sidebar',
+        kind: 'sidebar',
+        webview: this.sidebarView.webview,
+        getChatId: () => this.sidebarChatId || this.chats.getActiveChat().id,
+        setChatId: (nextChatId) => {
+          this.sidebarChatId = nextChatId;
+          this.chats.setActiveChat(nextChatId);
+        }
+      },
+      this.sidebarPage
+    );
+  }
+
+  private postPage(surface: WebviewSurface, page: 'chat' | 'settings'): void {
+    void surface.webview.postMessage({ type: 'page', page }).then(
+      (delivered) => {
+        this.logger.info('Page posted to webview', {
+          surfaceId: surface.id,
+          kind: surface.kind,
+          page,
+          delivered
+        });
+      },
+      (error) => {
+        this.logger.error('Failed to post page to webview', error);
+      }
+    );
   }
 
   private throwIfStopped(run: AgentRun): void {

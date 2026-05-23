@@ -47,6 +47,7 @@ export function MessageCard({ message, actions }: MessageCardProps) {
         <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-normal text-[var(--vscode-descriptionForeground)]">
           {variant.icon}
           <span>{variant.label}</span>
+          {formatMessageDate(message.createdAt)}
         </div>
         {actions}
       </div>
@@ -68,6 +69,7 @@ function ToolMessage({ message }: MessageCardProps) {
         <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-normal text-[var(--vscode-descriptionForeground)]">
           <ToolIcon name={message.name} className={isRunning ? 'animate-pulse' : ''} />
           <span className="truncate">{getToolLabel(message.name)}</span>
+          {formatMessageDate(message.createdAt)}
         </div>
         <span className={`shrink-0 rounded border px-2 py-0.5 text-xs ${getToolStatusClass(message.status)}`}>
           {formatToolStatus(message)}
@@ -133,4 +135,24 @@ function getToolStatusClass(status: ChatMessage['status']): string {
     default:
       return 'border-[var(--agent-border)] text-[var(--vscode-descriptionForeground)]';
   }
+}
+
+function formatMessageDate(timestamp?: number): ReactNode {
+  if (!timestamp) return null;
+  const date = new Date(timestamp);
+  
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return (
+    <span className="ml-2 flex items-center gap-1.5 font-normal normal-case text-[var(--vscode-descriptionForeground)]">
+      <strong className="font-bold">{hours}:{minutes}:{seconds}</strong>
+      <span className="opacity-75">{day}.{month}.{year}</span>
+    </span>
+  );
 }

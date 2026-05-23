@@ -75,9 +75,11 @@ export type AgentState = {
   toolPermissions: ToolPermissionItem[];
 };
 
-export type ExtensionToWebviewMessage = {
-  type: 'state';
-} & AgentState;
+export type ExtensionToWebviewMessage =
+  | ({
+      type: 'state';
+    } & AgentState)
+  | { type: 'page'; page: 'chat' | 'settings' };
 
 export type WebviewToExtensionMessage =
   | { type: 'webviewReady' }
@@ -97,5 +99,4 @@ export type WebviewToExtensionMessage =
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
   | { type: 'stop' }
   | { type: 'clear' }
-  | { type: 'copyMessage'; markdown: string }
-  | { type: 'insertLastAnswer' };
+  | { type: 'copyMessage'; markdown: string };
