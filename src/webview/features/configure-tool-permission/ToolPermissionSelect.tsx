@@ -1,6 +1,6 @@
-import { ShieldCheck } from 'lucide-react';
 import { vscode } from '../../shared/lib/vscode';
 import type { ToolPermissionItem, ToolPermissionMode } from '../../shared/types';
+import { getToolLabel, ToolIcon } from '../../shared/ui/ToolIcon';
 
 type ToolPermissionSelectProps = {
   item: ToolPermissionItem;
@@ -12,8 +12,8 @@ export function ToolPermissionSelect({ item }: ToolPermissionSelectProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <ShieldCheck size={16} />
-            <span>{item.name}</span>
+            <ToolIcon name={item.name} />
+            <span>{getToolLabel(item.name)}</span>
           </div>
           <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">{item.description}</p>
           <p className="mt-1 text-xs text-[var(--vscode-descriptionForeground)]">Default: {formatPermission(item.defaultPermission)}</p>

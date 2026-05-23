@@ -7,7 +7,7 @@ import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 
 export function App() {
   const [state, setState] = useState<AgentState | null>(null);
-  const [page, setPage] = useState<'chat' | 'permissions'>('chat');
+  const [page, setPage] = useState<'chat' | 'settings'>('chat');
 
   useEffect(() => {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
@@ -33,9 +33,15 @@ export function App() {
     );
   }
 
-  if (page === 'permissions') {
-    return <PermissionsPage tools={state.toolPermissions} onBack={() => setPage('chat')} />;
+  if (page === 'settings') {
+    return (
+      <PermissionsPage
+        tools={state.toolPermissions}
+        maxToolIterations={state.maxToolIterations}
+        onBack={() => setPage('chat')}
+      />
+    );
   }
 
-  return <ChatPage state={state} onOpenPermissions={() => setPage('permissions')} />;
+  return <ChatPage state={state} onOpenPermissions={() => setPage('settings')} />;
 }

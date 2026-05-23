@@ -54,6 +54,7 @@ export type AgentState = {
   chats: ChatSummary[];
   activeChat: Chat;
   models: ModelOption[];
+  maxToolIterations: number;
   toolPermissions: ToolPermissionItem[];
 };
 
@@ -67,6 +68,7 @@ export type WebviewToExtensionMessage =
   | { type: 'newChat' }
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
+  | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string }
   | { type: 'insertLastAnswer' };

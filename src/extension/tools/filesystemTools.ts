@@ -65,6 +65,29 @@ export const filesystemTools: OpenRouterTool[] = [
   {
     type: 'function',
     function: {
+      name: 'grep_search',
+      description: 'Search workspace files for text or a regular expression and return matching file paths with line numbers.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          query: { type: 'string', description: 'Text or regular expression to search for.' },
+          path: { type: 'string', description: 'Workspace-relative file or directory path to search. Default is ".".' },
+          include: { type: 'string', description: 'Glob pattern within the search path. Default is "**/*".' },
+          regex: { type: 'boolean', description: 'Treat query as a JavaScript regular expression. Default is false.' },
+          caseSensitive: { type: 'boolean', description: 'Use case-sensitive matching. Default is false.' },
+          contextLines: { type: 'number', description: 'Number of lines before and after each match. Default is 0, maximum is 5.' },
+          maxResults: { type: 'number', description: 'Maximum number of matches to return. Default is 100.' },
+          maxFiles: { type: 'number', description: 'Maximum number of files to inspect. Default is 2000.' }
+        },
+        required: ['reason', 'query'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'write_file',
       description: 'Create or overwrite a UTF-8 text file in the workspace.',
       parameters: {
@@ -139,6 +162,8 @@ export async function runFilesystemTool(toolName: string, args: Record<string, u
       return listFiles(args);
     case 'read_file':
       return readFile(args);
+    case 'grep_search':
+      return grepSearch(args);
     case 'write_file':
       return writeFile(args);
     case 'replace_in_file':
@@ -224,6 +249,89 @@ async function readFile(args: Record<string, unknown>): Promise<Record<string, u
   };
 }
 
+async function grepSearch(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const query = requireString(args.query, 'query');
+  const searchPath = String(args.path || '.');
+  const include = typeof args.include === 'string' && args.include.trim() ? args.include.trim() : '**/*';
+  const caseSensitive = Boolean(args.caseSensitive);
+  const useRegex = Boolean(args.regex);
+  const contextLines = clampNumber(args.contextLines, 0, 0, 5);
+  const maxResults = clampNumber(args.maxResults, 100, 1, 1000);
+  const maxFiles = clampNumber(args.maxFiles, 2000, 1, 10000);
+  const baseUri = resolveWorkspacePath(searchPath);
+  const files = await getSearchFiles(baseUri, include, maxFiles);
+  const matcher = createLineMatcher(query, useRegex, caseSensitive);
+  const matches: Array<{
+    path: string;
+    line: number;
+    column: number;
+    text: string;
+    before?: string[];
+    after?: string[];
+  }> = [];
+  let searchedFiles = 0;
+
+  for (const file of files) {
+    if (matches.length >= maxResults) {
+      break;
+    }
+
+    const relativePath = toWorkspaceRelativePath(file);
+    if (shouldSkipRelativePath(relativePath)) {
+      continue;
+    }
+
+    const content = await readTextFileForSearch(file);
+    if (content === undefined) {
+      continue;
+    }
+
+    searchedFiles += 1;
+    const lines = content.split(/\r?\n/);
+
+    for (let index = 0; index < lines.length && matches.length < maxResults; index += 1) {
+      const column = matcher(lines[index]);
+      if (column === undefined) {
+        continue;
+      }
+
+      const match: {
+        path: string;
+        line: number;
+        column: number;
+        text: string;
+        before?: string[];
+        after?: string[];
+      } = {
+        path: relativePath,
+        line: index + 1,
+        column: column + 1,
+        text: trimSearchLine(lines[index])
+      };
+
+      if (contextLines > 0) {
+        match.before = lines.slice(Math.max(0, index - contextLines), index).map(trimSearchLine);
+        match.after = lines.slice(index + 1, index + 1 + contextLines).map(trimSearchLine);
+      }
+
+      matches.push(match);
+    }
+  }
+
+  return {
+    ok: true,
+    query,
+    path: searchPath,
+    include,
+    regex: useRegex,
+    caseSensitive,
+    filesInspected: searchedFiles,
+    fileLimitReached: files.length >= maxFiles,
+    matches,
+    truncated: matches.length >= maxResults
+  };
+}
+
 async function writeFile(args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const filePath = requireString(args.path, 'path');
   const content = requireString(args.content, 'content');
@@ -289,6 +397,24 @@ async function deletePath(args: Record<string, unknown>): Promise<Record<string,
     path: targetPath,
     recursive: Boolean(args.recursive)
   };
+}
+
+async function getSearchFiles(baseUri: vscode.Uri, include: string, maxFiles: number): Promise<vscode.Uri[]> {
+  const stat = await vscode.workspace.fs.stat(baseUri);
+
+  if (stat.type === vscode.FileType.File) {
+    return [baseUri];
+  }
+
+  if (stat.type !== vscode.FileType.Directory) {
+    throw new Error('grep_search path must point to a file or directory.');
+  }
+
+  return vscode.workspace.findFiles(
+    new vscode.RelativePattern(baseUri, include),
+    '{**/.git/**,**/node_modules/**,**/dist/**,**/out/**,**/.vscode-test/**}',
+    maxFiles
+  );
 }
 
 async function showFileDiff(filePath: string, nextContent: string): Promise<Record<string, unknown>> {
@@ -380,6 +506,51 @@ async function walkDirectory(
 
 function shouldSkipPath(name: string): boolean {
   return ['.git', 'node_modules', 'dist', 'out', '.vscode-test'].includes(name);
+}
+
+function shouldSkipRelativePath(relativePath: string): boolean {
+  return relativePath.split('/').some(shouldSkipPath);
+}
+
+function toWorkspaceRelativePath(uri: vscode.Uri): string {
+  const folder = getWorkspaceFolder();
+  return path.relative(folder.uri.fsPath, uri.fsPath).replace(/\\/g, '/');
+}
+
+async function readTextFileForSearch(uri: vscode.Uri): Promise<string | undefined> {
+  const stat = await vscode.workspace.fs.stat(uri);
+  if (stat.size > 1024 * 1024) {
+    return undefined;
+  }
+
+  const bytes = await vscode.workspace.fs.readFile(uri);
+  if (bytes.some((byte) => byte === 0)) {
+    return undefined;
+  }
+
+  return textDecoder.decode(bytes);
+}
+
+function createLineMatcher(query: string, useRegex: boolean, caseSensitive: boolean): (line: string) => number | undefined {
+  if (useRegex) {
+    const flags = caseSensitive ? '' : 'i';
+    const regex = new RegExp(query, flags);
+    return (line) => {
+      const match = regex.exec(line);
+      return match ? match.index : undefined;
+    };
+  }
+
+  const needle = caseSensitive ? query : query.toLocaleLowerCase();
+  return (line) => {
+    const haystack = caseSensitive ? line : line.toLocaleLowerCase();
+    const index = haystack.indexOf(needle);
+    return index === -1 ? undefined : index;
+  };
+}
+
+function trimSearchLine(line: string): string {
+  return line.length > 500 ? `${line.slice(0, 500)}...` : line;
 }
 
 function requireString(value: unknown, name: string): string {

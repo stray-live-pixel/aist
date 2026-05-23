@@ -14,6 +14,7 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   get_workspace_info: 'auto',
   list_files: 'auto',
   read_file: 'auto',
+  grep_search: 'auto',
   write_file: 'ask',
   replace_in_file: 'ask',
   create_directory: 'ask',

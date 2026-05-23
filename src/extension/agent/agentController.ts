@@ -18,6 +18,7 @@ type WebviewMessage =
   | { type: 'newChat' }
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
+  | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string }
   | { type: 'insertLastAnswer' };
@@ -155,6 +156,14 @@ export class AgentController {
       this.sendState();
     }
 
+    if (message.type === 'setMaxToolIterations') {
+      const value = Math.max(0, Math.floor(Number(message.maxToolIterations) || 0));
+      await vscode.workspace
+        .getConfiguration('openrouterAgent')
+        .update('maxToolIterations', value, vscode.ConfigurationTarget.Workspace);
+      this.sendState();
+    }
+
     if (message.type === 'clear') {
       const chat = this.chats.getActiveChat();
       this.chats.clearChat(chat.id);
@@ -212,13 +221,13 @@ export class AgentController {
 
   private async runAgentLoop(chat: Chat): Promise<string> {
     const config = vscode.workspace.getConfiguration('openrouterAgent');
-    const maxIterations = config.get<number>('maxToolIterations') || 6;
+    const maxIterations = Math.max(0, Math.floor(config.get<number>('maxToolIterations') || 0));
     const workingMessages: OpenRouterMessage[] = [
       { role: 'system', content: getSystemPrompt() },
       ...chat.history.filter((message) => message.role !== 'system')
     ];
 
-    for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+    for (let iteration = 0; maxIterations === 0 || iteration < maxIterations; iteration += 1) {
       const responseMessage = await this.client.chat(workingMessages, filesystemTools, chat.model);
       const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
 
@@ -245,7 +254,7 @@ export class AgentController {
     const args = parseToolArguments(toolCall.function.arguments);
     const reason = getToolReason(args);
 
-    this.chats.appendMessage(chat.id, {
+    const toolMessage = this.chats.appendMessage(chat.id, {
       role: 'tool',
       name: toolName,
       status: 'waiting',
@@ -260,9 +269,7 @@ export class AgentController {
         const allowed = await this.askToolPermission(toolName, args, reason);
         if (!allowed) {
           const result = { ok: false, error: 'The user denied this tool call.' };
-          this.chats.appendMessage(chat.id, {
-            role: 'tool',
-            name: toolName,
+          this.chats.updateMessage(chat.id, toolMessage.id, {
             status: 'denied',
             reason,
             args,
@@ -273,40 +280,35 @@ export class AgentController {
             tool_call_id: toolCall.id,
             content: JSON.stringify(result)
           });
+          this.sendState();
           return;
         }
       }
 
-      const preview = await previewFilesystemTool(toolName, args);
-      if (preview) {
-        this.chats.appendMessage(chat.id, {
-          role: 'tool',
-          name: toolName,
-          status: 'done',
-          reason: `Diff preview: ${reason}`,
-          args,
-          result: preview
-        });
-        this.sendState();
-      }
-
-      this.chats.appendMessage(chat.id, {
-        role: 'tool',
-        name: toolName,
+      this.chats.updateMessage(chat.id, toolMessage.id, {
         status: 'running',
         reason,
         args
       });
       this.sendState();
 
+      const preview = await previewFilesystemTool(toolName, args);
+      if (preview) {
+        this.chats.updateMessage(chat.id, toolMessage.id, {
+          status: 'running',
+          reason: `Diff preview: ${reason}`,
+          args,
+          result: { preview }
+        });
+        this.sendState();
+      }
+
       const result = await runFilesystemTool(toolName, args);
-      this.chats.appendMessage(chat.id, {
-        role: 'tool',
-        name: toolName,
+      this.chats.updateMessage(chat.id, toolMessage.id, {
         status: result.ok === false ? 'error' : 'done',
         reason,
         args,
-        result
+        result: preview ? { preview, result } : result
       });
       workingMessages.push({
         role: 'tool',
@@ -315,9 +317,7 @@ export class AgentController {
       });
     } catch (error) {
       const result = { ok: false, error: getErrorMessage(error) };
-      this.chats.appendMessage(chat.id, {
-        role: 'tool',
-        name: toolName,
+      this.chats.updateMessage(chat.id, toolMessage.id, {
         status: 'error',
         reason,
         args,
@@ -353,7 +353,9 @@ export class AgentController {
     }
 
     const activeChat = this.chats.getActiveChat();
-    const configuredModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
+    const config = vscode.workspace.getConfiguration('openrouterAgent');
+    const configuredModel = config.get<string>('model') || DEFAULT_MODEL;
+    const maxToolIterations = Math.max(0, Math.floor(config.get<number>('maxToolIterations') || 0));
     const models = mergeModels(this.modelOptions, configuredModel, activeChat.model);
     const { history: _history, ...webviewChat } = activeChat;
 
@@ -364,6 +366,7 @@ export class AgentController {
       chats: this.chats.getSummaries(),
       activeChat: webviewChat,
       models,
+      maxToolIterations,
       toolPermissions: getToolPermissionItems()
     });
   }

@@ -89,6 +89,19 @@ export class ChatStore {
     return nextMessage;
   }
 
+  updateMessage(chatId: string, messageId: string, patch: Partial<Omit<ChatMessage, 'id' | 'createdAt'>>): ChatMessage {
+    const chat = this.requireChat(chatId);
+    const message = chat.messages.find((item) => item.id === messageId);
+
+    if (!message) {
+      throw new Error(`Message not found: ${messageId}`);
+    }
+
+    Object.assign(message, patch);
+    this.touch(chat);
+    return message;
+  }
+
   clearChat(chatId: string): void {
     const chat = this.requireChat(chatId);
     chat.messages = [];

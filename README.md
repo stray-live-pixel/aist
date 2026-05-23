@@ -12,7 +12,8 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 - Every text message has a copy button that copies the original Markdown.
 - The composer has a searchable model selector loaded from the OpenRouter Models API.
 - File edits are previewed with VS Code's native diff editor before the tool writes changes.
-- Tool permissions can be managed in the webview:
+- Agent settings can be managed in the webview:
+  - Tool iteration limit defaults to `0`, which means no limit.
   - `ask` requires user confirmation before the tool runs.
   - `auto` lets the tool run automatically.
   - File-reading tools default to `auto`.
@@ -22,6 +23,7 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
   - `get_workspace_info`
   - `list_files`
   - `read_file`
+  - `grep_search`
   - `write_file`
   - `replace_in_file`
   - `create_directory`
@@ -62,6 +64,14 @@ npm run package
 ```
 
 This creates a `.vsix` file that can be installed locally.
+
+## Install locally
+
+```bash
+npm run install:extension
+```
+
+This builds the extension, writes `dist/aist-0.0.1.vsix`, and installs it with the `code` CLI. Use `VSCODE_CLI=code-insiders npm run install:extension` for VS Code Insiders.
 
 ## Development
 

@@ -53,7 +53,7 @@ export function Composer({ busy, model, models, toolsCount, onOpenPermissions }:
             <IconButton title="New chat" disabled={busy} onClick={() => vscode.postMessage({ type: 'newChat' })}>
               <Plus size={15} />
             </IconButton>
-            <IconButton title="Tool permissions" onClick={onOpenPermissions}>
+            <IconButton title="Settings" onClick={onOpenPermissions}>
               <Settings size={15} />
             </IconButton>
             <IconButton title="Insert last answer" onClick={() => vscode.postMessage({ type: 'insertLastAnswer' })}>
