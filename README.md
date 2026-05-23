@@ -15,6 +15,7 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 - Mutating tool approvals are shown inline in chat, while the diff preview stays open in parallel.
 - Running requests can be stopped from the composer.
 - The composer shows the current agent activity and supports OpenRouter reasoning effort selection.
+- The composer shows estimated context usage and estimated chat cost based on OpenRouter model pricing.
 - Chat opens in the Activity Bar webview by default, with a chat dropdown, chat duplication/deletion in that dropdown, settings in the sidebar title bar, extension storage Finder access, and an action to open the current chat in editor tabs.
 - Agent language defaults to Russian and controls final answers plus tool-call explanations.
 - Agent modes provide editable working instructions that are shown above the chat.

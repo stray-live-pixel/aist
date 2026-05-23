@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool } from './types';
+import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, OpenRouterTool } from './types';
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -8,13 +8,19 @@ type OpenRouterResponse = {
   }>;
 };
 
+type OpenRouterModelApiItem = {
+  id?: string;
+  name?: string;
+  context_length?: number;
+  pricing?: {
+    prompt?: string;
+    completion?: string;
+  };
+  supported_parameters?: string[];
+};
+
 type OpenRouterModelsResponse = {
-  data?: Array<{
-    id?: string;
-    name?: string;
-    context_length?: number;
-    supported_parameters?: string[];
-  }>;
+  data?: OpenRouterModelApiItem[];
 };
 
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
@@ -92,6 +98,7 @@ export class OpenRouterClient {
         id: model.id!,
         name: model.name || model.id!,
         contextLength: model.context_length,
+        pricing: parsePricing(model.pricing),
         supportsTools: Boolean(model.supported_parameters?.includes('tools'))
       }));
 
@@ -101,4 +108,20 @@ export class OpenRouterClient {
 
 function normalizeReasoningEffort(value: unknown): ReasoningEffort {
   return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+}
+
+function parsePricing(pricing: OpenRouterModelApiItem['pricing']): OpenRouterModelPricing | undefined {
+  const prompt = parsePrice(pricing?.prompt);
+  const completion = parsePrice(pricing?.completion);
+
+  if (prompt === undefined && completion === undefined) {
+    return undefined;
+  }
+
+  return { prompt, completion };
+}
+
+function parsePrice(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

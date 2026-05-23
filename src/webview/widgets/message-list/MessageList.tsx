@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { MessageCard } from '../../entities/message/MessageCard';
 import { CopyMessageButton } from '../../features/copy-message/CopyMessageButton';
 import type { ChatMessage } from '../../shared/types';
@@ -10,12 +9,6 @@ type MessageListProps = {
 };
 
 export function MessageList({ messages, tools }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages]);
-
   return (
     <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
       {messages.length === 0 ? <EmptyState tools={tools} /> : null}
@@ -27,7 +20,6 @@ export function MessageList({ messages, tools }: MessageListProps) {
             actions={message.content ? <CopyMessageButton markdown={message.content} /> : null}
           />
         ))}
-        <div ref={bottomRef} />
       </div>
     </main>
   );

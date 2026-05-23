@@ -10,7 +10,15 @@ export type ChatMessage = {
   reason?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  usage?: ChatMessageUsageEstimate;
   createdAt: number;
+};
+
+export type ChatMessageUsageEstimate = {
+  tokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  costUsd?: number;
 };
 
 export type ChatSummary = {
@@ -23,6 +31,20 @@ export type ChatSummary = {
   updatedAt: number;
 };
 
+export type ChatUsageEstimate = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUsd?: number;
+};
+
+export type ChatContextEstimate = {
+  tokens: number;
+  maxTokens?: number;
+  percent?: number;
+  inputCostUsd?: number;
+};
+
 export type Chat = {
   id: string;
   title: string;
@@ -31,6 +53,9 @@ export type Chat = {
   lastAnswer: string;
   activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
   busy: boolean;
+  context?: ChatContextEstimate;
+  contextLength?: number;
+  usage: ChatUsageEstimate;
   createdAt: number;
   updatedAt: number;
 };
@@ -39,6 +64,10 @@ export type ModelOption = {
   id: string;
   name: string;
   contextLength?: number;
+  pricing?: {
+    prompt?: number;
+    completion?: number;
+  };
   supportsTools: boolean;
 };
 

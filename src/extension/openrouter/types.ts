@@ -30,5 +30,11 @@ export type OpenRouterModelOption = {
   id: string;
   name: string;
   contextLength?: number;
+  pricing?: OpenRouterModelPricing;
   supportsTools: boolean;
+};
+
+export type OpenRouterModelPricing = {
+  prompt?: number;
+  completion?: number;
 };

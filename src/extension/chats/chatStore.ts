@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import { DEFAULT_MODEL } from '../shared/constants';
-import type { Chat, ChatMessage, ChatSummary } from './types';
+import type { Chat, ChatMessage, ChatSummary, ChatUsageEstimate } from './types';
+
+const EMPTY_USAGE: ChatUsageEstimate = {
+  promptTokens: 0,
+  completionTokens: 0,
+  totalTokens: 0
+};
 
 export class ChatStore {
   private readonly chats = new Map<string, Chat>();
@@ -27,6 +33,7 @@ export class ChatStore {
           // Reset transient runtime states
           chat.busy = false;
           chat.activity = undefined;
+          chat.usage = normalizeUsage(chat.usage);
 
           // Reset any stuck tool calls to error state
           if (chat.messages) {
@@ -76,6 +83,7 @@ export class ChatStore {
       lastAnswer: '',
       activity: undefined,
       busy: false,
+      usage: { ...EMPTY_USAGE },
       createdAt: now,
       updatedAt: now
     };
@@ -100,6 +108,7 @@ export class ChatStore {
       lastAnswer: source.lastAnswer,
       activity: undefined,
       busy: false,
+      usage: normalizeUsage(source.usage),
       createdAt: now,
       updatedAt: now
     };
@@ -229,6 +238,9 @@ export class ChatStore {
     chat.lastAnswer = '';
     chat.activity = undefined;
     chat.busy = false;
+    chat.context = undefined;
+    chat.contextLength = undefined;
+    chat.usage = { ...EMPTY_USAGE };
     chat.title = 'New chat';
     this.touch(chat);
   }
@@ -249,6 +261,29 @@ export class ChatStore {
     const chat = this.requireChat(chatId);
     chat.lastAnswer = answer;
     this.touch(chat);
+  }
+
+  setHistory(chatId: string, history: Chat['history']): void {
+    const chat = this.requireChat(chatId);
+    chat.history = history;
+    this.touch(chat);
+  }
+
+  addUsage(chatId: string, usage: Partial<ChatUsageEstimate>): ChatUsageEstimate {
+    const chat = this.requireChat(chatId);
+    const current = normalizeUsage(chat.usage);
+    const nextCost =
+      current.costUsd === undefined && usage.costUsd === undefined ? undefined : (current.costUsd || 0) + (usage.costUsd || 0);
+    const next: ChatUsageEstimate = {
+      promptTokens: current.promptTokens + (usage.promptTokens || 0),
+      completionTokens: current.completionTokens + (usage.completionTokens || 0),
+      totalTokens: current.totalTokens + (usage.totalTokens || 0),
+      costUsd: nextCost
+    };
+
+    chat.usage = next;
+    this.touch(chat);
+    return next;
   }
 
   setActivity(chatId: string, activity: Chat['activity']): void {
@@ -299,4 +334,13 @@ function cloneMessage(message: ChatMessage): ChatMessage {
 
 function clonePlain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function normalizeUsage(usage: ChatUsageEstimate | undefined): ChatUsageEstimate {
+  return {
+    promptTokens: usage?.promptTokens || 0,
+    completionTokens: usage?.completionTokens || 0,
+    totalTokens: usage?.totalTokens || 0,
+    costUsd: usage?.costUsd
+  };
 }

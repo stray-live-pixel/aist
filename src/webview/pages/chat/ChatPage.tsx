@@ -195,6 +195,8 @@ export function ChatPage({ state }: ChatPageProps) {
         activity={state.activeChat.activity}
         reasoningEffort={state.reasoningEffort}
         toolsCount={state.tools.length}
+        context={state.activeChat.context}
+        usage={state.activeChat.usage}
       />
     </div>
   );

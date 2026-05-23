@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { ChatStore } from '../chats/chatStore';
-import type { Chat } from '../chats/types';
+import type { Chat, ChatContextEstimate, ChatMessageUsageEstimate, ChatUsageEstimate } from '../chats/types';
 import { OpenRouterClient } from '../openrouter/client';
-import type { OpenRouterMessage, OpenRouterModelOption, ToolCall } from '../openrouter/types';
+import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, ToolCall } from '../openrouter/types';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { getErrorMessage } from '../shared/errors';
 import type { AistLogger } from '../shared/logger';
@@ -30,6 +30,19 @@ type AgentRun = {
   abortController: AbortController;
   stopRequested: boolean;
   permissionResolvers: Map<string, (approved: boolean) => void>;
+};
+
+type AgentLoopResult = {
+  answer: string;
+  history: OpenRouterMessage[];
+  usage: ChatUsageEstimate;
+};
+
+type RepeatedToolCall = {
+  signature: string;
+  count: number;
+  toolName: string;
+  args: Record<string, unknown>;
 };
 
 type WebviewMessage =
@@ -468,7 +481,11 @@ export class AgentController {
 
     this.logger.info('Agent run started', { chatId: chat.id, promptLength: cleanPrompt.length });
 
-    this.chats.appendMessage(chat.id, { role: 'user', content: cleanPrompt });
+    this.chats.appendMessage(chat.id, {
+      role: 'user',
+      content: cleanPrompt,
+      usage: getMessageUsageEstimate(cleanPrompt)
+    });
     this.chats.setBusy(chat.id, true);
     this.chats.setActivity(chat.id, 'thinking');
     const run: AgentRun = {
@@ -483,12 +500,18 @@ export class AgentController {
     try {
       const editorContext = getEditorContext();
       const userContent = [cleanPrompt, editorContext ? `\n\nActive editor context:\n${editorContext}` : ''].join('');
-      chat.history.push({ role: 'user', content: userContent });
+      const userHistoryMessage: OpenRouterMessage = { role: 'user', content: userContent };
+      const initialHistory = [...chat.history.filter((message) => message.role !== 'system'), userHistoryMessage];
+      this.chats.setHistory(chat.id, initialHistory);
 
-      const answer = await this.runAgentLoop(chat, run);
-      chat.history.push({ role: 'assistant', content: answer });
-      this.chats.setLastAnswer(chat.id, answer);
-      this.chats.appendMessage(chat.id, { role: 'assistant', content: answer });
+      const result = await this.runAgentLoop(chat, initialHistory, run);
+      this.chats.setHistory(chat.id, result.history);
+      this.chats.setLastAnswer(chat.id, result.answer);
+      this.chats.appendMessage(chat.id, {
+        role: 'assistant',
+        content: result.answer,
+        usage: result.usage
+      });
     } catch (error) {
       if (run.stopRequested || isAbortError(error)) {
         this.chats.appendMessage(chat.id, { role: 'status', content: 'Stopped.' });
@@ -508,29 +531,68 @@ export class AgentController {
     }
   }
 
-  private async runAgentLoop(chat: Chat, run: AgentRun): Promise<string> {
+  private async runAgentLoop(chat: Chat, initialHistory: OpenRouterMessage[], run: AgentRun): Promise<AgentLoopResult> {
     const config = vscode.workspace.getConfiguration('openrouterAgent');
     const maxIterations = Math.max(0, Math.floor(config.get<number>('maxToolIterations') || 0));
     const workingMessages: OpenRouterMessage[] = [
       { role: 'system', content: this.getSystemPrompt() },
-      ...chat.history.filter((message) => message.role !== 'system')
+      ...initialHistory.filter((message) => message.role !== 'system')
     ];
+    const model = this.getModelOption(chat.model);
+    const usage: ChatUsageEstimate = createEmptyUsage();
+    const toolCallCounts = new Map<string, number>();
 
     for (let iteration = 0; maxIterations === 0 || iteration < maxIterations; iteration += 1) {
       this.throwIfStopped(run);
       this.chats.setActivity(chat.id, 'thinking');
       this.sendState();
 
+      const promptTokens = estimateMessagesTokens(workingMessages);
       const responseMessage = await this.client.chat(workingMessages, filesystemTools, chat.model, run.abortController.signal);
+      const completionTokens = estimateMessageTokens(responseMessage);
+      const callUsage = getCallUsageEstimate(promptTokens, completionTokens, model?.pricing);
+      mergeUsage(usage, callUsage);
+      this.chats.addUsage(chat.id, callUsage);
+
       const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
 
       if (!toolCalls.length) {
-        return responseMessage.content || '';
+        const answer = responseMessage.content || '';
+        workingMessages.push({
+          role: 'assistant',
+          content: answer,
+          reasoning: responseMessage.reasoning
+        });
+
+        return {
+          answer,
+          history: getPersistableHistory(workingMessages),
+          usage
+        };
+      }
+
+      const repeatedToolCall = findRepeatedToolCall(toolCalls, toolCallCounts);
+      if (repeatedToolCall) {
+        const answer = getRepeatedToolCallAnswer(repeatedToolCall);
+        this.logger.info('Stopping repeated tool-call loop', {
+          chatId: chat.id,
+          toolName: repeatedToolCall.toolName,
+          count: repeatedToolCall.count,
+          args: redactLargeArgs(repeatedToolCall.args)
+        });
+        workingMessages.push({ role: 'assistant', content: answer });
+
+        return {
+          answer,
+          history: getPersistableHistory(workingMessages),
+          usage
+        };
       }
 
       workingMessages.push({
         role: 'assistant',
         content: responseMessage.content || '',
+        reasoning: responseMessage.reasoning,
         tool_calls: toolCalls
       });
 
@@ -538,9 +600,18 @@ export class AgentController {
         this.throwIfStopped(run);
         await this.handleToolCall(chat, workingMessages, toolCall, run);
       }
+
+      this.chats.setHistory(chat.id, getPersistableHistory(workingMessages));
     }
 
-    return 'Stopped because the agent reached the tool iteration limit.';
+    const answer = 'Stopped because the agent reached the tool iteration limit.';
+    workingMessages.push({ role: 'assistant', content: answer });
+
+    return {
+      answer,
+      history: getPersistableHistory(workingMessages),
+      usage
+    };
   }
 
   private async handleToolCall(chat: Chat, workingMessages: OpenRouterMessage[], toolCall: ToolCall, run: AgentRun): Promise<void> {
@@ -585,7 +656,8 @@ export class AgentController {
             approval: 'denied',
             reason,
             args,
-            result: preview ? { preview, result } : result
+            result: preview ? { preview, result } : result,
+            usage: getMessageUsageEstimate(result)
           });
           workingMessages.push({
             role: 'tool',
@@ -613,7 +685,8 @@ export class AgentController {
         status: result.ok === false ? 'error' : 'done',
         reason,
         args,
-        result: preview ? { preview, result } : result
+        result: preview ? { preview, result } : result,
+        usage: getMessageUsageEstimate(result)
       });
       workingMessages.push({
         role: 'tool',
@@ -626,7 +699,8 @@ export class AgentController {
         status: 'error',
         reason,
         args,
-        result
+        result,
+        usage: getMessageUsageEstimate(result)
       });
       workingMessages.push({
         role: 'tool',
@@ -734,6 +808,10 @@ export class AgentController {
     });
   }
 
+  private getModelOption(modelId: string): OpenRouterModelOption | undefined {
+    return this.modelOptions.find((model) => model.id === modelId);
+  }
+
   private sendState(targetSurface?: WebviewSurface): void {
     const surfaces = targetSurface ? [targetSurface] : this.getSurfaces();
     if (!surfaces.length) {
@@ -752,7 +830,15 @@ export class AgentController {
     for (const surface of surfaces) {
       const activeChat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
       const models = mergeModels(this.modelOptions, configuredModel, activeChat.model);
+      const activeModel = models.find((model) => model.id === activeChat.model);
+      const context = getChatContextEstimate(activeChat.history, this.getSystemPrompt(), activeModel);
       const { history: _history, ...webviewChat } = activeChat;
+      const webviewActiveChat = {
+        ...webviewChat,
+        context,
+        contextLength: context.tokens,
+        usage: activeChat.usage || createEmptyUsage()
+      };
 
       const stateMessage = {
         type: 'state',
@@ -760,7 +846,7 @@ export class AgentController {
         workspaceName: getWorkspaceName(),
         tools: filesystemTools.map((tool) => tool.function.name),
         chats: this.chats.getSummaries(),
-        activeChat: webviewChat,
+        activeChat: webviewActiveChat,
         models,
         maxToolIterations,
         reasoningEffort,
@@ -777,7 +863,7 @@ export class AgentController {
             kind: surface.kind,
             chatId: activeChat.id,
             chatCount: stateMessage.chats.length,
-            messageCount: webviewChat.messages.length,
+            messageCount: webviewActiveChat.messages.length,
             delivered
           });
         },
@@ -848,6 +934,145 @@ function normalizeReasoningEffort(value: unknown): ReasoningEffort {
 
 function isAbortError(error: unknown): boolean {
   return Boolean(error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');
+}
+
+function getPersistableHistory(messages: OpenRouterMessage[]): OpenRouterMessage[] {
+  return messages.filter((message) => message.role !== 'system');
+}
+
+function findRepeatedToolCall(toolCalls: ToolCall[], counts: Map<string, number>): RepeatedToolCall | undefined {
+  for (const toolCall of toolCalls) {
+    const args = parseToolArguments(toolCall.function.arguments);
+    const signature = getToolCallSignature(toolCall.function.name, args);
+    const count = (counts.get(signature) || 0) + 1;
+    counts.set(signature, count);
+
+    if (count > 2) {
+      return {
+        signature,
+        count,
+        toolName: toolCall.function.name,
+        args
+      };
+    }
+  }
+
+  return undefined;
+}
+
+function getToolCallSignature(toolName: string, args: Record<string, unknown>): string {
+  const { reason: _reason, ...semanticArgs } = args;
+  return `${toolName}:${stableStringify(semanticArgs)}`;
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+      .join(',')}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function getRepeatedToolCallAnswer(toolCall: RepeatedToolCall): string {
+  return [
+    `Остановился, потому что модель повторила один и тот же вызов инструмента ${toolCall.toolName} ${toolCall.count} раза подряд в рамках одного запроса.`,
+    'Результат такого вызова уже есть в контексте, поэтому дальнейшее повторение, скорее всего, было бы бесконечным циклом.',
+    'Попробуйте уточнить задачу или попросить продолжить с учетом уже полученных результатов.'
+  ].join('\n');
+}
+
+function getChatContextEstimate(
+  history: OpenRouterMessage[],
+  systemPrompt: string,
+  model: OpenRouterModelOption | undefined
+): ChatContextEstimate {
+  const tokens = estimateMessagesTokens([{ role: 'system', content: systemPrompt }, ...history]);
+  const maxTokens = model?.contextLength;
+  const percent = maxTokens ? Math.min(100, Math.round((tokens / maxTokens) * 100)) : undefined;
+  const inputCostUsd = getCostUsd(tokens, 0, model?.pricing);
+
+  return {
+    tokens,
+    maxTokens,
+    percent,
+    inputCostUsd
+  };
+}
+
+function getCallUsageEstimate(
+  promptTokens: number,
+  completionTokens: number,
+  pricing: OpenRouterModelPricing | undefined
+): ChatUsageEstimate {
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+    costUsd: getCostUsd(promptTokens, completionTokens, pricing)
+  };
+}
+
+function getMessageUsageEstimate(value: unknown): ChatMessageUsageEstimate {
+  return {
+    tokens: estimateValueTokens(value)
+  };
+}
+
+function createEmptyUsage(): ChatUsageEstimate {
+  return {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0
+  };
+}
+
+function mergeUsage(target: ChatUsageEstimate, usage: ChatUsageEstimate): void {
+  target.promptTokens += usage.promptTokens;
+  target.completionTokens += usage.completionTokens;
+  target.totalTokens += usage.totalTokens;
+  target.costUsd =
+    target.costUsd === undefined && usage.costUsd === undefined ? undefined : (target.costUsd || 0) + (usage.costUsd || 0);
+}
+
+function estimateMessagesTokens(messages: OpenRouterMessage[]): number {
+  return messages.reduce((sum, message) => sum + estimateMessageTokens(message), 0);
+}
+
+function estimateMessageTokens(message: OpenRouterMessage): number {
+  return estimateValueTokens({
+    role: message.role,
+    content: message.content,
+    reasoning: message.reasoning,
+    tool_calls: message.tool_calls,
+    tool_call_id: message.tool_call_id
+  });
+}
+
+function estimateValueTokens(value: unknown): number {
+  const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function getCostUsd(
+  promptTokens: number,
+  completionTokens: number,
+  pricing: OpenRouterModelPricing | undefined
+): number | undefined {
+  const promptCost = pricing?.prompt === undefined ? undefined : promptTokens * pricing.prompt;
+  const completionCost = pricing?.completion === undefined ? undefined : completionTokens * pricing.completion;
+
+  if (promptCost === undefined && completionCost === undefined) {
+    return undefined;
+  }
+
+  return (promptCost || 0) + (completionCost || 0);
 }
 
 function redactLargeArgs(args: Record<string, unknown>): Record<string, unknown> {

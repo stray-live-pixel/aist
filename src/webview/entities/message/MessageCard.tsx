@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { vscode } from '../../shared/lib/vscode';
-import type { ChatMessage } from '../../shared/types';
+import type { ChatMessage, ChatMessageUsageEstimate } from '../../shared/types';
 import { getToolLabel, ToolIcon } from '../../shared/ui/ToolIcon';
 
 type MessageCardProps = {
@@ -48,6 +48,7 @@ export function MessageCard({ message, actions }: MessageCardProps) {
           {variant.icon}
           <span>{variant.label}</span>
           {formatMessageDate(message.createdAt)}
+          {formatMessageUsage(message.usage)}
         </div>
         {actions}
       </div>
@@ -70,6 +71,7 @@ function ToolMessage({ message }: MessageCardProps) {
           <ToolIcon name={message.name} className={isRunning ? 'animate-pulse' : ''} />
           <span className="truncate">{getToolLabel(message.name)}</span>
           {formatMessageDate(message.createdAt)}
+          {formatMessageUsage(message.usage)}
         </div>
         <span className={`shrink-0 rounded border px-2 py-0.5 text-xs ${getToolStatusClass(message.status)}`}>
           {formatToolStatus(message)}
@@ -155,4 +157,56 @@ function formatMessageDate(timestamp?: number): ReactNode {
       <span className="opacity-75">{day}.{month}.{year}</span>
     </span>
   );
+}
+
+function formatMessageUsage(usage?: ChatMessageUsageEstimate): ReactNode {
+  const promptTokens = usage?.promptTokens || 0;
+  const completionTokens = usage?.completionTokens || 0;
+  const costUsd = usage?.costUsd;
+  const tokens = usage?.tokens || promptTokens + completionTokens;
+
+  if (!tokens && costUsd === undefined) {
+    return null;
+  }
+
+  return (
+    <span
+      className="ml-2 flex items-center gap-1.5 font-normal normal-case text-[var(--vscode-descriptionForeground)]"
+      title={[
+        tokens ? `Message: ${tokens.toLocaleString()} tokens` : undefined,
+        promptTokens ? `Prompt: ${promptTokens.toLocaleString()} tokens` : undefined,
+        completionTokens ? `Completion: ${completionTokens.toLocaleString()} tokens` : undefined,
+        costUsd !== undefined ? `Cost: ${formatCost(costUsd)}` : undefined
+      ]
+        .filter(Boolean)
+        .join('\n')}
+    >
+      {tokens ? <span>{formatTokens(tokens)} tok</span> : null}
+      {costUsd !== undefined ? <strong className="font-bold">{formatCost(costUsd)}</strong> : null}
+    </span>
+  );
+}
+
+function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}K`;
+  }
+
+  return String(tokens);
+}
+
+function formatCost(costUsd: number): string {
+  if (costUsd === 0) {
+    return '$0.00';
+  }
+
+  if (costUsd < 0.0001) {
+    return `~$${costUsd.toFixed(6)}`;
+  }
+
+  return `~$${costUsd.toFixed(4)}`;
 }

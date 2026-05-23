@@ -20,6 +20,9 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
     options.instructions ? `Additional user-defined working instructions:\n${options.instructions}` : '',
     'Use grep_search when you need to find symbols, strings, or related files across the workspace.',
     'Before editing, read the relevant files and preserve the existing project style.',
+    'Do not repeat the same tool call with the same arguments if its result is already present in the conversation.',
+    'After a tool succeeds, use its result to make progress; if you are stuck, explain the blocker instead of looping.',
+    'After successful file edits, verify at most once when verification is useful, then provide the final answer.',
     'Keep final answers concise and mention changed files.',
     'Do not claim that a file was changed unless a tool call succeeded.'
   ]
