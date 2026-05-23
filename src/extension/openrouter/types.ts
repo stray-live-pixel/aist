@@ -1,0 +1,26 @@
+export type OpenRouterRole = 'system' | 'user' | 'assistant' | 'tool';
+
+export type OpenRouterMessage = {
+  role: OpenRouterRole;
+  content?: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+};
+
+export type ToolCall = {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments?: string | Record<string, unknown>;
+  };
+};
+
+export type OpenRouterTool = {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+};

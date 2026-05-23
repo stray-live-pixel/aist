@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+  --agent-border: color-mix(in srgb, var(--vscode-foreground) 18%, transparent);
+  --agent-input-border: var(--vscode-input-border, var(--agent-border));
+}
+
+body {
+  margin: 0;
+  font-family: var(--vscode-font-family);
+  background: var(--vscode-editor-background);
+}
+
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+@layer components {
+  .message-card {
+    border: 1px solid var(--agent-border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+
+  .icon-button {
+    display: inline-flex;
+    height: 32px;
+    width: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--agent-border);
+    border-radius: 6px;
+    color: var(--vscode-button-secondaryForeground);
+    background: var(--vscode-button-secondaryBackground);
+  }
+
+  .icon-button:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+  }
+
+  .icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .primary-button {
+    display: inline-flex;
+    min-width: 86px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 6px;
+    color: var(--vscode-button-foreground);
+    background: var(--vscode-button-background);
+    padding: 0 12px;
+  }
+
+  .primary-button:hover {
+    background: var(--vscode-button-hoverBackground);
+  }
+
+  .primary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .markdown-body {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .markdown-body > :first-child {
+    margin-top: 0;
+  }
+
+  .markdown-body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-body p,
+  .markdown-body ul,
+  .markdown-body ol,
+  .markdown-body blockquote,
+  .markdown-body pre,
+  .markdown-body table {
+    margin: 0.65rem 0;
+  }
+
+  .markdown-body ul,
+  .markdown-body ol {
+    padding-left: 1.25rem;
+  }
+
+  .markdown-body ul {
+    list-style: disc;
+  }
+
+  .markdown-body ol {
+    list-style: decimal;
+  }
+
+  .markdown-body code {
+    border: 1px solid var(--agent-border);
+    border-radius: 4px;
+    background: var(--vscode-textCodeBlock-background);
+    padding: 0.08rem 0.28rem;
+    font-family: var(--vscode-editor-font-family);
+  }
+
+  .markdown-body pre {
+    overflow: auto;
+    border: 1px solid var(--agent-border);
+    border-radius: 6px;
+    background: var(--vscode-textCodeBlock-background);
+    padding: 0.75rem;
+  }
+
+  .markdown-body pre code {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .markdown-body a {
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .markdown-body blockquote {
+    border-left: 3px solid var(--agent-border);
+    color: var(--vscode-descriptionForeground);
+    padding-left: 0.75rem;
+  }
+}

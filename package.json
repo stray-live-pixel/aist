@@ -1,0 +1,129 @@
+{
+  "name": "openrouter-ai-agent",
+  "displayName": "OpenRouter AI Agent",
+  "description": "Minimal VS Code coding agent powered by OpenRouter.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:openrouterAgent.openChat",
+    "onCommand:openrouterAgent.newChat",
+    "onCommand:openrouterAgent.editSelection",
+    "onView:openrouterAgent.chats"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "openrouterAgent",
+          "title": "AI Agent",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "openrouterAgent": [
+        {
+          "id": "openrouterAgent.chats",
+          "name": "Chats"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "openrouterAgent.openChat",
+        "title": "OpenRouter Agent: Open Chat"
+      },
+      {
+        "command": "openrouterAgent.newChat",
+        "title": "OpenRouter Agent: New Chat",
+        "icon": "$(add)"
+      },
+      {
+        "command": "openrouterAgent.editSelection",
+        "title": "OpenRouter Agent: Edit Selection"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "openrouterAgent.newChat",
+          "when": "view == openrouterAgent.chats",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "OpenRouter AI Agent",
+      "properties": {
+        "openrouterAgent.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "OpenRouter API key. You can also set the `OPENROUTER_API_KEY` environment variable."
+        },
+        "openrouterAgent.model": {
+          "type": "string",
+          "default": "openai/gpt-4o-mini",
+          "description": "OpenRouter model id."
+        },
+        "openrouterAgent.siteUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional site URL sent to OpenRouter for rankings."
+        },
+        "openrouterAgent.siteName": {
+          "type": "string",
+          "default": "VS Code OpenRouter AI Agent",
+          "description": "Optional site name sent to OpenRouter for rankings."
+        },
+        "openrouterAgent.maxContextChars": {
+          "type": "number",
+          "default": 12000,
+          "minimum": 1000,
+          "description": "Maximum characters from the active file sent as context."
+        },
+        "openrouterAgent.maxToolIterations": {
+          "type": "number",
+          "default": 6,
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Maximum number of model/tool-call turns per request."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
+    "build:webview": "esbuild src/webview/app/index.tsx --bundle --format=iife --minify --define:process.env.NODE_ENV=\\\"production\\\" --outfile=dist/webview.js && tailwindcss -i src/webview/app/styles.css -o dist/webview.css --minify",
+    "build": "npm run typecheck && npm run build:extension && npm run build:webview",
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck",
+    "package": "npm run build && vsce package --no-dependencies",
+    "watch:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js --watch",
+    "watch:webview": "esbuild src/webview/app/index.tsx --bundle --format=iife --outfile=dist/webview.js --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.28.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "lucide-react": "^1.16.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  }
+}
