@@ -304,7 +304,7 @@ async function showFileDiff(filePath: string, nextContent: string): Promise<Reco
     };
   }
 
-  const tempRoot = vscode.Uri.file(path.join(os.tmpdir(), 'openrouter-ai-agent-diffs', Date.now().toString()));
+  const tempRoot = vscode.Uri.file(path.join(os.tmpdir(), 'aist-diffs', Date.now().toString()));
   await vscode.workspace.fs.createDirectory(tempRoot);
 
   const originalUri = currentContent === undefined ? vscode.Uri.joinPath(tempRoot, `empty-${path.basename(filePath)}`) : targetUri;
@@ -319,7 +319,7 @@ async function showFileDiff(filePath: string, nextContent: string): Promise<Reco
     'vscode.diff',
     originalUri,
     proposedUri,
-    `OpenRouter Agent Preview: ${filePath}`,
+    `aist Preview: ${filePath}`,
     { preview: true }
   );
 

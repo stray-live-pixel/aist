@@ -62,7 +62,7 @@ var OpenRouterClient = class {
     const apiKey = config.get("apiKey") || process.env.OPENROUTER_API_KEY;
     const model = modelOverride || config.get("model") || DEFAULT_MODEL;
     const siteUrl = config.get("siteUrl") || "";
-    const siteName = config.get("siteName") || "VS Code OpenRouter AI Agent";
+    const siteName = config.get("siteName") || "aist";
     if (!apiKey) {
       throw new Error("Set openrouterAgent.apiKey in VS Code settings or OPENROUTER_API_KEY in your environment.");
     }
@@ -139,7 +139,7 @@ function getWebviewHtml(webview, extensionUri) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <link href="${styleUri}" rel="stylesheet">
-  <title>OpenRouter AI Agent</title>
+  <title>aist</title>
 </head>
 <body>
   <div id="root"></div>
@@ -455,7 +455,7 @@ async function showFileDiff(filePath, nextContent) {
       reason: "No file changes to preview."
     };
   }
-  const tempRoot = vscode4.Uri.file(import_node_path2.default.join(import_node_os.default.tmpdir(), "openrouter-ai-agent-diffs", Date.now().toString()));
+  const tempRoot = vscode4.Uri.file(import_node_path2.default.join(import_node_os.default.tmpdir(), "aist-diffs", Date.now().toString()));
   await vscode4.workspace.fs.createDirectory(tempRoot);
   const originalUri = currentContent === void 0 ? vscode4.Uri.joinPath(tempRoot, `empty-${import_node_path2.default.basename(filePath)}`) : targetUri;
   const proposedUri = vscode4.Uri.joinPath(tempRoot, `proposed-${import_node_path2.default.basename(filePath) || "file"}`);
@@ -467,7 +467,7 @@ async function showFileDiff(filePath, nextContent) {
     "vscode.diff",
     originalUri,
     proposedUri,
-    `OpenRouter Agent Preview: ${filePath}`,
+    `aist Preview: ${filePath}`,
     { preview: true }
   );
   return {
@@ -645,7 +645,7 @@ var AgentController = class {
     }
     this.panel = vscode7.window.createWebviewPanel(
       "openrouterAgentChat",
-      "OpenRouter AI Agent",
+      "aist",
       vscode7.ViewColumn.Beside,
       {
         enableScripts: true,
@@ -675,7 +675,7 @@ var AgentController = class {
       return;
     }
     const instruction = await vscode7.window.showInputBox({
-      title: "OpenRouter Agent: Edit Selection",
+      title: "aist: Edit Selection",
       prompt: "Describe what should be generated or changed",
       placeHolder: "Example: refactor this function and add error handling"
     });
@@ -685,7 +685,7 @@ var AgentController = class {
     await vscode7.window.withProgress(
       {
         location: vscode7.ProgressLocation.Notification,
-        title: "OpenRouter Agent is editing...",
+        title: "aist is editing...",
         cancellable: false
       },
       async () => {
@@ -900,7 +900,7 @@ ${editorContext}` : ""].join("");
   }
   async askToolPermission(toolName, args, reason) {
     const answer = await vscode7.window.showWarningMessage(
-      `Allow OpenRouter Agent to run ${toolName}?`,
+      `Allow aist to run ${toolName}?`,
       {
         modal: true,
         detail: [`Reason: ${reason}`, "", `Arguments: ${JSON.stringify(redactLargeArgs(args), null, 2)}`].join("\n")

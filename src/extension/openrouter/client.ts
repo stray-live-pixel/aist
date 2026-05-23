@@ -23,7 +23,7 @@ export class OpenRouterClient {
     const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
     const model = modelOverride || config.get<string>('model') || DEFAULT_MODEL;
     const siteUrl = config.get<string>('siteUrl') || '';
-    const siteName = config.get<string>('siteName') || 'VS Code OpenRouter AI Agent';
+    const siteName = config.get<string>('siteName') || 'aist';
 
     if (!apiKey) {
       throw new Error('Set openrouterAgent.apiKey in VS Code settings or OPENROUTER_API_KEY in your environment.');

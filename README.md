@@ -1,4 +1,4 @@
-# OpenRouter AI Agent
+# aist
 
 Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, React, Tailwind CSS, and `lucide-react`.
 
@@ -6,7 +6,7 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 
 - Activity Bar icon opens the `Chats` sidebar view.
 - Clicking a chat in the sidebar opens the React chat panel.
-- `OpenRouter Agent: New Chat` creates a new chat.
+- `aist: New Chat` creates a new chat.
 - The chat automatically includes the active file or selected code as context.
 - Messages render Markdown with GitHub-flavored Markdown support.
 - Every text message has a copy button that copies the original Markdown.
@@ -27,7 +27,7 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
   - `create_directory`
   - `delete_path`
 - Tool paths are constrained to the first VS Code workspace folder.
-- `OpenRouter Agent: Edit Selection` asks for an instruction and replaces the current selection with model output.
+- `aist: Edit Selection` asks for an instruction and replaces the current selection with model output.
 - `Insert Last Answer` inserts the latest chat answer into the active editor.
 
 ## Setup
@@ -53,7 +53,7 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 
    - Open this folder in VS Code.
    - Press `F5`.
-   - In the Extension Development Host, run `OpenRouter Agent: Open Chat`.
+   - In the Extension Development Host, run `aist: Open Chat`.
 
 ## Package
 

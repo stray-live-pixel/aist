@@ -12,7 +12,7 @@ export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <link href="${styleUri}" rel="stylesheet">
-  <title>OpenRouter AI Agent</title>
+  <title>aist</title>
 </head>
 <body>
   <div id="root"></div>

@@ -47,7 +47,7 @@ export class AgentController {
 
     this.panel = vscode.window.createWebviewPanel(
       'openrouterAgentChat',
-      'OpenRouter AI Agent',
+      'aist',
       vscode.ViewColumn.Beside,
       {
         enableScripts: true,
@@ -83,7 +83,7 @@ export class AgentController {
     }
 
     const instruction = await vscode.window.showInputBox({
-      title: 'OpenRouter Agent: Edit Selection',
+      title: 'aist: Edit Selection',
       prompt: 'Describe what should be generated or changed',
       placeHolder: 'Example: refactor this function and add error handling'
     });
@@ -95,7 +95,7 @@ export class AgentController {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'OpenRouter Agent is editing...',
+        title: 'aist is editing...',
         cancellable: false
       },
       async () => {
@@ -335,7 +335,7 @@ export class AgentController {
 
   private async askToolPermission(toolName: string, args: Record<string, unknown>, reason: string): Promise<boolean> {
     const answer = await vscode.window.showWarningMessage(
-      `Allow OpenRouter Agent to run ${toolName}?`,
+      `Allow aist to run ${toolName}?`,
       {
         modal: true,
         detail: [`Reason: ${reason}`, '', `Arguments: ${JSON.stringify(redactLargeArgs(args), null, 2)}`].join('\n')
