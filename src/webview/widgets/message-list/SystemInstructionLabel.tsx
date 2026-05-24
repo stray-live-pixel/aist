@@ -51,7 +51,7 @@ export function SystemInstructionLabel({ mode }: SystemInstructionLabelProps) {
           onClick={() => setIsOpen(false)}
         >
           <section
-            className="flex max-h-full w-full max-w-3xl flex-col rounded-lg border border-[var(--agent-border)] bg-[var(--vscode-editor-background)] shadow-xl"
+            className="flex max-h-full w-full max-w-3xl flex-col rounded-[24px] [corner-shape:squircle] border border-[var(--agent-border)] bg-[var(--vscode-editor-background)] shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 border-b border-[var(--agent-border)] px-4 py-3">

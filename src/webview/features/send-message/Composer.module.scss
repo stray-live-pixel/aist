@@ -35,7 +35,8 @@
   margin: 0 auto;
   overflow: hidden;
   border: 1px solid var(--agent-border);
-  border-radius: 16px;
+  border-radius: 24px;
+  corner-shape: squircle;
   background: color-mix(in srgb, var(--vscode-input-background) 36%, transparent);
   box-shadow: 0 14px 34px rgb(0 0 0 / 0.2);
   backdrop-filter: blur(24px) saturate(1.35);

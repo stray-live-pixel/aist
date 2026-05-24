@@ -200,12 +200,6 @@ export const storyMessages: ChatMessage[] = [
     createdAt: storyNow - 1000 * 60 * 6
   },
   {
-    id: 'msg-status',
-    role: 'status',
-    content: 'Running verification...',
-    createdAt: storyNow - 1000 * 60 * 4
-  },
-  {
     id: 'tool-read-file',
     role: 'tool',
     name: 'read_file',
@@ -232,6 +226,12 @@ export const storyMessages: ChatMessage[] = [
       truncated: false
     },
     createdAt: storyNow - 1000 * 60 * 2
+  },
+  {
+    id: 'msg-agent-tools-summary',
+    role: 'assistant',
+    content: 'Проверил места использования `MessageCard` и подготовил группировку tool calls под общий cut.',
+    createdAt: storyNow - 1000 * 60
   }
 ];
 

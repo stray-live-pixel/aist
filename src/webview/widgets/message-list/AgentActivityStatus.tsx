@@ -13,7 +13,7 @@ type AgentActivityStatusProps = {
 
 export function AgentActivityStatus({ activity }: AgentActivityStatusProps) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-[var(--vscode-foreground)]">
+    <div className="flex items-center gap-3 rounded-[24px] [corner-shape:squircle] border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-[var(--vscode-foreground)]">
       <AistAnimatedLogo className="aist-logo-sm shrink-0" />
       <div className="min-w-0">
         <div className="text-sm font-medium">{formatActivity(activity)}</div>
