@@ -43,6 +43,7 @@ export function App() {
         agentLanguage={state.agentLanguage}
         agentMode={state.agentMode}
         agentModes={state.agentModes}
+        codexAuthenticated={state.codexAuthenticated}
         onBack={() => setPage('chat')}
       />
     );

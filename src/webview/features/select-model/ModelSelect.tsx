@@ -19,6 +19,7 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
       models.find((item) => item.id === model) || {
         id: model,
         name: model,
+        provider: model.startsWith('codex:') ? 'codex' : 'openrouter',
         supportsTools: true
       },
     [model, models]
@@ -26,9 +27,25 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
   const options = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return normalizedQuery
-      ? models.filter((item) => `${item.name} ${item.id}`.toLowerCase().includes(normalizedQuery))
+      ? models.filter((item) => `${item.name} ${item.id} ${getProviderLabel(item.provider)}`.toLowerCase().includes(normalizedQuery))
       : models;
   }, [models, query]);
+  const groups = useMemo(
+    () =>
+      [
+        {
+          provider: 'openrouter' as const,
+          label: 'OpenRouter',
+          options: options.filter((item) => (item.provider || 'openrouter') === 'openrouter')
+        },
+        {
+          provider: 'codex' as const,
+          label: 'ChatGPT Codex',
+          options: options.filter((item) => item.provider === 'codex')
+        }
+      ].filter((group) => group.options.length),
+    [options]
+  );
 
   useEffect(() => {
     if (disabled) {
@@ -100,38 +117,45 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
             <input
               ref={searchRef}
               className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[var(--vscode-input-placeholderForeground)]"
-              placeholder="Search OpenRouter models..."
+              placeholder="Search models..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto" role="listbox" aria-label="OpenRouter models">
-            {options.length ? (
-              options.map((item) => {
-                const active = item.id === model;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`flex w-full min-w-0 items-start gap-2 rounded px-2 py-2 text-left text-xs outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)] ${
-                      active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''
-                    }`}
-                    role="option"
-                    aria-selected={active}
-                    onClick={() => selectModel(item.id)}
-                  >
-                    <Check size={14} className={`mt-0.5 shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{item.name}</span>
-                      <span className={`block truncate ${active ? '' : 'text-[var(--vscode-descriptionForeground)]'}`}>
-                        {item.id}
-                        {item.supportsTools ? '' : ' - no tools'}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })
+          <div className="max-h-60 overflow-y-auto" role="listbox" aria-label="Models">
+            {groups.length ? (
+              groups.map((group) => (
+                <div key={group.provider} className="grid gap-1">
+                  <div className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase text-[var(--vscode-descriptionForeground)]">
+                    {group.label}
+                  </div>
+                  {group.options.map((item) => {
+                    const active = item.id === model;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`flex w-full min-w-0 items-start gap-2 rounded px-2 py-2 text-left text-xs outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)] ${
+                          active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''
+                        }`}
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => selectModel(item.id)}
+                      >
+                        <Check size={14} className={`mt-0.5 shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{item.name}</span>
+                          <span className={`block truncate ${active ? '' : 'text-[var(--vscode-descriptionForeground)]'}`}>
+                            {item.id}
+                            {item.supportsTools ? '' : ' - no tools'}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))
             ) : (
               <div className="px-2 py-3 text-xs text-[var(--vscode-descriptionForeground)]">No models found</div>
             )}
@@ -140,4 +164,8 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
       ) : null}
     </div>
   );
+}
+
+function getProviderLabel(provider: ModelOption['provider']): string {
+  return provider === 'codex' ? 'ChatGPT Codex' : 'OpenRouter';
 }

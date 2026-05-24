@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { ChatStore } from '../chats/chatStore';
 import type { Chat, ChatContextEstimate, ChatMessageUsageEstimate, ChatUsageEstimate } from '../chats/types';
+import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, ToolCall } from '../openrouter/types';
+import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, OpenRouterTool, ToolCall } from '../openrouter/types';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { getErrorMessage } from '../shared/errors';
 import type { AistLogger } from '../shared/logger';
@@ -13,9 +14,10 @@ import { getToolPermission, getToolPermissionItems, setToolPermission, type Tool
 import { getEditorContext, replaceSelection, stripCodeFence } from './editorContext';
 import { getSystemPrompt } from './prompts';
 import {
+  addAgentMode,
+  deleteAgentMode,
   getActiveAgentMode,
   getAgentLanguage,
-  getAgentMode,
   getAgentModes,
   setAgentLanguage,
   setAgentMode,
@@ -60,6 +62,10 @@ type WebviewMessage =
   | { type: 'setAgentLanguage'; language: 'ru' | 'en' }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
+  | { type: 'addAgentMode'; label: string; instructions: string }
+  | { type: 'deleteAgentMode'; modeId: string }
+  | { type: 'codexLogin' }
+  | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
   | { type: 'stop' }
   | { type: 'clear' }
@@ -78,17 +84,21 @@ export class AgentController {
   private sidebarChatId: string | undefined;
   private sidebarPage: 'chat' | 'settings' = 'chat';
   private readonly editorSurfaces = new Map<string, WebviewSurface>();
-  private readonly client = new OpenRouterClient();
+  private readonly openRouterClient = new OpenRouterClient();
+  private readonly codexClient: CodexClient;
   private modelOptions: OpenRouterModelOption[] = [...FALLBACK_MODEL_OPTIONS];
   private modelsLoadedAt = 0;
   private modelLoadPromise: Promise<void> | undefined;
   private currentRun: AgentRun | undefined;
+  private codexAuthenticated = false;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly chats: ChatStore,
     private readonly logger: AistLogger
   ) {
+    this.codexClient = new CodexClient(context, logger);
+    void this.refreshCodexAuthState();
     this.logger.info('AgentController initialized', {
       activeChatId: this.chats.getActiveChat().id,
       chatCount: this.chats.getSummaries().length
@@ -291,7 +301,7 @@ export class AgentController {
           `Current selection:\n${selectedText || '(empty selection at cursor)'}`
         ].join('\n');
 
-        const answer = await this.client.chat(
+        const answer = await this.chat(
           [
             { role: 'system', content: this.getSystemPrompt() },
             { role: 'user', content: prompt }
@@ -316,6 +326,7 @@ export class AgentController {
       this.sendState(surface);
       this.postPage(surface, surface.kind === 'sidebar' ? this.sidebarPage : 'chat');
       void this.refreshModels();
+      void this.refreshCodexAuthState();
     }
 
     if (message.type === 'ask') {
@@ -442,8 +453,56 @@ export class AgentController {
     }
 
     if (message.type === 'setAgentModeInstructions') {
-      await setAgentModeInstructions(message.modeId, message.instructions);
+      try {
+        await setAgentModeInstructions(message.modeId, message.instructions);
+      } catch (error) {
+        this.logger.error('Failed to update agent mode instructions', error);
+        vscode.window.showErrorMessage(`aist: failed to save agent mode instructions — ${getErrorMessage(error)}`);
+      }
       this.sendState();
+    }
+
+    if (message.type === 'addAgentMode') {
+      try {
+        const mode = await addAgentMode(message.label, message.instructions);
+        this.logger.info('Agent mode added', { id: mode.id, label: mode.label });
+        await setAgentMode(mode.id);
+      } catch (error) {
+        this.logger.error('Failed to add agent mode', error);
+        vscode.window.showErrorMessage(`aist: failed to add agent mode — ${getErrorMessage(error)}`);
+      }
+      this.sendState();
+    }
+
+    if (message.type === 'deleteAgentMode') {
+      try {
+        const deleted = await deleteAgentMode(message.modeId);
+        this.logger.info('Agent mode delete attempted', { modeId: message.modeId, deleted });
+      } catch (error) {
+        this.logger.error('Failed to delete agent mode', error);
+        vscode.window.showErrorMessage(`aist: failed to delete agent mode — ${getErrorMessage(error)}`);
+      }
+      this.sendState();
+    }
+
+    if (message.type === 'codexLogin') {
+      try {
+        await this.loginCodex();
+      } catch (error) {
+        this.logger.error('ChatGPT Codex login failed', error);
+        vscode.window.showErrorMessage(`aist: ChatGPT Codex login failed — ${getErrorMessage(error)}`);
+        await this.refreshCodexAuthState();
+      }
+    }
+
+    if (message.type === 'codexLogout') {
+      try {
+        await this.logoutCodex();
+      } catch (error) {
+        this.logger.error('ChatGPT Codex logout failed', error);
+        vscode.window.showErrorMessage(`aist: ChatGPT Codex logout failed — ${getErrorMessage(error)}`);
+        await this.refreshCodexAuthState();
+      }
     }
 
     if (message.type === 'resolveToolCall') {
@@ -548,7 +607,7 @@ export class AgentController {
       this.sendState();
 
       const promptTokens = estimateMessagesTokens(workingMessages);
-      const responseMessage = await this.client.chat(workingMessages, filesystemTools, chat.model, run.abortController.signal);
+      const responseMessage = await this.chat(workingMessages, filesystemTools, chat.model, run.abortController.signal);
       const completionTokens = estimateMessageTokens(responseMessage);
       const callUsage = getCallUsageEstimate(promptTokens, completionTokens, model?.pricing);
       mergeUsage(usage, callUsage);
@@ -812,6 +871,42 @@ export class AgentController {
     return this.modelOptions.find((model) => model.id === modelId);
   }
 
+  async loginCodex(): Promise<void> {
+    await this.codexClient.login();
+    await this.refreshCodexAuthState();
+    await this.refreshModels(true);
+    this.sendState();
+  }
+
+  async logoutCodex(): Promise<void> {
+    await this.codexClient.logout();
+    await this.refreshCodexAuthState();
+    this.sendState();
+  }
+
+  private async refreshCodexAuthState(): Promise<void> {
+    try {
+      this.codexAuthenticated = await this.codexClient.isAuthenticated();
+      this.sendState();
+    } catch (error) {
+      this.codexAuthenticated = false;
+      this.logger.error('Failed to read ChatGPT Codex auth state', error);
+    }
+  }
+
+  private async chat(
+    messages: OpenRouterMessage[],
+    tools?: OpenRouterTool[],
+    modelOverride?: string,
+    signal?: AbortSignal
+  ): Promise<OpenRouterMessage> {
+    if (isCodexModel(modelOverride)) {
+      return this.codexClient.chat(messages, tools, modelOverride, signal);
+    }
+
+    return this.openRouterClient.chat(messages, tools, modelOverride, signal);
+  }
+
   private sendState(targetSurface?: WebviewSurface): void {
     const surfaces = targetSurface ? [targetSurface] : this.getSurfaces();
     if (!surfaces.length) {
@@ -853,6 +948,7 @@ export class AgentController {
         agentLanguage: language,
         agentMode: activeMode.id,
         agentModes,
+        codexAuthenticated: this.codexAuthenticated,
         toolPermissions: getToolPermissionItems()
       } as const;
 
@@ -874,35 +970,58 @@ export class AgentController {
     }
   }
 
-  private async refreshModels(): Promise<void> {
+  private async refreshModels(force = false): Promise<void> {
     const now = Date.now();
-    if (this.modelLoadPromise || now - this.modelsLoadedAt < 5 * 60 * 1000) {
+    if (!force && (this.modelLoadPromise || now - this.modelsLoadedAt < 5 * 60 * 1000)) {
       return this.modelLoadPromise || Promise.resolve();
     }
 
-    this.logger.info('Loading OpenRouter model list');
+    this.logger.info('Loading model list');
 
-    this.modelLoadPromise = this.client
-      .listModels()
+    this.modelLoadPromise = this.loadModels()
       .then((models) => {
         if (models.length) {
           this.modelOptions = models;
           this.modelsLoadedAt = Date.now();
           this.sendState();
-          this.logger.info('OpenRouter model list loaded', { count: models.length });
+          this.logger.info('Model list loaded', { count: models.length });
         } else {
-          this.logger.info('OpenRouter model list was empty');
+          this.logger.info('Model list was empty');
         }
       })
       .catch((error) => {
-        this.logger.error('OpenRouter model list unavailable', error);
-        vscode.window.setStatusBarMessage(`OpenRouter model list unavailable: ${getErrorMessage(error)}`, 4000);
+        this.logger.error('Model list unavailable', error);
+        vscode.window.setStatusBarMessage(`Model list unavailable: ${getErrorMessage(error)}`, 4000);
       })
       .finally(() => {
         this.modelLoadPromise = undefined;
       });
 
     return this.modelLoadPromise;
+  }
+
+  private async loadModels(): Promise<OpenRouterModelOption[]> {
+    const [openRouterResult, codexResult] = await Promise.allSettled([
+      this.openRouterClient.listModels(),
+      Promise.resolve(this.codexClient.listModels())
+    ]);
+    const models: OpenRouterModelOption[] = [];
+
+    if (openRouterResult.status === 'fulfilled') {
+      models.push(...openRouterResult.value);
+    } else {
+      models.push(...FALLBACK_MODEL_OPTIONS.filter((model) => model.provider === 'openrouter'));
+      this.logger.error('OpenRouter model list unavailable', openRouterResult.reason);
+    }
+
+    if (codexResult.status === 'fulfilled') {
+      models.push(...codexResult.value);
+    } else {
+      models.push(...FALLBACK_MODEL_OPTIONS.filter((model) => model.provider === 'codex'));
+      this.logger.error('Codex model list unavailable', codexResult.reason);
+    }
+
+    return mergeModels(models);
   }
 }
 
@@ -930,6 +1049,10 @@ function getToolReason(args: Record<string, unknown>): string {
 
 function normalizeReasoningEffort(value: unknown): ReasoningEffort {
   return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+}
+
+function isCodexModel(modelId: string | undefined): boolean {
+  return Boolean(modelId?.startsWith('codex:'));
 }
 
 function isAbortError(error: unknown): boolean {
@@ -1099,6 +1222,7 @@ function mergeModels(models: OpenRouterModelOption[], ...selectedModels: string[
       byId.set(modelId, {
         id: modelId,
         name: modelId,
+        provider: isCodexModel(modelId) ? 'codex' : 'openrouter',
         supportsTools: true
       });
     }

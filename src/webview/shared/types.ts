@@ -63,6 +63,7 @@ export type Chat = {
 export type ModelOption = {
   id: string;
   name: string;
+  provider?: 'openrouter' | 'codex';
   contextLength?: number;
   pricing?: {
     prompt?: number;
@@ -74,7 +75,7 @@ export type ModelOption = {
 export type ToolPermissionMode = 'ask' | 'auto';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type AgentLanguage = 'ru' | 'en';
-export type AgentModeId = 'default' | 'careful';
+export type AgentModeId = string;
 
 export type AgentMode = {
   id: AgentModeId;
@@ -101,6 +102,7 @@ export type AgentState = {
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
+  codexAuthenticated: boolean;
   toolPermissions: ToolPermissionItem[];
 };
 
@@ -125,6 +127,10 @@ export type WebviewToExtensionMessage =
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
+  | { type: 'addAgentMode'; label: string; instructions: string }
+  | { type: 'deleteAgentMode'; modeId: string }
+  | { type: 'codexLogin' }
+  | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
   | { type: 'stop' }
   | { type: 'clear' }

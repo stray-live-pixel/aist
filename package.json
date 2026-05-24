@@ -1,7 +1,7 @@
 {
   "name": "aist",
   "displayName": "aist",
-  "description": "Minimal VS Code coding agent powered by OpenRouter.",
+  "description": "Minimal VS Code coding agent powered by OpenRouter or ChatGPT Codex.",
   "version": "0.0.1",
   "publisher": "local",
   "engines": {
@@ -17,6 +17,8 @@
     "onCommand:openrouterAgent.openStorage",
     "onCommand:openrouterAgent.showLogs",
     "onCommand:openrouterAgent.editSelection",
+    "onCommand:openrouterAgent.codexLogin",
+    "onCommand:openrouterAgent.codexLogout",
     "onView:openrouterAgent.chats"
   ],
   "main": "./dist/extension.js",
@@ -71,6 +73,14 @@
       {
         "command": "openrouterAgent.showLogs",
         "title": "aist: Show Logs"
+      },
+      {
+        "command": "openrouterAgent.codexLogin",
+        "title": "aist: Login ChatGPT Codex"
+      },
+      {
+        "command": "openrouterAgent.codexLogout",
+        "title": "aist: Logout ChatGPT Codex"
       }
     ],
     "menus": {
@@ -103,7 +113,7 @@
         "openrouterAgent.model": {
           "type": "string",
           "default": "openai/gpt-4o-mini",
-          "description": "OpenRouter model id."
+          "description": "Model id. OpenRouter ids are used as-is; ChatGPT Codex ids use the codex: prefix, for example codex:gpt-5.1-codex."
         },
         "openrouterAgent.siteUrl": {
           "type": "string",
@@ -153,17 +163,31 @@
         },
         "openrouterAgent.agentMode": {
           "type": "string",
-          "enum": [
-            "default",
-            "careful"
-          ],
           "default": "default",
-          "description": "Active agent working mode."
+          "description": "Active agent working mode ID."
         },
         "openrouterAgent.agentModeInstructions": {
           "type": "object",
           "default": {},
           "description": "Custom instructions per agent mode."
+        },
+        "openrouterAgent.customAgentModes": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "instructions"
+            ],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "instructions": { "type": "string" }
+            }
+          },
+          "description": "User-defined custom agent modes."
         },
         "openrouterAgent.toolPermissions": {
           "type": "object",

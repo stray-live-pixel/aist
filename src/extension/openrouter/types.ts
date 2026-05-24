@@ -26,9 +26,12 @@ export type OpenRouterTool = {
   };
 };
 
+export type ModelProvider = 'openrouter' | 'codex';
+
 export type OpenRouterModelOption = {
   id: string;
   name: string;
+  provider: ModelProvider;
   contextLength?: number;
   pricing?: OpenRouterModelPricing;
   supportsTools: boolean;

@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Copy, ExternalLink, MessageSquare, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AgentModeSelect } from '../../features/select-agent-mode/AgentModeSelect';
 import { Composer } from '../../features/send-message/Composer';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentLanguage, AgentState, ChatSummary } from '../../shared/types';
@@ -181,10 +182,11 @@ export function ChatPage({ state }: ChatPageProps) {
           </IconButton>
         </div>
         <div className="mx-auto mt-2 max-w-4xl rounded border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-xs text-[var(--vscode-descriptionForeground)]">
-          <div className="font-semibold text-[var(--vscode-foreground)]">
-            Applied instructions: {activeMode?.label || state.agentMode}
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-[var(--vscode-foreground)]">Agent mode:</span>
+            <AgentModeSelect modes={state.agentModes} activeId={state.agentMode} className="w-44" />
           </div>
-          <div className="mt-1 whitespace-pre-wrap leading-5">{activeMode?.instructions || 'No additional instructions.'}</div>
+          <div className="mt-1.5 whitespace-pre-wrap leading-5">{activeMode?.instructions || 'No additional instructions.'}</div>
         </div>
       </header>
       <MessageList messages={state.activeChat.messages} tools={state.tools} />

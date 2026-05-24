@@ -31,6 +31,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('openrouterAgent.openStorage', () => agent.openStorage()),
     vscode.commands.registerCommand('openrouterAgent.newChat', () => agent.createChat()),
     vscode.commands.registerCommand('openrouterAgent.editSelection', () => agent.editSelection()),
+    vscode.commands.registerCommand('openrouterAgent.codexLogin', () => agent.loginCodex()),
+    vscode.commands.registerCommand('openrouterAgent.codexLogout', () => agent.logoutCodex()),
     vscode.commands.registerCommand('openrouterAgent.showLogs', () => logger.show())
   );
 

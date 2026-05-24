@@ -97,6 +97,7 @@ export class OpenRouterClient {
       .map((model) => ({
         id: model.id!,
         name: model.name || model.id!,
+        provider: 'openrouter' as const,
         contextLength: model.context_length,
         pricing: parsePricing(model.pricing),
         supportsTools: Boolean(model.supported_parameters?.includes('tools'))
