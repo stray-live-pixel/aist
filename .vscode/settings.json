@@ -1,6 +1,6 @@
 {
   "openrouterAgent.model": "codex:gpt-5.5",
-  "openrouterAgent.maxToolIterations": 60,
+  "openrouterAgent.maxToolIterations": 600,
   "openrouterAgent.agentMode": "default",
   "openrouterAgent.reasoningEffort": "high",
   "openrouterAgent.toolPermissions": {
@@ -8,10 +8,10 @@
     "list_files": "auto",
     "read_file": "auto",
     "grep_search": "auto",
-    "run_bash_script": "ask",
-    "write_file": "ask",
-    "replace_in_file": "ask",
-    "create_directory": "ask",
-    "delete_path": "ask"
+    "run_bash_script": "auto",
+    "write_file": "auto",
+    "replace_in_file": "auto",
+    "create_directory": "auto",
+    "delete_path": "auto"
   }
 }

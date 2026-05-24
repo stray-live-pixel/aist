@@ -65,6 +65,11 @@ export type WebviewMessage =
   | { type: 'setToolPermissionPreset'; presetId: string }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
+  | { type: 'compactChat'; chatId?: string }
+  | {
+      type: 'setCompactionSettings';
+      settings: Partial<{ enabled: boolean; thresholdPercent: number; keepLastMessages: number }>;
+    }
   | { type: 'setAgentLanguage'; language: 'ru' | 'en' }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }

@@ -97,6 +97,43 @@ export class ChatStore {
     return chat;
   }
 
+  compactChat(chatId: string, summary: string): Chat {
+    const source = this.requireChat(chatId);
+    if (source.busy) {
+      throw new Error('Cannot compact a chat while it is running.');
+    }
+
+    const now = Date.now();
+    const summaryMessage: ChatMessage = {
+      id: randomUUID(),
+      role: 'assistant',
+      content: summary,
+      createdAt: now
+    };
+    const chat: Chat = {
+      id: randomUUID(),
+      title: `${source.title} compacted`,
+      model: source.model,
+      previousChatId: source.id,
+      compactedAt: now,
+      messages: [summaryMessage],
+      history: [{ role: 'assistant', content: summary }],
+      lastAnswer: summary,
+      activity: undefined,
+      busy: false,
+      usage: { ...EMPTY_USAGE },
+      createdAt: now,
+      updatedAt: now
+    };
+
+    this.chats.set(chat.id, chat);
+    this.activeChatId = chat.id;
+    this.saveToStorage();
+    this.changedEmitter.fire();
+
+    return chat;
+  }
+
   duplicateChat(chatId: string): Chat {
     const source = this.requireChat(chatId);
     const now = Date.now();
@@ -104,6 +141,8 @@ export class ChatStore {
       id: randomUUID(),
       title: this.getDuplicateTitle(source.title),
       model: source.model,
+      previousChatId: source.previousChatId,
+      compactedAt: source.compactedAt,
       messages: source.messages.map((message) => cloneMessage(message)),
       history: clonePlain(source.history),
       lastAnswer: source.lastAnswer,
@@ -193,6 +232,8 @@ export class ChatStore {
       id: chat.id,
       title: chat.title,
       model: chat.model,
+      previousChatId: chat.previousChatId,
+      compactedAt: chat.compactedAt,
       messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
       busy: chat.busy,
       lastMessageAt: getLastMessageAt(chat),

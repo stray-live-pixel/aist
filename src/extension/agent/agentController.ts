@@ -19,6 +19,32 @@ import { handleAgentWebviewMessage } from './webview/messages';
 import { postWebviewPage } from './webview/page';
 import { sendAgentState } from './webview/statePresenter';
 
+const COMPACTION_SYSTEM_PROMPT = [
+  'You summarize coding-agent chat history for context compaction.',
+  'Create a dense handoff summary that will be used as the first message in a new chat.',
+  'Preserve user goals, decisions, constraints, files changed, commands run, current status, open tasks, and important errors.',
+  'Do not include irrelevant chatter. Be concise but complete. Write in the same language as the conversation.'
+].join(' ');
+
+function createCompactionMessages(history: OpenRouterMessage[]): OpenRouterMessage[] {
+  const serialized = history
+    .filter((message) => message.role !== 'system')
+    .map((message, index) => {
+      const toolCalls = message.tool_calls?.length ? `\nTool calls: ${JSON.stringify(message.tool_calls)}` : '';
+      const toolId = message.tool_call_id ? `\nTool call id: ${message.tool_call_id}` : '';
+      return `#${index + 1} ${message.role}\n${message.content || ''}${toolCalls}${toolId}`;
+    })
+    .join('\n\n---\n\n');
+
+  return [
+    { role: 'system', content: COMPACTION_SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: `Summarize this chat history for context compaction. The next chat will only receive your summary, not the original history.\n\n${serialized}`
+    }
+  ];
+}
+
 /**
  * Тонкий координатор VS Code extension commands и webview surfaces.
  *
@@ -190,6 +216,7 @@ export class AgentController {
         void this.refreshCodexAuthState();
       },
       ask: (chatId, prompt) => this.runService.ask(chatId, prompt),
+      summarizeChat: (chatId) => this.summarizeChat(chatId),
       openChatInEditor: (chatId) => this.openChatInEditor(chatId),
       retargetDeletedChat: (deletedChatId, nextChatId) => this.retargetDeletedChat(deletedChatId, nextChatId),
       loginCodex: () => this.loginCodex(),
@@ -198,6 +225,17 @@ export class AgentController {
       openWorkspaceFile: (filePath, line, column) => this.openWorkspaceFile(filePath, line, column),
       stopCurrentRun: () => this.runService.stop()
     });
+  }
+
+  private async summarizeChat(chatId: string): Promise<string> {
+    const chat = this.chats.getChat(chatId) || this.chats.getActiveChat();
+    const messages = createCompactionMessages(chat.history);
+    const response = await this.chat(messages, undefined, chat.model);
+    const summary = response.content?.trim();
+    if (!summary) {
+      throw new Error('Model returned an empty compaction summary.');
+    }
+    return summary;
   }
 
   private async openWorkspaceFile(filePath: string, line?: number, column?: number): Promise<void> {

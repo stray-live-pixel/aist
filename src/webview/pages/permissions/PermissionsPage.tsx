@@ -1,5 +1,20 @@
-import { ArrowLeft, CheckCircle2, LogIn, LogOut, Plus, Save, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  FileText,
+  Gauge,
+  KeyRound,
+  LogIn,
+  LogOut,
+  Plus,
+  Save,
+  ShieldCheck,
+  SlidersHorizontal,
+  Trash2,
+  Wrench
+} from 'lucide-react';
+import { type ReactNode, useState } from 'react';
 
 import { ToolPermissionSelect } from '../../features/configure-tool-permission/ToolPermissionSelect';
 import { AgentModeSelect } from '../../features/select-agent-mode/AgentModeSelect';
@@ -12,16 +27,22 @@ import type {
   AgentMode,
   AgentModeId,
   AgentSkill,
+  CompactionSettings,
   ToolPermissionItem,
   ToolPermissionMode,
   ToolPermissionPreset,
   ToolPermissionPresetId
 } from '../../shared/types';
+import { Badge, Button, Card, Select, TextArea, TextField } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
+import styles from './PermissionsPage.module.scss';
+
+type SettingsPageId = 'overview' | 'instructions' | 'modes' | 'skills' | 'permissions' | 'compaction' | 'system';
 
 type PermissionsPageProps = {
   tools: ToolPermissionItem[];
   maxToolIterations: number;
+  compactionSettings: CompactionSettings;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
@@ -36,9 +57,45 @@ type PermissionsPageProps = {
   variant?: 'page' | 'embedded';
 };
 
+const NAV_ITEMS: Array<{ id: SettingsPageId; label: string; icon: ReactNode; description: string }> = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    icon: <SlidersHorizontal size={15} />,
+    description: 'Model-adjacent request settings and status.'
+  },
+  {
+    id: 'instructions',
+    label: 'Instructions',
+    icon: <FileText size={15} />,
+    description: 'AGENTS.md, CLAUDE.md and project instructions.'
+  },
+  { id: 'modes', label: 'Modes', icon: <Bot size={15} />, description: 'Working modes and their system instructions.' },
+  { id: 'skills', label: 'Skills', icon: <Wrench size={15} />, description: 'Custom Bash-backed run_skill actions.' },
+  {
+    id: 'permissions',
+    label: 'Permissions',
+    icon: <ShieldCheck size={15} />,
+    description: 'Tool access presets and per-tool confirmations.'
+  },
+  {
+    id: 'compaction',
+    label: 'Compaction',
+    icon: <Gauge size={15} />,
+    description: 'Control when old context is split out of the active chat.'
+  },
+  {
+    id: 'system',
+    label: 'System',
+    icon: <KeyRound size={15} />,
+    description: 'Language, Codex auth and execution limits.'
+  }
+];
+
 export function PermissionsPage({
   tools,
   maxToolIterations,
+  compactionSettings,
   agentLanguage,
   agentMode,
   agentModes,
@@ -52,30 +109,304 @@ export function PermissionsPage({
   onBack,
   variant = 'page'
 }: PermissionsPageProps) {
+  const [activePage, setActivePage] = useState<SettingsPageId>('overview');
   const activeMode = agentModes.find((mode) => mode.id === agentMode) || agentModes[0];
+  const content = (
+    <main
+      className={
+        variant === 'embedded' ? 'min-h-0 flex-1 overflow-y-auto p-3' : 'min-h-0 flex-1 overflow-y-auto px-4 py-4'
+      }
+    >
+      <div className={`${styles.shell} ${variant === 'embedded' ? styles.embeddedShell : ''}`}>
+        <SettingsSidebar activePage={activePage} onChange={setActivePage} />
+        <div className={styles.content}>
+          {variant === 'page' ? (
+            <SettingsHeader activePage={activePage} onBack={onBack} />
+          ) : (
+            <PageIntro activePage={activePage} />
+          )}
+          {activePage === 'overview' ? (
+            <OverviewPage
+              agentConfigScope={agentConfigScope}
+              activePermissionPresetId={activePermissionPresetId}
+              activeMode={activeMode}
+              customSkills={customSkills}
+              instructionSources={instructionSources}
+              codexAuthenticated={codexAuthenticated}
+            />
+          ) : null}
+          {activePage === 'instructions' ? (
+            <InstructionSettingsPage
+              scope={agentConfigScope}
+              projectInstructions={projectInstructions}
+              instructionSources={instructionSources}
+            />
+          ) : null}
+          {activePage === 'modes' ? (
+            <ModesSettingsPage agentMode={agentMode} agentModes={agentModes} activeMode={activeMode} />
+          ) : null}
+          {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
+          {activePage === 'permissions' ? (
+            <PermissionsSettingsPage
+              tools={tools}
+              permissionPresets={permissionPresets}
+              activePermissionPresetId={activePermissionPresetId}
+            />
+          ) : null}
+          {activePage === 'compaction' ? <CompactionSettingsPage settings={compactionSettings} /> : null}
+          {activePage === 'system' ? (
+            <SystemSettingsPage
+              agentLanguage={agentLanguage}
+              maxToolIterations={maxToolIterations}
+              codexAuthenticated={codexAuthenticated}
+            />
+          ) : null}
+        </div>
+      </div>
+    </main>
+  );
+
+  if (variant === 'embedded') return content;
+
+  return (
+    <div className="flex h-screen flex-col bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
+      {content}
+    </div>
+  );
+}
+
+function SettingsSidebar({
+  activePage,
+  onChange
+}: {
+  activePage: SettingsPageId;
+  onChange(page: SettingsPageId): void;
+}) {
+  return (
+    <aside className={styles.sidebar}>
+      <div className={styles.sidebarTitle}>Agent settings</div>
+      <nav className={styles.nav}>
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`${styles.navButton} ${activePage === item.id ? styles.navButtonActive : ''}`}
+            title={item.description}
+            onClick={() => onChange(item.id)}
+          >
+            <span className={styles.navIcon}>{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+function SettingsHeader({ activePage, onBack }: { activePage: SettingsPageId; onBack?(): void }) {
+  return (
+    <div className="flex items-start gap-3">
+      {onBack ? (
+        <IconButton title="Back to chat" onClick={onBack}>
+          <ArrowLeft size={15} />
+        </IconButton>
+      ) : null}
+      <PageIntro activePage={activePage} />
+    </div>
+  );
+}
+
+function PageIntro({ activePage }: { activePage: SettingsPageId }) {
+  const item = NAV_ITEMS.find((navItem) => navItem.id === activePage) || NAV_ITEMS[0];
+  return (
+    <header className={styles.pageHeader}>
+      <h1 className={styles.pageTitle}>{item.label}</h1>
+      <p className={styles.pageDescription}>{item.description}</p>
+    </header>
+  );
+}
+
+function OverviewPage({
+  agentConfigScope,
+  activePermissionPresetId,
+  activeMode,
+  customSkills,
+  instructionSources,
+  codexAuthenticated
+}: {
+  agentConfigScope: AgentConfigScope;
+  activePermissionPresetId: ToolPermissionPresetId | 'custom';
+  activeMode: AgentMode | undefined;
+  customSkills: AgentSkill[];
+  instructionSources: AgentInstructionSource[];
+  codexAuthenticated: boolean;
+}) {
+  return (
+    <div className={styles.sectionStack}>
+      <Card
+        tone="elevated"
+        title="Current agent profile"
+        description="A compact summary of rules and capabilities used by the next request."
+      >
+        <div className={styles.twoColumns}>
+          <Badge tone="accent">Storage: {agentConfigScope === 'workspace' ? '.aist-agent' : 'local user'}</Badge>
+          <Badge tone={activePermissionPresetId === 'custom' ? 'warning' : 'success'}>
+            Permissions: {activePermissionPresetId}
+          </Badge>
+          <Badge tone="neutral">Mode: {activeMode?.label || 'Default'}</Badge>
+          <Badge tone={customSkills.length ? 'accent' : 'neutral'}>Skills: {customSkills.length}</Badge>
+          <Badge tone="neutral">Instruction sources: {instructionSources.length}</Badge>
+          <Badge tone={codexAuthenticated ? 'success' : 'warning'}>
+            Codex: {codexAuthenticated ? 'authorized' : 'not connected'}
+          </Badge>
+        </div>
+      </Card>
+      <Card title="Effective instruction order" description="The agent receives these blocks from top to bottom.">
+        <InstructionSourceList sources={instructionSources} />
+      </Card>
+    </div>
+  );
+}
+
+function InstructionSettingsPage({
+  scope,
+  projectInstructions,
+  instructionSources
+}: {
+  scope: AgentConfigScope;
+  projectInstructions: string;
+  instructionSources: AgentInstructionSource[];
+}) {
+  return (
+    <div className={styles.sectionStack}>
+      <Card
+        title="Storage scope"
+        description="Workspace settings are saved to .aist-agent/settings.json. Local user storage stays outside the repository."
+      >
+        <Select
+          label="Save settings to"
+          value={scope}
+          options={[
+            { value: 'workspace', label: 'Workspace .aist-agent' },
+            { value: 'user', label: 'Local user storage' }
+          ]}
+          onChange={(event) =>
+            vscode.postMessage({ type: 'setAgentConfigScope', scope: event.target.value as AgentConfigScope })
+          }
+        />
+      </Card>
+      <Card title="Project instructions" description="Extra rules appended after AGENTS.md and CLAUDE.md.">
+        <TextArea
+          rows={8}
+          value={projectInstructions}
+          placeholder="Project-specific instructions saved in the selected storage scope..."
+          onChange={(event) => vscode.postMessage({ type: 'setProjectInstructions', instructions: event.target.value })}
+        />
+      </Card>
+      <Card title="Effective order" description="Read-only view of the instruction blocks sent to the model.">
+        <InstructionSourceList sources={instructionSources} />
+      </Card>
+    </div>
+  );
+}
+
+function ModesSettingsPage({
+  agentMode,
+  agentModes,
+  activeMode
+}: {
+  agentMode: AgentModeId;
+  agentModes: AgentMode[];
+  activeMode: AgentMode | undefined;
+}) {
   const [addingMode, setAddingMode] = useState(false);
-  const [addingSkill, setAddingSkill] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newInstructions, setNewInstructions] = useState('');
+
+  const handleAddMode = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    vscode.postMessage({ type: 'addAgentMode', label, instructions: newInstructions.trim() });
+    setNewLabel('');
+    setNewInstructions('');
+    setAddingMode(false);
+  };
+
+  return (
+    <div className={styles.sectionStack}>
+      <Card title="Active mode" description="Select a working mode and edit the instruction text applied to chats.">
+        <div className={styles.formGrid}>
+          <AgentModeSelect modes={agentModes} activeId={agentMode} />
+          {activeMode ? (
+            <TextArea
+              rows={8}
+              value={activeMode.instructions}
+              onChange={(event) =>
+                vscode.postMessage({
+                  type: 'setAgentModeInstructions',
+                  modeId: activeMode.id,
+                  instructions: event.target.value
+                })
+              }
+            />
+          ) : null}
+        </div>
+      </Card>
+      <Card
+        title="Custom modes"
+        description="Create reusable instruction profiles for different kinds of work."
+        actions={
+          <Button size="sm" variant="secondary" leadingIcon={<Plus size={14} />} onClick={() => setAddingMode(true)}>
+            Add mode
+          </Button>
+        }
+      >
+        {addingMode ? (
+          <div className={styles.formGrid}>
+            <TextField
+              label="Mode name"
+              placeholder="Expert reviewer"
+              value={newLabel}
+              onChange={(event) => setNewLabel(event.target.value)}
+              autoFocus
+            />
+            <TextArea
+              label="Instructions"
+              rows={5}
+              value={newInstructions}
+              onChange={(event) => setNewInstructions(event.target.value)}
+            />
+            <div className={styles.actions}>
+              <Button size="sm" variant="primary" disabled={!newLabel.trim()} onClick={handleAddMode}>
+                Add
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setAddingMode(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.list}>
+            {agentModes.map((mode) => (
+              <Badge key={mode.id} tone={mode.id === agentMode ? 'accent' : 'neutral'}>
+                {mode.label}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {
+  const [addingSkill, setAddingSkill] = useState(false);
   const [newSkill, setNewSkill] = useState({
     label: '',
     description: '',
     command: '',
     permission: 'ask' as ToolPermissionMode
   });
-
-  const handleAddMode = () => {
-    const label = newLabel.trim();
-    if (!label) return;
-    vscode.postMessage({
-      type: 'addAgentMode',
-      label,
-      instructions: newInstructions.trim()
-    });
-    setNewLabel('');
-    setNewInstructions('');
-    setAddingMode(false);
-  };
 
   const handleAddSkill = () => {
     const label = newSkill.label.trim();
@@ -92,400 +423,259 @@ export function PermissionsPage({
     setAddingSkill(false);
   };
 
-  const content = (
-    <main
-      className={
-        variant === 'embedded' ? 'min-h-0 flex-1 overflow-y-auto p-3' : 'min-h-0 flex-1 overflow-y-auto px-4 py-4'
-      }
-    >
-      <div className="mx-auto grid max-w-4xl gap-4">
-        {variant === 'page' ? (
-          <div className="flex items-start gap-3">
-            {onBack ? (
-              <IconButton title="Back to chat" onClick={onBack}>
-                <ArrowLeft size={15} />
-              </IconButton>
-            ) : null}
-            <div>
-              <h1 className="text-base font-semibold">Settings</h1>
-              <p className="mt-1 text-sm leading-6 text-[var(--vscode-descriptionForeground)]">
-                Configure agent limits and choose which tools require confirmation before they run.
-              </p>
+  return (
+    <div className={styles.sectionStack}>
+      <Card
+        title="Custom skills"
+        description="Add Bash-backed skills the agent can call with run_skill. Input is passed via stdin and AIST_SKILL_INPUT."
+        actions={
+          <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAddingSkill(true)}>
+            Add skill
+          </Button>
+        }
+      >
+        {addingSkill ? (
+          <div className={styles.formGrid}>
+            <TextField
+              label="Name"
+              placeholder="Run focused tests"
+              value={newSkill.label}
+              onChange={(event) => setNewSkill((value) => ({ ...value, label: event.target.value }))}
+              autoFocus
+            />
+            <TextField
+              label="Description"
+              placeholder="When should the agent use this skill?"
+              value={newSkill.description}
+              onChange={(event) => setNewSkill((value) => ({ ...value, description: event.target.value }))}
+            />
+            <TextArea
+              label="Command"
+              rows={5}
+              value={newSkill.command}
+              onChange={(event) => setNewSkill((value) => ({ ...value, command: event.target.value }))}
+            />
+            <Select
+              label="Permission"
+              value={newSkill.permission}
+              options={PERMISSION_OPTIONS}
+              onChange={(event) =>
+                setNewSkill((value) => ({ ...value, permission: event.target.value as ToolPermissionMode }))
+              }
+            />
+            <div className={styles.actions}>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!newSkill.label.trim() || !newSkill.command.trim()}
+                onClick={handleAddSkill}
+              >
+                Add
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setAddingSkill(false)}>
+                Cancel
+              </Button>
             </div>
           </div>
         ) : null}
-
-        <section className="message-card bg-[var(--vscode-input-background)]">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold">ChatGPT Codex</h2>
-              <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                {codexAuthenticated
-                  ? 'Authorization is active. Codex models are available in the model selector.'
-                  : 'Authorize ChatGPT Codex to use codex:* models through chatgpt.com/backend-api/codex/responses.'}
-              </p>
-            </div>
-            {codexAuthenticated ? (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <span className="flex h-8 items-center gap-1.5 rounded border border-[var(--agent-input-border)] px-2 text-xs text-[var(--vscode-testing-iconPassed)]">
-                  <CheckCircle2 size={14} />
-                  Authorized
-                </span>
-                <button
-                  className="flex h-8 items-center gap-1.5 rounded border border-[var(--agent-input-border)] bg-transparent px-3 text-xs text-[var(--vscode-descriptionForeground)] hover:opacity-80"
-                  onClick={() => vscode.postMessage({ type: 'codexLogout' })}
-                >
-                  <LogOut size={14} />
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <button
-                className="flex h-8 items-center gap-1.5 rounded bg-[var(--vscode-button-background)] px-3 text-xs font-medium text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)]"
-                onClick={() => vscode.postMessage({ type: 'codexLogin' })}
-              >
-                <LogIn size={14} />
-                Authorize
-              </button>
-            )}
+        {customSkills.length ? (
+          <div className={styles.list}>
+            {customSkills.map((skill) => (
+              <SkillSettingsCard key={skill.id} skill={skill} />
+            ))}
           </div>
-        </section>
-
-        <section className="message-card bg-[var(--vscode-input-background)]">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold">Tool iteration limit</h2>
-              <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                Maximum model/tool-call turns per request. Set to 0 to run without a limit.
-              </p>
-            </div>
-            <input
-              className="h-8 w-32 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-xs text-[var(--vscode-input-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
-              type="number"
-              min={0}
-              step={1}
-              value={maxToolIterations}
-              onChange={(event) =>
-                vscode.postMessage({
-                  type: 'setMaxToolIterations',
-                  maxToolIterations: Math.max(0, Math.floor(Number(event.target.value) || 0))
-                })
-              }
-            />
-          </div>
-        </section>
-
-        <InstructionSettingsSection
-          scope={agentConfigScope}
-          projectInstructions={projectInstructions}
-          instructionSources={instructionSources}
-        />
-
-        <section className="message-card bg-[var(--vscode-input-background)]">
-          <div className="grid gap-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold">Custom skills</h2>
-                <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                  Add Bash-backed skills the agent can call with run_skill. Skill input is available through stdin and
-                  AIST_SKILL_INPUT.
-                </p>
-              </div>
-              <button
-                className="flex h-8 items-center gap-1.5 rounded border border-[var(--agent-input-border)] bg-transparent px-3 text-xs text-[var(--vscode-descriptionForeground)] hover:opacity-80"
-                onClick={() => setAddingSkill(true)}
-              >
-                <Plus size={14} />
-                Add skill
-              </button>
-            </div>
-
-            {addingSkill ? (
-              <div className="grid gap-2 rounded border border-[var(--agent-input-border)] p-3">
-                <input
-                  className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-                  placeholder="Skill name (e.g. Run focused tests)"
-                  value={newSkill.label}
-                  onChange={(event) => setNewSkill((value) => ({ ...value, label: event.target.value }))}
-                  autoFocus
-                />
-                <input
-                  className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-                  placeholder="When should the agent use this skill?"
-                  value={newSkill.description}
-                  onChange={(event) => setNewSkill((value) => ({ ...value, description: event.target.value }))}
-                />
-                <textarea
-                  className="min-h-24 w-full resize-y rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 py-2 font-mono text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-                  placeholder="Bash command or script..."
-                  value={newSkill.command}
-                  onChange={(event) => setNewSkill((value) => ({ ...value, command: event.target.value }))}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    className="h-7 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
-                    value={newSkill.permission}
-                    onChange={(event) =>
-                      setNewSkill((value) => ({
-                        ...value,
-                        permission: event.target.value as ToolPermissionMode
-                      }))
-                    }
-                  >
-                    <option value="ask">Ask permission</option>
-                    <option value="auto">Run automatically</option>
-                  </select>
-                  <button
-                    className="h-7 rounded bg-[var(--vscode-button-background)] px-3 text-xs font-medium text-[var(--vscode-button-foreground)] hover:opacity-90 disabled:opacity-50"
-                    disabled={!newSkill.label.trim() || !newSkill.command.trim()}
-                    onClick={handleAddSkill}
-                  >
-                    Add
-                  </button>
-                  <button
-                    className="h-7 rounded bg-transparent px-3 text-xs text-[var(--vscode-descriptionForeground)] hover:opacity-80"
-                    onClick={() => {
-                      setAddingSkill(false);
-                      setNewSkill({ label: '', description: '', command: '', permission: 'ask' });
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {customSkills.length ? (
-              <div className="grid gap-3">
-                {customSkills.map((skill) => (
-                  <SkillSettingsCard key={skill.id} skill={skill} />
-                ))}
-              </div>
-            ) : (
-              <p className="rounded border border-dashed border-[var(--agent-input-border)] px-3 py-2 text-xs text-[var(--vscode-descriptionForeground)]">
-                No custom skills yet.
-              </p>
-            )}
-          </div>
-        </section>
-
-        <section className="message-card bg-[var(--vscode-input-background)]">
-          <div className="grid gap-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold">Language</h2>
-                <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                  Controls agent answers and tool-call explanations.
-                </p>
-              </div>
-              <select
-                className="h-8 w-40 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
-                value={agentLanguage}
-                onChange={(event) =>
-                  vscode.postMessage({ type: 'setAgentLanguage', language: event.target.value as AgentLanguage })
-                }
-              >
-                <option value="ru">Русский</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <section className="message-card bg-[var(--vscode-input-background)]">
-          <div className="grid gap-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold">Agent mode</h2>
-                <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                  Select a working mode and edit the instructions applied to chats.
-                </p>
-              </div>
-              <AgentModeSelect modes={agentModes} activeId={agentMode} className="w-52" />
-            </div>
-            {activeMode ? (
-              <textarea
-                className="min-h-32 w-full resize-y rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 py-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-                value={activeMode.instructions}
-                onChange={(event) =>
-                  vscode.postMessage({
-                    type: 'setAgentModeInstructions',
-                    modeId: activeMode.id,
-                    instructions: event.target.value
-                  })
-                }
-              />
-            ) : null}
-
-            {addingMode ? (
-              <div className="grid gap-2 rounded border border-[var(--agent-input-border)] p-3">
-                <input
-                  className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-                  placeholder="Mode name (e.g. Expert)"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  autoFocus
-                />
-                <textarea
-                  className="min-h-24 w-full resize-y rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 py-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-                  placeholder="Instructions for this mode..."
-                  value={newInstructions}
-                  onChange={(e) => setNewInstructions(e.target.value)}
-                />
-                <div className="flex gap-2">
-                  <button
-                    className="h-7 rounded bg-[var(--vscode-button-background)] px-3 text-xs font-medium text-[var(--vscode-button-foreground)] hover:opacity-90 disabled:opacity-50"
-                    disabled={!newLabel.trim()}
-                    onClick={handleAddMode}
-                  >
-                    Add
-                  </button>
-                  <button
-                    className="h-7 rounded bg-transparent px-3 text-xs text-[var(--vscode-descriptionForeground)] hover:opacity-80"
-                    onClick={() => {
-                      setAddingMode(false);
-                      setNewLabel('');
-                      setNewInstructions('');
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                className="flex h-8 items-center justify-center gap-1.5 rounded border border-dashed border-[var(--agent-input-border)] bg-transparent text-xs text-[var(--vscode-descriptionForeground)] hover:border-solid hover:opacity-80"
-                onClick={() => setAddingMode(true)}
-              >
-                <Plus size={14} />
-                Add mode
-              </button>
-            )}
-          </div>
-        </section>
-
-        <section className="message-card bg-[var(--vscode-input-background)]">
-          <div className="grid gap-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold">Permission presets</h2>
-                <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                  Quickly switch the current tool access profile for the AI agent.
-                </p>
-              </div>
-              <PermissionPresetSelect
-                presets={permissionPresets}
-                activeId={activePermissionPresetId}
-                className="w-52"
-              />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {permissionPresets.map((preset) => {
-                const active = preset.id === activePermissionPresetId;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className={`rounded border px-3 py-2 text-left outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:border-[var(--vscode-focusBorder)] ${
-                      active
-                        ? 'border-[var(--vscode-focusBorder)] bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
-                        : 'border-[var(--agent-input-border)] bg-transparent'
-                    }`}
-                    onClick={() => vscode.postMessage({ type: 'setToolPermissionPreset', presetId: preset.id })}
-                  >
-                    <span className="block text-xs font-semibold">{preset.label}</span>
-                    <span
-                      className={`mt-1 block text-xs leading-5 ${
-                        active ? 'opacity-85' : 'text-[var(--vscode-descriptionForeground)]'
-                      }`}
-                    >
-                      {preset.description}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {activePermissionPresetId === 'custom' ? (
-              <p className="text-xs text-[var(--vscode-descriptionForeground)]">
-                Current permissions are custom because one or more tools were changed manually.
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        <div className="grid gap-3">
-          {tools.map((tool) => (
-            <ToolPermissionSelect key={tool.name} item={tool} />
-          ))}
-        </div>
-      </div>
-    </main>
-  );
-
-  if (variant === 'embedded') {
-    return content;
-  }
-
-  return (
-    <div className="flex h-screen flex-col bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
-      {content}
+        ) : !addingSkill ? (
+          <p className={styles.empty}>No custom skills yet.</p>
+        ) : null}
+      </Card>
     </div>
   );
 }
 
-function InstructionSettingsSection({
-  scope,
-  projectInstructions,
-  instructionSources
+function PermissionsSettingsPage({
+  tools,
+  permissionPresets,
+  activePermissionPresetId
 }: {
-  scope: AgentConfigScope;
-  projectInstructions: string;
-  instructionSources: AgentInstructionSource[];
+  tools: ToolPermissionItem[];
+  permissionPresets: ToolPermissionPreset[];
+  activePermissionPresetId: ToolPermissionPresetId | 'custom';
 }) {
   return (
-    <section className="message-card bg-[var(--vscode-input-background)]">
-      <div className="grid gap-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold">System instructions</h2>
-            <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-              AIST reads AGENTS.md, CLAUDE.md and extra project instructions. Editable modes and skills are saved to the
-              selected location.
-            </p>
+    <div className={styles.sectionStack}>
+      <Card title="Permission presets" description="Quickly switch the current tool access profile for the AI agent.">
+        <div className={styles.formGrid}>
+          <PermissionPresetSelect presets={permissionPresets} activeId={activePermissionPresetId} />
+          <div className={styles.twoColumns}>
+            {permissionPresets.map((preset) => (
+              <Button
+                key={preset.id}
+                variant={preset.id === activePermissionPresetId ? 'primary' : 'secondary'}
+                onClick={() => vscode.postMessage({ type: 'setToolPermissionPreset', presetId: preset.id })}
+              >
+                {preset.label}
+              </Button>
+            ))}
           </div>
-          <select
-            className="h-8 w-48 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
-            value={scope}
-            onChange={(event) =>
-              vscode.postMessage({ type: 'setAgentConfigScope', scope: event.target.value as AgentConfigScope })
-            }
-          >
-            <option value="workspace">Workspace .aist-agent</option>
-            <option value="user">Local user storage</option>
-          </select>
+          {activePermissionPresetId === 'custom' ? <Badge tone="warning">Custom permissions are active</Badge> : null}
         </div>
-        <textarea
-          className="min-h-28 w-full resize-y rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 py-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-          placeholder="Project-specific instructions saved in the selected storage scope..."
-          value={projectInstructions}
-          onChange={(event) => vscode.postMessage({ type: 'setProjectInstructions', instructions: event.target.value })}
-        />
-        <div className="grid gap-2">
-          <div className="text-xs font-semibold text-[var(--vscode-descriptionForeground)]">Effective order</div>
-          {instructionSources.map((source) => (
-            <div key={source.id} className="rounded border border-[var(--agent-input-border)] px-3 py-2">
-              <div className="flex items-center justify-between gap-2 text-xs font-semibold">
-                <span>{source.title}</span>
-                <span className="text-[11px] text-[var(--vscode-descriptionForeground)]">#{source.priority}</span>
-              </div>
-              <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-                {source.content}
-              </p>
-            </div>
+      </Card>
+      <Card title="Per-tool permissions" description="Fine-tune which tools require confirmation.">
+        <div className={styles.list}>
+          {tools.map((tool) => (
+            <ToolPermissionSelect key={tool.name} item={tool} />
           ))}
         </div>
-      </div>
-    </section>
+      </Card>
+    </div>
+  );
+}
+
+function CompactionSettingsPage({ settings }: { settings: CompactionSettings }) {
+  return (
+    <div className={styles.sectionStack}>
+      <Card
+        title="Context compaction"
+        description="When context becomes too large, AIST can start a fresh chat linked to the previous one. Old messages stay visible but stop being sent to the model."
+      >
+        <div className={styles.formGrid}>
+          <Select
+            label="Status"
+            value={settings.enabled ? 'enabled' : 'disabled'}
+            options={[
+              { value: 'enabled', label: 'Enabled' },
+              { value: 'disabled', label: 'Disabled' }
+            ]}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setCompactionSettings',
+                settings: { enabled: event.target.value === 'enabled' }
+              })
+            }
+          />
+          <TextField
+            label="Threshold percent"
+            type="number"
+            min={10}
+            max={95}
+            value={settings.thresholdPercent}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setCompactionSettings',
+                settings: { thresholdPercent: Math.max(10, Math.min(95, Math.floor(Number(event.target.value) || 70))) }
+              })
+            }
+          />
+          <TextField
+            label="Keep last messages in new context"
+            hint="0 means old context is fully cut off after the compaction line."
+            type="number"
+            min={0}
+            max={20}
+            value={settings.keepLastMessages}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setCompactionSettings',
+                settings: { keepLastMessages: Math.max(0, Math.min(20, Math.floor(Number(event.target.value) || 0))) }
+              })
+            }
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SystemSettingsPage({
+  agentLanguage,
+  maxToolIterations,
+  codexAuthenticated
+}: {
+  agentLanguage: AgentLanguage;
+  maxToolIterations: number;
+  codexAuthenticated: boolean;
+}) {
+  return (
+    <div className={styles.sectionStack}>
+      <Card title="Language" description="Controls agent answers and tool-call explanations.">
+        <Select
+          label="Response language"
+          value={agentLanguage}
+          options={[
+            { value: 'ru', label: 'Русский' },
+            { value: 'en', label: 'English' }
+          ]}
+          onChange={(event) =>
+            vscode.postMessage({ type: 'setAgentLanguage', language: event.target.value as AgentLanguage })
+          }
+        />
+      </Card>
+      <Card
+        title="Tool iteration limit"
+        description="Maximum model/tool-call turns per request. Set to 0 to run without a limit."
+      >
+        <TextField
+          type="number"
+          min={0}
+          step={1}
+          value={maxToolIterations}
+          leadingIcon={<Gauge size={15} />}
+          onChange={(event) =>
+            vscode.postMessage({
+              type: 'setMaxToolIterations',
+              maxToolIterations: Math.max(0, Math.floor(Number(event.target.value) || 0))
+            })
+          }
+        />
+      </Card>
+      <Card
+        title="ChatGPT Codex"
+        description={
+          codexAuthenticated
+            ? 'Authorization is active. Codex models are available.'
+            : 'Authorize ChatGPT Codex to use codex:* models.'
+        }
+      >
+        {codexAuthenticated ? (
+          <div className={styles.actions}>
+            <Badge tone="success" icon={<CheckCircle2 size={12} />}>
+              Authorized
+            </Badge>
+            <Button
+              variant="secondary"
+              leadingIcon={<LogOut size={14} />}
+              onClick={() => vscode.postMessage({ type: 'codexLogout' })}
+            >
+              Logout
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="primary"
+            leadingIcon={<LogIn size={14} />}
+            onClick={() => vscode.postMessage({ type: 'codexLogin' })}
+          >
+            Authorize
+          </Button>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function InstructionSourceList({ sources }: { sources: AgentInstructionSource[] }) {
+  if (!sources.length) return <p className={styles.empty}>No instruction sources found.</p>;
+
+  return (
+    <div className={styles.list}>
+      {sources.map((source) => (
+        <Card key={source.id} title={source.title} description={`Priority #${source.priority}`}>
+          <p className="m-0 line-clamp-3 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
+            {source.content}
+          </p>
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -496,7 +686,6 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
     command: skill.command,
     permission: skill.permission
   });
-
   const changed =
     draft.label !== skill.label ||
     draft.description !== skill.description ||
@@ -505,25 +694,37 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
   const canSave = changed && Boolean(draft.label.trim()) && Boolean(draft.command.trim());
 
   return (
-    <article className="grid gap-2 rounded border border-[var(--agent-input-border)] p-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-xs font-semibold">{skill.label}</div>
-          <div className="mt-1 font-mono text-[11px] text-[var(--vscode-descriptionForeground)]">{skill.id}</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="h-7 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
-            value={draft.permission}
-            onChange={(event) =>
-              setDraft((value) => ({ ...value, permission: event.target.value as ToolPermissionMode }))
-            }
-          >
-            <option value="ask">Ask permission</option>
-            <option value="auto">Run automatically</option>
-          </select>
-          <button
-            className="flex h-7 items-center gap-1.5 rounded bg-[var(--vscode-button-background)] px-2 text-xs font-medium text-[var(--vscode-button-foreground)] hover:opacity-90 disabled:opacity-50"
+    <Card title={skill.label} description={skill.id}>
+      <div className={styles.formGrid}>
+        <TextField
+          label="Name"
+          value={draft.label}
+          onChange={(event) => setDraft((value) => ({ ...value, label: event.target.value }))}
+        />
+        <TextField
+          label="Description"
+          value={draft.description}
+          onChange={(event) => setDraft((value) => ({ ...value, description: event.target.value }))}
+        />
+        <TextArea
+          label="Command"
+          rows={5}
+          value={draft.command}
+          onChange={(event) => setDraft((value) => ({ ...value, command: event.target.value }))}
+        />
+        <Select
+          label="Permission"
+          value={draft.permission}
+          options={PERMISSION_OPTIONS}
+          onChange={(event) =>
+            setDraft((value) => ({ ...value, permission: event.target.value as ToolPermissionMode }))
+          }
+        />
+        <div className={styles.actions}>
+          <Button
+            size="sm"
+            variant="primary"
+            leadingIcon={<Save size={13} />}
             disabled={!canSave}
             onClick={() =>
               vscode.postMessage({
@@ -536,34 +737,23 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
               })
             }
           >
-            <Save size={13} />
             Save
-          </button>
-          <button
-            className="flex h-7 items-center gap-1.5 rounded border border-[var(--agent-input-border)] bg-transparent px-2 text-xs text-[var(--vscode-descriptionForeground)] hover:opacity-80"
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            leadingIcon={<Trash2 size={13} />}
             onClick={() => vscode.postMessage({ type: 'deleteSkill', skillId: skill.id })}
           >
-            <Trash2 size={13} />
             Delete
-          </button>
+          </Button>
         </div>
       </div>
-      <input
-        className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-        value={draft.label}
-        onChange={(event) => setDraft((value) => ({ ...value, label: event.target.value }))}
-      />
-      <input
-        className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-        placeholder="When should the agent use this skill?"
-        value={draft.description}
-        onChange={(event) => setDraft((value) => ({ ...value, description: event.target.value }))}
-      />
-      <textarea
-        className="min-h-24 w-full resize-y rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 py-2 font-mono text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
-        value={draft.command}
-        onChange={(event) => setDraft((value) => ({ ...value, command: event.target.value }))}
-      />
-    </article>
+    </Card>
   );
 }
+
+const PERMISSION_OPTIONS = [
+  { value: 'ask', label: 'Ask permission' },
+  { value: 'auto', label: 'Run automatically' }
+];

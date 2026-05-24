@@ -4,6 +4,10 @@
   "description": "Minimal VS Code coding agent powered by OpenRouter or ChatGPT Codex.",
   "version": "0.0.1",
   "publisher": "local",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stray-live-pixel/aist.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },

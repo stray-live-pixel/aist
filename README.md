@@ -1,6 +1,22 @@
+bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
+
 # aist
 
 Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, React, Tailwind CSS, and `lucide-react`.
+
+## Install from GitHub
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
+```
+
+The script downloads `releases/aist-0.0.1.vsix` from this GitHub repository, installs it with the `code` CLI, and automatically restarts VS Code. Use `VSCODE_CLI=code-insiders` for VS Code Insiders.
+
+If `curl` is unavailable, clone the repository and run:
+
+```bash
+bash scripts/install-from-github.sh
+```
 
 ## Features
 
@@ -62,13 +78,20 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
    - Press `F5`.
    - In the Extension Development Host, run `aist: Open Chat`.
 
-## Package
+## Build and package
 
 ```bash
 npm run package
 ```
 
-This creates a `.vsix` file that can be installed locally.
+Build flow:
+
+1. `npm run typecheck` validates TypeScript.
+2. `npm run build:extension` bundles `src/extension.ts` to `dist/extension.js` with esbuild.
+3. `npm run build:webview` bundles the React webview and Tailwind CSS to `dist/`.
+4. `vsce package --no-dependencies` creates the `.vsix` package.
+
+The committed distributive is `releases/aist-0.0.1.vsix`; `.gitignore` allows `releases/*.vsix`, so the built extension is available for direct download from GitHub.
 
 ## Install locally
 
@@ -77,6 +100,38 @@ npm run install:extension
 ```
 
 This builds the extension, writes `dist/aist-0.0.1.vsix`, and installs it with the `code` CLI. Use `VSCODE_CLI=code-insiders npm run install:extension` for VS Code Insiders.
+
+## Publish a new version
+
+1. Update `version` in `package.json` and `package-lock.json`.
+2. Update `VERSION` and the VSIX filename references in `scripts/install-from-github.sh` and this README.
+3. Build and package the new VSIX into `releases/`:
+
+   ```bash
+   npm install
+   npm run package -- --out releases/aist-<version>.vsix
+   ```
+
+4. Check that the package was created and is not ignored by git:
+
+   ```bash
+   ls -lh releases/aist-<version>.vsix
+   git status --short releases/aist-<version>.vsix
+   ```
+
+5. Commit the source changes and the new `releases/aist-<version>.vsix`, then push to `main`:
+
+   ```bash
+   git add package.json package-lock.json scripts/install-from-github.sh README.md releases/aist-<version>.vsix
+   git commit -m "Release aist <version>"
+   git push origin main
+   ```
+
+6. Verify installation from GitHub on a clean machine:
+
+   ```bash
+   bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
+   ```
 
 ## Development
 

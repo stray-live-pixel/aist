@@ -25,6 +25,8 @@ export type ChatSummary = {
   id: string;
   title: string;
   model: string;
+  previousChatId?: string;
+  compactedAt?: number;
   messageCount: number;
   busy: boolean;
   lastMessageAt: number;
@@ -45,10 +47,15 @@ export type ChatContextEstimate = {
   inputCostUsd?: number;
 };
 
+export type CompactPreviousChat = Omit<Chat, 'previousChat'>;
+
 export type Chat = {
   id: string;
   title: string;
   model: string;
+  previousChatId?: string;
+  compactedAt?: number;
+  previousChat?: CompactPreviousChat;
   messages: ChatMessage[];
   lastAnswer: string;
   activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
@@ -116,6 +123,12 @@ export type ToolPermissionPreset = {
   permissions: Record<string, ToolPermissionMode>;
 };
 
+export type CompactionSettings = {
+  enabled: boolean;
+  thresholdPercent: number;
+  keepLastMessages: number;
+};
+
 export type AgentState = {
   viewKind: 'sidebar' | 'editor';
   workspaceName: string;
@@ -125,6 +138,7 @@ export type AgentState = {
   models: ModelOption[];
   maxToolIterations: number;
   reasoningEffort: ReasoningEffort;
+  compactionSettings: CompactionSettings;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
@@ -157,6 +171,8 @@ export type WebviewToExtensionMessage =
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
+  | { type: 'compactChat'; chatId?: string }
+  | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }

@@ -1,4 +1,4 @@
-import { ExternalLink, MessageSquare } from 'lucide-react';
+import { Archive, ExternalLink, MessageSquare } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Composer } from '../../features/send-message/Composer';
@@ -22,9 +22,15 @@ export function ChatPage({ state }: ChatPageProps) {
 
   return (
     <div className="relative flex h-screen flex-col bg-transparent text-[var(--vscode-foreground)]">
-      <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
+      <FloatingChatActions
+        onOpenChats={() => setChatsOpen(true)}
+        activeChatId={state.activeChat.id}
+        busy={state.activeChat.busy}
+      />
       <MessageList
         messages={state.activeChat.messages}
+        previousChat={state.activeChat.previousChat}
+        compactedAt={state.activeChat.compactedAt}
         tools={state.tools}
         activeMode={activeMode}
         instructionSources={state.instructionSources}
@@ -50,7 +56,15 @@ export function ChatPage({ state }: ChatPageProps) {
   );
 }
 
-function FloatingChatActions({ onOpenChats, activeChatId }: { onOpenChats(): void; activeChatId: string }) {
+function FloatingChatActions({
+  onOpenChats,
+  activeChatId,
+  busy
+}: {
+  onOpenChats(): void;
+  activeChatId: string;
+  busy: boolean;
+}) {
   return (
     <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
       <IconButton title="Open chats" onClick={onOpenChats}>
@@ -61,6 +75,13 @@ function FloatingChatActions({ onOpenChats, activeChatId }: { onOpenChats(): voi
         onClick={() => vscode.postMessage({ type: 'openChatInEditor', chatId: activeChatId })}
       >
         <ExternalLink size={15} />
+      </IconButton>
+      <IconButton
+        title="Compact chat context"
+        disabled={busy}
+        onClick={() => vscode.postMessage({ type: 'compactChat', chatId: activeChatId })}
+      >
+        <Archive size={15} />
       </IconButton>
     </div>
   );

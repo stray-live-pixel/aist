@@ -38,6 +38,7 @@ export const Settings: Story = {
     <PermissionsPage
       tools={storyAgentState.toolPermissions}
       maxToolIterations={storyAgentState.maxToolIterations}
+      compactionSettings={storyAgentState.compactionSettings}
       agentLanguage={storyAgentState.agentLanguage}
       agentMode={storyAgentState.agentMode}
       agentModes={storyAgentState.agentModes}

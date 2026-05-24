@@ -12,6 +12,7 @@ type ChatMessage = Extract<
   | { type: 'deleteChat' }
   | { type: 'setActiveChat' }
   | { type: 'openChatInEditor' }
+  | { type: 'compactChat' }
   | { type: 'setModel' }
   | { type: 'clear' }
   | { type: 'copyMessage' }
@@ -25,6 +26,7 @@ export function isChatMessage(message: WebviewMessage): message is ChatMessage {
     'deleteChat',
     'setActiveChat',
     'openChatInEditor',
+    'compactChat',
     'setModel',
     'clear',
     'copyMessage'
@@ -62,6 +64,9 @@ export async function handleWebviewChatMessage(
     case 'openChatInEditor':
       deps.openChatInEditor(message.chatId || surface.getChatId());
       return;
+    case 'compactChat':
+      await compactChat(surface, message.chatId || surface.getChatId(), deps);
+      return;
     case 'setModel':
       await setModel(surface, message.model, deps);
       return;
@@ -91,6 +96,49 @@ function createChatFromWebview(surface: WebviewSurface, deps: AgentWebviewMessag
   deps.sendState();
   if (surface.kind === 'sidebar') {
     deps.postPage(surface, 'chat');
+  }
+}
+
+async function compactChat(surface: WebviewSurface, chatId: string, deps: AgentWebviewMessageDeps): Promise<void> {
+  const source = deps.chats.getChat(chatId);
+  if (!source) {
+    deps.logger.info('Ignoring compactChat for missing chat', { chatId });
+    deps.sendState(surface);
+    return;
+  }
+
+  if (source.busy) {
+    vscode.window.setStatusBarMessage('aist: Stop the chat before compacting it.', 2400);
+    deps.sendState(surface);
+    return;
+  }
+
+  try {
+    deps.chats.setBusy(source.id, true);
+    deps.chats.setActivity(source.id, 'thinking');
+    deps.sendState();
+
+    const summary = await deps.summarizeChat(source.id);
+    const chat = deps.chats.compactChat(chatId, summary);
+    surface.setChatId(chat.id);
+    deps.logger.info('Chat compacted from webview', {
+      sourceChatId: chatId,
+      chatId: chat.id,
+      summaryLength: summary.length
+    });
+    deps.sendState();
+  } catch (error) {
+    deps.logger.error('Failed to compact chat', error);
+    vscode.window.showErrorMessage(
+      `aist: failed to compact chat — ${error instanceof Error ? error.message : String(error)}`
+    );
+    deps.sendState(surface);
+  } finally {
+    const current = deps.chats.getChat(source.id);
+    if (current) {
+      deps.chats.setActivity(source.id, undefined);
+      deps.chats.setBusy(source.id, false);
+    }
   }
 }
 

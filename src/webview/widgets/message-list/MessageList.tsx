@@ -7,7 +7,7 @@ import { useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../entities/message/MessageCard';
 import { CopyMessageButton } from '../../features/copy-message/CopyMessageButton';
-import type { AgentInstructionSource, AgentMode, Chat, ChatMessage } from '../../shared/types';
+import type { AgentInstructionSource, AgentMode, Chat, ChatMessage, CompactPreviousChat } from '../../shared/types';
 import { AgentActivityStatus } from './AgentActivityStatus';
 import { EmptyState } from './EmptyState';
 import { SystemInstructionLabel } from './SystemInstructionLabel';
@@ -17,6 +17,8 @@ const STICKY_BOTTOM_THRESHOLD_PX = 50;
 
 type MessageListProps = {
   messages: ChatMessage[];
+  previousChat?: CompactPreviousChat;
+  compactedAt?: number;
   tools: string[];
   activeMode: AgentMode | undefined;
   instructionSources: AgentInstructionSource[];
@@ -38,6 +40,8 @@ type MessageGroup =
 
 export function MessageList({
   messages,
+  previousChat,
+  compactedAt,
   tools,
   activeMode,
   instructionSources,
@@ -70,11 +74,29 @@ export function MessageList({
     >
       <div className="flex w-full min-w-0 flex-col gap-2">
         <SystemInstructionLabel mode={activeMode} sources={instructionSources} />
-        {messages.length === 0 ? <EmptyState tools={tools} /> : null}
+        {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
+        {messages.length === 0 && !previousChat ? <EmptyState tools={tools} /> : null}
         {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages)))}
         {busy ? <AgentActivityStatus activity={activity} /> : null}
       </div>
     </main>
+  );
+}
+
+function PreviousChatHistory({ chat, compactedAt }: { chat: CompactPreviousChat; compactedAt?: number }) {
+  const groups = groupMessages(chat.messages, false);
+
+  return (
+    <>
+      {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(chat.messages)))}
+      <div className="my-3 flex items-center gap-3 text-xs text-[var(--vscode-descriptionForeground)]">
+        <span className="h-px flex-1 bg-[var(--agent-border)]" />
+        <span className="rounded-full border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-1">
+          Context compacted{compactedAt ? ` · ${new Date(compactedAt).toLocaleString()}` : ''}
+        </span>
+        <span className="h-px flex-1 bg-[var(--agent-border)]" />
+      </div>
+    </>
   );
 }
 

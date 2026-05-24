@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../../shared/errors';
 import { setAgentConfigScope, setProjectInstructions } from '../../config/agentConfigStore';
+import { setCompactionSettings } from '../../config/compaction';
 import { normalizeReasoningEffort } from '../../config/config';
 import {
   addAgentMode,
@@ -17,6 +18,7 @@ type SettingsMessage = Extract<
   WebviewMessage,
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
+  | { type: 'setCompactionSettings' }
   | { type: 'setAgentLanguage' }
   | { type: 'setAgentMode' }
   | { type: 'setAgentModeInstructions' }
@@ -30,6 +32,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
   return [
     'setMaxToolIterations',
     'setReasoningEffort',
+    'setCompactionSettings',
     'setAgentLanguage',
     'setAgentMode',
     'setAgentModeInstructions',
@@ -61,6 +64,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setReasoningEffort':
       await updateWorkspaceSetting('reasoningEffort', normalizeReasoningEffort(message.reasoningEffort));
+      deps.sendState();
+      return;
+    case 'setCompactionSettings':
+      await setCompactionSettings(message.settings);
       deps.sendState();
       return;
     case 'setAgentLanguage':

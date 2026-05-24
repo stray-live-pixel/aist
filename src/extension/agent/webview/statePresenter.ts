@@ -9,6 +9,7 @@ import {
   getToolPermissionPresets
 } from '../../tools/permissions';
 import { getAgentConfigScope, getProjectInstructions } from '../config/agentConfigStore';
+import { getCompactionSettings } from '../config/compaction';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
@@ -48,6 +49,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const agentConfigScope = getAgentConfigScope();
   const projectInstructions = getProjectInstructions();
   const instructionSources = getAgentInstructionSources();
+  const compactionSettings = getCompactionSettings();
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -62,7 +64,8 @@ export function sendAgentState(params: SendAgentStateParams): void {
       tools,
       agentConfigScope,
       projectInstructions,
-      instructionSources
+      instructionSources,
+      compactionSettings
     });
   }
 }
@@ -79,16 +82,24 @@ type StateContext = SendAgentStateParams & {
   agentConfigScope: string;
   projectInstructions: string;
   instructionSources: unknown;
+  compactionSettings: unknown;
 };
+
+function omitHistory<T extends { history?: unknown }>(chat: T): Omit<T, 'history'> {
+  const { history: _history, ...rest } = chat;
+  return rest;
+}
 
 function postStateToSurface(surface: WebviewSurface, context: StateContext): void {
   const activeChat = context.chats.getChat(surface.getChatId()) || context.chats.getActiveChat();
   const models = mergeModels(context.modelOptions, context.configuredModel, activeChat.model);
   const activeModel = models.find((model) => model.id === activeChat.model);
   const chatContext = getChatContextEstimate(activeChat.history, context.getSystemPrompt(), activeModel);
+  const previousChat = activeChat.previousChatId ? context.chats.getChat(activeChat.previousChatId) : undefined;
   const { history: _history, ...webviewChat } = activeChat;
   const webviewActiveChat = {
     ...webviewChat,
+    previousChat: previousChat ? omitHistory(previousChat) : undefined,
     context: chatContext,
     contextLength: chatContext.tokens,
     usage: activeChat.usage || createEmptyUsage()
@@ -104,6 +115,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     models,
     maxToolIterations: context.maxToolIterations,
     reasoningEffort: context.reasoningEffort,
+    compactionSettings: context.compactionSettings,
     agentLanguage: context.language,
     agentMode: context.activeMode.id,
     agentModes: context.agentModes,

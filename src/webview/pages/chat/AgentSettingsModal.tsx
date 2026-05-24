@@ -46,6 +46,7 @@ export function AgentSettingsModal({ state, onClose }: AgentSettingsModalProps) 
         <PermissionsPage
           tools={state.toolPermissions}
           maxToolIterations={state.maxToolIterations}
+          compactionSettings={state.compactionSettings}
           agentLanguage={state.agentLanguage}
           agentMode={state.agentMode}
           agentModes={state.agentModes}

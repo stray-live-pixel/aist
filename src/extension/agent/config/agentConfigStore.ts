@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 
 import { getWorkspaceFolder } from '../../shared/workspace';
 import type { AgentSkill } from '../../skills/skills';
+import type { CompactionSettings } from './compaction';
 import type { AgentMode } from './settings';
 
 export type AgentConfigScope = 'workspace' | 'user';
@@ -21,6 +22,7 @@ type StoredAgentConfig = {
   customModes?: AgentMode[];
   modeInstructions?: Record<string, string>;
   customSkills?: AgentSkill[];
+  compaction?: Partial<CompactionSettings>;
 };
 
 let extensionContext: vscode.ExtensionContext | undefined;

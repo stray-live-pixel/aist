@@ -41,6 +41,8 @@ export type Chat = {
   id: string;
   title: string;
   model: string;
+  previousChatId?: string;
+  compactedAt?: number;
   messages: ChatMessage[];
   history: OpenRouterMessage[];
   lastAnswer: string;
@@ -57,6 +59,8 @@ export type ChatSummary = {
   id: string;
   title: string;
   model: string;
+  previousChatId?: string;
+  compactedAt?: number;
   messageCount: number;
   busy: boolean;
   lastMessageAt: number;
