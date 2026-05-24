@@ -1,4 +1,5 @@
 import { Brain, DollarSign, Gauge, Loader2, Send, Square, Wrench } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { vscode } from '../../shared/lib/vscode';
@@ -24,6 +25,7 @@ type ComposerProps = {
   toolsCount: number;
   context?: ChatContextEstimate;
   usage?: ChatUsageEstimate;
+  settings?: ReactNode;
 };
 
 export function Composer({
@@ -36,7 +38,8 @@ export function Composer({
   activePermissionPresetId,
   toolsCount,
   context,
-  usage
+  usage,
+  settings
 }: ComposerProps) {
   const [prompt, setPrompt] = useState('');
   const canSend = Boolean(prompt.trim()) && !busy;
@@ -55,6 +58,7 @@ export function Composer({
   return (
     <footer className="border-t border-[var(--agent-border)] bg-[var(--vscode-sideBar-background)] p-3">
       <div className="mx-auto grid max-w-4xl gap-2">
+        {settings ? <div className="min-w-0">{settings}</div> : null}
         <textarea
           className="min-h-24 w-full resize-y rounded-md border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-sm text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
           placeholder="Ask the agent to inspect, create, edit, or delete workspace files..."
