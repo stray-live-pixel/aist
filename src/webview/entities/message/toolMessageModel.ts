@@ -1,3 +1,4 @@
+import type { useI18n } from '../../shared/i18n';
 import type { ChatMessage } from '../../shared/types';
 import { arrayValue, asRecord, asString, getToolPreview, getToolResult } from './toolValue';
 
@@ -19,27 +20,29 @@ export type ToolDisplayModel = {
   summary: string;
 };
 
-const TOOL_META: Record<string, { action: string; tone: ToolTone }> = {
-  get_workspace_info: { action: 'WORKSPACE INFO', tone: 'slate' },
-  list_files: { action: 'LIST FILES', tone: 'blue' },
-  read_file: { action: 'READ FILE', tone: 'green' },
-  grep_search: { action: 'GREP SEARCH', tone: 'purple' },
-  run_bash_script: { action: 'RUN BASH', tone: 'slate' },
-  run_skill: { action: 'RUN SKILL', tone: 'green' },
-  compact_chat: { action: 'COMPACT CHAT', tone: 'purple' },
-  write_file: { action: 'WRITE FILE', tone: 'amber' },
-  replace_in_file: { action: 'REPLACE IN FILE', tone: 'cyan' },
-  create_directory: { action: 'CREATE DIRECTORY', tone: 'blue' },
-  delete_path: { action: 'DELETE PATH', tone: 'rose' }
+type Translator = ReturnType<typeof useI18n>['t'];
+
+const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: ToolTone }> = {
+  get_workspace_info: { actionKey: 'tool.action.get_workspace_info', tone: 'slate' },
+  list_files: { actionKey: 'tool.action.list_files', tone: 'blue' },
+  read_file: { actionKey: 'tool.action.read_file', tone: 'green' },
+  grep_search: { actionKey: 'tool.action.grep_search', tone: 'purple' },
+  run_bash_script: { actionKey: 'tool.action.run_bash_script', tone: 'slate' },
+  run_skill: { actionKey: 'tool.action.run_skill', tone: 'green' },
+  compact_chat: { actionKey: 'tool.action.compact_chat', tone: 'purple' },
+  write_file: { actionKey: 'tool.action.write_file', tone: 'amber' },
+  replace_in_file: { actionKey: 'tool.action.replace_in_file', tone: 'cyan' },
+  create_directory: { actionKey: 'tool.action.create_directory', tone: 'blue' },
+  delete_path: { actionKey: 'tool.action.delete_path', tone: 'rose' }
 };
 
 /**
  * Что это: нормализатор tool-сообщения в компактную модель для UI.
  * Зачем нужно: React-компоненты остаются простыми и не знают форму JSON каждого инструмента.
- * Пример: buildToolDisplayModel(message).title -> "READ FILE: src/index.ts".
+ * Пример: buildToolDisplayModel(message, t).title -> "READ FILE: src/index.ts".
  */
-export function buildToolDisplayModel(message: ChatMessage): ToolDisplayModel {
-  const meta = getToolMeta(message.name);
+export function buildToolDisplayModel(message: ChatMessage, t: Translator): ToolDisplayModel {
+  const meta = getToolMeta(message.name, t);
   const primaryFile = getPrimaryFileReference(message);
   const files = uniqueFiles(getAllFileReferences(message, primaryFile));
   const target = primaryFile?.path || getToolTarget(message) || '';
@@ -50,12 +53,15 @@ export function buildToolDisplayModel(message: ChatMessage): ToolDisplayModel {
     primaryFile,
     files,
     title: target ? `${meta.action}: ${target}` : meta.action,
-    summary: getShortSummary(message)
+    summary: getShortSummary(message, t)
   };
 }
 
-function getToolMeta(name?: string): { action: string; tone: ToolTone } {
-  return TOOL_META[name || ''] || { action: name || 'TOOL CALL', tone: 'slate' };
+function getToolMeta(name: string | undefined, t: Translator): { action: string; tone: ToolTone } {
+  const meta = TOOL_META[name || ''];
+  return meta
+    ? { action: t(meta.actionKey), tone: meta.tone }
+    : { action: name || t('tool.action.fallback'), tone: 'slate' };
 }
 
 function getAllFileReferences(message: ChatMessage, primaryFile?: FileReference): FileReference[] {
@@ -117,25 +123,33 @@ function getToolTarget(message: ChatMessage): string | undefined {
   );
 }
 
-function getShortSummary(message: ChatMessage): string {
+function getShortSummary(message: ChatMessage, t: Translator): string {
   const result = getToolResult(message);
-  if (!result && message.name === 'run_bash_script') return `cwd ${asString(message.args?.cwd) || '.'}`;
-  if (!result && message.name === 'run_skill') return `skill ${asString(message.args?.skillId) || ''}`.trim();
-  if (!result) return message.status || 'tool';
-  if (asString(result.error)) return asString(result.error) || 'Ошибка инструмента';
-  if (message.name === 'grep_search') return `${arrayValue(result.matches).length} matches`;
-  if (message.name === 'run_bash_script') return getBashSummary(result);
-  if (message.name === 'run_skill') return getBashSummary(result);
-  if (message.name === 'compact_chat')
-    return asString(result.chatId) ? `new chat ${asString(result.chatId)}` : 'compacted';
-  if (message.name === 'list_files') return `${arrayValue(result.entries).length} entries`;
-  if (message.name === 'replace_in_file') return `${Number(result.replacements || 0)} replacements`;
-  if (message.name === 'write_file' && typeof result.bytes === 'number') return `${result.bytes} bytes`;
-  return message.status || 'tool';
+  if (!result && message.name === 'run_bash_script')
+    return t('tool.summary.cwd', { cwd: asString(message.args?.cwd) || '.' });
+  if (!result && message.name === 'run_skill')
+    return t('tool.summary.skill', { skill: asString(message.args?.skillId) || '' }).trim();
+  if (!result) return message.status || t('message.tool').toLowerCase();
+  if (asString(result.error)) return asString(result.error) || t('tool.summary.toolError');
+  if (message.name === 'grep_search') return t('tool.summary.matches', { count: arrayValue(result.matches).length });
+  if (message.name === 'run_bash_script') return getBashSummary(result, t);
+  if (message.name === 'run_skill') return getBashSummary(result, t);
+  if (message.name === 'compact_chat') {
+    const chatId = asString(result.chatId);
+    return chatId ? t('tool.summary.newChat', { chatId }) : t('tool.summary.compacted');
+  }
+  if (message.name === 'list_files') return t('tool.summary.entries', { count: arrayValue(result.entries).length });
+  if (message.name === 'replace_in_file')
+    return t('tool.summary.replacements', { count: Number(result.replacements || 0) });
+  if (message.name === 'write_file' && typeof result.bytes === 'number')
+    return t('tool.summary.bytes', { count: result.bytes });
+  return message.status || t('message.tool').toLowerCase();
 }
 
-function getBashSummary(result: Record<string, unknown>): string {
-  const exitLabel = result.timedOut ? 'timed out' : `exit ${String(result.exitCode ?? 'unknown')}`;
+function getBashSummary(result: Record<string, unknown>, t: Translator): string {
+  const exitLabel = result.timedOut
+    ? t('tool.summary.timedOut')
+    : t('tool.summary.exit', { code: String(result.exitCode ?? t('tool.summary.unknown')) });
   const durationLabel = typeof result.durationMs === 'number' ? ` · ${formatDuration(result.durationMs)}` : '';
 
   return `${exitLabel}${durationLabel}`;

@@ -19,6 +19,7 @@ import { type ReactNode, useState } from 'react';
 import { ToolPermissionSelect } from '../../features/configure-tool-permission/ToolPermissionSelect';
 import { AgentModeSelect } from '../../features/select-agent-mode/AgentModeSelect';
 import { PermissionPresetSelect } from '../../features/select-permission-preset/PermissionPresetSelect';
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type {
   AgentConfigScope,
@@ -57,38 +58,53 @@ type PermissionsPageProps = {
   variant?: 'page' | 'embedded';
 };
 
-const NAV_ITEMS: Array<{ id: SettingsPageId; label: string; icon: ReactNode; description: string }> = [
+const NAV_ITEMS: Array<{
+  id: SettingsPageId;
+  labelKey: ReturnType<typeof useI18n>['t'] extends (key: infer Key, ...args: never[]) => string ? Key : never;
+  icon: ReactNode;
+  descriptionKey: ReturnType<typeof useI18n>['t'] extends (key: infer Key, ...args: never[]) => string ? Key : never;
+}> = [
   {
     id: 'overview',
-    label: 'Overview',
+    labelKey: 'settings.nav.overview',
     icon: <SlidersHorizontal size={15} />,
-    description: 'Model-adjacent request settings and status.'
+    descriptionKey: 'settings.nav.overviewDescription'
   },
   {
     id: 'instructions',
-    label: 'Instructions',
+    labelKey: 'settings.nav.instructions',
     icon: <FileText size={15} />,
-    description: 'AGENTS.md, CLAUDE.md and project instructions.'
+    descriptionKey: 'settings.nav.instructionsDescription'
   },
-  { id: 'modes', label: 'Modes', icon: <Bot size={15} />, description: 'Working modes and their system instructions.' },
-  { id: 'skills', label: 'Skills', icon: <Wrench size={15} />, description: 'Custom Bash-backed run_skill actions.' },
+  {
+    id: 'modes',
+    labelKey: 'settings.nav.modes',
+    icon: <Bot size={15} />,
+    descriptionKey: 'settings.nav.modesDescription'
+  },
+  {
+    id: 'skills',
+    labelKey: 'settings.nav.skills',
+    icon: <Wrench size={15} />,
+    descriptionKey: 'settings.nav.skillsDescription'
+  },
   {
     id: 'permissions',
-    label: 'Permissions',
+    labelKey: 'settings.nav.permissions',
     icon: <ShieldCheck size={15} />,
-    description: 'Tool access presets and per-tool confirmations.'
+    descriptionKey: 'settings.nav.permissionsDescription'
   },
   {
     id: 'compaction',
-    label: 'Compaction',
+    labelKey: 'settings.nav.compaction',
     icon: <Gauge size={15} />,
-    description: 'Control when old context is split out of the active chat.'
+    descriptionKey: 'settings.nav.compactionDescription'
   },
   {
     id: 'system',
-    label: 'System',
+    labelKey: 'settings.nav.system',
     icon: <KeyRound size={15} />,
-    description: 'Language, Codex auth and execution limits.'
+    descriptionKey: 'settings.nav.systemDescription'
   }
 ];
 
@@ -182,20 +198,21 @@ function SettingsSidebar({
   activePage: SettingsPageId;
   onChange(page: SettingsPageId): void;
 }) {
+  const { t } = useI18n();
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.sidebarTitle}>Agent settings</div>
+      <div className={styles.sidebarTitle}>{t('settings.sidebarTitle')}</div>
       <nav className={styles.nav}>
         {NAV_ITEMS.map((item) => (
           <button
             key={item.id}
             type="button"
             className={`${styles.navButton} ${activePage === item.id ? styles.navButtonActive : ''}`}
-            title={item.description}
+            title={t(item.descriptionKey)}
             onClick={() => onChange(item.id)}
           >
             <span className={styles.navIcon}>{item.icon}</span>
-            <span>{item.label}</span>
+            <span>{t(item.labelKey)}</span>
           </button>
         ))}
       </nav>
@@ -204,10 +221,11 @@ function SettingsSidebar({
 }
 
 function SettingsHeader({ activePage, onBack }: { activePage: SettingsPageId; onBack?(): void }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-start gap-3">
       {onBack ? (
-        <IconButton title="Back to chat" onClick={onBack}>
+        <IconButton title={t('common.backToChat')} onClick={onBack}>
           <ArrowLeft size={15} />
         </IconButton>
       ) : null}
@@ -217,11 +235,12 @@ function SettingsHeader({ activePage, onBack }: { activePage: SettingsPageId; on
 }
 
 function PageIntro({ activePage }: { activePage: SettingsPageId }) {
+  const { t } = useI18n();
   const item = NAV_ITEMS.find((navItem) => navItem.id === activePage) || NAV_ITEMS[0];
   return (
     <header className={styles.pageHeader}>
-      <h1 className={styles.pageTitle}>{item.label}</h1>
-      <p className={styles.pageDescription}>{item.description}</p>
+      <h1 className={styles.pageTitle}>{t(item.labelKey)}</h1>
+      <p className={styles.pageDescription}>{t(item.descriptionKey)}</p>
     </header>
   );
 }
@@ -241,27 +260,45 @@ function OverviewPage({
   instructionSources: AgentInstructionSource[];
   codexAuthenticated: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
       <Card
         tone="elevated"
-        title="Current agent profile"
-        description="A compact summary of rules and capabilities used by the next request."
+        title={t('settings.overview.profileTitle')}
+        description={t('settings.overview.profileDescription')}
       >
         <div className={styles.twoColumns}>
-          <Badge tone="accent">Storage: {agentConfigScope === 'workspace' ? '.aist-agent' : 'local user'}</Badge>
-          <Badge tone={activePermissionPresetId === 'custom' ? 'warning' : 'success'}>
-            Permissions: {activePermissionPresetId}
+          <Badge tone="accent">
+            {t('settings.overview.storage', {
+              value:
+                agentConfigScope === 'workspace'
+                  ? t('settings.overview.storageWorkspace')
+                  : t('settings.overview.storageUser')
+            })}
           </Badge>
-          <Badge tone="neutral">Mode: {activeMode?.label || 'Default'}</Badge>
-          <Badge tone={customSkills.length ? 'accent' : 'neutral'}>Skills: {customSkills.length}</Badge>
-          <Badge tone="neutral">Instruction sources: {instructionSources.length}</Badge>
+          <Badge tone={activePermissionPresetId === 'custom' ? 'warning' : 'success'}>
+            {t('settings.overview.permissions', { value: activePermissionPresetId })}
+          </Badge>
+          <Badge tone="neutral">
+            {t('settings.overview.mode', { value: activeMode?.label || t('settings.overview.defaultMode') })}
+          </Badge>
+          <Badge tone={customSkills.length ? 'accent' : 'neutral'}>
+            {t('settings.overview.skills', { count: customSkills.length })}
+          </Badge>
+          <Badge tone="neutral">
+            {t('settings.overview.instructionSources', { count: instructionSources.length })}
+          </Badge>
           <Badge tone={codexAuthenticated ? 'success' : 'warning'}>
-            Codex: {codexAuthenticated ? 'authorized' : 'not connected'}
+            {t('settings.overview.codex', {
+              value: codexAuthenticated
+                ? t('settings.overview.codexAuthorized')
+                : t('settings.overview.codexNotConnected')
+            })}
           </Badge>
         </div>
       </Card>
-      <Card title="Effective instruction order" description="The agent receives these blocks from top to bottom.">
+      <Card title={t('settings.overview.orderTitle')} description={t('settings.overview.orderDescription')}>
         <InstructionSourceList sources={instructionSources} />
       </Card>
     </div>
@@ -277,33 +314,34 @@ function InstructionSettingsPage({
   projectInstructions: string;
   instructionSources: AgentInstructionSource[];
 }) {
+  const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <Card
-        title="Storage scope"
-        description="Workspace settings are saved to .aist-agent/settings.json. Local user storage stays outside the repository."
-      >
+      <Card title={t('settings.instructions.storageTitle')} description={t('settings.instructions.storageDescription')}>
         <Select
-          label="Save settings to"
+          label={t('settings.instructions.saveTo')}
           value={scope}
           options={[
-            { value: 'workspace', label: 'Workspace .aist-agent' },
-            { value: 'user', label: 'Local user storage' }
+            { value: 'workspace', label: t('settings.instructions.workspace') },
+            { value: 'user', label: t('settings.instructions.user') }
           ]}
           onChange={(event) =>
             vscode.postMessage({ type: 'setAgentConfigScope', scope: event.target.value as AgentConfigScope })
           }
         />
       </Card>
-      <Card title="Project instructions" description="Extra rules appended after AGENTS.md and CLAUDE.md.">
+      <Card title={t('settings.instructions.projectTitle')} description={t('settings.instructions.projectDescription')}>
         <TextArea
           rows={8}
           value={projectInstructions}
-          placeholder="Project-specific instructions saved in the selected storage scope..."
+          placeholder={t('settings.instructions.projectPlaceholder')}
           onChange={(event) => vscode.postMessage({ type: 'setProjectInstructions', instructions: event.target.value })}
         />
       </Card>
-      <Card title="Effective order" description="Read-only view of the instruction blocks sent to the model.">
+      <Card
+        title={t('settings.instructions.effectiveTitle')}
+        description={t('settings.instructions.effectiveDescription')}
+      >
         <InstructionSourceList sources={instructionSources} />
       </Card>
     </div>
@@ -319,6 +357,7 @@ function ModesSettingsPage({
   agentModes: AgentMode[];
   activeMode: AgentMode | undefined;
 }) {
+  const { t } = useI18n();
   const [addingMode, setAddingMode] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newInstructions, setNewInstructions] = useState('');
@@ -334,7 +373,7 @@ function ModesSettingsPage({
 
   return (
     <div className={styles.sectionStack}>
-      <Card title="Active mode" description="Select a working mode and edit the instruction text applied to chats.">
+      <Card title={t('settings.modes.activeTitle')} description={t('settings.modes.activeDescription')}>
         <div className={styles.formGrid}>
           <AgentModeSelect modes={agentModes} activeId={agentMode} />
           {activeMode ? (
@@ -353,35 +392,35 @@ function ModesSettingsPage({
         </div>
       </Card>
       <Card
-        title="Custom modes"
-        description="Create reusable instruction profiles for different kinds of work."
+        title={t('settings.modes.customTitle')}
+        description={t('settings.modes.customDescription')}
         actions={
           <Button size="sm" variant="secondary" leadingIcon={<Plus size={14} />} onClick={() => setAddingMode(true)}>
-            Add mode
+            {t('settings.modes.addMode')}
           </Button>
         }
       >
         {addingMode ? (
           <div className={styles.formGrid}>
             <TextField
-              label="Mode name"
-              placeholder="Expert reviewer"
+              label={t('settings.modes.modeName')}
+              placeholder={t('settings.modes.modePlaceholder')}
               value={newLabel}
               onChange={(event) => setNewLabel(event.target.value)}
               autoFocus
             />
             <TextArea
-              label="Instructions"
+              label={t('common.instructions')}
               rows={5}
               value={newInstructions}
               onChange={(event) => setNewInstructions(event.target.value)}
             />
             <div className={styles.actions}>
               <Button size="sm" variant="primary" disabled={!newLabel.trim()} onClick={handleAddMode}>
-                Add
+                {t('common.add')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setAddingMode(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
@@ -400,6 +439,7 @@ function ModesSettingsPage({
 }
 
 function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {
+  const { t } = useI18n();
   const [addingSkill, setAddingSkill] = useState(false);
   const [newSkill, setNewSkill] = useState({
     label: '',
@@ -426,39 +466,39 @@ function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {
   return (
     <div className={styles.sectionStack}>
       <Card
-        title="Custom skills"
-        description="Add Bash-backed skills the agent can call with run_skill. Input is passed via stdin and AIST_SKILL_INPUT."
+        title={t('settings.skills.title')}
+        description={t('settings.skills.description')}
         actions={
           <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAddingSkill(true)}>
-            Add skill
+            {t('settings.skills.addSkill')}
           </Button>
         }
       >
         {addingSkill ? (
           <div className={styles.formGrid}>
             <TextField
-              label="Name"
-              placeholder="Run focused tests"
+              label={t('common.name')}
+              placeholder={t('settings.skills.namePlaceholder')}
               value={newSkill.label}
               onChange={(event) => setNewSkill((value) => ({ ...value, label: event.target.value }))}
               autoFocus
             />
             <TextField
-              label="Description"
-              placeholder="When should the agent use this skill?"
+              label={t('common.description')}
+              placeholder={t('settings.skills.descriptionPlaceholder')}
               value={newSkill.description}
               onChange={(event) => setNewSkill((value) => ({ ...value, description: event.target.value }))}
             />
             <TextArea
-              label="Command"
+              label={t('common.command')}
               rows={5}
               value={newSkill.command}
               onChange={(event) => setNewSkill((value) => ({ ...value, command: event.target.value }))}
             />
             <Select
-              label="Permission"
+              label={t('common.permission')}
               value={newSkill.permission}
-              options={PERMISSION_OPTIONS}
+              options={getPermissionOptions(t)}
               onChange={(event) =>
                 setNewSkill((value) => ({ ...value, permission: event.target.value as ToolPermissionMode }))
               }
@@ -470,10 +510,10 @@ function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {
                 disabled={!newSkill.label.trim() || !newSkill.command.trim()}
                 onClick={handleAddSkill}
               >
-                Add
+                {t('common.add')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setAddingSkill(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
@@ -485,7 +525,7 @@ function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {
             ))}
           </div>
         ) : !addingSkill ? (
-          <p className={styles.empty}>No custom skills yet.</p>
+          <p className={styles.empty}>{t('settings.skills.empty')}</p>
         ) : null}
       </Card>
     </div>
@@ -501,9 +541,10 @@ function PermissionsSettingsPage({
   permissionPresets: ToolPermissionPreset[];
   activePermissionPresetId: ToolPermissionPresetId | 'custom';
 }) {
+  const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <Card title="Permission presets" description="Quickly switch the current tool access profile for the AI agent.">
+      <Card title={t('settings.permissions.presetsTitle')} description={t('settings.permissions.presetsDescription')}>
         <div className={styles.formGrid}>
           <PermissionPresetSelect presets={permissionPresets} activeId={activePermissionPresetId} />
           <div className={styles.twoColumns}>
@@ -513,14 +554,16 @@ function PermissionsSettingsPage({
                 variant={preset.id === activePermissionPresetId ? 'primary' : 'secondary'}
                 onClick={() => vscode.postMessage({ type: 'setToolPermissionPreset', presetId: preset.id })}
               >
-                {preset.label}
+                {t(`settings.preset.${preset.id}.label` as never)}
               </Button>
             ))}
           </div>
-          {activePermissionPresetId === 'custom' ? <Badge tone="warning">Custom permissions are active</Badge> : null}
+          {activePermissionPresetId === 'custom' ? (
+            <Badge tone="warning">{t('settings.permissions.customActive')}</Badge>
+          ) : null}
         </div>
       </Card>
-      <Card title="Per-tool permissions" description="Fine-tune which tools require confirmation.">
+      <Card title={t('settings.permissions.perToolTitle')} description={t('settings.permissions.perToolDescription')}>
         <div className={styles.list}>
           {tools.map((tool) => (
             <ToolPermissionSelect key={tool.name} item={tool} />
@@ -532,19 +575,17 @@ function PermissionsSettingsPage({
 }
 
 function CompactionSettingsPage({ settings }: { settings: CompactionSettings }) {
+  const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <Card
-        title="Context compaction"
-        description="When context becomes too large, AIST can start a fresh chat linked to the previous one. Old messages stay visible but stop being sent to the model."
-      >
+      <Card title={t('settings.compaction.title')} description={t('settings.compaction.description')}>
         <div className={styles.formGrid}>
           <Select
-            label="Status"
+            label={t('common.status')}
             value={settings.enabled ? 'enabled' : 'disabled'}
             options={[
-              { value: 'enabled', label: 'Enabled' },
-              { value: 'disabled', label: 'Disabled' }
+              { value: 'enabled', label: t('common.enabled') },
+              { value: 'disabled', label: t('common.disabled') }
             ]}
             onChange={(event) =>
               vscode.postMessage({
@@ -554,7 +595,7 @@ function CompactionSettingsPage({ settings }: { settings: CompactionSettings }) 
             }
           />
           <TextField
-            label="Threshold percent"
+            label={t('settings.compaction.threshold')}
             type="number"
             min={10}
             max={95}
@@ -567,8 +608,8 @@ function CompactionSettingsPage({ settings }: { settings: CompactionSettings }) 
             }
           />
           <TextField
-            label="Keep last messages in new context"
-            hint="0 means old context is fully cut off after the compaction line."
+            label={t('settings.compaction.keepLast')}
+            hint={t('settings.compaction.keepLastHint')}
             type="number"
             min={0}
             max={20}
@@ -595,11 +636,12 @@ function SystemSettingsPage({
   maxToolIterations: number;
   codexAuthenticated: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <Card title="Language" description="Controls agent answers and tool-call explanations.">
+      <Card title={t('settings.system.languageTitle')} description={t('settings.system.languageDescription')}>
         <Select
-          label="Response language"
+          label={t('settings.system.responseLanguage')}
           value={agentLanguage}
           options={[
             { value: 'ru', label: 'Русский' },
@@ -610,10 +652,7 @@ function SystemSettingsPage({
           }
         />
       </Card>
-      <Card
-        title="Tool iteration limit"
-        description="Maximum model/tool-call turns per request. Set to 0 to run without a limit."
-      >
+      <Card title={t('settings.system.iterationTitle')} description={t('settings.system.iterationDescription')}>
         <TextField
           type="number"
           min={0}
@@ -629,24 +668,24 @@ function SystemSettingsPage({
         />
       </Card>
       <Card
-        title="ChatGPT Codex"
+        title={t('settings.system.codexTitle')}
         description={
           codexAuthenticated
-            ? 'Authorization is active. Codex models are available.'
-            : 'Authorize ChatGPT Codex to use codex:* models.'
+            ? t('settings.system.codexDescriptionAuthorized')
+            : t('settings.system.codexDescriptionUnauthorized')
         }
       >
         {codexAuthenticated ? (
           <div className={styles.actions}>
             <Badge tone="success" icon={<CheckCircle2 size={12} />}>
-              Authorized
+              {t('common.authorized')}
             </Badge>
             <Button
               variant="secondary"
               leadingIcon={<LogOut size={14} />}
               onClick={() => vscode.postMessage({ type: 'codexLogout' })}
             >
-              Logout
+              {t('settings.system.logout')}
             </Button>
           </div>
         ) : (
@@ -655,7 +694,7 @@ function SystemSettingsPage({
             leadingIcon={<LogIn size={14} />}
             onClick={() => vscode.postMessage({ type: 'codexLogin' })}
           >
-            Authorize
+            {t('common.authorize')}
           </Button>
         )}
       </Card>
@@ -664,12 +703,17 @@ function SystemSettingsPage({
 }
 
 function InstructionSourceList({ sources }: { sources: AgentInstructionSource[] }) {
-  if (!sources.length) return <p className={styles.empty}>No instruction sources found.</p>;
+  const { t } = useI18n();
+  if (!sources.length) return <p className={styles.empty}>{t('settings.instructions.empty')}</p>;
 
   return (
     <div className={styles.list}>
       {sources.map((source) => (
-        <Card key={source.id} title={source.title} description={`Priority #${source.priority}`}>
+        <Card
+          key={source.id}
+          title={source.title}
+          description={t('settings.instructions.priority', { priority: source.priority })}
+        >
           <p className="m-0 line-clamp-3 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
             {source.content}
           </p>
@@ -680,6 +724,7 @@ function InstructionSourceList({ sources }: { sources: AgentInstructionSource[] 
 }
 
 function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState({
     label: skill.label,
     description: skill.description,
@@ -697,25 +742,25 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
     <Card title={skill.label} description={skill.id}>
       <div className={styles.formGrid}>
         <TextField
-          label="Name"
+          label={t('common.name')}
           value={draft.label}
           onChange={(event) => setDraft((value) => ({ ...value, label: event.target.value }))}
         />
         <TextField
-          label="Description"
+          label={t('common.description')}
           value={draft.description}
           onChange={(event) => setDraft((value) => ({ ...value, description: event.target.value }))}
         />
         <TextArea
-          label="Command"
+          label={t('common.command')}
           rows={5}
           value={draft.command}
           onChange={(event) => setDraft((value) => ({ ...value, command: event.target.value }))}
         />
         <Select
-          label="Permission"
+          label={t('common.permission')}
           value={draft.permission}
-          options={PERMISSION_OPTIONS}
+          options={getPermissionOptions(t)}
           onChange={(event) =>
             setDraft((value) => ({ ...value, permission: event.target.value as ToolPermissionMode }))
           }
@@ -737,7 +782,7 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
               })
             }
           >
-            Save
+            {t('common.save')}
           </Button>
           <Button
             size="sm"
@@ -745,7 +790,7 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
             leadingIcon={<Trash2 size={13} />}
             onClick={() => vscode.postMessage({ type: 'deleteSkill', skillId: skill.id })}
           >
-            Delete
+            {t('common.delete')}
           </Button>
         </div>
       </div>
@@ -753,7 +798,9 @@ function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
   );
 }
 
-const PERMISSION_OPTIONS = [
-  { value: 'ask', label: 'Ask permission' },
-  { value: 'auto', label: 'Run automatically' }
-];
+function getPermissionOptions(t: ReturnType<typeof useI18n>['t']) {
+  return [
+    { value: 'ask', label: t('settings.permission.ask') },
+    { value: 'auto', label: t('settings.permission.auto') }
+  ];
+}

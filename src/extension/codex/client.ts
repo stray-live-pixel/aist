@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool, ToolCall } from '../openrouter/types';
 import { CODEX_RESPONSES_URL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
+import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
 
 const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
@@ -120,13 +121,13 @@ export class CodexClient {
     const auth = toAuth(tokens);
     await this.saveAuth(auth);
     this.logger.info('ChatGPT Codex login completed', { accountId: auth.accountId || null });
-    vscode.window.setStatusBarMessage('aist: ChatGPT Codex login completed', 2400);
+    vscode.window.setStatusBarMessage(t('status.codexLoginCompleted'), 2400);
   }
 
   async logout(): Promise<void> {
     await this.context.secrets.delete(AUTH_SECRET_KEY);
     this.logger.info('ChatGPT Codex auth cleared');
-    vscode.window.setStatusBarMessage('aist: ChatGPT Codex auth cleared', 2400);
+    vscode.window.setStatusBarMessage(t('status.codexAuthCleared'), 2400);
   }
 
   async isAuthenticated(): Promise<boolean> {

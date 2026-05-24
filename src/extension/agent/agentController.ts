@@ -4,6 +4,7 @@ import { ChatStore } from '../chats/chatStore';
 import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
 import type { OpenRouterMessage, OpenRouterTool } from '../openrouter/types';
+import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
 import { editSelection as runEditSelectionCommand } from './commands/editSelection';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from './commands/openWorkspaceFile';
@@ -190,7 +191,7 @@ export class AgentController {
     void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
     this.sendState();
     this.postSidebarPage();
-    vscode.window.setStatusBarMessage('aist: New chat created', 1800);
+    vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
   }
 
   async editSelection(): Promise<void> {

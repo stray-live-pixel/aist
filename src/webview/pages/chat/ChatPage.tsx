@@ -1,13 +1,14 @@
-import { Archive, ExternalLink, MessageSquare } from 'lucide-react';
+import { ExternalLink, MessageSquare } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Composer } from '../../features/send-message/Composer';
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentState } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
 import { MessageList } from '../../widgets/message-list/MessageList';
 import { AgentSettingsModal } from './AgentSettingsModal';
-import { AgentSettingsSummary } from './AgentSettingsSummary';
+import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
 import { ChatListModal } from './ChatListModal';
 
 type ChatPageProps = {
@@ -22,11 +23,7 @@ export function ChatPage({ state }: ChatPageProps) {
 
   return (
     <div className="relative flex h-screen flex-col bg-transparent text-[var(--vscode-foreground)]">
-      <FloatingChatActions
-        onOpenChats={() => setChatsOpen(true)}
-        activeChatId={state.activeChat.id}
-        busy={state.activeChat.busy}
-      />
+      <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
       <MessageList
         messages={state.activeChat.messages}
         previousChat={state.activeChat.previousChat}
@@ -42,6 +39,7 @@ export function ChatPage({ state }: ChatPageProps) {
         busy={state.activeChat.busy}
         floating
         settings={<AgentSettingsSummary state={state} onOpen={() => setSettingsOpen(true)} />}
+        footer={<ComposerContextSummary state={state} />}
       />
       {chatsOpen ? (
         <ChatListModal
@@ -56,32 +54,19 @@ export function ChatPage({ state }: ChatPageProps) {
   );
 }
 
-function FloatingChatActions({
-  onOpenChats,
-  activeChatId,
-  busy
-}: {
-  onOpenChats(): void;
-  activeChatId: string;
-  busy: boolean;
-}) {
+function FloatingChatActions({ onOpenChats, activeChatId }: { onOpenChats(): void; activeChatId: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
-      <IconButton title="Open chats" onClick={onOpenChats}>
+      <IconButton title={t('chat.openChats')} onClick={onOpenChats}>
         <MessageSquare size={15} />
       </IconButton>
       <IconButton
-        title="Open this chat in editor"
+        title={t('chat.openInEditor')}
         onClick={() => vscode.postMessage({ type: 'openChatInEditor', chatId: activeChatId })}
       >
         <ExternalLink size={15} />
-      </IconButton>
-      <IconButton
-        title="Compact chat context"
-        disabled={busy}
-        onClick={() => vscode.postMessage({ type: 'compactChat', chatId: activeChatId })}
-      >
-        <Archive size={15} />
       </IconButton>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import type { useI18n } from '../../shared/i18n';
 import type { ChatMessage, ChatMessageUsageEstimate } from '../../shared/types';
 
 /**
@@ -7,14 +8,14 @@ import type { ChatMessage, ChatMessageUsageEstimate } from '../../shared/types';
  * Зачем нужно: MessageCard читался как композиция UI, без технического шума дат/токенов.
  * Пример: formatMessageDate(message.createdAt) возвращает готовый React-фрагмент времени.
  */
-export function formatToolStatus(message: ChatMessage): string {
-  if (message.approval === 'pending') return 'Approval needed';
-  if (message.status === 'waiting') return 'Waiting';
-  if (message.status === 'running') return 'Running';
-  if (message.status === 'done') return 'Done';
-  if (message.status === 'error') return 'Error';
-  if (message.status === 'denied') return 'Denied';
-  return 'Unknown';
+export function formatToolStatusLocalized(message: ChatMessage, t: ReturnType<typeof useI18n>['t']): string {
+  if (message.approval === 'pending') return t('tool.status.approvalNeeded');
+  if (message.status === 'waiting') return t('tool.status.waiting');
+  if (message.status === 'running') return t('tool.status.running');
+  if (message.status === 'done') return t('tool.status.done');
+  if (message.status === 'error') return t('tool.status.error');
+  if (message.status === 'denied') return t('tool.status.denied');
+  return t('tool.status.unknown');
 }
 
 export function getToolStatusClass(status: ChatMessage['status']): string {

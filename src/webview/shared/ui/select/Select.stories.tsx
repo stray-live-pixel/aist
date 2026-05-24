@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Brain } from 'lucide-react';
 
 import { Select } from './Select';
 
@@ -34,5 +35,13 @@ export const Placeholder: Story = {
 export const WithError: Story = {
   render: () => (
     <Select label="Provider" placeholder="Select provider" options={options} error="Provider is required." />
+  )
+};
+
+export const CompactSearchable: Story = {
+  render: () => (
+    <div className="w-40">
+      <Select size="sm" leadingIcon={<Brain size={12} />} options={options} defaultValue="gpt-4o-mini" />
+    </div>
   )
 };

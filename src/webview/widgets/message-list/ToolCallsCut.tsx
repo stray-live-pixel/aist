@@ -2,6 +2,7 @@ import { ChevronRight, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { MessageCard } from '../../entities/message/MessageCard';
+import { useI18n } from '../../shared/i18n';
 import type { ChatMessage } from '../../shared/types';
 
 type ToolCallsCutProps = {
@@ -48,11 +49,13 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active }: T
 }
 
 function ToolCallsCutHeader({ open, meta, onToggle }: ToolCallsCutHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <div className="tool-calls-cut-header">
       <button
         className="tool-chevron-button"
-        title={open ? 'Скрыть вызовы инструментов' : 'Показать вызовы инструментов'}
+        title={open ? t('toolCalls.hide') : t('toolCalls.show')}
         aria-expanded={open}
         onClick={onToggle}
       >
@@ -61,7 +64,7 @@ function ToolCallsCutHeader({ open, meta, onToggle }: ToolCallsCutHeaderProps) {
       <span className="tool-calls-cut-icon">
         <Wrench size={14} />
       </span>
-      <span className="tool-calls-cut-title">Tool Calls</span>
+      <span className="tool-calls-cut-title">{t('message.tool')}</span>
       <span className="tool-calls-cut-meta">{meta}</span>
     </div>
   );

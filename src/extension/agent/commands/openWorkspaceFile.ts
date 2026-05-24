@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../shared/errors';
+import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { resolveWorkspacePath } from '../../shared/workspace';
 import { getDocumentPosition } from '../context/workspaceFiles';
@@ -35,6 +36,8 @@ export async function openWorkspaceFile(params: {
     editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
   } catch (error) {
     params.logger.error('Failed to open workspace file from webview', error);
-    vscode.window.showErrorMessage(`aist: failed to open ${params.filePath} — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(
+      t('error.openWorkspaceFile', { path: params.filePath, error: getErrorMessage(error) })
+    );
   }
 }

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 
 import { ModelSelect } from '../../features/select-model/ModelSelect';
 import { PermissionPresetSelect } from '../../features/select-permission-preset/PermissionPresetSelect';
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentState, ReasoningEffort } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
@@ -14,6 +15,7 @@ type AgentSettingsModalProps = {
 };
 
 export function AgentSettingsModal({ state, onClose }: AgentSettingsModalProps) {
+  const { t } = useI18n();
   useEffect(() => {
     const closeByEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -33,10 +35,10 @@ export function AgentSettingsModal({ state, onClose }: AgentSettingsModalProps) 
       >
         <div className="tool-modal-header">
           <div>
-            <h2>Agent settings</h2>
-            <p>Model, access and reasoning live here so the composer stays focused on typing.</p>
+            <h2>{t('settings.title')}</h2>
+            <p>{t('settings.modalDescription')}</p>
           </div>
-          <IconButton title="Close settings" onClick={onClose}>
+          <IconButton title={t('common.closeSettings')} onClick={onClose}>
             <X size={15} />
           </IconButton>
         </div>
@@ -65,13 +67,14 @@ export function AgentSettingsModal({ state, onClose }: AgentSettingsModalProps) 
 }
 
 function QuickSettings({ state }: { state: AgentState }) {
+  const { t } = useI18n();
+
   return (
     <section className="grid gap-3 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] p-3">
       <div>
-        <h3 className="text-sm font-semibold">Request settings</h3>
+        <h3 className="text-sm font-semibold">{t('settings.requestTitle')}</h3>
         <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-          These controls used to sit under the prompt. Keeping them here reduces visual noise while preserving quick
-          access from the summary line.
+          {t('settings.requestDescription')}
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -88,11 +91,13 @@ function QuickSettings({ state }: { state: AgentState }) {
 }
 
 function ReasoningSelect({ value, disabled }: { value: ReasoningEffort; disabled: boolean }) {
+  const { t } = useI18n();
+
   return (
     <label className="grid min-w-36 gap-1 text-xs text-[var(--vscode-descriptionForeground)]">
       <span className="flex items-center gap-2">
         <Brain size={14} className="shrink-0" />
-        <span>Reasoning</span>
+        <span>{t('summary.reasoningEffort')}</span>
       </span>
       <select
         className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)] disabled:cursor-not-allowed disabled:opacity-[0.55]"
@@ -105,10 +110,10 @@ function ReasoningSelect({ value, disabled }: { value: ReasoningEffort; disabled
           })
         }
       >
-        <option value="auto">Auto</option>
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="high">High</option>
+        <option value="auto">{t('reasoning.auto')}</option>
+        <option value="low">{t('reasoning.low')}</option>
+        <option value="medium">{t('reasoning.medium')}</option>
+        <option value="high">{t('reasoning.high')}</option>
       </select>
     </label>
   );

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { ChatStore } from '../../chats/chatStore';
 import type { OpenRouterMessage, OpenRouterTool } from '../../openrouter/types';
+import { t } from '../../shared/i18n';
 import { replaceSelection, stripCodeFence } from '../context/editorContext';
 import { buildEditSelectionPrompt } from './editSelectionPrompt';
 
@@ -26,7 +27,7 @@ export type EditSelectionDeps = {
 export async function editSelection(deps: EditSelectionDeps): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    vscode.window.showWarningMessage('Open a file first.');
+    vscode.window.showWarningMessage(t('editSelection.openFileFirst'));
     return;
   }
 
@@ -38,7 +39,7 @@ export async function editSelection(deps: EditSelectionDeps): Promise<void> {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'aist is editing...',
+      title: t('editSelection.progress'),
       cancellable: false
     },
     async () => applyEdit(editor, instruction, deps)
@@ -47,9 +48,9 @@ export async function editSelection(deps: EditSelectionDeps): Promise<void> {
 
 async function askEditInstruction(): Promise<string | undefined> {
   return vscode.window.showInputBox({
-    title: 'aist: Edit Selection',
-    prompt: 'Describe what should be generated or changed',
-    placeHolder: 'Example: refactor this function and add error handling'
+    title: t('editSelection.title'),
+    prompt: t('editSelection.prompt'),
+    placeHolder: t('editSelection.placeholder')
   });
 }
 

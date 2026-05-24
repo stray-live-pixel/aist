@@ -5,6 +5,7 @@ import type { OpenRouterClient } from '../../openrouter/client';
 import type { OpenRouterModelOption } from '../../openrouter/types';
 import { FALLBACK_MODEL_OPTIONS } from '../../shared/constants';
 import { getErrorMessage } from '../../shared/errors';
+import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { mergeModels } from './models';
 import { MODEL_LIST_CACHE_TTL_MS } from './refresh';
@@ -93,6 +94,6 @@ export class AgentModelCatalog {
 
   private reportLoadError(error: unknown): void {
     this.logger.error('Model list unavailable', error);
-    vscode.window.setStatusBarMessage(`Model list unavailable: ${getErrorMessage(error)}`, 4000);
+    vscode.window.setStatusBarMessage(t('status.modelListUnavailable', { error: getErrorMessage(error) }), 4000);
   }
 }

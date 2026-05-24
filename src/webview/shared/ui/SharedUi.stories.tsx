@@ -5,6 +5,7 @@ import { storyTools } from '../../storybook/fixtures';
 import { AistAnimatedLogo, AistBrand, AistLogo } from './AistLogo';
 import { IconButton } from './IconButton';
 import { ToolIcon, getToolLabel } from './ToolIcon';
+import { KeyboardShortcut } from './keyboard-shortcut';
 
 const meta = {
   title: 'Shared/UI',
@@ -44,6 +45,16 @@ export const IconButtons: Story = {
       <IconButton title="Disabled settings" disabled onClick={() => undefined}>
         <Settings size={15} />
       </IconButton>
+    </div>
+  )
+};
+
+export const KeyboardShortcuts: Story = {
+  render: () => (
+    <div className="grid gap-3 text-[var(--vscode-foreground)]">
+      <KeyboardShortcut label="Send" keys={['⌘', '↵']} />
+      <KeyboardShortcut label="Send" keys={['Ctrl', '↵']} />
+      <KeyboardShortcut keys={['Shift', 'Tab']} />
     </div>
   )
 };

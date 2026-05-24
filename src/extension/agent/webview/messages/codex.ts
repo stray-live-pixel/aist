@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../../shared/errors';
+import { t } from '../../../shared/i18n';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -24,9 +25,9 @@ export async function handleWebviewCodexMessage(message: CodexMessage, deps: Age
     }
     await deps.logoutCodex();
   } catch (error) {
-    const action = message.type === 'codexLogin' ? 'login' : 'logout';
+    const action = message.type === 'codexLogin' ? t('codex.login') : t('codex.logout');
     deps.logger.error(`ChatGPT Codex ${action} failed`, error);
-    vscode.window.showErrorMessage(`aist: ChatGPT Codex ${action} failed — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.codexAction', { action, error: getErrorMessage(error) }));
     await deps.refreshCodexAuthState();
   }
 }

@@ -1,5 +1,6 @@
 import { FileCode2 } from 'lucide-react';
 
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { FileReference } from './toolMessageModel';
 
@@ -9,12 +10,13 @@ import type { FileReference } from './toolMessageModel';
  * Пример: <WorkspaceFileLink file={{ path: 'src/index.ts', line: 10 }} />.
  */
 export function WorkspaceFileLink({ file }: { file: FileReference }) {
+  const { t } = useI18n();
   const label = file.line ? `${file.path}:${file.line}` : file.path;
 
   return (
     <button
       className="tool-file-link"
-      title="Открыть файл в редакторе"
+      title={t('tool.openFile')}
       onClick={(event) => {
         event.stopPropagation();
         vscode.postMessage({

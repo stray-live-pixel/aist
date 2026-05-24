@@ -1,6 +1,7 @@
 import { Check, Copy, MessageSquare, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { pluralKey, translate, useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentLanguage, ChatSummary } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
@@ -13,6 +14,7 @@ type ChatListModalProps = {
 };
 
 export function ChatListModal({ chats, activeChatId, language, onClose }: ChatListModalProps) {
+  const { t } = useI18n();
   const [deleteTargetId, setDeleteTargetId] = useState<string | undefined>();
 
   useEffect(() => {
@@ -44,15 +46,15 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
       <section className="tool-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <div className="tool-modal-header">
           <div>
-            <h2>Chats</h2>
-            <p>History is hidden by default to keep the editor focused on messages.</p>
+            <h2>{t('chatList.title')}</h2>
+            <p>{t('chatList.description')}</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="secondary-button" onClick={() => vscode.postMessage({ type: 'newChat' })}>
               <Plus size={14} />
-              New
+              {t('chatList.new')}
             </button>
-            <IconButton title="Close chats" onClick={onClose}>
+            <IconButton title={t('chatList.close')} onClick={onClose}>
               <X size={15} />
             </IconButton>
           </div>
@@ -126,12 +128,14 @@ function ChatRow(props: ChatRowProps) {
 }
 
 function RowActions({ disabled, onDuplicate, onDelete }: { disabled: boolean; onDuplicate(): void; onDelete(): void }) {
+  const { t } = useI18n();
+
   return (
     <>
-      <IconButton title="Duplicate chat" disabled={disabled} onClick={onDuplicate}>
+      <IconButton title={t('chatList.duplicate')} disabled={disabled} onClick={onDuplicate}>
         <Copy size={14} />
       </IconButton>
-      <IconButton title="Delete chat" disabled={disabled} onClick={onDelete}>
+      <IconButton title={t('chatList.delete')} disabled={disabled} onClick={onDelete}>
         <Trash2 size={14} />
       </IconButton>
     </>
@@ -139,12 +143,14 @@ function RowActions({ disabled, onDuplicate, onDelete }: { disabled: boolean; on
 }
 
 function DeleteActions({ onCancel, onDelete }: { onCancel(): void; onDelete(): void }) {
+  const { t } = useI18n();
+
   return (
     <>
-      <IconButton title="Confirm delete" onClick={onDelete}>
+      <IconButton title={t('common.confirmDelete')} onClick={onDelete}>
         <Check size={14} />
       </IconButton>
-      <IconButton title="Cancel delete" onClick={onCancel}>
+      <IconButton title={t('common.cancelDelete')} onClick={onCancel}>
         <X size={14} />
       </IconButton>
     </>
@@ -152,13 +158,12 @@ function DeleteActions({ onCancel, onDelete }: { onCancel(): void; onDelete(): v
 }
 
 function formatChatMeta(chat: ChatSummary, language: AgentLanguage): string {
-  const messageLabel =
-    language === 'ru'
-      ? `${chat.messageCount} сообщ.`
-      : chat.messageCount === 1
-        ? '1 message'
-        : `${chat.messageCount} messages`;
+  const messageLabel = translateChatMetaMessage(language, chat.messageCount);
   return `${messageLabel} - ${formatChatDate(chat.lastMessageAt, language)}`;
+}
+
+function translateChatMetaMessage(language: AgentLanguage, count: number): string {
+  return translate(language, pluralKey(language, 'chatList.message', count), { count });
 }
 
 function formatChatDate(timestamp: number, language: AgentLanguage): string {

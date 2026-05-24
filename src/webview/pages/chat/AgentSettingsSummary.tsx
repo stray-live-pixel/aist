@@ -1,7 +1,9 @@
-import { Brain, Coins, Gauge, Settings2, ShieldCheck, Wrench } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Archive, Brain, Coins, Settings2, ShieldCheck, SlidersHorizontal, Wrench } from 'lucide-react';
 
-import type { AgentState, ChatContextEstimate } from '../../shared/types';
+import { useI18n } from '../../shared/i18n';
+import { vscode } from '../../shared/lib/vscode';
+import type { AgentState, ChatContextEstimate, ReasoningEffort } from '../../shared/types';
+import { Button, Select, type SelectOption } from '../../shared/ui';
 
 type AgentSettingsSummaryProps = {
   state: AgentState;
@@ -9,29 +11,153 @@ type AgentSettingsSummaryProps = {
 };
 
 export function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProps) {
-  const modeLabel = state.agentModes.find((mode) => mode.id === state.agentMode)?.label || state.agentMode;
-  const presetLabel = getPermissionPresetLabel(state);
+  const { t } = useI18n();
 
   return (
-    <button
-      type="button"
-      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded px-1 py-1 text-left text-[11px] leading-4 text-[var(--vscode-descriptionForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:border-[var(--vscode-focusBorder)]"
-      title="Open agent settings"
-      onClick={onOpen}
-    >
-      <SummaryItem icon={<Settings2 size={12} />} text={`Mode: ${modeLabel}`} />
-      <SummaryItem icon={<ShieldCheck size={12} />} text={presetLabel} />
-      <SummaryItem icon={<Brain size={12} />} text={`Reasoning: ${state.reasoningEffort}`} />
-      <SummaryItem icon={<Wrench size={12} />} text={`${state.tools.length} tools`} />
-      <SummaryItem icon={<Gauge size={12} />} text={`Context: ${formatContextFill(state.activeChat.context)}`} />
-      {state.activeChat.usage.costUsd !== undefined ? (
-        <SummaryItem icon={<Coins size={12} />} text={`Cost: ${formatCost(state.activeChat.usage.costUsd)}`} />
-      ) : null}
-    </button>
+    <div className="flex min-w-0 items-center gap-1.5 overflow-visible whitespace-nowrap text-[11px] leading-4 text-[var(--vscode-descriptionForeground)]">
+      <CompactSelect
+        icon={<SlidersHorizontal size={12} />}
+        title={t('summary.agentMode')}
+        value={state.agentMode}
+        disabled={state.activeChat.busy}
+        onChange={(modeId) => vscode.postMessage({ type: 'setAgentMode', modeId })}
+        options={state.agentModes.map((mode) => ({ value: mode.id, label: mode.label }))}
+      />
+      <CompactSelect
+        icon={<ShieldCheck size={12} />}
+        title={t('summary.toolPermissionPreset')}
+        value={state.activeToolPermissionPresetId}
+        disabled={state.activeChat.busy || state.activeToolPermissionPresetId === 'custom'}
+        onChange={(presetId) => vscode.postMessage({ type: 'setToolPermissionPreset', presetId })}
+        options={[
+          ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
+          ...state.toolPermissionPresets.map((preset) => ({
+            value: preset.id,
+            label: t(`settings.preset.${preset.id}.label` as never)
+          }))
+        ]}
+      />
+      <CompactSelect
+        icon={<Brain size={12} />}
+        title={t('summary.reasoningEffort')}
+        value={state.reasoningEffort}
+        disabled={state.activeChat.busy}
+        onChange={(reasoningEffort) =>
+          vscode.postMessage({ type: 'setReasoningEffort', reasoningEffort: reasoningEffort as ReasoningEffort })
+        }
+        options={[
+          { value: 'auto', label: t('reasoning.autoDetailed') },
+          { value: 'low', label: t('reasoning.lowDetailed') },
+          { value: 'medium', label: t('reasoning.mediumDetailed') },
+          { value: 'high', label: t('reasoning.highDetailed') }
+        ]}
+      />
+      <Button type="button" variant="secondary" size="sm" leadingIcon={<Wrench size={12} />} onClick={onOpen}>
+        {t('summary.toolsCount', { count: state.tools.length })}
+      </Button>
+    </div>
   );
 }
 
-function SummaryItem({ icon, text }: { icon: ReactNode; text: string }) {
+export function ComposerContextSummary({ state }: { state: AgentState }) {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-4 text-[var(--vscode-descriptionForeground)]">
+      <CompactSelect
+        icon={<Settings2 size={12} />}
+        title={t('summary.model')}
+        value={state.activeChat.model}
+        disabled={state.activeChat.busy}
+        className="w-[clamp(8.5rem,24vw,13rem)]"
+        onChange={(model) => vscode.postMessage({ type: 'setModel', model })}
+        options={
+          state.models.length
+            ? state.models.map((model) => ({ value: model.id, label: model.name }))
+            : [{ value: state.activeChat.model, label: state.activeChat.model }]
+        }
+      />
+      <ContextUsagePie context={state.activeChat.context} />
+      {state.activeChat.usage.costUsd !== undefined ? (
+        <SummaryItem
+          icon={<Coins size={12} />}
+          text={t('summary.cost', { cost: formatCost(state.activeChat.usage.costUsd) })}
+        />
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        leadingIcon={<Archive size={12} />}
+        disabled={state.activeChat.busy}
+        title={t('summary.compactTitle')}
+        onClick={() => vscode.postMessage({ type: 'compactChat', chatId: state.activeChat.id })}
+      >
+        {t('summary.compact')}
+      </Button>
+    </div>
+  );
+}
+
+function CompactSelect({
+  icon,
+  title,
+  value,
+  options,
+  disabled,
+  className = 'w-[clamp(6.8rem,18vw,10.5rem)]',
+  onChange
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  options: SelectOption[];
+  disabled?: boolean;
+  className?: string;
+  onChange(value: string): void;
+}) {
+  return (
+    <Select
+      className={`${className} shrink min-w-0`}
+      size="sm"
+      leadingIcon={icon}
+      aria-label={title}
+      title={title}
+      value={value}
+      disabled={disabled}
+      options={options}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+}
+
+function ContextUsagePie({ context }: { context: ChatContextEstimate | undefined }) {
+  const { t } = useI18n();
+  const percent = clampPercent(
+    context?.percent ?? (context?.maxTokens ? (context.tokens / context.maxTokens) * 100 : 0)
+  );
+  const title = formatContextFill(context, t('common.notAvailable'));
+
+  return (
+    <span className="flex min-w-0 items-center gap-1.5" title={title}>
+      <span
+        className="relative inline-flex h-4 w-4 shrink-0 rounded-full border border-[color-mix(in_srgb,var(--vscode-descriptionForeground)_20%,transparent)] bg-[color-mix(in_srgb,var(--vscode-descriptionForeground)_10%,transparent)]"
+        aria-hidden="true"
+      >
+        <span
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `conic-gradient(color-mix(in srgb, var(--vscode-textLink-foreground) 72%, var(--vscode-foreground)) ${percent * 3.6}deg, transparent 0deg)`
+          }}
+        />
+        <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--vscode-input-background)]" />
+      </span>
+      <span className="truncate">{formatContextFill(context, t('common.notAvailable'))}</span>
+    </span>
+  );
+}
+
+function SummaryItem({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <span className="shrink-0">{icon}</span>
@@ -40,20 +166,17 @@ function SummaryItem({ icon, text }: { icon: ReactNode; text: string }) {
   );
 }
 
-function getPermissionPresetLabel(state: AgentState): string {
-  if (state.activeToolPermissionPresetId === 'custom') {
-    return 'Custom permissions';
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
   }
 
-  return (
-    state.toolPermissionPresets.find((preset) => preset.id === state.activeToolPermissionPresetId)?.label ||
-    'Permissions'
-  );
+  return Math.max(0, Math.min(100, value));
 }
 
-function formatContextFill(context: ChatContextEstimate | undefined): string {
+function formatContextFill(context: ChatContextEstimate | undefined, fallback: string): string {
   if (!context) {
-    return 'n/a';
+    return fallback;
   }
 
   const tokens = formatTokens(context.tokens);

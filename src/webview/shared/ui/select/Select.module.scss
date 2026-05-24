@@ -1,4 +1,5 @@
 .field {
+  position: relative;
   display: grid;
   min-width: 0;
   gap: 7px;
@@ -10,53 +11,296 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.nativeSelect {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .control {
   position: relative;
+  min-width: 0;
+}
+
+.trigger {
+  position: relative;
   display: flex;
+  width: 100%;
   height: 38px;
   min-width: 0;
   align-items: center;
+  gap: 8px;
   border: 1px solid var(--vscode-dropdown-border, var(--agent-border));
   border-radius: 14px;
+  color: var(--vscode-dropdown-foreground);
   background: color-mix(in srgb, var(--vscode-dropdown-background) 92%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 7%, transparent);
+  box-shadow: none;
+  outline: none;
+  padding: 0 36px 0 12px;
+  text-align: left;
   transition:
     border-color 140ms ease,
-    box-shadow 140ms ease;
+    box-shadow 140ms ease,
+    background 140ms ease,
+    transform 120ms ease,
+    opacity 140ms ease;
 }
 
-.control:focus-within {
+.trigger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vscode-dropdown-background) 82%, var(--vscode-list-hoverBackground));
+}
+
+.trigger:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.trigger:focus-visible,
+.open .trigger {
   border-color: var(--vscode-focusBorder);
   box-shadow:
     0 0 0 1px var(--vscode-focusBorder),
     0 0 0 4px color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent);
 }
 
-.invalid {
+.trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.invalid .trigger {
   border-color: var(--vscode-errorForeground);
 }
 
-.select {
-  width: 100%;
-  height: 100%;
-  appearance: none;
-  border: 0;
-  outline: 0;
-  color: var(--vscode-dropdown-foreground);
-  background: transparent;
-  padding: 0 36px 0 12px;
+.value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.select:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+.placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.withIcon {
+  padding-left: 10px;
 }
 
 .chevron {
   position: absolute;
   right: 12px;
+  flex-shrink: 0;
   pointer-events: none;
   color: var(--vscode-descriptionForeground);
+  transition: transform 140ms ease;
+}
+
+.open .chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown {
+  position: fixed;
+  z-index: 10000;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--agent-border) 86%, var(--vscode-focusBorder));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-dropdown-background) 96%, var(--vscode-editor-background));
+  box-shadow:
+    0 16px 42px rgb(0 0 0 / 0.28),
+    0 2px 8px rgb(0 0 0 / 0.14);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  padding: 4px;
+}
+
+.searchBox {
+  grid-row: 1;
+  display: flex;
+  height: 30px;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+  box-shadow: none;
+  padding: 0 8px;
+}
+
+.searchBox:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.searchInput {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  color: var(--vscode-input-foreground);
+  background: transparent;
+  font-size: 12px;
+}
+
+.searchInput::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.options {
+  grid-row: 2;
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--vscode-descriptionForeground) 30%, transparent) transparent;
+  gap: 1px;
+  margin-top: 4px;
+  padding-right: 3px;
+}
+
+.options::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.options::-webkit-scrollbar-track {
+  border: 0;
+  background: transparent;
+}
+
+.options::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 30%, transparent);
+}
+
+.options::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 44%, transparent);
+}
+
+.options::-webkit-scrollbar-button,
+.options::-webkit-scrollbar-corner {
+  display: none;
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.option {
+  display: flex;
+  min-width: 0;
+  min-height: 26px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--vscode-foreground);
+  background: transparent;
+  padding: 3px 7px;
+  text-align: left;
+  outline: none;
+}
+
+.option:hover:not(:disabled),
+.option:focus-visible:not(:disabled) {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.option:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.optionActive {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: color-mix(in srgb, var(--vscode-list-activeSelectionBackground) 82%, transparent);
+}
+
+.check {
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.checkVisible {
+  opacity: 1;
+}
+
+.optionLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 7px 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.sm {
+  gap: 0;
+}
+
+.sm .trigger {
+  height: 28px;
+  border-radius: 10px;
+  gap: 6px;
+  padding-right: 28px;
+  padding-left: 8px;
+}
+
+.sm .value {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sm .withIcon {
+  padding-left: 8px;
+}
+
+.sm .chevron {
+  right: 8px;
+}
+
+.dropdownSm {
+  border-radius: 14px;
+  padding: 4px;
+}
+
+.dropdownTop {
+  transform-origin: bottom center;
+}
+
+.sm .searchBox {
+  height: 28px;
 }
 
 .hint,

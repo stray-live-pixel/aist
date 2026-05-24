@@ -61,8 +61,7 @@
   font-size: 10px;
 }
 
-.settingsFallback,
-.hint {
+.settingsFallback {
   color: var(--vscode-descriptionForeground);
 }
 
@@ -95,12 +94,18 @@
   padding: 8px 12px;
 }
 
-.hint {
-  overflow: hidden;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.footer {
+  min-width: 0;
+  flex: 1;
 }
+
+.sendActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 
 .button {
   display: inline-flex;

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { t } from '../../../shared/i18n';
 import { getConfiguredModel } from '../../config/settingsSnapshot';
 import type { WebviewMessage, WebviewSurface } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
@@ -75,7 +76,7 @@ export async function handleWebviewChatMessage(
       return;
     case 'copyMessage':
       await vscode.env.clipboard.writeText(message.markdown || '');
-      vscode.window.setStatusBarMessage('Copied message markdown', 1800);
+      vscode.window.setStatusBarMessage(t('status.copiedMarkdown'), 1800);
       return;
   }
 }
@@ -108,7 +109,7 @@ async function compactChat(surface: WebviewSurface, chatId: string, deps: AgentW
   }
 
   if (source.busy) {
-    vscode.window.setStatusBarMessage('aist: Stop the chat before compacting it.', 2400);
+    vscode.window.setStatusBarMessage(t('status.stopBeforeCompacting'), 2400);
     deps.sendState(surface);
     return;
   }
@@ -120,7 +121,7 @@ async function compactChat(surface: WebviewSurface, chatId: string, deps: AgentW
   } catch (error) {
     deps.logger.error('Failed to compact chat', error);
     vscode.window.showErrorMessage(
-      `aist: failed to compact chat — ${error instanceof Error ? error.message : String(error)}`
+      t('error.compactChat', { error: error instanceof Error ? error.message : String(error) })
     );
     deps.sendState(surface);
   }
@@ -154,7 +155,7 @@ function deleteChat(surface: WebviewSurface, chatId: string, deps: AgentWebviewM
   }
 
   if (chat.busy) {
-    vscode.window.setStatusBarMessage('aist: Stop the chat before deleting it.', 2400);
+    vscode.window.setStatusBarMessage(t('status.stopBeforeDeleting'), 2400);
     deps.logger.info('Ignoring deleteChat for running chat', { chatId });
     deps.sendState(surface);
     return;

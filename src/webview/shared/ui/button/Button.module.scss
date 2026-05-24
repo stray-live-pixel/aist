@@ -75,14 +75,8 @@
 .primary {
   color: var(--vscode-button-foreground);
   border-color: color-mix(in srgb, var(--vscode-button-background) 72%, var(--agent-border));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--vscode-button-background) 88%, white 12%),
-    var(--vscode-button-background)
-  );
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 20%, transparent),
-    0 8px 22px color-mix(in srgb, var(--vscode-button-background) 22%, transparent);
+  background: var(--vscode-button-background);
+  box-shadow: none;
 }
 
 .primary:hover:not(:disabled) {
@@ -93,7 +87,7 @@
   color: var(--vscode-button-secondaryForeground);
   border-color: var(--agent-border);
   background: color-mix(in srgb, var(--vscode-button-secondaryBackground) 88%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+  box-shadow: none;
 }
 
 .secondary:hover:not(:disabled) {

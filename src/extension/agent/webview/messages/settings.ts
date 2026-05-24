@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../../shared/errors';
+import { t } from '../../../shared/i18n';
 import { setAgentConfigScope, setProjectInstructions } from '../../config/agentConfigStore';
 import { setCompactionSettings } from '../../config/compaction';
 import { normalizeReasoningEffort } from '../../config/config';
@@ -114,7 +115,7 @@ async function saveAgentModeInstructions(
     await setAgentModeInstructions(modeId, instructions);
   } catch (error) {
     deps.logger.error('Failed to update agent mode instructions', error);
-    vscode.window.showErrorMessage(`aist: failed to save agent mode instructions — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.saveAgentModeInstructions', { error: getErrorMessage(error) }));
   }
 }
 
@@ -125,7 +126,7 @@ async function createAgentMode(label: string, instructions: string, deps: AgentW
     await setAgentMode(mode.id);
   } catch (error) {
     deps.logger.error('Failed to add agent mode', error);
-    vscode.window.showErrorMessage(`aist: failed to add agent mode — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.addAgentMode', { error: getErrorMessage(error) }));
   }
 }
 
@@ -135,6 +136,6 @@ async function removeAgentMode(modeId: string, deps: AgentWebviewMessageDeps): P
     deps.logger.info('Agent mode delete attempted', { modeId, deleted });
   } catch (error) {
     deps.logger.error('Failed to delete agent mode', error);
-    vscode.window.showErrorMessage(`aist: failed to delete agent mode — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.deleteAgentMode', { error: getErrorMessage(error) }));
   }
 }

@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { useI18n } from '../../shared/i18n';
 import type { ChatMessage, ChatMessageRole } from '../../shared/types';
 import { ToolMessageCard } from './ToolMessageCard';
 import { formatMessageDate, formatMessageUsage } from './messageFormatting';
@@ -14,11 +15,13 @@ type MessageCardProps = {
 };
 
 export function MessageCard({ message, actions, defaultExpanded = true }: MessageCardProps) {
+  const { t } = useI18n();
+
   if (message.role === 'tool') {
     return <ToolMessageCard message={message} />;
   }
 
-  const variant = getMessageVariant(message.role);
+  const variant = getMessageVariant(message.role, t);
   const collapsible = isCollapsibleMessage(message);
   const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);
 
@@ -46,13 +49,15 @@ export function MessageCard({ message, actions, defaultExpanded = true }: Messag
 }
 
 function MessageHeader({ icon, label, message, actions, collapsible, expanded, onToggle }: MessageHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <div className="mb-2 flex items-center justify-between gap-3">
       <div className={HEADER_CLASS_NAME}>
         {collapsible ? (
           <button
             className="message-cut-button"
-            title={expanded ? 'Свернуть сообщение' : 'Развернуть сообщение'}
+            title={expanded ? t('message.collapse') : t('message.expand')}
             aria-expanded={expanded}
             onClick={onToggle}
           >
@@ -78,31 +83,31 @@ function getMessageClassName(className: string, collapsible: boolean, expanded: 
   return `message-card message-cut-card ${cutClass} ${className}`;
 }
 
-function getMessageVariant(role: ChatMessageRole) {
+function getMessageVariant(role: ChatMessageRole, t: ReturnType<typeof useI18n>['t']) {
   const variants = {
     user: {
       icon: <User size={16} />,
-      label: 'You',
+      label: t('message.you'),
       className: 'message-card-user'
     },
     assistant: {
       icon: <Bot size={16} />,
-      label: 'Agent',
+      label: t('message.agent'),
       className: 'message-card-assistant'
     },
     status: {
       icon: <Loader2 size={16} className="animate-spin" />,
-      label: 'Status',
+      label: t('message.status'),
       className: 'border-dashed text-[var(--vscode-descriptionForeground)]'
     },
     error: {
       icon: <Wrench size={16} />,
-      label: 'Error',
+      label: t('message.error'),
       className: 'border-[var(--vscode-errorForeground)] text-[var(--vscode-errorForeground)]'
     },
     tool: {
       icon: <Wrench size={16} />,
-      label: 'Tool',
+      label: t('message.tool'),
       className: ''
     }
   };

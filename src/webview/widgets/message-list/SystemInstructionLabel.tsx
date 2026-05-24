@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { useI18n } from '../../shared/i18n';
 import type { AgentInstructionSource, AgentMode } from '../../shared/types';
 
 type SystemInstructionLabelProps = {
@@ -16,9 +17,10 @@ type SystemInstructionLabelProps = {
 };
 
 export function SystemInstructionLabel({ mode, sources }: SystemInstructionLabelProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
-  const visibleSources = sources.length ? sources : getFallbackSources(mode);
-  const title = `System instructions · ${visibleSources.length} sources`;
+  const visibleSources = sources.length ? sources : getFallbackSources(mode, t);
+  const title = t('systemInstructions.title', { count: visibleSources.length });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -36,7 +38,7 @@ export function SystemInstructionLabel({ mode, sources }: SystemInstructionLabel
       <button
         type="button"
         className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-1.5 text-xs text-[var(--vscode-descriptionForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:border-[var(--vscode-focusBorder)]"
-        title="Open full system instructions"
+        title={t('systemInstructions.show')}
         onClick={() => setIsOpen(true)}
       >
         <FileText size={14} className="shrink-0" />
@@ -51,6 +53,8 @@ export function SystemInstructionLabel({ mode, sources }: SystemInstructionLabel
 }
 
 function SystemInstructionDialog({ title, sources, onClose }: SystemInstructionDialogProps) {
+  const { t } = useI18n();
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6"
@@ -67,7 +71,7 @@ function SystemInstructionDialog({ title, sources, onClose }: SystemInstructionD
           <h2 id="system-instruction-title" className="min-w-0 truncate text-sm font-semibold">
             {title}
           </h2>
-          <button type="button" className="icon-button h-7 w-7 shrink-0" title="Close" onClick={onClose}>
+          <button type="button" className="icon-button h-7 w-7 shrink-0" title={t('common.close')} onClick={onClose}>
             <X size={14} />
           </button>
         </div>
@@ -89,12 +93,12 @@ function SystemInstructionDialog({ title, sources, onClose }: SystemInstructionD
   );
 }
 
-function getFallbackSources(mode: AgentMode | undefined): AgentInstructionSource[] {
+function getFallbackSources(mode: AgentMode | undefined, t: ReturnType<typeof useI18n>['t']): AgentInstructionSource[] {
   return [
     {
       id: 'mode-fallback',
-      title: mode?.label ? `Mode: ${mode.label}` : 'System instruction',
-      content: mode?.instructions.trim() || 'No additional instructions.',
+      title: mode?.label ? t('systemInstructions.mode', { mode: mode.label }) : t('systemInstructions.fallbackTitle'),
+      content: mode?.instructions.trim() || t('systemInstructions.noAdditional'),
       priority: 50,
       kind: 'mode'
     }

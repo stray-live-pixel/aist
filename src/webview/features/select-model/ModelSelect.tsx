@@ -1,6 +1,7 @@
 import { Check, ChevronDown, Cpu, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { ModelOption } from '../../shared/types';
 
@@ -11,6 +12,7 @@ type ModelSelectProps = {
 };
 
 export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
+  const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -100,7 +102,7 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
     >
       <span className="flex items-center gap-2">
         <Cpu size={14} className="shrink-0" />
-        <span>Model</span>
+        <span>{t('summary.model')}</span>
       </span>
       <button
         type="button"
@@ -123,13 +125,13 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
             <input
               ref={searchRef}
               className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[var(--vscode-input-placeholderForeground)]"
-              placeholder="Search models..."
+              placeholder={t('modelSelect.search')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto" role="listbox" aria-label="Models">
+          <div className="max-h-60 overflow-y-auto" role="listbox" aria-label={t('modelSelect.models')}>
             {groups.length ? (
               groups.map((group) => (
                 <div key={group.provider} className="grid gap-1">
@@ -158,7 +160,7 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
                             className={`block truncate ${active ? '' : 'text-[var(--vscode-descriptionForeground)]'}`}
                           >
                             {item.id}
-                            {item.supportsTools ? '' : ' - no tools'}
+                            {item.supportsTools ? '' : ` - ${t('tool.preview.noTools')}`}
                           </span>
                         </span>
                       </button>
@@ -167,7 +169,9 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
                 </div>
               ))
             ) : (
-              <div className="px-2 py-3 text-xs text-[var(--vscode-descriptionForeground)]">No models found</div>
+              <div className="px-2 py-3 text-xs text-[var(--vscode-descriptionForeground)]">
+                {t('tool.preview.noModels')}
+              </div>
             )}
           </div>
         </div>

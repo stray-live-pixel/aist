@@ -1,5 +1,6 @@
 import { ChevronRight, Folder, ListTree, Terminal } from 'lucide-react';
 
+import { pluralKey, useI18n } from '../../shared/i18n';
 import type { ChatMessage } from '../../shared/types';
 import { WorkspaceFileLink } from './WorkspaceFileLink';
 import { type FileReference, buildToolDisplayModel } from './toolMessageModel';
@@ -14,7 +15,8 @@ const LIST_PREVIEW_LIMIT = 24;
  * Пример: grep_search показывает только список файлов, чтобы не раздувать историю найденным текстом.
  */
 export function ToolResultPreview({ message }: { message: ChatMessage }) {
-  const model = buildToolDisplayModel(message);
+  const { t } = useI18n();
+  const model = buildToolDisplayModel(message, t);
   const result = getToolResult(message);
   const preview = getToolPreview(message);
   const secondaryFiles = getSecondaryFiles(model.files, model.primaryFile);
@@ -46,6 +48,7 @@ function renderPrimaryResult(
 }
 
 function CodePreview({ result }: { result: Record<string, unknown> }) {
+  const { t } = useI18n();
   const content = asString(result.content) || '';
   const isLong = content.length > CODE_PREVIEW_LIMIT;
   const preview = isLong ? `${content.slice(0, CODE_PREVIEW_LIMIT)}\n…` : content;
@@ -54,43 +57,46 @@ function CodePreview({ result }: { result: Record<string, unknown> }) {
     <details className="tool-details" open={!isLong}>
       <summary>
         <ChevronRight size={13} />
-        Code preview {Boolean(result.truncated) || isLong ? '· truncated' : ''}
+        {t('tool.preview.code')} {Boolean(result.truncated) || isLong ? `· ${t('tool.preview.truncated')}` : ''}
       </summary>
-      <pre className="tool-code-preview">{preview || 'Файл пустой.'}</pre>
+      <pre className="tool-code-preview">{preview || t('tool.preview.emptyFile')}</pre>
     </details>
   );
 }
 
 function EntriesList({ result }: { result: Record<string, unknown> }) {
+  const { t } = useI18n();
   const entries = arrayValue(result.entries);
   const truncated = Boolean(result.truncated) || entries.length > LIST_PREVIEW_LIMIT;
 
   return (
     <ul className="tool-list-preview">
       {entries.slice(0, LIST_PREVIEW_LIMIT).map(renderEntryItem)}
-      {truncated ? <li className="opacity-70">…ещё элементы скрыты</li> : null}
+      {truncated ? <li className="opacity-70">{t('tool.preview.moreItems')}</li> : null}
     </ul>
   );
 }
 
 function SearchFiles({ result }: { result: Record<string, unknown> }) {
+  const { t } = useI18n();
   const files = getUniqueSearchFiles(result);
   const truncated = Boolean(result.truncated) || files.length > LIST_PREVIEW_LIMIT;
 
   return (
     <ul className="tool-list-preview tool-list-vertical">
       {files.slice(0, LIST_PREVIEW_LIMIT).map(renderSearchFile)}
-      {truncated ? <li className="opacity-70">…ещё файлы скрыты</li> : null}
+      {truncated ? <li className="opacity-70">{t('tool.preview.moreFiles')}</li> : null}
     </ul>
   );
 }
 
 function BashScriptResult({ message, result }: { message: ChatMessage; result?: Record<string, unknown> }) {
+  const { t } = useI18n();
   const stdout = asString(result?.stdout) || '';
   const stderr = asString(result?.stderr) || '';
   const error = asString(result?.error);
   const command = asString(message.args?.script) || 'bash -lc';
-  const facts = getBashFacts(message, result);
+  const facts = getBashFacts(message, result, t);
   const hasOutput = Boolean(stdout || stderr);
   const completedQuietly = Boolean(result && !error && !hasOutput);
 
@@ -99,7 +105,7 @@ function BashScriptResult({ message, result }: { message: ChatMessage; result?: 
       <div className="tool-bash-command">
         <div className="tool-bash-command-label">
           <Terminal size={13} />
-          <span>Command</span>
+          <span>{t('common.command')}</span>
         </div>
         <pre>
           <code>{command}</code>
@@ -114,55 +120,73 @@ function BashScriptResult({ message, result }: { message: ChatMessage; result?: 
         ))}
       </dl>
       {error ? <ErrorText text={error} /> : null}
-      {!result ? <p className="text-[var(--vscode-descriptionForeground)]">Waiting for command output...</p> : null}
+      {!result ? <p className="text-[var(--vscode-descriptionForeground)]">{t('tool.preview.waitingOutput')}</p> : null}
       {stdout ? (
-        <OutputBlock label={`stdout${result?.stdoutTruncated ? ' · truncated' : ''}`} text={stdout} tone="stdout" />
+        <OutputBlock
+          label={`stdout${result?.stdoutTruncated ? ` · ${t('tool.preview.truncated')}` : ''}`}
+          text={stdout}
+          tone="stdout"
+        />
       ) : null}
       {stderr ? (
-        <OutputBlock label={`stderr${result?.stderrTruncated ? ' · truncated' : ''}`} text={stderr} tone="stderr" />
+        <OutputBlock
+          label={`stderr${result?.stderrTruncated ? ` · ${t('tool.preview.truncated')}` : ''}`}
+          text={stderr}
+          tone="stderr"
+        />
       ) : null}
       {completedQuietly ? (
-        <p className="text-[var(--vscode-descriptionForeground)]">Command completed with no output.</p>
+        <p className="text-[var(--vscode-descriptionForeground)]">{t('tool.preview.noOutput')}</p>
       ) : null}
     </div>
   );
 }
 
 function OutputBlock({ label, text, tone }: { label: string; text: string; tone: 'stdout' | 'stderr' }) {
+  const { language, t } = useI18n();
+
   return (
     <details className={`tool-details tool-output-block tool-output-${tone}`} open>
       <summary>
         <ChevronRight size={13} />
         <span>{label}</span>
-        <em>{getLineCountLabel(text)}</em>
+        <em>{getLineCountLabel(text, language, t)}</em>
       </summary>
       <pre className="tool-code-preview">{text}</pre>
     </details>
   );
 }
 
-function getBashFacts(message: ChatMessage, result?: Record<string, unknown>): BashFact[] {
+function getBashFacts(
+  message: ChatMessage,
+  result: Record<string, unknown> | undefined,
+  t: ReturnType<typeof useI18n>['t']
+): BashFact[] {
   const cwd = asString(result?.cwd) || asString(message.args?.cwd) || '.';
-  const facts: BashFact[] = [{ label: 'cwd', value: cwd }];
+  const facts: BashFact[] = [{ label: t('tool.fact.cwd'), value: cwd }];
 
   if (!result) {
     const timeoutMs = numberValue(message.args?.timeoutMs);
-    facts.unshift({ label: 'status', value: 'Running', tone: 'running' });
-    if (timeoutMs !== undefined) facts.push({ label: 'timeout', value: formatDuration(timeoutMs) });
+    facts.unshift({ label: t('tool.fact.status'), value: t('tool.status.running'), tone: 'running' });
+    if (timeoutMs !== undefined) facts.push({ label: t('tool.fact.timeout'), value: formatDuration(timeoutMs) });
     return facts;
   }
 
   const exitCode = numberValue(result.exitCode);
   const timedOut = Boolean(result.timedOut);
   const ok = result.ok === true;
-  const status = timedOut ? 'Timed out' : exitCode === undefined ? 'Finished' : `Exit ${exitCode}`;
-  facts.unshift({ label: 'status', value: status, tone: ok ? 'ok' : 'error' });
+  const status = timedOut
+    ? t('tool.result.timedOut')
+    : exitCode === undefined
+      ? t('tool.result.finished')
+      : t('tool.result.exit', { code: exitCode });
+  facts.unshift({ label: t('tool.fact.status'), value: status, tone: ok ? 'ok' : 'error' });
 
   const durationMs = numberValue(result.durationMs);
-  if (durationMs !== undefined) facts.push({ label: 'duration', value: formatDuration(durationMs) });
+  if (durationMs !== undefined) facts.push({ label: t('tool.fact.duration'), value: formatDuration(durationMs) });
 
   const signal = asString(result.signal);
-  if (signal) facts.push({ label: 'signal', value: signal });
+  if (signal) facts.push({ label: t('tool.fact.signal'), value: signal });
 
   return facts;
 }
@@ -177,9 +201,13 @@ function formatDuration(durationMs: number): string {
   return `${Math.round(durationMs / 1000)}s`;
 }
 
-function getLineCountLabel(text: string): string {
+function getLineCountLabel(
+  text: string,
+  language: ReturnType<typeof useI18n>['language'],
+  t: ReturnType<typeof useI18n>['t']
+): string {
   const lines = text ? text.split(/\r?\n/).length : 0;
-  return `${lines} line${lines === 1 ? '' : 's'}`;
+  return t(pluralKey(language, 'tool.result.lines', lines), { count: lines });
 }
 
 type BashFact = {

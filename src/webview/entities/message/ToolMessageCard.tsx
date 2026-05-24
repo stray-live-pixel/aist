@@ -1,13 +1,19 @@
 import { Check, ChevronRight, Code2, X } from 'lucide-react';
 import { type MouseEvent, useEffect, useState } from 'react';
 
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { ChatMessage } from '../../shared/types';
 import { ToolIcon } from '../../shared/ui/ToolIcon';
 import { ToolRawJsonModal } from './ToolRawJsonModal';
 import { ToolResultPreview } from './ToolResultPreview';
 import { WorkspaceFileLink } from './WorkspaceFileLink';
-import { formatMessageDate, formatMessageUsagePill, formatToolStatus, getToolStatusClass } from './messageFormatting';
+import {
+  formatMessageDate,
+  formatMessageUsagePill,
+  formatToolStatusLocalized,
+  getToolStatusClass
+} from './messageFormatting';
 import { type ToolDisplayModel, buildToolDisplayModel } from './toolMessageModel';
 
 /**
@@ -16,9 +22,10 @@ import { type ToolDisplayModel, buildToolDisplayModel } from './toolMessageModel
  * Пример: шеврон раскрывает preview результата, READ FILE открывает файл, а </> показывает сырой JSON.
  */
 export function ToolMessageCard({ message }: { message: ChatMessage }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(message.approval === 'pending');
   const [rawOpen, setRawOpen] = useState(false);
-  const model = buildToolDisplayModel(message);
+  const model = buildToolDisplayModel(message, t);
   const isRunning = message.status === 'running' || message.status === 'waiting';
   const needsApproval = message.approval === 'pending';
 
@@ -53,11 +60,13 @@ export function ToolMessageCard({ message }: { message: ChatMessage }) {
 }
 
 function ToolHeaderContent({ message, model, expanded, isRunning, onToggle }: ToolHeaderContentProps) {
+  const { t } = useI18n();
+
   return (
     <div className="tool-header-row">
       <button
         className="tool-chevron-button"
-        title={expanded ? 'Скрыть детали инструмента' : 'Показать детали инструмента'}
+        title={expanded ? t('tool.hideDetails') : t('tool.showDetails')}
         aria-expanded={expanded}
         onClick={stopAndRun(onToggle)}
       >
@@ -75,11 +84,13 @@ function ToolHeaderContent({ message, model, expanded, isRunning, onToggle }: To
 }
 
 function ToolDetailsHeader({ message, model, onRawClick }: ToolDetailsHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <div className="tool-details-header">
       <span className="tool-summary">{model.summary}</span>
       <ToolStatusBadge message={message} />
-      <button className="tool-icon-button" title="Показать JSON" onClick={stopAndRun(onRawClick)}>
+      <button className="tool-icon-button" title={t('tool.showJson')} onClick={stopAndRun(onRawClick)}>
         <Code2 size={14} />
       </button>
     </div>
@@ -99,10 +110,17 @@ function ToolTitle({ model }: { model: ToolDisplayModel }) {
 }
 
 function ToolStatusBadge({ message }: { message: ChatMessage }) {
-  return <span className={`tool-status-badge ${getToolStatusClass(message.status)}`}>{formatToolStatus(message)}</span>;
+  const { t } = useI18n();
+  return (
+    <span className={`tool-status-badge ${getToolStatusClass(message.status)}`}>
+      {formatToolStatusLocalized(message, t)}
+    </span>
+  );
 }
 
 function ApprovalActions({ messageId }: { messageId: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2" onClick={stopPropagation}>
       <button
@@ -110,14 +128,14 @@ function ApprovalActions({ messageId }: { messageId: string }) {
         onClick={() => vscode.postMessage({ type: 'resolveToolCall', messageId, approved: true })}
       >
         <Check size={14} />
-        <span>Allow</span>
+        <span>{t('tool.approve')}</span>
       </button>
       <button
         className="secondary-button"
         onClick={() => vscode.postMessage({ type: 'resolveToolCall', messageId, approved: false })}
       >
         <X size={14} />
-        <span>Deny</span>
+        <span>{t('tool.deny')}</span>
       </button>
     </div>
   );

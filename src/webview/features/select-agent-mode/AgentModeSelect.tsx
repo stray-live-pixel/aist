@@ -1,6 +1,7 @@
 import { Check, ChevronDown, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentMode, AgentModeId } from '../../shared/types';
 
@@ -13,6 +14,7 @@ type AgentModeSelectProps = {
 };
 
 export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectProps) {
+  const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<AgentModeId | undefined>();
@@ -80,7 +82,7 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
         <div
           className="absolute left-0 top-full z-30 mt-2 grid max-h-72 w-[min(22rem,calc(100vw-1.5rem))] gap-1 overflow-y-auto rounded-md border border-[var(--agent-border)] bg-[var(--vscode-dropdown-background)] p-1 shadow-lg"
           role="listbox"
-          aria-label="Agent modes"
+          aria-label={t('summary.agentMode')}
         >
           {modes.map((mode) => {
             const active = mode.id === activeId;
@@ -113,8 +115,8 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
                       <button
                         type="button"
                         className="flex w-7 shrink-0 items-center justify-center rounded text-[var(--vscode-errorForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
-                        title="Confirm delete"
-                        aria-label="Confirm delete"
+                        title={t('common.confirmDelete')}
+                        aria-label={t('common.confirmDelete')}
                         onClick={() => deleteMode(mode.id)}
                       >
                         <Check size={14} />
@@ -122,8 +124,8 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
                       <button
                         type="button"
                         className="flex w-7 shrink-0 items-center justify-center rounded outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
-                        title="Cancel delete"
-                        aria-label="Cancel delete"
+                        title={t('common.cancelDelete')}
+                        aria-label={t('common.cancelDelete')}
                         onClick={() => setDeleteTargetId(undefined)}
                       >
                         <X size={14} />
@@ -133,8 +135,8 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
                     <button
                       type="button"
                       className="flex w-7 shrink-0 items-center justify-center rounded text-[var(--vscode-errorForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
-                      title="Delete mode"
-                      aria-label="Delete mode"
+                      title={t('common.delete')}
+                      aria-label={t('common.delete')}
                       onClick={() => setDeleteTargetId(mode.id)}
                     >
                       <Trash2 size={14} />

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../../shared/errors';
+import { t } from '../../../shared/i18n';
 import { addAgentSkill, deleteAgentSkill, updateAgentSkill } from '../../../skills/skills';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
@@ -49,7 +50,7 @@ async function addSkill(
     deps.logger.info('Agent skill added', { id: skill.id, label: skill.label, permission: skill.permission });
   } catch (error) {
     deps.logger.error('Failed to add agent skill', error);
-    vscode.window.showErrorMessage(`aist: failed to add skill — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.addSkill', { error: getErrorMessage(error) }));
   }
 }
 
@@ -67,7 +68,7 @@ async function updateSkill(
     deps.logger.info('Agent skill update attempted', { skillId: message.skillId, updated });
   } catch (error) {
     deps.logger.error('Failed to update agent skill', error);
-    vscode.window.showErrorMessage(`aist: failed to update skill — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.updateSkill', { error: getErrorMessage(error) }));
   }
 }
 
@@ -77,6 +78,6 @@ async function removeSkill(skillId: string, deps: AgentWebviewMessageDeps): Prom
     deps.logger.info('Agent skill delete attempted', { skillId, deleted });
   } catch (error) {
     deps.logger.error('Failed to delete agent skill', error);
-    vscode.window.showErrorMessage(`aist: failed to delete skill — ${getErrorMessage(error)}`);
+    vscode.window.showErrorMessage(t('error.deleteSkill', { error: getErrorMessage(error) }));
   }
 }
