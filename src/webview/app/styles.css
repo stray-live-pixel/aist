@@ -53,26 +53,25 @@ select {
     content: '';
     background: linear-gradient(
       115deg,
-      currentColor 0%,
-      var(--vscode-textLink-foreground) 35%,
-      var(--vscode-focusBorder) 55%,
+      color-mix(in srgb, currentColor 55%, transparent) 0%,
+      currentColor 42%,
+      color-mix(in srgb, currentColor 35%, transparent) 68%,
       currentColor 100%
     );
     background-size: 220% 100%;
-    transition: opacity 120ms ease;
   }
 
   .aist-logo-animated::before {
     animation:
-      aist-logo-gradient 500ms linear infinite,
-      aist-logo-base-fade 500ms steps(1, end) infinite;
+      aist-logo-pulse 1200ms ease-in-out infinite,
+      aist-logo-base-fade 1200ms ease-in-out infinite;
     mask: var(--aist-logo-base-uri) center / contain no-repeat;
   }
 
   .aist-logo-animated::after {
     animation:
-      aist-logo-gradient 500ms linear infinite,
-      aist-logo-animated-fade 500ms steps(1, end) infinite;
+      aist-logo-pulse 1200ms ease-in-out infinite,
+      aist-logo-animated-fade 1200ms ease-in-out infinite;
     mask: var(--aist-logo-animated-uri) center / contain no-repeat;
   }
 
@@ -675,34 +674,43 @@ select {
     color: var(--vscode-textLink-foreground);
   }
 
-  @keyframes aist-logo-gradient {
-    0% {
-      background-position: 0% 50%;
-    }
+  @keyframes aist-logo-pulse {
+    0%,
     100% {
-      background-position: 220% 50%;
+      background-position: 0% 50%;
+      filter: brightness(0.92);
+    }
+    50% {
+      background-position: 100% 50%;
+      filter: brightness(1.18);
     }
   }
 
   @keyframes aist-logo-base-fade {
     0%,
-    49.99% {
+    40% {
       opacity: 1;
     }
     50%,
-    100% {
+    90% {
       opacity: 0;
+    }
+    100% {
+      opacity: 1;
     }
   }
 
   @keyframes aist-logo-animated-fade {
     0%,
-    49.99% {
+    40% {
       opacity: 0;
     }
     50%,
-    100% {
+    90% {
       opacity: 1;
+    }
+    100% {
+      opacity: 0;
     }
   }
 
