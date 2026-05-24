@@ -1,3 +1,8 @@
+/**
+ * Что это: пустое состояние истории сообщений.
+ * Зачем нужно: объясняет пользователю, что агент готов работать, и показывает доступные инструменты.
+ * Пример использования: <EmptyState tools={tools} />.
+ */
 import { Sparkles } from 'lucide-react';
 
 type EmptyStateProps = {
@@ -6,7 +11,7 @@ type EmptyStateProps = {
 
 export function EmptyState({ tools }: EmptyStateProps) {
   return (
-    <div className="mx-auto grid max-w-4xl gap-4 py-8">
+    <div className="grid gap-4 py-8">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--agent-border)] bg-[var(--vscode-input-background)]">
           <Sparkles size={20} />

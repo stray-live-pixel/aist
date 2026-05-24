@@ -15,6 +15,7 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   list_files: 'auto',
   read_file: 'auto',
   grep_search: 'auto',
+  run_bash_script: 'ask',
   write_file: 'ask',
   replace_in_file: 'ask',
   create_directory: 'ask',

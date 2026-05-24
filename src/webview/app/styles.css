@@ -8,7 +8,7 @@
 
 body {
   margin: 0;
-  font-family: var(--vscode-font-family);
+  font-family: var(--vscode-editor-font-family);
   background: var(--vscode-editor-background);
 }
 
@@ -90,6 +90,265 @@ select {
   .secondary-button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+  }
+
+  /*
+   * Tool UI deliberately uses transparent pastel tones.
+   * It keeps the chat calm by default, while every tool remains visually distinguishable.
+   */
+  .tool-card {
+    --tool-tone: color-mix(in srgb, #9ca3af 32%, transparent);
+    --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    border-color: var(--tool-tone);
+    background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
+    transition: max-height 160ms ease, background 160ms ease;
+  }
+
+  .tool-card-collapsed {
+    max-height: 50px;
+  }
+
+  .tool-card-expanded {
+    max-height: none;
+  }
+
+  .tool-card-body {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .tool-header-row {
+    display: flex;
+    min-height: 25px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tool-header-main {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .tool-header-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    padding-right: 74px;
+  }
+
+  .tool-tone-blue { --tool-tone: color-mix(in srgb, #93c5fd 46%, transparent); --tool-tone-strong: #60a5fa; }
+  .tool-tone-green { --tool-tone: color-mix(in srgb, #86efac 46%, transparent); --tool-tone-strong: #4ade80; }
+  .tool-tone-purple { --tool-tone: color-mix(in srgb, #c4b5fd 46%, transparent); --tool-tone-strong: #a78bfa; }
+  .tool-tone-amber { --tool-tone: color-mix(in srgb, #fcd34d 46%, transparent); --tool-tone-strong: #f59e0b; }
+  .tool-tone-rose { --tool-tone: color-mix(in srgb, #fda4af 46%, transparent); --tool-tone-strong: #fb7185; }
+  .tool-tone-cyan { --tool-tone: color-mix(in srgb, #67e8f9 46%, transparent); --tool-tone-strong: #22d3ee; }
+  .tool-tone-slate { --tool-tone: color-mix(in srgb, #cbd5e1 42%, transparent); --tool-tone-strong: #94a3b8; }
+
+  .tool-icon-pill {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--tool-tone);
+    border-radius: 999px;
+    color: var(--tool-tone-strong);
+    background: color-mix(in srgb, var(--tool-tone) 28%, transparent);
+  }
+
+  .tool-title {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .tool-summary,
+  .tool-date-label {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .tool-date-label span {
+    opacity: 0.75;
+  }
+
+  .tool-status-badge,
+  .tool-usage-pill {
+    flex-shrink: 0;
+    border: 1px solid var(--agent-border);
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--vscode-editor-background) 74%, var(--tool-tone));
+  }
+
+  .tool-usage-pill {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    pointer-events: none;
+  }
+
+  .tool-icon-button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--tool-tone, var(--agent-border));
+    border-radius: 6px;
+    color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+  }
+
+  .tool-icon-button:hover {
+    color: var(--vscode-foreground);
+    background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+  }
+
+  .tool-file-link {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--tool-tone, var(--agent-border));
+    border-radius: 999px;
+    color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 18%, transparent);
+    padding: 2px 8px;
+  }
+
+  .tool-file-link:hover {
+    background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 32%, transparent);
+  }
+
+  .tool-details > summary {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 4px;
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .tool-details[open] > summary svg {
+    transform: rotate(90deg);
+  }
+
+  .tool-code-preview {
+    max-height: 220px;
+    overflow: auto;
+    margin-top: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: 1px solid var(--agent-border);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--vscode-editor-background) 88%, var(--tool-tone, transparent));
+    padding: 8px;
+    font-family: var(--vscode-editor-font-family);
+  }
+
+  .tool-list-preview {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tool-list-preview li {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .tool-list-preview code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tool-list-preview em {
+    margin-left: auto;
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
+  .tool-result-preview {
+    display: grid;
+    gap: 8px;
+    padding-bottom: 16px;
+  }
+
+  .tool-list-vertical li {
+    align-items: flex-start;
+  }
+
+  .tool-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+    padding: 24px;
+  }
+
+  .tool-modal {
+    display: flex;
+    max-height: min(78vh, 720px);
+    width: min(760px, 100%);
+    flex-direction: column;
+    border: 1px solid var(--agent-border);
+    border-radius: 8px;
+    background: var(--vscode-editor-background);
+    box-shadow: 0 18px 54px rgb(0 0 0 / 0.35);
+  }
+
+  .tool-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--agent-border);
+    padding: 12px;
+  }
+
+  .tool-modal-header h2 {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .tool-modal-header p {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .tool-modal-code {
+    overflow: auto;
+    margin: 0;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 12px;
   }
 
   .markdown-body {

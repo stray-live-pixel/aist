@@ -1,5 +1,5 @@
 import path from 'node:path';
-import os from 'node:os';
+import { spawn } from 'node:child_process';
 import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 import type { OpenRouterTool } from '../openrouter/types';
@@ -7,6 +7,11 @@ import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8');
+
+export type FilesystemToolPreview = {
+  preview: Record<string, unknown>;
+  cleanup(): Promise<void>;
+};
 
 export const filesystemTools: OpenRouterTool[] = [
   {
@@ -81,6 +86,25 @@ export const filesystemTools: OpenRouterTool[] = [
           maxFiles: { type: 'number', description: 'Maximum number of files to inspect. Default is 2000.' }
         },
         required: ['reason', 'query'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_bash_script',
+      description: 'Run a Bash script from inside the workspace. Use for tests, builds, git-safe inspections, and shell-based diagnostics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string', description: 'A short explanation of why this script needs to run.' },
+          script: { type: 'string', description: 'Bash script to execute with bash -lc.' },
+          cwd: { type: 'string', description: 'Workspace-relative directory to run in. Default is ".".' },
+          timeoutMs: { type: 'number', description: 'Timeout in milliseconds. Default is 30000, maximum is 120000.' },
+          maxOutputChars: { type: 'number', description: 'Maximum stdout/stderr characters to return per stream. Default is 20000.' }
+        },
+        required: ['reason', 'script'],
         additionalProperties: false
       }
     }
@@ -164,6 +188,8 @@ export async function runFilesystemTool(toolName: string, args: Record<string, u
       return readFile(args);
     case 'grep_search':
       return grepSearch(args);
+    case 'run_bash_script':
+      return runBashScript(args);
     case 'write_file':
       return writeFile(args);
     case 'replace_in_file':
@@ -179,7 +205,7 @@ export async function runFilesystemTool(toolName: string, args: Record<string, u
   }
 }
 
-export async function previewFilesystemTool(toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
+export async function previewFilesystemTool(toolName: string, args: Record<string, unknown>): Promise<FilesystemToolPreview | undefined> {
   if (toolName === 'write_file') {
     const filePath = requireString(args.path, 'path');
     const nextContent = requireString(args.content, 'content');
@@ -332,6 +358,88 @@ async function grepSearch(args: Record<string, unknown>): Promise<Record<string,
   };
 }
 
+async function runBashScript(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const script = requireString(args.script, 'script');
+  if (!script.trim()) {
+    throw new Error('Tool argument "script" must not be empty.');
+  }
+
+  const cwd = typeof args.cwd === 'string' && args.cwd.trim() ? args.cwd : '.';
+  const cwdUri = resolveWorkspacePath(cwd);
+  const stat = await vscode.workspace.fs.stat(cwdUri);
+  if (stat.type !== vscode.FileType.Directory) {
+    throw new Error(`cwd must point to a workspace directory: ${cwd}`);
+  }
+
+  const timeoutMs = clampNumber(args.timeoutMs, 30000, 1000, 120000);
+  const maxOutputChars = clampNumber(args.maxOutputChars, 20000, 1000, 100000);
+  const startedAt = Date.now();
+
+  return new Promise((resolve) => {
+    const child = spawn('bash', ['-lc', script], {
+      cwd: cwdUri.fsPath,
+      env: process.env
+    });
+    let stdout = '';
+    let stderr = '';
+    let stdoutTruncated = false;
+    let stderrTruncated = false;
+    let timedOut = false;
+    let closed = false;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!closed) {
+          child.kill('SIGKILL');
+        }
+      }, 1500).unref();
+    }, timeoutMs);
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      const next = appendOutput(stdout, chunk.toString('utf8'), maxOutputChars);
+      stdout = next.text;
+      stdoutTruncated ||= next.truncated;
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      const next = appendOutput(stderr, chunk.toString('utf8'), maxOutputChars);
+      stderr = next.text;
+      stderrTruncated ||= next.truncated;
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      resolve({
+        ok: false,
+        cwd,
+        error: getErrorText(error),
+        durationMs: Date.now() - startedAt
+      });
+    });
+
+    child.on('close', (exitCode, signal) => {
+      closed = true;
+      clearTimeout(timeout);
+      resolve({
+        ok: exitCode === 0 && !timedOut,
+        cwd,
+        exitCode,
+        signal,
+        timedOut,
+        durationMs: Date.now() - startedAt,
+        stdout,
+        stderr,
+        stdoutTruncated,
+        stderrTruncated
+      });
+    });
+
+    timeout.unref();
+  });
+}
+
 async function writeFile(args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const filePath = requireString(args.path, 'path');
   const content = requireString(args.content, 'content');
@@ -417,43 +525,77 @@ async function getSearchFiles(baseUri: vscode.Uri, include: string, maxFiles: nu
   );
 }
 
-async function showFileDiff(filePath: string, nextContent: string): Promise<Record<string, unknown>> {
+async function showFileDiff(filePath: string, nextContent: string): Promise<FilesystemToolPreview> {
   const targetUri = resolveWorkspacePath(filePath);
   const currentContent = await readFileIfExists(targetUri);
 
   if (currentContent === nextContent) {
     return {
-      ok: true,
-      path: filePath,
-      diffShown: false,
-      reason: 'No file changes to preview.'
+      preview: {
+        ok: true,
+        path: filePath,
+        diffShown: false,
+        reason: 'No file changes to preview.'
+      },
+      cleanup: async () => {}
     };
   }
 
-  const tempRoot = vscode.Uri.file(path.join(os.tmpdir(), 'aist-diffs', Date.now().toString()));
-  await vscode.workspace.fs.createDirectory(tempRoot);
+  const previewRoot = await getDiffPreviewRoot(targetUri);
+  const originalUri = currentContent === undefined ? getDiffPreviewUri(previewRoot, filePath, 'empty') : targetUri;
+  const proposedUri = getDiffPreviewUri(previewRoot, filePath, 'proposed');
+  const cleanupUris = currentContent === undefined ? [originalUri, proposedUri] : [proposedUri];
 
-  const originalUri = currentContent === undefined ? vscode.Uri.joinPath(tempRoot, `empty-${path.basename(filePath)}`) : targetUri;
-  const proposedUri = vscode.Uri.joinPath(tempRoot, `proposed-${path.basename(filePath) || 'file'}`);
+  try {
+    if (currentContent === undefined) {
+      await vscode.workspace.fs.writeFile(originalUri, textEncoder.encode(''));
+    }
+    await vscode.workspace.fs.writeFile(proposedUri, textEncoder.encode(nextContent));
 
-  if (currentContent === undefined) {
-    await vscode.workspace.fs.writeFile(originalUri, textEncoder.encode(''));
+    await vscode.commands.executeCommand(
+      'vscode.diff',
+      originalUri,
+      proposedUri,
+      `aist Preview: ${filePath}`,
+      { preview: true }
+    );
+  } catch (error) {
+    await cleanupDiffPreviewFiles(cleanupUris);
+    throw error;
   }
-  await vscode.workspace.fs.writeFile(proposedUri, textEncoder.encode(nextContent));
-
-  await vscode.commands.executeCommand(
-    'vscode.diff',
-    originalUri,
-    proposedUri,
-    `aist Preview: ${filePath}`,
-    { preview: true }
-  );
 
   return {
-    ok: true,
-    path: filePath,
-    diffShown: true
+    preview: {
+      ok: true,
+      path: filePath,
+      diffShown: true
+    },
+    cleanup: () => cleanupDiffPreviewFiles(cleanupUris)
   };
+}
+
+async function cleanupDiffPreviewFiles(uris: vscode.Uri[]): Promise<void> {
+  await Promise.all(uris.map(deleteDiffPreviewFile));
+}
+
+async function deleteDiffPreviewFile(uri: vscode.Uri): Promise<void> {
+  try {
+    await vscode.workspace.fs.delete(uri, { recursive: false, useTrash: false });
+  } catch {
+    // Preview cleanup is best-effort and should not mask the tool result.
+  }
+}
+
+async function getDiffPreviewRoot(targetUri: vscode.Uri): Promise<vscode.Uri> {
+  const root = vscode.Uri.file(path.dirname(targetUri.fsPath));
+  await vscode.workspace.fs.createDirectory(root);
+  return root;
+}
+
+function getDiffPreviewUri(root: vscode.Uri, filePath: string, prefix: 'empty' | 'proposed'): vscode.Uri {
+  const parsedPath = path.parse(path.basename(filePath) || 'file');
+  const safeName = parsedPath.name.replace(/[^a-zA-Z0-9._-]+/g, '-');
+  return vscode.Uri.joinPath(root, `.aist-${prefix}-${Date.now()}-${safeName}${parsedPath.ext}`);
 }
 
 async function readFileIfExists(uri: vscode.Uri): Promise<string | undefined> {
@@ -505,7 +647,7 @@ async function walkDirectory(
 }
 
 function shouldSkipPath(name: string): boolean {
-  return ['.git', 'node_modules', 'dist', 'out', '.vscode-test'].includes(name);
+  return name.startsWith('.aist-') || ['.git', 'node_modules', 'dist', 'out', '.vscode-test'].includes(name);
 }
 
 function shouldSkipRelativePath(relativePath: string): boolean {
@@ -551,6 +693,22 @@ function createLineMatcher(query: string, useRegex: boolean, caseSensitive: bool
 
 function trimSearchLine(line: string): string {
   return line.length > 500 ? `${line.slice(0, 500)}...` : line;
+}
+
+function appendOutput(current: string, chunk: string, maxChars: number): { text: string; truncated: boolean } {
+  const next = current + chunk;
+  if (next.length <= maxChars) {
+    return { text: next, truncated: false };
+  }
+
+  return {
+    text: next.slice(0, maxChars),
+    truncated: true
+  };
+}
+
+function getErrorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function requireString(value: unknown, name: string): string {

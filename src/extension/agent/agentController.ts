@@ -8,8 +8,8 @@ import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { getErrorMessage } from '../shared/errors';
 import type { AistLogger } from '../shared/logger';
 import { getWebviewHtml } from '../shared/webviewHtml';
-import { getWorkspaceName } from '../shared/workspace';
-import { filesystemTools, previewFilesystemTool, runFilesystemTool } from '../tools/filesystemTools';
+import { getWorkspaceName, resolveWorkspacePath } from '../shared/workspace';
+import { filesystemTools, previewFilesystemTool, runFilesystemTool, type FilesystemToolPreview } from '../tools/filesystemTools';
 import { getToolPermission, getToolPermissionItems, setToolPermission, type ToolPermissionMode } from '../tools/permissions';
 import { getEditorContext, replaceSelection, stripCodeFence } from './editorContext';
 import { getSystemPrompt } from './prompts';
@@ -67,6 +67,7 @@ type WebviewMessage =
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
+  | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number }
   | { type: 'stop' }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string };
@@ -509,6 +510,10 @@ export class AgentController {
       this.resolveToolCall(message.messageId, message.approved);
     }
 
+    if (message.type === 'openWorkspaceFile') {
+      await this.openWorkspaceFile(message.path, message.line, message.column);
+    }
+
     if (message.type === 'stop') {
       this.stopCurrentRun();
     }
@@ -687,9 +692,13 @@ export class AgentController {
     });
     this.sendState();
 
+    let previewHandle: FilesystemToolPreview | undefined;
+    let preview: Record<string, unknown> | undefined;
+
     try {
       this.throwIfStopped(run);
-      const preview = await previewFilesystemTool(toolName, args);
+      previewHandle = await previewFilesystemTool(toolName, args);
+      preview = previewHandle?.preview;
       if (preview) {
         this.chats.updateMessage(chat.id, toolMessage.id, {
           result: { preview }
@@ -766,6 +775,10 @@ export class AgentController {
         tool_call_id: toolCall.id,
         content: JSON.stringify(result)
       });
+    } finally {
+      if (previewHandle) {
+        await previewHandle.cleanup();
+      }
     }
 
     this.sendState();
@@ -784,6 +797,28 @@ export class AgentController {
     const resolver = this.currentRun?.permissionResolvers.get(messageId);
     if (resolver) {
       resolver(approved);
+    }
+  }
+
+  private async openWorkspaceFile(filePath: string, line?: number, column?: number): Promise<void> {
+    try {
+      const uri = resolveWorkspacePath(filePath);
+      const stat = await vscode.workspace.fs.stat(uri);
+
+      if (stat.type === vscode.FileType.Directory) {
+        await vscode.commands.executeCommand('revealInExplorer', uri);
+        return;
+      }
+
+      const document = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(document, { preview: false });
+      const position = getDocumentPosition(document, line, column);
+
+      editor.selection = new vscode.Selection(position, position);
+      editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    } catch (error) {
+      this.logger.error('Failed to open workspace file from webview', error);
+      vscode.window.showErrorMessage(`aist: failed to open ${filePath} — ${getErrorMessage(error)}`);
     }
   }
 
@@ -1045,6 +1080,14 @@ function parseToolArguments(rawArgs: unknown): Record<string, unknown> {
 function getToolReason(args: Record<string, unknown>): string {
   const reason = args.reason;
   return typeof reason === 'string' && reason.trim() ? reason.trim() : 'No reason provided by the model.';
+}
+
+function getDocumentPosition(document: vscode.TextDocument, line?: number, column?: number): vscode.Position {
+  const targetLine = Math.min(document.lineCount - 1, Math.max(0, Number(line || 1) - 1));
+  const lineText = document.lineAt(targetLine).text;
+  const targetColumn = Math.min(lineText.length, Math.max(0, Number(column || 1) - 1));
+
+  return new vscode.Position(targetLine, targetColumn);
 }
 
 function normalizeReasoningEffort(value: unknown): ReasoningEffort {

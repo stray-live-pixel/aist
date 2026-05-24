@@ -6,6 +6,7 @@ import {
   Info,
   Replace,
   Search,
+  Terminal,
   Trash2,
   Wrench
 } from 'lucide-react';
@@ -26,6 +27,8 @@ export function ToolIcon({ name, size = 16, className }: ToolIconProps) {
       return <FileText size={size} className={className} />;
     case 'grep_search':
       return <Search size={size} className={className} />;
+    case 'run_bash_script':
+      return <Terminal size={size} className={className} />;
     case 'write_file':
       return <FilePenLine size={size} className={className} />;
     case 'replace_in_file':
@@ -49,6 +52,8 @@ export function getToolLabel(name?: string): string {
       return 'Read file';
     case 'grep_search':
       return 'Search repository';
+    case 'run_bash_script':
+      return 'Run Bash script';
     case 'write_file':
       return 'Write file';
     case 'replace_in_file':

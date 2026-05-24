@@ -19,6 +19,7 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
     languageInstruction,
     options.instructions ? `Additional user-defined working instructions:\n${options.instructions}` : '',
     'Use grep_search when you need to find symbols, strings, or related files across the workspace.',
+    'Use run_bash_script when shell execution is useful, such as running tests or build commands; keep scripts focused and workspace-relative.',
     'Before editing, read the relevant files and preserve the existing project style.',
     'Do not repeat the same tool call with the same arguments if its result is already present in the conversation.',
     'After a tool succeeds, use its result to make progress; if you are stuck, explain the blocker instead of looping.',

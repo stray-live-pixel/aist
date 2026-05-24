@@ -181,15 +181,12 @@ export function ChatPage({ state }: ChatPageProps) {
             <ExternalLink size={15} />
           </IconButton>
         </div>
-        <div className="mx-auto mt-2 max-w-4xl rounded border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-xs text-[var(--vscode-descriptionForeground)]">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-[var(--vscode-foreground)]">Agent mode:</span>
-            <AgentModeSelect modes={state.agentModes} activeId={state.agentMode} className="w-44" />
-          </div>
-          <div className="mt-1.5 whitespace-pre-wrap leading-5">{activeMode?.instructions || 'No additional instructions.'}</div>
+        <div className="mx-auto mt-2 flex max-w-4xl items-center justify-between gap-2 text-xs text-[var(--vscode-descriptionForeground)]">
+          <span className="font-semibold text-[var(--vscode-foreground)]">Agent mode:</span>
+          <AgentModeSelect modes={state.agentModes} activeId={state.agentMode} className="w-44" />
         </div>
       </header>
-      <MessageList messages={state.activeChat.messages} tools={state.tools} />
+      <MessageList messages={state.activeChat.messages} tools={state.tools} activeMode={activeMode} />
       <Composer
         busy={state.activeChat.busy}
         model={state.activeChat.model}
