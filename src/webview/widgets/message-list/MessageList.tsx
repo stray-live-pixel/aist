@@ -62,14 +62,14 @@ export function MessageList({ messages, tools, activeMode, busy, activity, botto
       <div className="flex w-full min-w-0 flex-col gap-2">
         <SystemInstructionLabel mode={activeMode} />
         {messages.length === 0 ? <EmptyState tools={tools} /> : null}
-        {groups.map((group) => renderMessageGroup(group))}
+        {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages)))}
         {busy ? <AgentActivityStatus activity={activity} /> : null}
       </div>
     </main>
   );
 }
 
-function renderMessageGroup(group: MessageGroup) {
+function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string) {
   if (group.type === 'toolCalls') {
     return (
       <ToolCallsCut
@@ -86,9 +86,19 @@ function renderMessageGroup(group: MessageGroup) {
     <MessageCard
       key={group.message.id}
       message={group.message}
+      defaultExpanded={isDefaultExpandedMessage(group.message, lastAssistantMessageId)}
       actions={group.message.content ? <CopyMessageButton markdown={group.message.content} /> : null}
     />
   );
+}
+
+function getLastAssistantMessageId(messages: ChatMessage[]): string | undefined {
+  return [...messages].reverse().find((message) => message.role === 'assistant')?.id;
+}
+
+function isDefaultExpandedMessage(message: ChatMessage, lastAssistantMessageId?: string): boolean {
+  if (message.role === 'assistant') return message.id === lastAssistantMessageId;
+  return message.role !== 'user';
 }
 
 function groupMessages(messages: ChatMessage[], busy: boolean): MessageGroup[] {

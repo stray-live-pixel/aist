@@ -21,10 +21,79 @@ select {
 
 @layer components {
   .message-card {
+    margin-block-end: 12px;
     border: 1px solid var(--agent-border);
     border-radius: 24px;
     corner-shape: squircle;
     padding: 10px;
+  }
+
+  .message-card-user {
+    margin-block-start: 48px;
+    margin-block-end: 12px;
+    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 38%, var(--agent-border));
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-input-background, transparent));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground) 7%, transparent),
+      0 6px 18px color-mix(in srgb, var(--vscode-textLink-foreground) 8%, transparent);
+  }
+
+  .message-card-assistant {
+    border-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 70%, var(--agent-border));
+    background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 46%, transparent);
+  }
+
+  .message-cut-card {
+    position: relative;
+    overflow: hidden;
+    transition: max-height 180ms ease;
+  }
+
+  .message-cut-collapsed {
+    max-height: 150px;
+  }
+
+  .message-cut-expanded {
+    max-height: none;
+  }
+
+  .message-cut-shadow {
+    position: absolute;
+    right: 0;
+    bottom: -10px;
+    left: 0;
+    height: 80px;
+    border-radius: 0 0 24px 24px;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in srgb, var(--vscode-editor-background) 86%, transparent) 48%,
+      var(--vscode-editor-background)
+    );
+    box-shadow: none;
+  }
+
+  .message-cut-button {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--agent-border);
+    border-radius: 999px;
+    color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
+  }
+
+  .message-cut-button:hover {
+    color: var(--vscode-foreground);
+    background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 42%, transparent);
+  }
+
+  .message-cut-button[aria-expanded='true'] svg {
+    transform: rotate(90deg);
   }
 
   .aist-logo {
@@ -164,33 +233,26 @@ select {
    * It keeps the chat calm by default, while every tool remains visually distinguishable.
    */
   .tool-calls-cut {
+    --tool-tone: color-mix(in srgb, #cbd5e1 42%, transparent);
+    --tool-tone-strong: #94a3b8;
     display: grid;
     gap: 8px;
-    border: 1px solid var(--agent-border);
+    border: 1px solid var(--tool-tone);
     border-radius: 24px;
     corner-shape: squircle;
-    background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 28%, transparent);
+    background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
     padding: 8px;
   }
 
-  .tool-calls-cut-summary {
+  .tool-calls-cut-header {
     display: flex;
-    cursor: pointer;
+    min-height: 25px;
+    min-width: 0;
     align-items: center;
     gap: 8px;
-    min-width: 0;
     color: var(--vscode-descriptionForeground);
     font-size: 12px;
     font-weight: 700;
-    list-style: none;
-  }
-
-  .tool-calls-cut-summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .tool-calls-cut[open] .tool-calls-cut-chevron {
-    transform: rotate(90deg);
   }
 
   .tool-calls-cut-icon {
@@ -200,13 +262,17 @@ select {
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--agent-border);
+    border: 1px solid var(--tool-tone);
     border-radius: 999px;
-    color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    color: var(--tool-tone-strong);
+    background: color-mix(in srgb, var(--tool-tone) 28%, transparent);
   }
 
   .tool-calls-cut-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--vscode-foreground);
   }
 
@@ -222,10 +288,7 @@ select {
   .tool-calls-cut-body {
     display: grid;
     gap: 8px;
-  }
-
-  .tool-calls-cut:not([open]) .tool-calls-cut-body {
-    display: none;
+    padding-left: 32px;
   }
 
   .tool-card {
@@ -233,20 +296,9 @@ select {
     --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
     position: relative;
     overflow: hidden;
-    cursor: pointer;
     border-color: var(--tool-tone);
     background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
-    transition:
-      max-height 160ms ease,
-      background 160ms ease;
-  }
-
-  .tool-card-collapsed {
-    max-height: 50px;
-  }
-
-  .tool-card-expanded {
-    max-height: none;
+    transition: background 160ms ease;
   }
 
   .tool-card-body {
@@ -259,8 +311,29 @@ select {
     display: flex;
     min-height: 25px;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
+  }
+
+  .tool-chevron-button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--tool-tone, var(--agent-border));
+    border-radius: 999px;
+    color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+  }
+
+  .tool-chevron-button:hover {
+    color: var(--vscode-foreground);
+    background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+  }
+
+  .tool-chevron-button[aria-expanded='true'] svg {
+    transform: rotate(90deg);
   }
 
   .tool-header-main {
@@ -270,12 +343,12 @@ select {
     gap: 7px;
   }
 
-  .tool-header-actions {
+  .tool-details-header {
     display: flex;
-    flex-shrink: 0;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    padding-right: 74px;
+    padding-left: 32px;
   }
 
   .tool-tone-blue {

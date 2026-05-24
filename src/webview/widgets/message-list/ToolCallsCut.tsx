@@ -15,7 +15,7 @@ type ToolCallsCutProps = {
  * Что это: общий cut для tool-call сообщений одного пользовательского запроса.
  * Зачем нужно: история остаётся читаемой: инструменты видны во время работы,
  * а после итогового ответа агента сворачиваются в компактный блок.
- * Пример: <ToolCallsCut tools={tools} userMessage={user} assistantMessage={assistant} active={busy} />.
+ * Пример: шеврон раскрывает список tool-call карточек, пока закрытый cut их не рендерит.
  */
 export function ToolCallsCut({ tools, userMessage, assistantMessage, active }: ToolCallsCutProps) {
   const shouldBeOpen = active || !assistantMessage;
@@ -30,21 +30,40 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active }: T
   }
 
   return (
-    <details className="tool-calls-cut" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="tool-calls-cut-summary">
-        <ChevronRight className="tool-calls-cut-chevron" size={14} />
-        <span className="tool-calls-cut-icon">
-          <Wrench size={14} />
-        </span>
-        <span className="tool-calls-cut-title">Tool Calls</span>
-        <span className="tool-calls-cut-meta">{formatToolCallsMeta(tools, userMessage, assistantMessage)}</span>
-      </summary>
-      <div className="tool-calls-cut-body">
-        {tools.map((tool) => (
-          <MessageCard key={tool.id} message={tool} />
-        ))}
-      </div>
-    </details>
+    <article className="tool-calls-cut">
+      <ToolCallsCutHeader
+        open={open}
+        meta={formatToolCallsMeta(tools, userMessage, assistantMessage)}
+        onToggle={() => setOpen((value) => !value)}
+      />
+      {open ? (
+        <div className="tool-calls-cut-body">
+          {tools.map((tool) => (
+            <MessageCard key={tool.id} message={tool} />
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function ToolCallsCutHeader({ open, meta, onToggle }: ToolCallsCutHeaderProps) {
+  return (
+    <div className="tool-calls-cut-header">
+      <button
+        className="tool-chevron-button"
+        title={open ? 'Скрыть вызовы инструментов' : 'Показать вызовы инструментов'}
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <ChevronRight size={14} />
+      </button>
+      <span className="tool-calls-cut-icon">
+        <Wrench size={14} />
+      </span>
+      <span className="tool-calls-cut-title">Tool Calls</span>
+      <span className="tool-calls-cut-meta">{meta}</span>
+    </div>
   );
 }
 
@@ -71,3 +90,9 @@ function formatDuration(durationMs: number): string {
 
   return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
+
+type ToolCallsCutHeaderProps = {
+  open: boolean;
+  meta: string;
+  onToggle(): void;
+};

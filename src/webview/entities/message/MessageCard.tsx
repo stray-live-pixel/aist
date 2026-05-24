@@ -1,5 +1,5 @@
-import { Bot, Loader2, User, Wrench } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Bot, ChevronRight, Loader2, User, Wrench } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -10,29 +10,55 @@ import { formatMessageDate, formatMessageUsage } from './messageFormatting';
 type MessageCardProps = {
   message: ChatMessage;
   actions?: ReactNode;
+  defaultExpanded?: boolean;
 };
 
-export function MessageCard({ message, actions }: MessageCardProps) {
+export function MessageCard({ message, actions, defaultExpanded = true }: MessageCardProps) {
   if (message.role === 'tool') {
     return <ToolMessageCard message={message} />;
   }
 
   const variant = getMessageVariant(message.role);
+  const collapsible = isCollapsibleMessage(message);
+  const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);
+
+  useEffect(() => {
+    setExpanded(!collapsible || defaultExpanded);
+  }, [collapsible, defaultExpanded, message.id]);
 
   return (
-    <article className={`message-card ${variant.className}`}>
-      <MessageHeader icon={variant.icon} label={variant.label} message={message} actions={actions} />
+    <article className={getMessageClassName(variant.className, collapsible, expanded)}>
+      <MessageHeader
+        icon={variant.icon}
+        label={variant.label}
+        message={message}
+        actions={actions}
+        collapsible={collapsible}
+        expanded={expanded}
+        onToggle={() => setExpanded((value) => !value)}
+      />
       <div className="markdown-body">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || ''}</ReactMarkdown>
       </div>
+      {collapsible && !expanded ? <div className="message-cut-shadow" /> : null}
     </article>
   );
 }
 
-function MessageHeader({ icon, label, message, actions }: MessageHeaderProps) {
+function MessageHeader({ icon, label, message, actions, collapsible, expanded, onToggle }: MessageHeaderProps) {
   return (
     <div className="mb-2 flex items-center justify-between gap-3">
       <div className={HEADER_CLASS_NAME}>
+        {collapsible ? (
+          <button
+            className="message-cut-button"
+            title={expanded ? 'Свернуть сообщение' : 'Развернуть сообщение'}
+            aria-expanded={expanded}
+            onClick={onToggle}
+          >
+            <ChevronRight size={14} />
+          </button>
+        ) : null}
         {icon}
         <span>{label}</span>
         {formatMessageDate(message.createdAt)}
@@ -43,17 +69,26 @@ function MessageHeader({ icon, label, message, actions }: MessageHeaderProps) {
   );
 }
 
+function isCollapsibleMessage(message: ChatMessage): boolean {
+  return message.role === 'user' || message.role === 'assistant';
+}
+
+function getMessageClassName(className: string, collapsible: boolean, expanded: boolean): string {
+  const cutClass = collapsible ? (expanded ? 'message-cut-expanded' : 'message-cut-collapsed') : '';
+  return `message-card message-cut-card ${cutClass} ${className}`;
+}
+
 function getMessageVariant(role: ChatMessageRole) {
   const variants = {
     user: {
       icon: <User size={16} />,
       label: 'You',
-      className: 'bg-[color-mix(in_srgb,var(--vscode-input-background)_55%,transparent)]'
+      className: 'message-card-user'
     },
     assistant: {
       icon: <Bot size={16} />,
       label: 'Agent',
-      className: 'bg-[color-mix(in_srgb,var(--vscode-editor-inactiveSelectionBackground)_55%,transparent)]'
+      className: 'message-card-assistant'
     },
     status: {
       icon: <Loader2 size={16} className="animate-spin" />,
@@ -85,4 +120,7 @@ type MessageHeaderProps = {
   label: string;
   message: ChatMessage;
   actions?: ReactNode;
+  collapsible: boolean;
+  expanded: boolean;
+  onToggle(): void;
 };

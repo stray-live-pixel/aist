@@ -1,4 +1,4 @@
-import { Check, Code2, X } from 'lucide-react';
+import { Check, ChevronRight, Code2, X } from 'lucide-react';
 import { type MouseEvent, useEffect, useState } from 'react';
 
 import { vscode } from '../../shared/lib/vscode';
@@ -12,8 +12,8 @@ import { type ToolDisplayModel, buildToolDisplayModel } from './toolMessageModel
 
 /**
  * Что это: компактная карточка tool-call.
- * Зачем нужно: по умолчанию занимает одну строку 50px, а детали раскрываются кликом.
- * Пример: READ FILE: src/app.ts открывает файл по клику, а </> показывает сырой JSON.
+ * Зачем нужно: первая строка остаётся компактной, а тяжёлые детали рендерятся только после раскрытия.
+ * Пример: шеврон раскрывает preview результата, READ FILE открывает файл, а </> показывает сырой JSON.
  */
 export function ToolMessageCard({ message }: { message: ChatMessage }) {
   const [expanded, setExpanded] = useState(message.approval === 'pending');
@@ -29,11 +29,22 @@ export function ToolMessageCard({ message }: { message: ChatMessage }) {
   }, [needsApproval]);
 
   return (
-    <article className={getCardClassName(message, model, expanded)} onClick={() => setExpanded((value) => !value)}>
+    <article className={getCardClassName(message, model)}>
       <div className="tool-card-body">
-        <ToolHeaderContent message={message} model={model} isRunning={isRunning} onRawClick={() => setRawOpen(true)} />
-        <ToolResultPreview message={message} />
-        {needsApproval ? <ApprovalActions messageId={message.id} /> : null}
+        <ToolHeaderContent
+          message={message}
+          model={model}
+          expanded={expanded}
+          isRunning={isRunning}
+          onToggle={() => setExpanded((value) => !value)}
+        />
+        {expanded ? (
+          <>
+            <ToolDetailsHeader message={message} model={model} onRawClick={() => setRawOpen(true)} />
+            <ToolResultPreview message={message} />
+            {needsApproval ? <ApprovalActions messageId={message.id} /> : null}
+          </>
+        ) : null}
       </div>
       {formatMessageUsagePill(message.usage)}
       {rawOpen ? <ToolRawJsonModal message={message} onClose={closeRawModal(setRawOpen)} /> : null}
@@ -41,23 +52,36 @@ export function ToolMessageCard({ message }: { message: ChatMessage }) {
   );
 }
 
-function ToolHeaderContent({ message, model, isRunning, onRawClick }: ToolHeaderContentProps) {
+function ToolHeaderContent({ message, model, expanded, isRunning, onToggle }: ToolHeaderContentProps) {
   return (
     <div className="tool-header-row">
+      <button
+        className="tool-chevron-button"
+        title={expanded ? 'Скрыть детали инструмента' : 'Показать детали инструмента'}
+        aria-expanded={expanded}
+        onClick={stopAndRun(onToggle)}
+      >
+        <ChevronRight size={14} />
+      </button>
       <div className="tool-header-main">
-        {formatMessageDate(message.createdAt)}
         <span className="tool-icon-pill">
           <ToolIcon name={message.name} size={14} className={isRunning ? 'animate-pulse' : ''} />
         </span>
+        {formatMessageDate(message.createdAt)}
         <ToolTitle model={model} />
-        <span className="tool-summary">{model.summary}</span>
       </div>
-      <div className="tool-header-actions">
-        <ToolStatusBadge message={message} />
-        <button className="tool-icon-button" title="Показать JSON" onClick={stopAndRun(onRawClick)}>
-          <Code2 size={14} />
-        </button>
-      </div>
+    </div>
+  );
+}
+
+function ToolDetailsHeader({ message, model, onRawClick }: ToolDetailsHeaderProps) {
+  return (
+    <div className="tool-details-header">
+      <span className="tool-summary">{model.summary}</span>
+      <ToolStatusBadge message={message} />
+      <button className="tool-icon-button" title="Показать JSON" onClick={stopAndRun(onRawClick)}>
+        <Code2 size={14} />
+      </button>
     </div>
   );
 }
@@ -99,10 +123,9 @@ function ApprovalActions({ messageId }: { messageId: string }) {
   );
 }
 
-function getCardClassName(message: ChatMessage, model: ToolDisplayModel, expanded: boolean): string {
+function getCardClassName(message: ChatMessage, model: ToolDisplayModel): string {
   const errorClass = message.status === 'error' ? 'border-[var(--vscode-errorForeground)]' : '';
-  const expandedClass = expanded ? 'tool-card-expanded' : 'tool-card-collapsed';
-  return `message-card tool-card tool-tone-${model.tone} ${expandedClass} ${errorClass}`;
+  return `message-card tool-card tool-tone-${model.tone} ${errorClass}`;
 }
 
 function stopPropagation(event: MouseEvent) {
@@ -126,6 +149,13 @@ function closeRawModal(setRawOpen: (value: boolean) => void) {
 type ToolHeaderContentProps = {
   message: ChatMessage;
   model: ToolDisplayModel;
+  expanded: boolean;
   isRunning: boolean;
+  onToggle(): void;
+};
+
+type ToolDetailsHeaderProps = {
+  message: ChatMessage;
+  model: ToolDisplayModel;
   onRawClick(): void;
 };
