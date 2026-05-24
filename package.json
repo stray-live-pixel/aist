@@ -162,7 +162,7 @@
             "Русский",
             "English"
           ],
-          "default": "ru",
+          "default": "en",
           "description": "Language for agent answers and tool-call explanations."
         },
         "openrouterAgent.agentMode": {

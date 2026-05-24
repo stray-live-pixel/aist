@@ -33,7 +33,7 @@ export function isDefaultMode(modeId: string): boolean {
 
 export function getAgentLanguage(): AgentLanguage {
   const value = vscode.workspace.getConfiguration('openrouterAgent').get<string>('language');
-  return value === 'en' ? 'en' : 'ru';
+  return value === 'ru' ? 'ru' : 'en';
 }
 
 export function getAgentMode(): AgentModeId {
