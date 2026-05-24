@@ -5,25 +5,26 @@
  */
 import { Sparkles } from 'lucide-react';
 
+import { getWebviewAssetUri } from '../../shared/lib/assets';
+import { AistBrand } from '../../shared/ui/AistLogo';
+
 type EmptyStateProps = {
   tools: string[];
 };
 
 export function EmptyState({ tools }: EmptyStateProps) {
+  const hasLogo = Boolean(getWebviewAssetUri('logo'));
+
   return (
-    <div className="grid gap-4 py-8">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[var(--agent-border)] bg-[var(--vscode-input-background)]">
-          <Sparkles size={20} />
-        </div>
-        <div>
-          <h1 className="text-base font-semibold">Ready to work with your codebase</h1>
-          <p className="text-sm text-[var(--vscode-descriptionForeground)]">
-            Ask for a change, and the agent can inspect and modify files in this workspace.
-          </p>
-        </div>
+    <div className="grid gap-5 py-8">
+      {hasLogo ? <AistBrand /> : <Sparkles className="mx-auto" size={100} />}
+      <div className="grid gap-1 text-center">
+        <h1 className="text-base font-semibold">Ready to work with your codebase</h1>
+        <p className="text-sm text-[var(--vscode-descriptionForeground)]">
+          Ask for a change, and the agent can inspect and modify files in this workspace.
+        </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {tools.map((tool) => (
           <span
             key={tool}

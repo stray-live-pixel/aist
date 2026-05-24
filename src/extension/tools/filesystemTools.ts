@@ -5,12 +5,14 @@ import * as vscode from 'vscode';
 
 import type { OpenRouterTool } from '../openrouter/types';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
+import { showEditableFileDiff } from './editableDiffPreview';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8');
 
 export type FilesystemToolPreview = {
   preview: Record<string, unknown>;
+  approve(): Promise<Record<string, unknown>>;
   cleanup(): Promise<void>;
 };
 
@@ -240,7 +242,8 @@ export async function previewFilesystemTool(
     }
 
     const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
-    return showFileDiff(filePath, nextContent);
+    const generatedReplacements = replaceAll ? content.split(search).length - 1 : 1;
+    return showFileDiff(filePath, nextContent, generatedReplacements);
   }
 
   return undefined;
@@ -540,84 +543,12 @@ async function getSearchFiles(baseUri: vscode.Uri, include: string, maxFiles: nu
   );
 }
 
-async function showFileDiff(filePath: string, nextContent: string): Promise<FilesystemToolPreview> {
-  const targetUri = resolveWorkspacePath(filePath);
-  const currentContent = await readFileIfExists(targetUri);
-
-  if (currentContent === nextContent) {
-    return {
-      preview: {
-        ok: true,
-        path: filePath,
-        diffShown: false,
-        reason: 'No file changes to preview.'
-      },
-      cleanup: async () => {}
-    };
-  }
-
-  const previewRoot = await getDiffPreviewRoot(targetUri);
-  const originalUri = currentContent === undefined ? getDiffPreviewUri(previewRoot, filePath, 'empty') : targetUri;
-  const proposedUri = getDiffPreviewUri(previewRoot, filePath, 'proposed');
-  const cleanupUris = currentContent === undefined ? [originalUri, proposedUri] : [proposedUri];
-
-  try {
-    if (currentContent === undefined) {
-      await vscode.workspace.fs.writeFile(originalUri, textEncoder.encode(''));
-    }
-    await vscode.workspace.fs.writeFile(proposedUri, textEncoder.encode(nextContent));
-
-    await vscode.commands.executeCommand('vscode.diff', originalUri, proposedUri, `aist Preview: ${filePath}`, {
-      preview: true
-    });
-  } catch (error) {
-    await cleanupDiffPreviewFiles(cleanupUris);
-    throw error;
-  }
-
-  return {
-    preview: {
-      ok: true,
-      path: filePath,
-      diffShown: true
-    },
-    cleanup: () => cleanupDiffPreviewFiles(cleanupUris)
-  };
-}
-
-async function cleanupDiffPreviewFiles(uris: vscode.Uri[]): Promise<void> {
-  await Promise.all(uris.map(deleteDiffPreviewFile));
-}
-
-async function deleteDiffPreviewFile(uri: vscode.Uri): Promise<void> {
-  try {
-    await vscode.workspace.fs.delete(uri, { recursive: false, useTrash: false });
-  } catch {
-    // Preview cleanup is best-effort and should not mask the tool result.
-  }
-}
-
-async function getDiffPreviewRoot(targetUri: vscode.Uri): Promise<vscode.Uri> {
-  const root = vscode.Uri.file(path.dirname(targetUri.fsPath));
-  await vscode.workspace.fs.createDirectory(root);
-  return root;
-}
-
-function getDiffPreviewUri(root: vscode.Uri, filePath: string, prefix: 'empty' | 'proposed'): vscode.Uri {
-  const parsedPath = path.parse(path.basename(filePath) || 'file');
-  const safeName = parsedPath.name.replace(/[^a-zA-Z0-9._-]+/g, '-');
-  return vscode.Uri.joinPath(root, `.aist-${prefix}-${Date.now()}-${safeName}${parsedPath.ext}`);
-}
-
-async function readFileIfExists(uri: vscode.Uri): Promise<string | undefined> {
-  try {
-    return textDecoder.decode(await vscode.workspace.fs.readFile(uri));
-  } catch (error) {
-    if (error instanceof vscode.FileSystemError) {
-      return undefined;
-    }
-    return undefined;
-  }
+async function showFileDiff(
+  filePath: string,
+  nextContent: string,
+  generatedReplacements?: number
+): Promise<FilesystemToolPreview> {
+  return showEditableFileDiff({ filePath, nextContent, generatedReplacements });
 }
 
 async function walkDirectory(

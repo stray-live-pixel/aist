@@ -1,13 +1,14 @@
 /**
  * Что это: область истории сообщений чата.
  * Зачем нужно: держит прокрутку истории и добавляет служебные элементы в начало чата.
- * Пример использования: <MessageList messages={messages} tools={tools} activeMode={mode} />.
+ * Пример использования: <MessageList messages={messages} tools={tools} activeMode={mode} busy={busy} />.
  */
 import { useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../entities/message/MessageCard';
 import { CopyMessageButton } from '../../features/copy-message/CopyMessageButton';
-import type { AgentMode, ChatMessage } from '../../shared/types';
+import type { AgentMode, Chat, ChatMessage } from '../../shared/types';
+import { AgentActivityStatus } from './AgentActivityStatus';
 import { EmptyState } from './EmptyState';
 import { SystemInstructionLabel } from './SystemInstructionLabel';
 
@@ -17,9 +18,11 @@ type MessageListProps = {
   messages: ChatMessage[];
   tools: string[];
   activeMode: AgentMode | undefined;
+  busy: boolean;
+  activity: Chat['activity'];
 };
 
-export function MessageList({ messages, tools, activeMode }: MessageListProps) {
+export function MessageList({ messages, tools, activeMode, busy, activity }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
 
@@ -47,6 +50,7 @@ export function MessageList({ messages, tools, activeMode }: MessageListProps) {
             actions={message.content ? <CopyMessageButton markdown={message.content} /> : null}
           />
         ))}
+        {busy ? <AgentActivityStatus activity={activity} /> : null}
       </div>
     </main>
   );

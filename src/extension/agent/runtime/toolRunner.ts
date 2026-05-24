@@ -64,7 +64,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     });
     params.sendState();
 
-    const result = toolName === 'run_skill' ? await runAgentSkill(args) : await runFilesystemTool(toolName, args);
+    const result = await runApprovedTool(toolName, args, previewHandle);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: result.ok === false ? 'error' : 'done',
       reason,
@@ -144,6 +144,18 @@ function denyToolCall(params: ApprovalParams): void {
     content: JSON.stringify(result)
   });
   params.sendState();
+}
+
+async function runApprovedTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  previewHandle?: FilesystemToolPreview
+): Promise<Record<string, unknown>> {
+  if (previewHandle) {
+    return previewHandle.approve();
+  }
+
+  return toolName === 'run_skill' ? runAgentSkill(args) : runFilesystemTool(toolName, args);
 }
 
 function getToolCallPermission(toolName: string, args: Record<string, unknown>): ReturnType<typeof getToolPermission> {

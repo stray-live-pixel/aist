@@ -23,10 +23,15 @@ export function ChatPage({ state }: ChatPageProps) {
   return (
     <div className="relative flex h-screen flex-col bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
       <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
-      <MessageList messages={state.activeChat.messages} tools={state.tools} activeMode={activeMode} />
-      <Composer
+      <MessageList
+        messages={state.activeChat.messages}
+        tools={state.tools}
+        activeMode={activeMode}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
+      />
+      <Composer
+        busy={state.activeChat.busy}
         settings={<AgentSettingsSummary state={state} onOpen={() => setSettingsOpen(true)} />}
       />
       {chatsOpen ? (

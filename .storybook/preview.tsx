@@ -10,7 +10,11 @@ const vscodeApi = {
 };
 
 Object.assign(globalThis, {
-  acquireVsCodeApi: () => vscodeApi
+  acquireVsCodeApi: () => vscodeApi,
+  __AIST_ASSETS__: {
+    logo: '/assets/logo.png',
+    logoAnimated: '/assets/logo-animated.png'
+  }
 });
 
 const vscodeDarkTheme = {
@@ -77,5 +81,27 @@ const preview: Preview = {
     }
   }
 };
+
+/**
+ * Синхронизирует фон Storybook iframe с темой VS Code.
+ *
+ * Использование: файл preview подключается Storybook автоматически.
+ * Storybook оставляет собственные html/body/#storybook-root вне React-декоратора,
+ * поэтому фон задается глобально на эти контейнеры, а не только вокруг story.
+ */
+const storybookBackgroundStyle = document.createElement('style');
+storybookBackgroundStyle.textContent = `
+  html,
+  body,
+  #storybook-root {
+    min-height: 100%;
+    background: ${vscodeDarkTheme['--vscode-editor-background']};
+  }
+
+  body {
+    color: ${vscodeDarkTheme['--vscode-foreground']};
+  }
+`;
+document.head.appendChild(storybookBackgroundStyle);
 
 export default preview;

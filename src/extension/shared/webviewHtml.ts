@@ -1,7 +1,13 @@
 import * as vscode from 'vscode';
 
+const WEBVIEW_ASSETS = {
+  logo: ['assets', 'logo.png'],
+  logoAnimated: ['assets', 'logo-animated.png']
+} as const;
+
 export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   const nonce = getNonce();
+  const assets = createWebviewAssetManifest(webview, extensionUri);
   const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
   const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.css'));
 
@@ -16,9 +22,29 @@ export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri
 </head>
 <body>
   <div id="root"></div>
+  <script nonce="${nonce}">window.__AIST_ASSETS__ = ${JSON.stringify(assets)};</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
+}
+
+/**
+ * Готовит manifest ассетов для браузерной части webview.
+ *
+ * Использование: window.__AIST_ASSETS__.logo в webview-коде.
+ * Webview может открывать только URI, созданные через asWebviewUri, поэтому host
+ * централизованно публикует безопасные ссылки и не размазывает пути по UI.
+ */
+function createWebviewAssetManifest(
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri
+): Record<keyof typeof WEBVIEW_ASSETS, string> {
+  return Object.fromEntries(
+    Object.entries(WEBVIEW_ASSETS).map(([key, pathParts]) => [
+      key,
+      String(webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, ...pathParts)))
+    ])
+  ) as Record<keyof typeof WEBVIEW_ASSETS, string>;
 }
 
 function getNonce(): string {

@@ -73,7 +73,10 @@ export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebvi
     {
       enableScripts: true,
       retainContextWhenHidden: true,
-      localResourceRoots: [vscode.Uri.joinPath(deps.context.extensionUri, 'dist')]
+      localResourceRoots: [
+        vscode.Uri.joinPath(deps.context.extensionUri, 'dist'),
+        vscode.Uri.joinPath(deps.context.extensionUri, 'assets')
+      ]
     }
   );
 
@@ -122,7 +125,10 @@ function configureWebview(
 ): void {
   webview.options = {
     enableScripts: true,
-    localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')]
+    localResourceRoots: [
+      vscode.Uri.joinPath(context.extensionUri, 'dist'),
+      vscode.Uri.joinPath(context.extensionUri, 'assets')
+    ]
   };
   webview.html = getWebviewHtml(webview, context.extensionUri);
 }

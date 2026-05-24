@@ -1,4 +1,4 @@
-import { Loader2, Send, Square } from 'lucide-react';
+import { Send, Square } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
@@ -6,11 +6,10 @@ import { vscode } from '../../shared/lib/vscode';
 
 type ComposerProps = {
   busy: boolean;
-  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
   settings?: ReactNode;
 };
 
-export function Composer({ busy, activity, settings }: ComposerProps) {
+export function Composer({ busy, settings }: ComposerProps) {
   const [prompt, setPrompt] = useState('');
   const canSend = Boolean(prompt.trim()) && !busy;
 
@@ -40,11 +39,7 @@ export function Composer({ busy, activity, settings }: ComposerProps) {
           }}
         />
         <div className="flex min-w-0 items-center justify-between gap-2">
-          {busy ? (
-            <ActivityLabel activity={activity} />
-          ) : (
-            <span className="text-xs text-[var(--vscode-descriptionForeground)]">⌘/Ctrl + Enter to send</span>
-          )}
+          <span className="text-xs text-[var(--vscode-descriptionForeground)]">⌘/Ctrl + Enter to send</span>
           <button
             className={busy ? 'secondary-button' : 'primary-button'}
             disabled={!busy && !canSend}
@@ -57,26 +52,4 @@ export function Composer({ busy, activity, settings }: ComposerProps) {
       </div>
     </footer>
   );
-}
-
-function ActivityLabel({ activity }: { activity: ComposerProps['activity'] }) {
-  return (
-    <div className="flex min-w-0 items-center gap-1 text-xs text-[var(--vscode-descriptionForeground)]">
-      <Loader2 size={14} className="shrink-0 animate-spin" />
-      <span className="truncate">{formatActivity(activity)}</span>
-    </div>
-  );
-}
-
-function formatActivity(activity: ComposerProps['activity']): string {
-  switch (activity) {
-    case 'waitingForApproval':
-      return 'Waiting for approval';
-    case 'runningTool':
-      return 'Running tool';
-    case 'stopping':
-      return 'Stopping';
-    default:
-      return 'Model is thinking';
-  }
 }

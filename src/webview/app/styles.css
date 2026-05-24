@@ -26,6 +26,61 @@ select {
     padding: 12px;
   }
 
+  .aist-logo {
+    display: inline-block;
+    width: 100px;
+    height: 100px;
+    background: currentColor;
+    mask: var(--aist-logo-uri) center / contain no-repeat;
+  }
+
+  .aist-logo-sm {
+    width: 40px;
+    height: 40px;
+  }
+
+  .aist-logo-animated {
+    position: relative;
+    background: transparent;
+    mask: none;
+  }
+
+  .aist-logo-animated::before,
+  .aist-logo-animated::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: currentColor;
+    transition: opacity 320ms ease;
+  }
+
+  .aist-logo-animated::before {
+    animation: aist-logo-base-fade 2s steps(1, end) infinite;
+    mask: var(--aist-logo-base-uri) center / contain no-repeat;
+  }
+
+  .aist-logo-animated::after {
+    animation: aist-logo-animated-fade 2s steps(1, end) infinite;
+    mask: var(--aist-logo-animated-uri) center / contain no-repeat;
+  }
+
+  .aist-brand {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    color: var(--vscode-foreground);
+    font-family: inherit;
+  }
+
+  .aist-brand-title {
+    margin-top: -20px;
+    font-family: inherit;
+  }
+
+  .aist-brand-subtitle {
+    font-family: inherit;
+  }
+
   .icon-button {
     display: inline-flex;
     height: 32px;
@@ -540,6 +595,28 @@ select {
 
   .markdown-body a {
     color: var(--vscode-textLink-foreground);
+  }
+
+  @keyframes aist-logo-base-fade {
+    0%,
+    49.99% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes aist-logo-animated-fade {
+    0%,
+    49.99% {
+      opacity: 0;
+    }
+    50%,
+    100% {
+      opacity: 1;
+    }
   }
 
   .markdown-body blockquote {

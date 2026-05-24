@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Settings } from 'lucide-react';
 
 import { storyTools } from '../../storybook/fixtures';
+import { AistAnimatedLogo, AistBrand, AistLogo } from './AistLogo';
 import { IconButton } from './IconButton';
 import { ToolIcon, getToolLabel } from './ToolIcon';
 
@@ -14,6 +15,25 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const AistBrandBlock: Story = {
+  render: () => <AistBrand />
+};
+
+export const AistAnimatedBrandBlock: Story = {
+  render: () => <AistBrand animated />
+};
+
+export const AistLogos: Story = {
+  render: () => (
+    <div className="flex items-center gap-6 text-[var(--vscode-foreground)]">
+      <AistLogo />
+      <AistAnimatedLogo />
+      <AistLogo className="text-[var(--vscode-descriptionForeground)]" />
+      <AistLogo className="text-[var(--vscode-textLink-foreground)]" />
+    </div>
+  )
+};
 
 export const IconButtons: Story = {
   render: () => (

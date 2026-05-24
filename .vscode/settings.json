@@ -2,7 +2,7 @@
   "openrouterAgent.model": "codex:gpt-5.5",
   "openrouterAgent.maxToolIterations": 60,
   "openrouterAgent.agentMode": "default",
-  "openrouterAgent.reasoningEffort": "medium",
+  "openrouterAgent.reasoningEffort": "high",
   "openrouterAgent.toolPermissions": {
     "get_workspace_info": "auto",
     "list_files": "auto",

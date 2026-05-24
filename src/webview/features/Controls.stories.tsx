@@ -45,7 +45,6 @@ export const ComposerBusy: Story = {
     <div className="max-w-4xl overflow-hidden rounded-md border border-[var(--agent-border)]">
       <Composer
         busy
-        activity="runningTool"
         settings={
           <span className="text-[11px] text-[var(--vscode-descriptionForeground)]">
             Mode: Expert · Auto access · Tokens: 118K · Cost: ~$0.0310

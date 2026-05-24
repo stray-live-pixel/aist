@@ -18,7 +18,7 @@ type Story = StoryObj<typeof meta>;
 export const Empty: Story = {
   render: () => (
     <div className="h-screen">
-      <MessageList messages={[]} tools={storyTools} activeMode={storyAgentModes[0]} />
+      <MessageList messages={[]} tools={storyTools} activeMode={storyAgentModes[0]} busy={false} activity={undefined} />
     </div>
   )
 };
@@ -26,7 +26,27 @@ export const Empty: Story = {
 export const WithMessages: Story = {
   render: () => (
     <div className="h-screen">
-      <MessageList messages={storyMessages} tools={storyTools} activeMode={storyAgentModes[2]} />
+      <MessageList
+        messages={storyMessages}
+        tools={storyTools}
+        activeMode={storyAgentModes[2]}
+        busy={false}
+        activity={undefined}
+      />
+    </div>
+  )
+};
+
+export const AgentThinking: Story = {
+  render: () => (
+    <div className="h-screen">
+      <MessageList
+        messages={storyMessages}
+        tools={storyTools}
+        activeMode={storyAgentModes[2]}
+        busy
+        activity="thinking"
+      />
     </div>
   )
 };
