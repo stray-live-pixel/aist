@@ -1,0 +1,50 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--badge-border, var(--agent-border));
+  border-radius: 999px;
+  color: var(--badge-color, var(--vscode-descriptionForeground));
+  background: var(--badge-bg, color-mix(in srgb, var(--vscode-editor-background) 76%, transparent));
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.neutral {
+  --badge-border: var(--agent-border);
+  --badge-color: var(--vscode-descriptionForeground);
+  --badge-bg: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 34%, transparent);
+}
+
+.accent {
+  --badge-border: color-mix(in srgb, var(--vscode-textLink-foreground) 40%, var(--agent-border));
+  --badge-color: var(--vscode-textLink-foreground);
+  --badge-bg: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+}
+
+.success {
+  --badge-border: color-mix(in srgb, #4ade80 44%, var(--agent-border));
+  --badge-color: #4ade80;
+  --badge-bg: color-mix(in srgb, #4ade80 10%, transparent);
+}
+
+.warning {
+  --badge-border: color-mix(in srgb, #f59e0b 48%, var(--agent-border));
+  --badge-color: #f59e0b;
+  --badge-bg: color-mix(in srgb, #f59e0b 12%, transparent);
+}
+
+.danger {
+  --badge-border: color-mix(in srgb, var(--vscode-errorForeground) 48%, var(--agent-border));
+  --badge-color: var(--vscode-errorForeground);
+  --badge-bg: color-mix(in srgb, var(--vscode-errorForeground) 10%, transparent);
+}
