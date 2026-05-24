@@ -55,6 +55,7 @@ export async function showEditableFileDiff(input: EditableDiffInput): Promise<Ed
     filePath: input.filePath,
     targetUri,
     originalUri,
+    diffTitle: `aist Preview: ${input.filePath}`,
     originalContent: beforeContent,
     originalExists,
     generatedReplacements: input.generatedReplacements
@@ -65,6 +66,7 @@ function createEditablePreview(params: {
   filePath: string;
   targetUri: vscode.Uri;
   originalUri: vscode.Uri;
+  diffTitle: string;
   originalContent: string;
   originalExists: boolean;
   generatedReplacements?: number;
@@ -82,6 +84,7 @@ function createEditablePreview(params: {
     approve: async () => {
       accepted = true;
       const finalContent = await saveAndReadDocument(params.targetUri);
+      await closeDiffEditor(params.diffTitle);
       return {
         ok: true,
         path: params.filePath,
@@ -163,6 +166,13 @@ async function saveAndReadDocument(targetUri: vscode.Uri): Promise<string> {
     }
   }
   return document.getText();
+}
+
+async function closeDiffEditor(diffTitle: string): Promise<void> {
+  const tab = vscode.window.tabGroups.all.flatMap((group) => group.tabs).find((item) => item.label === diffTitle);
+  if (tab) {
+    await vscode.window.tabGroups.close(tab);
+  }
 }
 
 async function rollbackPreview(targetUri: vscode.Uri, originalContent: string, originalExists: boolean): Promise<void> {

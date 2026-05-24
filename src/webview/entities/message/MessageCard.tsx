@@ -48,12 +48,12 @@ function getMessageVariant(role: ChatMessageRole) {
     user: {
       icon: <User size={16} />,
       label: 'You',
-      className: 'bg-[var(--vscode-input-background)]'
+      className: 'bg-[color-mix(in_srgb,var(--vscode-input-background)_55%,transparent)]'
     },
     assistant: {
       icon: <Bot size={16} />,
       label: 'Agent',
-      className: 'bg-[var(--vscode-editor-inactiveSelectionBackground)]'
+      className: 'bg-[color-mix(in_srgb,var(--vscode-editor-inactiveSelectionBackground)_55%,transparent)]'
     },
     status: {
       icon: <Loader2 size={16} className="animate-spin" />,

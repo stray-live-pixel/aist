@@ -16,7 +16,7 @@ export function EmptyState({ tools }: EmptyStateProps) {
   const hasLogo = Boolean(getWebviewAssetUri('logo'));
 
   return (
-    <div className="grid gap-5 py-8">
+    <div className="grid gap-4 py-5">
       {hasLogo ? <AistBrand /> : <Sparkles className="mx-auto" size={100} />}
       <div className="grid gap-1 text-center">
         <h1 className="text-base font-semibold">Ready to work with your codebase</h1>

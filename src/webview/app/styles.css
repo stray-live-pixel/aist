@@ -23,7 +23,7 @@ select {
   .message-card {
     border: 1px solid var(--agent-border);
     border-radius: 6px;
-    padding: 12px;
+    padding: 10px;
   }
 
   .aist-logo {
