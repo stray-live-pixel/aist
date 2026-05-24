@@ -53,25 +53,26 @@ select {
     content: '';
     background: linear-gradient(
       115deg,
-      color-mix(in srgb, currentColor 55%, transparent) 0%,
-      currentColor 42%,
-      color-mix(in srgb, currentColor 35%, transparent) 68%,
-      currentColor 100%
+      color-mix(in srgb, currentColor 24%, transparent) 0%,
+      color-mix(in srgb, currentColor 76%, transparent) 34%,
+      currentColor 50%,
+      color-mix(in srgb, currentColor 76%, transparent) 66%,
+      color-mix(in srgb, currentColor 24%, transparent) 100%
     );
-    background-size: 220% 100%;
+    background-size: 420% 100%;
   }
 
   .aist-logo-animated::before {
     animation:
-      aist-logo-pulse 1200ms ease-in-out infinite,
-      aist-logo-base-fade 1200ms ease-in-out infinite;
+      aist-logo-pulse 2400ms ease-in-out infinite,
+      aist-logo-base-fade 1800ms ease-in-out infinite;
     mask: var(--aist-logo-base-uri) center / contain no-repeat;
   }
 
   .aist-logo-animated::after {
     animation:
-      aist-logo-pulse 1200ms ease-in-out infinite,
-      aist-logo-animated-fade 1200ms ease-in-out infinite;
+      aist-logo-pulse 2400ms ease-in-out infinite,
+      aist-logo-animated-fade 1800ms ease-in-out infinite;
     mask: var(--aist-logo-animated-uri) center / contain no-repeat;
   }
 
@@ -677,22 +678,22 @@ select {
   @keyframes aist-logo-pulse {
     0%,
     100% {
-      background-position: 0% 50%;
-      filter: brightness(0.92);
+      background-position: 46% 50%;
+      filter: brightness(0.88);
     }
     50% {
-      background-position: 100% 50%;
-      filter: brightness(1.18);
+      background-position: 54% 50%;
+      filter: brightness(1.22);
     }
   }
 
   @keyframes aist-logo-base-fade {
     0%,
-    40% {
+    32% {
       opacity: 1;
     }
     50%,
-    90% {
+    82% {
       opacity: 0;
     }
     100% {
@@ -702,11 +703,11 @@ select {
 
   @keyframes aist-logo-animated-fade {
     0%,
-    40% {
+    32% {
       opacity: 0;
     }
     50%,
-    90% {
+    82% {
       opacity: 1;
     }
     100% {

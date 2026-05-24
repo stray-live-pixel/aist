@@ -56,10 +56,10 @@ export function MessageList({ messages, tools, activeMode, busy, activity, botto
   return (
     <main
       ref={scrollRef}
-      className={`min-h-0 flex-1 overflow-y-auto bg-transparent px-3 py-3 [scrollbar-gutter:stable_both-edges] ${bottomOffsetClass}`}
+      className={`min-h-0 flex-1 overflow-y-auto bg-transparent px-3 py-3 [scrollbar-gutter:stable] ${bottomOffsetClass}`}
       onScroll={handleScroll}
     >
-      <div className="flex w-full flex-col gap-2">
+      <div className="flex w-full min-w-0 flex-col gap-2">
         <SystemInstructionLabel mode={activeMode} />
         {messages.length === 0 ? <EmptyState tools={tools} /> : null}
         {groups.map((group) => renderMessageGroup(group))}
