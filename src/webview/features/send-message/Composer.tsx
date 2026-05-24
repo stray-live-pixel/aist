@@ -1,17 +1,26 @@
-import { Send, Square } from 'lucide-react';
+import { SendHorizontal, Square } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { vscode } from '../../shared/lib/vscode';
+import styles from './Composer.module.scss';
+
+const MAX_TEXTAREA_HEIGHT = 300;
 
 type ComposerProps = {
   busy: boolean;
+  floating?: boolean;
   settings?: ReactNode;
 };
 
-export function Composer({ busy, settings }: ComposerProps) {
+export function Composer({ busy, floating = false, settings }: ComposerProps) {
   const [prompt, setPrompt] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSend = Boolean(prompt.trim()) && !busy;
+
+  useLayoutEffect(() => {
+    resizePromptField(textareaRef.current);
+  }, [prompt]);
 
   function sendPrompt() {
     const value = prompt.trim();
@@ -24,12 +33,17 @@ export function Composer({ busy, settings }: ComposerProps) {
   }
 
   return (
-    <footer className="border-t border-[var(--agent-border)] bg-[var(--vscode-sideBar-background)] p-3">
-      <div className="mx-auto grid max-w-4xl gap-2">
-        {settings ? <div className="min-w-0">{settings}</div> : null}
+    <footer className={floating ? `${styles.root} ${styles.floatingRoot}` : styles.root}>
+      <div className={styles.panel}>
+        <div className={styles.settings}>
+          {settings ? settings : <span className={styles.settingsFallback}>Agent settings are not selected</span>}
+        </div>
+        <ComposerDivider />
         <textarea
-          className="min-h-24 w-full resize-y rounded-md border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-sm text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
+          ref={textareaRef}
+          className={styles.prompt}
           placeholder="Ask the agent to inspect, create, edit, or delete workspace files..."
+          rows={1}
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={(event) => {
@@ -38,18 +52,33 @@ export function Composer({ busy, settings }: ComposerProps) {
             }
           }}
         />
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className="text-xs text-[var(--vscode-descriptionForeground)]">⌘/Ctrl + Enter to send</span>
+        <ComposerDivider />
+        <div className={styles.actions}>
+          <span className={styles.hint}>⌘/Ctrl + Enter to send</span>
           <button
-            className={busy ? 'secondary-button' : 'primary-button'}
+            className={styles.button}
             disabled={!busy && !canSend}
+            title={busy ? 'Stop' : 'Send'}
+            aria-label={busy ? 'Stop generation' : 'Send message'}
             onClick={busy ? () => vscode.postMessage({ type: 'stop' }) : sendPrompt}
           >
-            {busy ? <Square size={14} /> : <Send size={16} />}
-            <span>{busy ? 'Stop' : 'Send'}</span>
+            {busy ? <Square size={12} /> : <SendHorizontal size={15} />}
           </button>
         </div>
       </div>
     </footer>
   );
+}
+
+function ComposerDivider() {
+  return <div className={styles.divider} />;
+}
+
+function resizePromptField(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) {
+    return;
+  }
+
+  textarea.style.height = 'auto';
+  textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
 }

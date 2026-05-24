@@ -3,6 +3,9 @@ import type { CSSProperties } from 'react';
 
 import '../src/webview/app/styles.css';
 
+const VSCODE_EDITOR_FONT_VARIABLE = '--vscode-editor-font-family';
+const VSCODE_EDITOR_FONT_FALLBACK = "Menlo, Monaco, 'Courier New', monospace";
+
 const vscodeApi = {
   postMessage(message: unknown) {
     console.info('[storybook:vscode.postMessage]', message);
@@ -16,6 +19,8 @@ Object.assign(globalThis, {
     logoAnimated: '/assets/logo-animated.png'
   }
 });
+
+const vscodeEditorFontFamily = readCssVariable(VSCODE_EDITOR_FONT_VARIABLE) || VSCODE_EDITOR_FONT_FALLBACK;
 
 const vscodeDarkTheme = {
   colorScheme: 'dark',
@@ -33,7 +38,7 @@ const vscodeDarkTheme = {
   '--vscode-dropdown-background': '#252526',
   '--vscode-dropdown-foreground': '#cccccc',
   '--vscode-editor-background': '#1e1e1e',
-  '--vscode-editor-font-family': "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  '--vscode-editor-font-family': vscodeEditorFontFamily,
   '--vscode-editor-inactiveSelectionBackground': '#37373d',
   '--vscode-errorForeground': '#f48771',
   '--vscode-focusBorder': '#007fd4',
@@ -83,11 +88,12 @@ const preview: Preview = {
 };
 
 /**
- * Синхронизирует фон Storybook iframe с темой VS Code.
+ * Синхронизирует Storybook iframe с webview расширения.
  *
  * Использование: файл preview подключается Storybook автоматически.
- * Storybook оставляет собственные html/body/#storybook-root вне React-декоратора,
- * поэтому фон задается глобально на эти контейнеры, а не только вокруг story.
+ * Расширение задает основной шрифт через `font-family: var(--vscode-editor-font-family)`
+ * в `src/webview/app/styles.css`, поэтому Storybook объявляет эту же переменную и
+ * применяет ее к контейнерам, которые находятся вне React-декоратора.
  */
 const storybookBackgroundStyle = document.createElement('style');
 storybookBackgroundStyle.textContent = `
@@ -96,6 +102,8 @@ storybookBackgroundStyle.textContent = `
   #storybook-root {
     min-height: 100%;
     background: ${vscodeDarkTheme['--vscode-editor-background']};
+    ${VSCODE_EDITOR_FONT_VARIABLE}: ${vscodeEditorFontFamily};
+    font-family: var(${VSCODE_EDITOR_FONT_VARIABLE});
   }
 
   body {
@@ -105,3 +113,22 @@ storybookBackgroundStyle.textContent = `
 document.head.appendChild(storybookBackgroundStyle);
 
 export default preview;
+
+function readCssVariable(name: string) {
+  return readCssVariableFromDocument(document, name) || readCssVariableFromParent(name);
+}
+
+function readCssVariableFromParent(name: string) {
+  try {
+    return window.parent && window.parent !== window ? readCssVariableFromDocument(window.parent.document, name) : '';
+  } catch {
+    return '';
+  }
+}
+
+function readCssVariableFromDocument(targetDocument: Document, name: string) {
+  return (
+    getComputedStyle(targetDocument.documentElement).getPropertyValue(name).trim() ||
+    getComputedStyle(targetDocument.body).getPropertyValue(name).trim()
+  );
+}

@@ -20,11 +20,13 @@ type MessageListProps = {
   activeMode: AgentMode | undefined;
   busy: boolean;
   activity: Chat['activity'];
+  bottomOffset?: 'none' | 'composer';
 };
 
-export function MessageList({ messages, tools, activeMode, busy, activity }: MessageListProps) {
+export function MessageList({ messages, tools, activeMode, busy, activity, bottomOffset = 'none' }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
+  const bottomOffsetClass = bottomOffset === 'composer' ? 'pb-72' : '';
 
   useLayoutEffect(() => {
     if (!shouldStickToBottomRef.current) {
@@ -39,8 +41,12 @@ export function MessageList({ messages, tools, activeMode, busy, activity }: Mes
   }
 
   return (
-    <main ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4" onScroll={handleScroll}>
-      <div className="mx-auto flex max-w-4xl flex-col gap-3">
+    <main
+      ref={scrollRef}
+      className={`min-h-0 flex-1 overflow-y-auto bg-transparent px-3 py-3 [scrollbar-gutter:stable_both-edges] ${bottomOffsetClass}`}
+      onScroll={handleScroll}
+    >
+      <div className="mx-auto flex max-w-3xl flex-col gap-2">
         <SystemInstructionLabel mode={activeMode} />
         {messages.length === 0 ? <EmptyState tools={tools} /> : null}
         {messages.map((message) => (

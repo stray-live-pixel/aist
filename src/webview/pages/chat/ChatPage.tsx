@@ -21,7 +21,7 @@ export function ChatPage({ state }: ChatPageProps) {
   const chats = useSortedChats(state);
 
   return (
-    <div className="relative flex h-screen flex-col bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
+    <div className="relative flex h-screen flex-col bg-transparent text-[var(--vscode-foreground)]">
       <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
       <MessageList
         messages={state.activeChat.messages}
@@ -29,9 +29,11 @@ export function ChatPage({ state }: ChatPageProps) {
         activeMode={activeMode}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
+        bottomOffset="composer"
       />
       <Composer
         busy={state.activeChat.busy}
+        floating
         settings={<AgentSettingsSummary state={state} onOpen={() => setSettingsOpen(true)} />}
       />
       {chatsOpen ? (
