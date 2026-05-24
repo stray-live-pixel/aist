@@ -800,18 +800,20 @@ export class AgentController {
 
     try {
       this.throwIfStopped(run);
-      previewHandle = toolName === 'run_skill' ? undefined : await previewFilesystemTool(toolName, args);
-      preview = previewHandle?.preview;
-      if (preview) {
-        this.chats.updateMessage(chat.id, toolMessage.id, {
-          result: { preview }
-        });
-        this.sendState();
-      }
-
       const permission =
         toolName === 'run_skill' ? getSkillPermission(String(args.skillId || '')) : getToolPermission(toolName);
+
       if (permission === 'ask') {
+        previewHandle = toolName === 'run_skill' ? undefined : await previewFilesystemTool(toolName, args);
+        preview = previewHandle?.preview;
+
+        if (preview) {
+          this.chats.updateMessage(chat.id, toolMessage.id, {
+            result: { preview }
+          });
+          this.sendState();
+        }
+
         this.chats.setActivity(chat.id, 'waitingForApproval');
         this.chats.updateMessage(chat.id, toolMessage.id, {
           status: 'waiting',

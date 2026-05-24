@@ -36,7 +36,15 @@ console.log('Building extension...');
 run('npm', ['run', 'build']);
 
 console.log(`Packaging ${path.relative(rootDir, vsixPath)}...`);
-run('npx', ['vsce', 'package', '--no-dependencies', '--out', vsixPath]);
+run('npx', [
+  'vsce',
+  'package',
+  '--no-dependencies',
+  '--allow-missing-repository',
+  '--skip-license',
+  '--out',
+  vsixPath
+]);
 
 if (!existsSync(vsixPath)) {
   throw new Error(`VSIX was not created: ${vsixPath}`);

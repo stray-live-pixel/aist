@@ -30,14 +30,11 @@ export const ComposerReady: Story = {
     <div className="max-w-4xl overflow-hidden rounded-md border border-[var(--agent-border)]">
       <Composer
         busy={false}
-        model={storyAgentState.activeChat.model}
-        models={storyModels}
-        reasoningEffort="medium"
-        permissionPresets={storyAgentState.toolPermissionPresets}
-        activePermissionPresetId={storyAgentState.activeToolPermissionPresetId}
-        toolsCount={storyAgentState.tools.length}
-        context={storyAgentState.activeChat.context}
-        usage={storyAgentState.activeChat.usage}
+        settings={
+          <span className="text-[11px] text-[var(--vscode-descriptionForeground)]">
+            Mode: Frontend · Safe access · Tokens: 12.4K · Cost: ~$0.0021
+          </span>
+        }
       />
     </div>
   )
@@ -48,15 +45,12 @@ export const ComposerBusy: Story = {
     <div className="max-w-4xl overflow-hidden rounded-md border border-[var(--agent-border)]">
       <Composer
         busy
-        model="anthropic/claude-3.7-sonnet"
-        models={storyModels}
         activity="runningTool"
-        reasoningEffort="high"
-        permissionPresets={storyAgentState.toolPermissionPresets}
-        activePermissionPresetId={storyAgentState.activeToolPermissionPresetId}
-        toolsCount={storyAgentState.tools.length}
-        context={{ tokens: 118000, maxTokens: 128000, percent: 92, inputCostUsd: 0.031 }}
-        usage={storyAgentState.activeChat.usage}
+        settings={
+          <span className="text-[11px] text-[var(--vscode-descriptionForeground)]">
+            Mode: Expert · Auto access · Tokens: 118K · Cost: ~$0.0310
+          </span>
+        }
       />
     </div>
   )

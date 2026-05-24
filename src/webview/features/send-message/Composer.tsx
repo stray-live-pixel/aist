@@ -1,49 +1,18 @@
-import { Brain, DollarSign, Gauge, Loader2, Send, Square, Wrench } from 'lucide-react';
+import { Loader2, Send, Square } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { vscode } from '../../shared/lib/vscode';
-import type {
-  ChatContextEstimate,
-  ChatUsageEstimate,
-  ModelOption,
-  ReasoningEffort,
-  ToolPermissionPreset,
-  ToolPermissionPresetId
-} from '../../shared/types';
-import { ModelSelect } from '../select-model/ModelSelect';
-import { PermissionPresetSelect } from '../select-permission-preset/PermissionPresetSelect';
 
 type ComposerProps = {
   busy: boolean;
-  model: string;
-  models: ModelOption[];
   activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
-  reasoningEffort: ReasoningEffort;
-  permissionPresets: ToolPermissionPreset[];
-  activePermissionPresetId: ToolPermissionPresetId | 'custom';
-  toolsCount: number;
-  context?: ChatContextEstimate;
-  usage?: ChatUsageEstimate;
   settings?: ReactNode;
 };
 
-export function Composer({
-  busy,
-  model,
-  models,
-  activity,
-  reasoningEffort,
-  permissionPresets,
-  activePermissionPresetId,
-  toolsCount,
-  context,
-  usage,
-  settings
-}: ComposerProps) {
+export function Composer({ busy, activity, settings }: ComposerProps) {
   const [prompt, setPrompt] = useState('');
   const canSend = Boolean(prompt.trim()) && !busy;
-  const contextPercent = context?.percent || 0;
 
   function sendPrompt() {
     const value = prompt.trim();
@@ -70,83 +39,12 @@ export function Composer({
             }
           }}
         />
-        <div className="flex min-w-0 flex-wrap items-end gap-2">
-          <ModelSelect model={model} models={models} disabled={busy} />
-          <PermissionPresetSelect
-            presets={permissionPresets}
-            activeId={activePermissionPresetId}
-            disabled={busy}
-            className="w-44"
-          />
-          <label className="grid min-w-36 gap-1 text-xs text-[var(--vscode-descriptionForeground)]">
-            <span className="flex items-center gap-2">
-              <Brain size={14} className="shrink-0" />
-              <span>Reasoning</span>
-            </span>
-            <select
-              className="h-8 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)] disabled:cursor-not-allowed disabled:opacity-[0.55]"
-              value={reasoningEffort}
-              disabled={busy}
-              onChange={(event) =>
-                vscode.postMessage({
-                  type: 'setReasoningEffort',
-                  reasoningEffort: event.target.value as ReasoningEffort
-                })
-              }
-            >
-              <option value="auto">Auto</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </label>
-          <div className="flex h-8 min-w-0 items-center gap-1 pb-px text-xs text-[var(--vscode-descriptionForeground)]">
-            <Wrench size={14} className="shrink-0" />
-            <span className="truncate">{toolsCount} tools</span>
-          </div>
-          {context ? (
-            <div
-              className="flex h-8 min-w-0 items-center gap-1.5 pb-px text-xs text-[var(--vscode-descriptionForeground)]"
-              title={[
-                `Context: ${formatTokens(context.tokens)} tokens`,
-                context.maxTokens ? `Limit: ${formatTokens(context.maxTokens)} tokens` : undefined,
-                context.inputCostUsd !== undefined ? `Next input: ${formatCost(context.inputCostUsd)}` : undefined
-              ]
-                .filter(Boolean)
-                .join('\n')}
-            >
-              <Gauge size={14} className="shrink-0" />
-              <div className="h-2 w-12 overflow-hidden rounded-full bg-[var(--agent-input-border)]">
-                <div
-                  className={`h-full ${contextPercent > 90 ? 'bg-[var(--vscode-errorForeground)]' : 'bg-[var(--vscode-charts-blue)]'}`}
-                  style={{ width: `${contextPercent}%` }}
-                />
-              </div>
-              <span className="truncate">
-                {formatTokens(context.tokens)}
-                {context.maxTokens ? ` / ${formatTokens(context.maxTokens)}` : ''}
-              </span>
-            </div>
-          ) : null}
-          <div
-            className="flex h-8 min-w-0 items-center gap-1 pb-px text-xs text-[var(--vscode-descriptionForeground)]"
-            title={[
-              `Estimated chat cost: ${formatCost(usage?.costUsd)}`,
-              usage ? `Prompt: ${formatTokens(usage.promptTokens)} tokens` : undefined,
-              usage ? `Completion: ${formatTokens(usage.completionTokens)} tokens` : undefined
-            ]
-              .filter(Boolean)
-              .join('\n')}
-          >
-            <DollarSign size={14} className="shrink-0" />
-            <span className="truncate">{formatCost(usage?.costUsd)}</span>
-          </div>
+        <div className="flex min-w-0 items-center justify-between gap-2">
           {busy ? (
-            <div className="flex h-8 min-w-0 items-center gap-1 pb-px text-xs text-[var(--vscode-descriptionForeground)]">
-              <Loader2 size={14} className="shrink-0 animate-spin" />
-              <span className="truncate">{formatActivity(activity)}</span>
-            </div>
-          ) : null}
+            <ActivityLabel activity={activity} />
+          ) : (
+            <span className="text-xs text-[var(--vscode-descriptionForeground)]">⌘/Ctrl + Enter to send</span>
+          )}
           <button
             className={busy ? 'secondary-button' : 'primary-button'}
             disabled={!busy && !canSend}
@@ -161,32 +59,13 @@ export function Composer({
   );
 }
 
-function formatTokens(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M`;
-  }
-
-  if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}K`;
-  }
-
-  return String(tokens);
-}
-
-function formatCost(costUsd: number | undefined): string {
-  if (costUsd === undefined) {
-    return 'n/a';
-  }
-
-  if (costUsd === 0) {
-    return '$0.00';
-  }
-
-  if (costUsd < 0.0001) {
-    return `~$${costUsd.toFixed(6)}`;
-  }
-
-  return `~$${costUsd.toFixed(4)}`;
+function ActivityLabel({ activity }: { activity: ComposerProps['activity'] }) {
+  return (
+    <div className="flex min-w-0 items-center gap-1 text-xs text-[var(--vscode-descriptionForeground)]">
+      <Loader2 size={14} className="shrink-0 animate-spin" />
+      <span className="truncate">{formatActivity(activity)}</span>
+    </div>
+  );
 }
 
 function formatActivity(activity: ComposerProps['activity']): string {

@@ -8,8 +8,9 @@
     "list_files": "auto",
     "read_file": "auto",
     "grep_search": "auto",
-    "write_file": "auto",
-    "replace_in_file": "auto",
+    "run_bash_script": "ask",
+    "write_file": "ask",
+    "replace_in_file": "ask",
     "create_directory": "ask",
     "delete_path": "ask"
   }

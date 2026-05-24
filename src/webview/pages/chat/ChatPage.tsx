@@ -26,15 +26,7 @@ export function ChatPage({ state }: ChatPageProps) {
       <MessageList messages={state.activeChat.messages} tools={state.tools} activeMode={activeMode} />
       <Composer
         busy={state.activeChat.busy}
-        model={state.activeChat.model}
-        models={state.models}
         activity={state.activeChat.activity}
-        reasoningEffort={state.reasoningEffort}
-        permissionPresets={state.toolPermissionPresets}
-        activePermissionPresetId={state.activeToolPermissionPresetId}
-        toolsCount={state.tools.length}
-        context={state.activeChat.context}
-        usage={state.activeChat.usage}
         settings={<AgentSettingsSummary state={state} onOpen={() => setSettingsOpen(true)} />}
       />
       {chatsOpen ? (
