@@ -4,6 +4,7 @@ import {
   FolderPlus,
   FolderTree,
   Info,
+  PlayCircle,
   Replace,
   Search,
   Terminal,
@@ -37,6 +38,8 @@ export function ToolIcon({ name, size = 16, className }: ToolIconProps) {
       return <FolderPlus size={size} className={className} />;
     case 'delete_path':
       return <Trash2 size={size} className={className} />;
+    case 'run_skill':
+      return <PlayCircle size={size} className={className} />;
     default:
       return <Wrench size={size} className={className} />;
   }
@@ -62,6 +65,8 @@ export function getToolLabel(name?: string): string {
       return 'Create directory';
     case 'delete_path':
       return 'Delete path';
+    case 'run_skill':
+      return 'Run skill';
     default:
       return name || 'Tool call';
   }

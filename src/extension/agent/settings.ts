@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import type { AgentLanguage } from './prompts';
 
 export type AgentModeId = string;
@@ -42,8 +43,7 @@ export function getAgentMode(): AgentModeId {
 export function getAgentModes(): AgentMode[] {
   const config = vscode.workspace.getConfiguration('openrouterAgent');
 
-  const instructionsOverrides =
-    config.get<Record<string, unknown>>('agentModeInstructions') || {};
+  const instructionsOverrides = config.get<Record<string, unknown>>('agentModeInstructions') || {};
 
   const customModes = readCustomModes(config);
 
@@ -167,11 +167,7 @@ function readCustomModes(config: vscode.WorkspaceConfiguration): AgentMode[] {
   return modes;
 }
 
-async function updateGlobal(
-  config: vscode.WorkspaceConfiguration,
-  key: string,
-  value: unknown
-): Promise<void> {
+async function updateGlobal(config: vscode.WorkspaceConfiguration, key: string, value: unknown): Promise<void> {
   try {
     await config.update(key, value, vscode.ConfigurationTarget.Global);
   } catch (error) {

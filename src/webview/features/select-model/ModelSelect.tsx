@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Cpu, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
 import { vscode } from '../../shared/lib/vscode';
 import type { ModelOption } from '../../shared/types';
 
@@ -27,7 +28,9 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
   const options = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return normalizedQuery
-      ? models.filter((item) => `${item.name} ${item.id} ${getProviderLabel(item.provider)}`.toLowerCase().includes(normalizedQuery))
+      ? models.filter((item) =>
+          `${item.name} ${item.id} ${getProviderLabel(item.provider)}`.toLowerCase().includes(normalizedQuery)
+        )
       : models;
   }, [models, query]);
   const groups = useMemo(
@@ -91,7 +94,10 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
   }
 
   return (
-    <div ref={rootRef} className="relative grid min-w-56 max-w-full gap-1 text-xs text-[var(--vscode-descriptionForeground)]">
+    <div
+      ref={rootRef}
+      className="relative grid min-w-56 max-w-full gap-1 text-xs text-[var(--vscode-descriptionForeground)]"
+    >
       <span className="flex items-center gap-2">
         <Cpu size={14} className="shrink-0" />
         <span>Model</span>
@@ -137,7 +143,9 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
                         key={item.id}
                         type="button"
                         className={`flex w-full min-w-0 items-start gap-2 rounded px-2 py-2 text-left text-xs outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)] ${
-                          active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''
+                          active
+                            ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
+                            : ''
                         }`}
                         role="option"
                         aria-selected={active}
@@ -146,7 +154,9 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
                         <Check size={14} className={`mt-0.5 shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{item.name}</span>
-                          <span className={`block truncate ${active ? '' : 'text-[var(--vscode-descriptionForeground)]'}`}>
+                          <span
+                            className={`block truncate ${active ? '' : 'text-[var(--vscode-descriptionForeground)]'}`}
+                          >
                             {item.id}
                             {item.supportsTools ? '' : ' - no tools'}
                           </span>

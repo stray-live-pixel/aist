@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Copy, ExternalLink, MessageSquare, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
 import { AgentModeSelect } from '../../features/select-agent-mode/AgentModeSelect';
 import { Composer } from '../../features/send-message/Composer';
 import { vscode } from '../../shared/lib/vscode';
@@ -88,7 +89,10 @@ export function ChatPage({ state }: ChatPageProps) {
               <MessageSquare size={14} className="shrink-0 text-[var(--vscode-descriptionForeground)]" />
               <span className="min-w-0 flex-1 truncate">{activeSummary?.title || state.activeChat.title}</span>
               <span className="shrink-0 text-[11px] text-[var(--vscode-descriptionForeground)]">{chats.length}</span>
-              <ChevronDown size={14} className={`shrink-0 transition-transform ${chatSelectOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                size={14}
+                className={`shrink-0 transition-transform ${chatSelectOpen ? 'rotate-180' : ''}`}
+              />
             </button>
 
             {chatSelectOpen ? (
@@ -104,7 +108,9 @@ export function ChatPage({ state }: ChatPageProps) {
                     <div
                       key={chat.id}
                       className={`flex min-h-10 min-w-0 items-stretch gap-1 rounded ${
-                        active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''
+                        active
+                          ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
+                          : ''
                       }`}
                     >
                       <button
@@ -117,7 +123,9 @@ export function ChatPage({ state }: ChatPageProps) {
                         <Check size={14} className={`shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{chat.title}</span>
-                          <span className={`block truncate text-[11px] ${active ? 'opacity-80' : 'text-[var(--vscode-descriptionForeground)]'}`}>
+                          <span
+                            className={`block truncate text-[11px] ${active ? 'opacity-80' : 'text-[var(--vscode-descriptionForeground)]'}`}
+                          >
                             {formatChatMeta(chat, state.agentLanguage)}
                           </span>
                         </span>
@@ -193,6 +201,8 @@ export function ChatPage({ state }: ChatPageProps) {
         models={state.models}
         activity={state.activeChat.activity}
         reasoningEffort={state.reasoningEffort}
+        permissionPresets={state.toolPermissionPresets}
+        activePermissionPresetId={state.activeToolPermissionPresetId}
         toolsCount={state.tools.length}
         context={state.activeChat.context}
         usage={state.activeChat.usage}
@@ -202,7 +212,12 @@ export function ChatPage({ state }: ChatPageProps) {
 }
 
 function formatChatMeta(chat: ChatSummary, language: AgentLanguage): string {
-  const messageLabel = language === 'ru' ? `${chat.messageCount} сообщ.` : chat.messageCount === 1 ? '1 message' : `${chat.messageCount} messages`;
+  const messageLabel =
+    language === 'ru'
+      ? `${chat.messageCount} сообщ.`
+      : chat.messageCount === 1
+        ? '1 message'
+        : `${chat.messageCount} messages`;
   return `${messageLabel} - ${formatChatDate(chat.lastMessageAt, language)}`;
 }
 

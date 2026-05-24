@@ -25,7 +25,10 @@ export function EmptyState({ tools }: EmptyStateProps) {
       </div>
       <div className="flex flex-wrap gap-2">
         {tools.map((tool) => (
-          <span key={tool} className="rounded border border-[var(--agent-border)] px-2 py-1 text-xs text-[var(--vscode-descriptionForeground)]">
+          <span
+            key={tool}
+            className="rounded border border-[var(--agent-border)] px-2 py-1 text-xs text-[var(--vscode-descriptionForeground)]"
+          >
             {tool}
           </span>
         ))}

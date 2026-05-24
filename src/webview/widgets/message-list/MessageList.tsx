@@ -4,6 +4,7 @@
  * Пример использования: <MessageList messages={messages} tools={tools} activeMode={mode} />.
  */
 import { useLayoutEffect, useRef } from 'react';
+
 import { MessageCard } from '../../entities/message/MessageCard';
 import { CopyMessageButton } from '../../features/copy-message/CopyMessageButton';
 import type { AgentMode, ChatMessage } from '../../shared/types';

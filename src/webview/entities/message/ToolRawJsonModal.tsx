@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { MouseEvent } from 'react';
+
 import type { ChatMessage } from '../../shared/types';
 
 /**

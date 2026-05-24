@@ -7,6 +7,7 @@ import { FileText, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
 import type { AgentMode } from '../../shared/types';
 
 type SystemInstructionLabelProps = {

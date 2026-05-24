@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: build:e2e",
+      "type": "npm",
+      "script": "build:e2e",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: test:e2e",
+      "type": "npm",
+      "script": "test:e2e",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

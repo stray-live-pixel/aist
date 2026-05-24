@@ -1,18 +1,14 @@
 import { Check, Code2, X } from 'lucide-react';
-import { useState, type MouseEvent } from 'react';
+import { type MouseEvent, useEffect, useState } from 'react';
+
 import { vscode } from '../../shared/lib/vscode';
 import type { ChatMessage } from '../../shared/types';
 import { ToolIcon } from '../../shared/ui/ToolIcon';
 import { ToolRawJsonModal } from './ToolRawJsonModal';
 import { ToolResultPreview } from './ToolResultPreview';
 import { WorkspaceFileLink } from './WorkspaceFileLink';
-import {
-  formatMessageDate,
-  formatMessageUsagePill,
-  formatToolStatus,
-  getToolStatusClass
-} from './messageFormatting';
-import { buildToolDisplayModel, type ToolDisplayModel } from './toolMessageModel';
+import { formatMessageDate, formatMessageUsagePill, formatToolStatus, getToolStatusClass } from './messageFormatting';
+import { type ToolDisplayModel, buildToolDisplayModel } from './toolMessageModel';
 
 /**
  * Что это: компактная карточка tool-call.
@@ -20,11 +16,17 @@ import { buildToolDisplayModel, type ToolDisplayModel } from './toolMessageModel
  * Пример: READ FILE: src/app.ts открывает файл по клику, а </> показывает сырой JSON.
  */
 export function ToolMessageCard({ message }: { message: ChatMessage }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(message.approval === 'pending');
   const [rawOpen, setRawOpen] = useState(false);
   const model = buildToolDisplayModel(message);
   const isRunning = message.status === 'running' || message.status === 'waiting';
   const needsApproval = message.approval === 'pending';
+
+  useEffect(() => {
+    if (needsApproval) {
+      setExpanded(true);
+    }
+  }, [needsApproval]);
 
   return (
     <article className={getCardClassName(message, model, expanded)} onClick={() => setExpanded((value) => !value)}>
@@ -34,9 +36,7 @@ export function ToolMessageCard({ message }: { message: ChatMessage }) {
         {needsApproval ? <ApprovalActions messageId={message.id} /> : null}
       </div>
       {formatMessageUsagePill(message.usage)}
-      {rawOpen ? (
-        <ToolRawJsonModal message={message} onClose={closeRawModal(setRawOpen)} />
-      ) : null}
+      {rawOpen ? <ToolRawJsonModal message={message} onClose={closeRawModal(setRawOpen)} /> : null}
     </article>
   );
 }
@@ -65,17 +65,17 @@ function ToolHeaderContent({ message, model, isRunning, onRawClick }: ToolHeader
 function ToolTitle({ model }: { model: ToolDisplayModel }) {
   return (
     <div className="tool-title">
-      {model.primaryFile ? <WorkspaceFileLink file={{ ...model.primaryFile, label: model.action }} /> : model.title}
+      {model.primaryFile ? (
+        <WorkspaceFileLink file={{ ...model.primaryFile, label: model.action }} />
+      ) : (
+        <span className="tool-title-text">{model.title}</span>
+      )}
     </div>
   );
 }
 
 function ToolStatusBadge({ message }: { message: ChatMessage }) {
-  return (
-    <span className={`tool-status-badge ${getToolStatusClass(message.status)}`}>
-      {formatToolStatus(message)}
-    </span>
-  );
+  return <span className={`tool-status-badge ${getToolStatusClass(message.status)}`}>{formatToolStatus(message)}</span>;
 }
 
 function ApprovalActions({ messageId }: { messageId: string }) {

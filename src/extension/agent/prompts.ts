@@ -3,6 +3,11 @@ export type AgentLanguage = 'ru' | 'en';
 export type AgentPromptOptions = {
   language: AgentLanguage;
   instructions?: string;
+  skills?: Array<{
+    id: string;
+    label: string;
+    description: string;
+  }>;
 };
 
 export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }): string {
@@ -14,6 +19,7 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
   return [
     'You are a coding agent inside VS Code.',
     'You can inspect and modify files using the provided filesystem tools.',
+    getSkillsInstruction(options.skills || []),
     'All tool paths must be workspace-relative.',
     'Every tool call must include a short "reason" argument explaining why the tool is needed.',
     languageInstruction,
@@ -29,4 +35,22 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+function getSkillsInstruction(skills: AgentPromptOptions['skills']): string {
+  if (!skills?.length) {
+    return '';
+  }
+
+  const lines = skills.map((skill) => {
+    const description = skill.description ? ` - ${skill.description}` : '';
+    return `- ${skill.id}: ${skill.label}${description}`;
+  });
+
+  return [
+    'You can also use user-defined custom skills through the run_skill tool.',
+    'Available custom skills:',
+    ...lines,
+    'Call run_skill with a listed skillId and put any task-specific payload in the input argument.'
+  ].join('\n');
 }

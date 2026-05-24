@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import type { ChatStore } from './chatStore';
 import type { ChatSummary } from './types';
 

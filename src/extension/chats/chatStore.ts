@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
+
 import { DEFAULT_MODEL } from '../shared/constants';
 import type { Chat, ChatMessage, ChatSummary, ChatUsageEstimate } from './types';
 
@@ -56,7 +57,7 @@ export class ChatStore {
       } else {
         this.createChat(defaultModel);
       }
-    } catch (error) {
+    } catch {
       this.chats.clear();
       this.createChat(defaultModel);
     }
@@ -188,16 +189,15 @@ export class ChatStore {
   }
 
   getSummaries(): ChatSummary[] {
-    return this.getSortedChats()
-      .map((chat) => ({
-        id: chat.id,
-        title: chat.title,
-        model: chat.model,
-        messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
-        busy: chat.busy,
-        lastMessageAt: getLastMessageAt(chat),
-        updatedAt: chat.updatedAt
-      }));
+    return this.getSortedChats().map((chat) => ({
+      id: chat.id,
+      title: chat.title,
+      model: chat.model,
+      messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
+      busy: chat.busy,
+      lastMessageAt: getLastMessageAt(chat),
+      updatedAt: chat.updatedAt
+    }));
   }
 
   appendMessage(chatId: string, message: Omit<ChatMessage, 'id' | 'createdAt'>): ChatMessage {
@@ -273,7 +273,9 @@ export class ChatStore {
     const chat = this.requireChat(chatId);
     const current = normalizeUsage(chat.usage);
     const nextCost =
-      current.costUsd === undefined && usage.costUsd === undefined ? undefined : (current.costUsd || 0) + (usage.costUsd || 0);
+      current.costUsd === undefined && usage.costUsd === undefined
+        ? undefined
+        : (current.costUsd || 0) + (usage.costUsd || 0);
     const next: ChatUsageEstimate = {
       promptTokens: current.promptTokens + (usage.promptTokens || 0),
       completionTokens: current.completionTokens + (usage.completionTokens || 0),

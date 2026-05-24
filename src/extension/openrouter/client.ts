@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
 import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, OpenRouterTool } from './types';
 

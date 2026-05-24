@@ -1,4 +1,8 @@
 node_modules/
 dist/
+.vscode-test/
+playwright-report/
+test-results/
+storybook-static/
 *.vsix
 .DS_Store

@@ -58,7 +58,6 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
    You can also use the `OPENROUTER_API_KEY` environment variable.
 
 3. Run the extension from VS Code:
-
    - Open this folder in VS Code.
    - Press `F5`.
    - In the Extension Development Host, run `aist: Open Chat`.

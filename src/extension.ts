@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import { AgentController } from './extension/agent/agentController';
 import { ChatStore } from './extension/chats/chatStore';
 import { DEFAULT_MODEL } from './extension/shared/constants';
@@ -26,7 +27,9 @@ export function activate(context: vscode.ExtensionContext): void {
     logger,
     vscode.window.registerWebviewViewProvider('openrouterAgent.chats', agent),
     vscode.commands.registerCommand('openrouterAgent.openChat', (chatId?: string) => agent.openChat(chatId)),
-    vscode.commands.registerCommand('openrouterAgent.openChatInEditor', (chatId?: string) => agent.openChatInEditor(chatId)),
+    vscode.commands.registerCommand('openrouterAgent.openChatInEditor', (chatId?: string) =>
+      agent.openChatInEditor(chatId)
+    ),
     vscode.commands.registerCommand('openrouterAgent.openSettings', () => agent.openSettings()),
     vscode.commands.registerCommand('openrouterAgent.openStorage', () => agent.openStorage()),
     vscode.commands.registerCommand('openrouterAgent.newChat', () => agent.createChat()),
@@ -52,7 +55,9 @@ function getViewContribution(context: vscode.ExtensionContext, viewId: string): 
       continue;
     }
 
-    const match = contributedViews.find((view) => view && typeof view === 'object' && 'id' in view && view.id === viewId);
+    const match = contributedViews.find(
+      (view) => view && typeof view === 'object' && 'id' in view && view.id === viewId
+    );
     if (match) {
       return { containerId, view: match };
     }

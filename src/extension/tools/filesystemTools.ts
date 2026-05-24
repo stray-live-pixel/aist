@@ -1,7 +1,8 @@
-import path from 'node:path';
 import { spawn } from 'node:child_process';
+import path from 'node:path';
 import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
+
 import type { OpenRouterTool } from '../openrouter/types';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
 
@@ -71,7 +72,8 @@ export const filesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'grep_search',
-      description: 'Search workspace files for text or a regular expression and return matching file paths with line numbers.',
+      description:
+        'Search workspace files for text or a regular expression and return matching file paths with line numbers.',
       parameters: {
         type: 'object',
         properties: {
@@ -81,7 +83,10 @@ export const filesystemTools: OpenRouterTool[] = [
           include: { type: 'string', description: 'Glob pattern within the search path. Default is "**/*".' },
           regex: { type: 'boolean', description: 'Treat query as a JavaScript regular expression. Default is false.' },
           caseSensitive: { type: 'boolean', description: 'Use case-sensitive matching. Default is false.' },
-          contextLines: { type: 'number', description: 'Number of lines before and after each match. Default is 0, maximum is 5.' },
+          contextLines: {
+            type: 'number',
+            description: 'Number of lines before and after each match. Default is 0, maximum is 5.'
+          },
           maxResults: { type: 'number', description: 'Maximum number of matches to return. Default is 100.' },
           maxFiles: { type: 'number', description: 'Maximum number of files to inspect. Default is 2000.' }
         },
@@ -94,7 +99,8 @@ export const filesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'run_bash_script',
-      description: 'Run a Bash script from inside the workspace. Use for tests, builds, git-safe inspections, and shell-based diagnostics.',
+      description:
+        'Run a Bash script from inside the workspace. Use for tests, builds, git-safe inspections, and shell-based diagnostics.',
       parameters: {
         type: 'object',
         properties: {
@@ -102,7 +108,10 @@ export const filesystemTools: OpenRouterTool[] = [
           script: { type: 'string', description: 'Bash script to execute with bash -lc.' },
           cwd: { type: 'string', description: 'Workspace-relative directory to run in. Default is ".".' },
           timeoutMs: { type: 'number', description: 'Timeout in milliseconds. Default is 30000, maximum is 120000.' },
-          maxOutputChars: { type: 'number', description: 'Maximum stdout/stderr characters to return per stream. Default is 20000.' }
+          maxOutputChars: {
+            type: 'number',
+            description: 'Maximum stdout/stderr characters to return per stream. Default is 20000.'
+          }
         },
         required: ['reason', 'script'],
         additionalProperties: false
@@ -180,7 +189,10 @@ export const filesystemTools: OpenRouterTool[] = [
   }
 ];
 
-export async function runFilesystemTool(toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function runFilesystemTool(
+  toolName: string,
+  args: Record<string, unknown>
+): Promise<Record<string, unknown>> {
   switch (toolName) {
     case 'list_files':
       return listFiles(args);
@@ -205,7 +217,10 @@ export async function runFilesystemTool(toolName: string, args: Record<string, u
   }
 }
 
-export async function previewFilesystemTool(toolName: string, args: Record<string, unknown>): Promise<FilesystemToolPreview | undefined> {
+export async function previewFilesystemTool(
+  toolName: string,
+  args: Record<string, unknown>
+): Promise<FilesystemToolPreview | undefined> {
   if (toolName === 'write_file') {
     const filePath = requireString(args.path, 'path');
     const nextContent = requireString(args.content, 'content');
@@ -552,13 +567,9 @@ async function showFileDiff(filePath: string, nextContent: string): Promise<File
     }
     await vscode.workspace.fs.writeFile(proposedUri, textEncoder.encode(nextContent));
 
-    await vscode.commands.executeCommand(
-      'vscode.diff',
-      originalUri,
-      proposedUri,
-      `aist Preview: ${filePath}`,
-      { preview: true }
-    );
+    await vscode.commands.executeCommand('vscode.diff', originalUri, proposedUri, `aist Preview: ${filePath}`, {
+      preview: true
+    });
   } catch (error) {
     await cleanupDiffPreviewFiles(cleanupUris);
     throw error;
@@ -673,7 +684,11 @@ async function readTextFileForSearch(uri: vscode.Uri): Promise<string | undefine
   return textDecoder.decode(bytes);
 }
 
-function createLineMatcher(query: string, useRegex: boolean, caseSensitive: boolean): (line: string) => number | undefined {
+function createLineMatcher(
+  query: string,
+  useRegex: boolean,
+  caseSensitive: boolean
+): (line: string) => number | undefined {
   if (useRegex) {
     const flags = caseSensitive ? '' : 'i';
     const regex = new RegExp(query, flags);

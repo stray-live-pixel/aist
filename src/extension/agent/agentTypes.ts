@@ -1,4 +1,5 @@
 import type * as vscode from 'vscode';
+
 import type { ChatUsageEstimate } from '../chats/types';
 import type { OpenRouterMessage } from '../openrouter/types';
 import type { ToolPermissionMode } from '../tools/permissions';
@@ -36,6 +37,16 @@ export type WebviewMessage =
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
+  | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
+  | {
+      type: 'updateSkill';
+      skillId: string;
+      label: string;
+      description: string;
+      command: string;
+      permission: ToolPermissionMode;
+    }
+  | { type: 'deleteSkill'; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }

@@ -182,12 +182,55 @@
               "instructions"
             ],
             "properties": {
-              "id": { "type": "string" },
-              "label": { "type": "string" },
-              "instructions": { "type": "string" }
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "instructions": {
+                "type": "string"
+              }
             }
           },
           "description": "User-defined custom agent modes."
+        },
+        "openrouterAgent.customSkills": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "command"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string",
+                "markdownDescription": "Bash script executed from the workspace. The optional `run_skill.input` value is available through stdin and `AIST_SKILL_INPUT`."
+              },
+              "permission": {
+                "type": "string",
+                "enum": [
+                  "ask",
+                  "auto"
+                ],
+                "default": "ask",
+                "description": "Whether this skill requires confirmation before it runs."
+              }
+            }
+          },
+          "markdownDescription": "User-defined custom skills the agent can run through the `run_skill` tool. Skills default to requiring confirmation."
         },
         "openrouterAgent.toolPermissions": {
           "type": "object",
@@ -210,24 +253,50 @@
   "scripts": {
     "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
     "build:webview": "esbuild src/webview/app/index.tsx --bundle --format=iife --minify --define:process.env.NODE_ENV=\\\"production\\\" --outfile=dist/webview.js && tailwindcss -i src/webview/app/styles.css -o dist/webview.css --minify",
+    "build:e2e": "npm run build:extension && npm run build:webview",
     "build": "npm run typecheck && npm run build:extension && npm run build:webview",
+    "storybook": "storybook dev -p 6006",
+    "build:storybook": "storybook build",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build:e2e && playwright test",
+    "test:e2e:debug": "npm run build:e2e && playwright test --debug",
+    "test:e2e:ui": "npm run build:e2e && playwright test --ui",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "package": "npm run build && vsce package --no-dependencies",
     "install:extension": "node scripts/install-extension.mjs",
     "watch:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js --watch",
-    "watch:webview": "esbuild src/webview/app/index.tsx --bundle --format=iife --outfile=dist/webview.js --watch"
+    "watch:webview": "esbuild src/webview/app/index.tsx --bundle --format=iife --outfile=dist/webview.js --watch",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@storybook/addon-docs": "^10.4.1",
+    "@storybook/react-vite": "^10.4.1",
     "@tailwindcss/cli": "^4.3.0",
+    "@tailwindcss/vite": "^4.3.0",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.2.2",
     "esbuild": "^0.28.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
+    "prettier": "^3.8.3",
+    "storybook": "^10.4.1",
     "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
+  },
+  "lint-staged": {
+    "*.{css,html,json,jsx,md,ts,tsx,yaml,yml}": "prettier --write"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

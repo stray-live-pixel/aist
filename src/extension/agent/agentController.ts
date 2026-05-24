@@ -1,19 +1,50 @@
 import * as vscode from 'vscode';
+
 import { ChatStore } from '../chats/chatStore';
 import type { Chat, ChatContextEstimate, ChatMessageUsageEstimate, ChatUsageEstimate } from '../chats/types';
 import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, OpenRouterTool, ToolCall } from '../openrouter/types';
+import type {
+  OpenRouterMessage,
+  OpenRouterModelOption,
+  OpenRouterModelPricing,
+  OpenRouterTool,
+  ToolCall
+} from '../openrouter/types';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { getErrorMessage } from '../shared/errors';
 import type { AistLogger } from '../shared/logger';
 import { getWebviewHtml } from '../shared/webviewHtml';
 import { getWorkspaceName, resolveWorkspacePath } from '../shared/workspace';
-import { filesystemTools, previewFilesystemTool, runFilesystemTool, type FilesystemToolPreview } from '../tools/filesystemTools';
-import { getToolPermission, getToolPermissionItems, setToolPermission, type ToolPermissionMode } from '../tools/permissions';
+import {
+  type AgentSkill,
+  addAgentSkill,
+  deleteAgentSkill,
+  getAgentSkills,
+  getSkillPermission,
+  runAgentSkill,
+  runSkillTool,
+  updateAgentSkill
+} from '../skills/skills';
+import {
+  type FilesystemToolPreview,
+  filesystemTools,
+  previewFilesystemTool,
+  runFilesystemTool
+} from '../tools/filesystemTools';
+import {
+  type ToolPermissionMode,
+  getActiveToolPermissionPresetId,
+  getToolPermission,
+  getToolPermissionItems,
+  getToolPermissionPresets,
+  setToolPermission,
+  setToolPermissionPreset
+} from '../tools/permissions';
 import { getEditorContext, replaceSelection, stripCodeFence } from './editorContext';
 import { getSystemPrompt } from './prompts';
 import {
+  type AgentModeId,
   addAgentMode,
   deleteAgentMode,
   getActiveAgentMode,
@@ -21,8 +52,7 @@ import {
   getAgentModes,
   setAgentLanguage,
   setAgentMode,
-  setAgentModeInstructions,
-  type AgentModeId
+  setAgentModeInstructions
 } from './settings';
 
 type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
@@ -57,6 +87,7 @@ type WebviewMessage =
   | { type: 'openChatInEditor'; chatId?: string }
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
+  | { type: 'setToolPermissionPreset'; presetId: string }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'setAgentLanguage'; language: 'ru' | 'en' }
@@ -64,6 +95,16 @@ type WebviewMessage =
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
+  | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
+  | {
+      type: 'updateSkill';
+      skillId: string;
+      label: string;
+      description: string;
+      command: string;
+      permission: ToolPermissionMode;
+    }
+  | { type: 'deleteSkill'; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
@@ -419,12 +460,22 @@ export class AgentController {
     if (message.type === 'setModel') {
       const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
       this.chats.setModel(chat.id, message.model);
-      await vscode.workspace.getConfiguration('openrouterAgent').update('model', message.model, vscode.ConfigurationTarget.Workspace);
+      await vscode.workspace
+        .getConfiguration('openrouterAgent')
+        .update('model', message.model, vscode.ConfigurationTarget.Workspace);
       this.sendState();
     }
 
     if (message.type === 'setToolPermission') {
       await setToolPermission(message.toolName, message.permission);
+      this.sendState();
+    }
+
+    if (message.type === 'setToolPermissionPreset') {
+      const applied = await setToolPermissionPreset(message.presetId);
+      if (!applied) {
+        this.logger.info('Ignoring unknown tool permission preset', { presetId: message.presetId });
+      }
       this.sendState();
     }
 
@@ -439,7 +490,11 @@ export class AgentController {
     if (message.type === 'setReasoningEffort') {
       await vscode.workspace
         .getConfiguration('openrouterAgent')
-        .update('reasoningEffort', normalizeReasoningEffort(message.reasoningEffort), vscode.ConfigurationTarget.Workspace);
+        .update(
+          'reasoningEffort',
+          normalizeReasoningEffort(message.reasoningEffort),
+          vscode.ConfigurationTarget.Workspace
+        );
       this.sendState();
     }
 
@@ -486,6 +541,49 @@ export class AgentController {
       this.sendState();
     }
 
+    if (message.type === 'addSkill') {
+      try {
+        const skill = await addAgentSkill({
+          label: message.label,
+          description: message.description,
+          command: message.command,
+          permission: message.permission
+        });
+        this.logger.info('Agent skill added', { id: skill.id, label: skill.label, permission: skill.permission });
+      } catch (error) {
+        this.logger.error('Failed to add agent skill', error);
+        vscode.window.showErrorMessage(`aist: failed to add skill — ${getErrorMessage(error)}`);
+      }
+      this.sendState();
+    }
+
+    if (message.type === 'updateSkill') {
+      try {
+        const updated = await updateAgentSkill(message.skillId, {
+          label: message.label,
+          description: message.description,
+          command: message.command,
+          permission: message.permission
+        });
+        this.logger.info('Agent skill update attempted', { skillId: message.skillId, updated });
+      } catch (error) {
+        this.logger.error('Failed to update agent skill', error);
+        vscode.window.showErrorMessage(`aist: failed to update skill — ${getErrorMessage(error)}`);
+      }
+      this.sendState();
+    }
+
+    if (message.type === 'deleteSkill') {
+      try {
+        const deleted = await deleteAgentSkill(message.skillId);
+        this.logger.info('Agent skill delete attempted', { skillId: message.skillId, deleted });
+      } catch (error) {
+        this.logger.error('Failed to delete agent skill', error);
+        vscode.window.showErrorMessage(`aist: failed to delete skill — ${getErrorMessage(error)}`);
+      }
+      this.sendState();
+    }
+
     if (message.type === 'codexLogin') {
       try {
         await this.loginCodex();
@@ -528,7 +626,6 @@ export class AgentController {
       await vscode.env.clipboard.writeText(message.markdown || '');
       vscode.window.setStatusBarMessage('Copied message markdown', 1800);
     }
-
   }
 
   private async ask(chatId: string, prompt: string): Promise<void> {
@@ -605,6 +702,7 @@ export class AgentController {
     const model = this.getModelOption(chat.model);
     const usage: ChatUsageEstimate = createEmptyUsage();
     const toolCallCounts = new Map<string, number>();
+    const tools = getAgentTools(getAgentSkills());
 
     for (let iteration = 0; maxIterations === 0 || iteration < maxIterations; iteration += 1) {
       this.throwIfStopped(run);
@@ -612,7 +710,7 @@ export class AgentController {
       this.sendState();
 
       const promptTokens = estimateMessagesTokens(workingMessages);
-      const responseMessage = await this.chat(workingMessages, filesystemTools, chat.model, run.abortController.signal);
+      const responseMessage = await this.chat(workingMessages, tools, chat.model, run.abortController.signal);
       const completionTokens = estimateMessageTokens(responseMessage);
       const callUsage = getCallUsageEstimate(promptTokens, completionTokens, model?.pricing);
       mergeUsage(usage, callUsage);
@@ -678,7 +776,12 @@ export class AgentController {
     };
   }
 
-  private async handleToolCall(chat: Chat, workingMessages: OpenRouterMessage[], toolCall: ToolCall, run: AgentRun): Promise<void> {
+  private async handleToolCall(
+    chat: Chat,
+    workingMessages: OpenRouterMessage[],
+    toolCall: ToolCall,
+    run: AgentRun
+  ): Promise<void> {
     const toolName = toolCall.function.name;
     const args = parseToolArguments(toolCall.function.arguments);
     const reason = getToolReason(args);
@@ -697,7 +800,7 @@ export class AgentController {
 
     try {
       this.throwIfStopped(run);
-      previewHandle = await previewFilesystemTool(toolName, args);
+      previewHandle = toolName === 'run_skill' ? undefined : await previewFilesystemTool(toolName, args);
       preview = previewHandle?.preview;
       if (preview) {
         this.chats.updateMessage(chat.id, toolMessage.id, {
@@ -706,7 +809,8 @@ export class AgentController {
         this.sendState();
       }
 
-      const permission = getToolPermission(toolName);
+      const permission =
+        toolName === 'run_skill' ? getSkillPermission(String(args.skillId || '')) : getToolPermission(toolName);
       if (permission === 'ask') {
         this.chats.setActivity(chat.id, 'waitingForApproval');
         this.chats.updateMessage(chat.id, toolMessage.id, {
@@ -748,7 +852,7 @@ export class AgentController {
       });
       this.sendState();
 
-      const result = await runFilesystemTool(toolName, args);
+      const result = toolName === 'run_skill' ? await runAgentSkill(args) : await runFilesystemTool(toolName, args);
       this.chats.updateMessage(chat.id, toolMessage.id, {
         status: result.ok === false ? 'error' : 'done',
         reason,
@@ -898,7 +1002,8 @@ export class AgentController {
     const mode = getActiveAgentMode();
     return getSystemPrompt({
       language: getAgentLanguage(),
-      instructions: mode.instructions
+      instructions: mode.instructions,
+      skills: getAgentSkills().map(({ id, label, description }) => ({ id, label, description }))
     });
   }
 
@@ -956,6 +1061,8 @@ export class AgentController {
     const language = getAgentLanguage();
     const activeMode = getActiveAgentMode();
     const agentModes = getAgentModes();
+    const customSkills = getAgentSkills();
+    const tools = getAgentTools(customSkills);
 
     for (const surface of surfaces) {
       const activeChat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
@@ -974,7 +1081,7 @@ export class AgentController {
         type: 'state',
         viewKind: surface.kind,
         workspaceName: getWorkspaceName(),
-        tools: filesystemTools.map((tool) => tool.function.name),
+        tools: tools.map((tool) => tool.function.name),
         chats: this.chats.getSummaries(),
         activeChat: webviewActiveChat,
         models,
@@ -983,8 +1090,11 @@ export class AgentController {
         agentLanguage: language,
         agentMode: activeMode.id,
         agentModes,
+        customSkills,
         codexAuthenticated: this.codexAuthenticated,
-        toolPermissions: getToolPermissionItems()
+        toolPermissions: getToolPermissionItems(),
+        toolPermissionPresets: getToolPermissionPresets(),
+        activeToolPermissionPresetId: getActiveToolPermissionPresetId()
       } as const;
 
       void surface.webview.postMessage(stateMessage).then(
@@ -1058,6 +1168,10 @@ export class AgentController {
 
     return mergeModels(models);
   }
+}
+
+function getAgentTools(skills: AgentSkill[]): OpenRouterTool[] {
+  return skills.length ? [...filesystemTools, runSkillTool] : filesystemTools;
 }
 
 function parseToolArguments(rawArgs: unknown): Record<string, unknown> {
@@ -1204,7 +1318,9 @@ function mergeUsage(target: ChatUsageEstimate, usage: ChatUsageEstimate): void {
   target.completionTokens += usage.completionTokens;
   target.totalTokens += usage.totalTokens;
   target.costUsd =
-    target.costUsd === undefined && usage.costUsd === undefined ? undefined : (target.costUsd || 0) + (usage.costUsd || 0);
+    target.costUsd === undefined && usage.costUsd === undefined
+      ? undefined
+      : (target.costUsd || 0) + (usage.costUsd || 0);
 }
 
 function estimateMessagesTokens(messages: OpenRouterMessage[]): number {

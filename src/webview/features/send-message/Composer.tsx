@@ -1,8 +1,17 @@
 import { Brain, DollarSign, Gauge, Loader2, Send, Square, Wrench } from 'lucide-react';
 import { useState } from 'react';
-import { ModelSelect } from '../select-model/ModelSelect';
+
 import { vscode } from '../../shared/lib/vscode';
-import type { ChatContextEstimate, ChatUsageEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
+import type {
+  ChatContextEstimate,
+  ChatUsageEstimate,
+  ModelOption,
+  ReasoningEffort,
+  ToolPermissionPreset,
+  ToolPermissionPresetId
+} from '../../shared/types';
+import { ModelSelect } from '../select-model/ModelSelect';
+import { PermissionPresetSelect } from '../select-permission-preset/PermissionPresetSelect';
 
 type ComposerProps = {
   busy: boolean;
@@ -10,6 +19,8 @@ type ComposerProps = {
   models: ModelOption[];
   activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
   reasoningEffort: ReasoningEffort;
+  permissionPresets: ToolPermissionPreset[];
+  activePermissionPresetId: ToolPermissionPresetId | 'custom';
   toolsCount: number;
   context?: ChatContextEstimate;
   usage?: ChatUsageEstimate;
@@ -21,6 +32,8 @@ export function Composer({
   models,
   activity,
   reasoningEffort,
+  permissionPresets,
+  activePermissionPresetId,
   toolsCount,
   context,
   usage
@@ -55,6 +68,12 @@ export function Composer({
         />
         <div className="flex min-w-0 flex-wrap items-end gap-2">
           <ModelSelect model={model} models={models} disabled={busy} />
+          <PermissionPresetSelect
+            presets={permissionPresets}
+            activeId={activePermissionPresetId}
+            disabled={busy}
+            className="w-44"
+          />
           <label className="grid min-w-36 gap-1 text-xs text-[var(--vscode-descriptionForeground)]">
             <span className="flex items-center gap-2">
               <Brain size={14} className="shrink-0" />
@@ -65,7 +84,10 @@ export function Composer({
               value={reasoningEffort}
               disabled={busy}
               onChange={(event) =>
-                vscode.postMessage({ type: 'setReasoningEffort', reasoningEffort: event.target.value as ReasoningEffort })
+                vscode.postMessage({
+                  type: 'setReasoningEffort',
+                  reasoningEffort: event.target.value as ReasoningEffort
+                })
               }
             >
               <option value="auto">Auto</option>

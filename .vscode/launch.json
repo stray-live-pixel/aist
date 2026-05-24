@@ -5,9 +5,18 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}"
-      ]
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"]
+    },
+    {
+      "name": "Debug Playwright E2E",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/@playwright/test/cli.js",
+      "args": ["test", "--config=${workspaceFolder}/playwright.config.ts", "--debug"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "preLaunchTask": "npm: build:e2e"
     }
   ]
 }

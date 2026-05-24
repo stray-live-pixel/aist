@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentMode, AgentModeId } from '../../shared/types';
 

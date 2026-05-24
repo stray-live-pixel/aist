@@ -76,6 +76,7 @@ export type ToolPermissionMode = 'ask' | 'auto';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type AgentLanguage = 'ru' | 'en';
 export type AgentModeId = string;
+export type ToolPermissionPresetId = string;
 
 export type AgentMode = {
   id: AgentModeId;
@@ -83,11 +84,26 @@ export type AgentMode = {
   instructions: string;
 };
 
+export type AgentSkill = {
+  id: string;
+  label: string;
+  description: string;
+  command: string;
+  permission: ToolPermissionMode;
+};
+
 export type ToolPermissionItem = {
   name: string;
   description: string;
   permission: ToolPermissionMode;
   defaultPermission: ToolPermissionMode;
+};
+
+export type ToolPermissionPreset = {
+  id: ToolPermissionPresetId;
+  label: string;
+  description: string;
+  permissions: Record<string, ToolPermissionMode>;
 };
 
 export type AgentState = {
@@ -102,8 +118,11 @@ export type AgentState = {
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
+  customSkills: AgentSkill[];
   codexAuthenticated: boolean;
   toolPermissions: ToolPermissionItem[];
+  toolPermissionPresets: ToolPermissionPreset[];
+  activeToolPermissionPresetId: ToolPermissionPresetId | 'custom';
 };
 
 export type ExtensionToWebviewMessage =
@@ -122,6 +141,7 @@ export type WebviewToExtensionMessage =
   | { type: 'openChatInEditor'; chatId?: string }
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
+  | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
@@ -129,6 +149,16 @@ export type WebviewToExtensionMessage =
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
+  | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
+  | {
+      type: 'updateSkill';
+      skillId: string;
+      label: string;
+      description: string;
+      command: string;
+      permission: ToolPermissionMode;
+    }
+  | { type: 'deleteSkill'; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }

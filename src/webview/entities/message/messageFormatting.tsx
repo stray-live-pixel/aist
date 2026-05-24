@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+
 import type { ChatMessage, ChatMessageUsageEstimate } from '../../shared/types';
 
 /**
@@ -32,7 +33,10 @@ export function formatMessageDate(timestamp?: number): ReactNode {
 
   return (
     <span className="tool-date-label">
-      <strong>{time}</strong> <span>{day}.{month}.{date.getFullYear()}</span>
+      <strong>{time}</strong>{' '}
+      <span>
+        {day}.{month}.{date.getFullYear()}
+      </span>
     </span>
   );
 }

@@ -1,16 +1,16 @@
 {
-    "openrouterAgent.model": "codex:gpt-5.5",
-    "openrouterAgent.maxToolIterations": 60,
-    "openrouterAgent.agentMode": "default",
-    "openrouterAgent.reasoningEffort": "medium",
-    "openrouterAgent.toolPermissions": {
-        "get_workspace_info": "auto",
-        "list_files": "auto",
-        "read_file": "auto",
-        "grep_search": "auto",
-        "write_file": "auto",
-        "replace_in_file": "auto",
-        "create_directory": "ask",
-        "delete_path": "ask"
-    }
+  "openrouterAgent.model": "codex:gpt-5.5",
+  "openrouterAgent.maxToolIterations": 60,
+  "openrouterAgent.agentMode": "default",
+  "openrouterAgent.reasoningEffort": "medium",
+  "openrouterAgent.toolPermissions": {
+    "get_workspace_info": "auto",
+    "list_files": "auto",
+    "read_file": "auto",
+    "grep_search": "auto",
+    "write_file": "auto",
+    "replace_in_file": "auto",
+    "create_directory": "ask",
+    "delete_path": "ask"
+  }
 }

@@ -1,6 +1,6 @@
 import { vscode } from '../../shared/lib/vscode';
 import type { ToolPermissionItem, ToolPermissionMode } from '../../shared/types';
-import { getToolLabel, ToolIcon } from '../../shared/ui/ToolIcon';
+import { ToolIcon, getToolLabel } from '../../shared/ui/ToolIcon';
 
 type ToolPermissionSelectProps = {
   item: ToolPermissionItem;
@@ -16,7 +16,9 @@ export function ToolPermissionSelect({ item }: ToolPermissionSelectProps) {
             <span>{getToolLabel(item.name)}</span>
           </div>
           <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">{item.description}</p>
-          <p className="mt-1 text-xs text-[var(--vscode-descriptionForeground)]">Default: {formatPermission(item.defaultPermission)}</p>
+          <p className="mt-1 text-xs text-[var(--vscode-descriptionForeground)]">
+            Default: {formatPermission(item.defaultPermission)}
+          </p>
         </div>
         <select
           className="w-48 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 py-1 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"

@@ -1,7 +1,8 @@
-import { ChevronRight, Folder, ListTree } from 'lucide-react';
+import { ChevronRight, Folder, ListTree, Terminal } from 'lucide-react';
+
 import type { ChatMessage } from '../../shared/types';
 import { WorkspaceFileLink } from './WorkspaceFileLink';
-import { buildToolDisplayModel, type FileReference } from './toolMessageModel';
+import { type FileReference, buildToolDisplayModel } from './toolMessageModel';
 import { arrayValue, asRecord, asString, getToolPreview, getToolResult } from './toolValue';
 
 const CODE_PREVIEW_LIMIT = 1200;
@@ -27,7 +28,12 @@ export function ToolResultPreview({ message }: { message: ChatMessage }) {
   );
 }
 
-function renderPrimaryResult(message: ChatMessage, result?: Record<string, unknown>, preview?: Record<string, unknown>) {
+function renderPrimaryResult(
+  message: ChatMessage,
+  result?: Record<string, unknown>,
+  preview?: Record<string, unknown>
+) {
+  if (message.name === 'run_bash_script') return <BashScriptResult message={message} result={result} />;
   if (!result && preview) return <CompactFacts result={preview} />;
   if (!result) return null;
   if (asString(result.error)) return <ErrorText text={asString(result.error) || ''} />;
@@ -35,7 +41,6 @@ function renderPrimaryResult(message: ChatMessage, result?: Record<string, unkno
   if (message.name === 'read_file') return <CodePreview result={result} />;
   if (message.name === 'list_files') return <EntriesList result={result} />;
   if (message.name === 'grep_search') return <SearchFiles result={result} />;
-  if (message.name === 'run_bash_script') return <BashScriptResult result={result} />;
 
   return <CompactFacts result={result} />;
 }
@@ -80,36 +85,108 @@ function SearchFiles({ result }: { result: Record<string, unknown> }) {
   );
 }
 
-function BashScriptResult({ result }: { result: Record<string, unknown> }) {
-  const stdout = asString(result.stdout) || '';
-  const stderr = asString(result.stderr) || '';
-  const facts = [
-    `exit: ${String(result.exitCode ?? 'unknown')}`,
-    `cwd: ${asString(result.cwd) || '.'}`,
-    `duration: ${String(result.durationMs ?? 0)}ms`,
-    Boolean(result.timedOut) ? 'timed out' : ''
-  ].filter(Boolean);
+function BashScriptResult({ message, result }: { message: ChatMessage; result?: Record<string, unknown> }) {
+  const stdout = asString(result?.stdout) || '';
+  const stderr = asString(result?.stderr) || '';
+  const error = asString(result?.error);
+  const command = asString(message.args?.script) || 'bash -lc';
+  const facts = getBashFacts(message, result);
+  const hasOutput = Boolean(stdout || stderr);
+  const completedQuietly = Boolean(result && !error && !hasOutput);
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-[var(--vscode-descriptionForeground)]">{facts.join(' · ')}</p>
-      {stdout ? <OutputBlock label={`stdout${Boolean(result.stdoutTruncated) ? ' · truncated' : ''}`} text={stdout} /> : null}
-      {stderr ? <OutputBlock label={`stderr${Boolean(result.stderrTruncated) ? ' · truncated' : ''}`} text={stderr} /> : null}
+    <div className="tool-bash-preview">
+      <div className="tool-bash-command">
+        <div className="tool-bash-command-label">
+          <Terminal size={13} />
+          <span>Command</span>
+        </div>
+        <pre>
+          <code>{command}</code>
+        </pre>
+      </div>
+      <dl className="tool-bash-facts">
+        {facts.map((fact) => (
+          <div key={fact.label} className={fact.tone ? `tool-bash-fact-${fact.tone}` : undefined}>
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {error ? <ErrorText text={error} /> : null}
+      {!result ? <p className="text-[var(--vscode-descriptionForeground)]">Waiting for command output...</p> : null}
+      {stdout ? (
+        <OutputBlock label={`stdout${result?.stdoutTruncated ? ' · truncated' : ''}`} text={stdout} tone="stdout" />
+      ) : null}
+      {stderr ? (
+        <OutputBlock label={`stderr${result?.stderrTruncated ? ' · truncated' : ''}`} text={stderr} tone="stderr" />
+      ) : null}
+      {completedQuietly ? (
+        <p className="text-[var(--vscode-descriptionForeground)]">Command completed with no output.</p>
+      ) : null}
     </div>
   );
 }
 
-function OutputBlock({ label, text }: { label: string; text: string }) {
+function OutputBlock({ label, text, tone }: { label: string; text: string; tone: 'stdout' | 'stderr' }) {
   return (
-    <details className="tool-details" open>
+    <details className={`tool-details tool-output-block tool-output-${tone}`} open>
       <summary>
         <ChevronRight size={13} />
-        {label}
+        <span>{label}</span>
+        <em>{getLineCountLabel(text)}</em>
       </summary>
       <pre className="tool-code-preview">{text}</pre>
     </details>
   );
 }
+
+function getBashFacts(message: ChatMessage, result?: Record<string, unknown>): BashFact[] {
+  const cwd = asString(result?.cwd) || asString(message.args?.cwd) || '.';
+  const facts: BashFact[] = [{ label: 'cwd', value: cwd }];
+
+  if (!result) {
+    const timeoutMs = numberValue(message.args?.timeoutMs);
+    facts.unshift({ label: 'status', value: 'Running', tone: 'running' });
+    if (timeoutMs !== undefined) facts.push({ label: 'timeout', value: formatDuration(timeoutMs) });
+    return facts;
+  }
+
+  const exitCode = numberValue(result.exitCode);
+  const timedOut = Boolean(result.timedOut);
+  const ok = result.ok === true;
+  const status = timedOut ? 'Timed out' : exitCode === undefined ? 'Finished' : `Exit ${exitCode}`;
+  facts.unshift({ label: 'status', value: status, tone: ok ? 'ok' : 'error' });
+
+  const durationMs = numberValue(result.durationMs);
+  if (durationMs !== undefined) facts.push({ label: 'duration', value: formatDuration(durationMs) });
+
+  const signal = asString(result.signal);
+  if (signal) facts.push({ label: 'signal', value: signal });
+
+  return facts;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function formatDuration(durationMs: number): string {
+  if (durationMs < 1000) return `${durationMs}ms`;
+  if (durationMs < 60_000) return `${(durationMs / 1000).toFixed(1)}s`;
+  return `${Math.round(durationMs / 1000)}s`;
+}
+
+function getLineCountLabel(text: string): string {
+  const lines = text ? text.split(/\r?\n/).length : 0;
+  return `${lines} line${lines === 1 ? '' : 's'}`;
+}
+
+type BashFact = {
+  label: string;
+  value: string;
+  tone?: 'ok' | 'error' | 'running';
+};
 
 function renderEntryItem(entry: unknown, index: number) {
   const item = asRecord(entry);
@@ -137,7 +214,9 @@ function renderSearchFile(file: FileReference) {
 function FileLinks({ files }: { files: FileReference[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {files.map((file) => <WorkspaceFileLink key={fileKey(file)} file={file} />)}
+      {files.map((file) => (
+        <WorkspaceFileLink key={fileKey(file)} file={file} />
+      ))}
     </div>
   );
 }
@@ -151,9 +230,7 @@ function CompactFacts({ result }: { result: Record<string, unknown> }) {
 }
 
 function getUniqueSearchFiles(result: Record<string, unknown>): FileReference[] {
-  const files = arrayValue(result.matches)
-    .map(fileFromSearchMatch)
-    .filter(Boolean) as FileReference[];
+  const files = arrayValue(result.matches).map(fileFromSearchMatch).filter(Boolean) as FileReference[];
 
   return uniqueFiles(files);
 }

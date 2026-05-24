@@ -28,7 +28,10 @@ export function arrayValue(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function isOnlyPreview(result: Record<string, unknown> | undefined, nested: Record<string, unknown> | undefined): boolean {
+function isOnlyPreview(
+  result: Record<string, unknown> | undefined,
+  nested: Record<string, unknown> | undefined
+): boolean {
   if (!result || nested) return false;
   return Boolean(asRecord(result.preview) && Object.keys(result).length === 1);
 }

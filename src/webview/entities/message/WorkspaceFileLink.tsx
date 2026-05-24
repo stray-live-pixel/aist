@@ -1,4 +1,5 @@
 import { FileCode2 } from 'lucide-react';
+
 import { vscode } from '../../shared/lib/vscode';
 import type { FileReference } from './toolMessageModel';
 

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
 import { Bot } from 'lucide-react';
-import type { AgentState, ExtensionToWebviewMessage } from '../shared/types';
-import { vscode } from '../shared/lib/vscode';
+import { useEffect, useState } from 'react';
+
 import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
+import { vscode } from '../shared/lib/vscode';
+import type { AgentState, ExtensionToWebviewMessage } from '../shared/types';
 
 export function App() {
   const [state, setState] = useState<AgentState | null>(null);
@@ -43,7 +44,10 @@ export function App() {
         agentLanguage={state.agentLanguage}
         agentMode={state.agentMode}
         agentModes={state.agentModes}
+        customSkills={state.customSkills}
         codexAuthenticated={state.codexAuthenticated}
+        permissionPresets={state.toolPermissionPresets}
+        activePermissionPresetId={state.activeToolPermissionPresetId}
         onBack={() => setPage('chat')}
       />
     );

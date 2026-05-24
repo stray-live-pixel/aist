@@ -1,10 +1,11 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { createServer, type Server } from 'node:http';
+import { type Server, createServer } from 'node:http';
 import * as os from 'node:os';
 import * as vscode from 'vscode';
+
+import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool, ToolCall } from '../openrouter/types';
 import { CODEX_RESPONSES_URL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import type { AistLogger } from '../shared/logger';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool, ToolCall } from '../openrouter/types';
 
 const CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
 const ISSUER = 'https://auth.openai.com';
@@ -186,10 +187,13 @@ export class CodexClient {
     let server: Server | undefined;
 
     const callback = new Promise<TokenResponse>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        closeServer(server);
-        reject(new Error('OAuth callback timeout - authorization took too long.'));
-      }, 5 * 60 * 1000);
+      const timeout = setTimeout(
+        () => {
+          closeServer(server);
+          reject(new Error('OAuth callback timeout - authorization took too long.'));
+        },
+        5 * 60 * 1000
+      );
 
       server = createServer((req, res) => {
         const url = new URL(req.url || '/', redirectUri);
@@ -584,7 +588,9 @@ async function parseCodexStream(body: ReadableStream<Uint8Array>): Promise<OpenR
           output: outputItems
         });
       }
-      throw new Error(`ChatGPT Codex returned an empty response. Stream events: ${[...seenEventTypes].join(', ') || 'none'}`);
+      throw new Error(
+        `ChatGPT Codex returned an empty response. Stream events: ${[...seenEventTypes].join(', ') || 'none'}`
+      );
     }
   }
 
