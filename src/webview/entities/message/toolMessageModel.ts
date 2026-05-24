@@ -26,6 +26,7 @@ const TOOL_META: Record<string, { action: string; tone: ToolTone }> = {
   grep_search: { action: 'GREP SEARCH', tone: 'purple' },
   run_bash_script: { action: 'RUN BASH', tone: 'slate' },
   run_skill: { action: 'RUN SKILL', tone: 'green' },
+  compact_chat: { action: 'COMPACT CHAT', tone: 'purple' },
   write_file: { action: 'WRITE FILE', tone: 'amber' },
   replace_in_file: { action: 'REPLACE IN FILE', tone: 'cyan' },
   create_directory: { action: 'CREATE DIRECTORY', tone: 'blue' },
@@ -104,6 +105,10 @@ function getToolTarget(message: ChatMessage): string | undefined {
     return asString(message.args?.skillId) || asString(getToolResult(message)?.label);
   }
 
+  if (message.name === 'compact_chat') {
+    return asString(message.args?.trigger) || asString(getToolResult(message)?.chatId);
+  }
+
   return (
     asString(message.args?.query) ||
     asString(message.args?.path) ||
@@ -121,6 +126,8 @@ function getShortSummary(message: ChatMessage): string {
   if (message.name === 'grep_search') return `${arrayValue(result.matches).length} matches`;
   if (message.name === 'run_bash_script') return getBashSummary(result);
   if (message.name === 'run_skill') return getBashSummary(result);
+  if (message.name === 'compact_chat')
+    return asString(result.chatId) ? `new chat ${asString(result.chatId)}` : 'compacted';
   if (message.name === 'list_files') return `${arrayValue(result.entries).length} entries`;
   if (message.name === 'replace_in_file') return `${Number(result.replacements || 0)} replacements`;
   if (message.name === 'write_file' && typeof result.bytes === 'number') return `${result.bytes} bytes`;

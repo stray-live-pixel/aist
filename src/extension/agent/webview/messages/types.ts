@@ -12,7 +12,7 @@ export type AgentWebviewMessageDeps = {
   refreshModels(): void;
   refreshCodexAuthState(): void;
   ask(chatId: string, prompt: string): Promise<void>;
-  summarizeChat(chatId: string): Promise<string>;
+  compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   openChatInEditor(chatId?: string): void;
   retargetDeletedChat(deletedChatId: string, nextChatId: string): void;
   loginCodex(): Promise<void>;

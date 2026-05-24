@@ -8,11 +8,13 @@ import type { AistLogger } from '../shared/logger';
 import { editSelection as runEditSelectionCommand } from './commands/editSelection';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from './commands/openWorkspaceFile';
 import { initializeAgentConfigStore } from './config/agentConfigStore';
+import { getCompactionSettings } from './config/compaction';
 import { getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
 import { AgentRunService } from './runtime/runService';
+import { getChatContextEstimate, getMessageUsageEstimate } from './runtime/usage';
 import type { WebviewMessage, WebviewSurface } from './types';
 import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from './webview/host';
 import { handleAgentWebviewMessage } from './webview/messages';
@@ -199,6 +201,11 @@ export class AgentController {
     });
   }
 
+  private async ask(chatId: string, prompt: string): Promise<void> {
+    await this.runService.ask(chatId, prompt);
+    await this.compactChatIfNeeded(chatId);
+  }
+
   private async handleWebviewMessage(surface: WebviewSurface, message: WebviewMessage): Promise<void> {
     await handleAgentWebviewMessage(surface, message, {
       chats: this.chats,
@@ -215,8 +222,8 @@ export class AgentController {
       refreshCodexAuthState: () => {
         void this.refreshCodexAuthState();
       },
-      ask: (chatId, prompt) => this.runService.ask(chatId, prompt),
-      summarizeChat: (chatId) => this.summarizeChat(chatId),
+      ask: (chatId, prompt) => this.ask(chatId, prompt),
+      compactChat: (chatId, trigger) => this.compactChat(chatId, trigger),
       openChatInEditor: (chatId) => this.openChatInEditor(chatId),
       retargetDeletedChat: (deletedChatId, nextChatId) => this.retargetDeletedChat(deletedChatId, nextChatId),
       loginCodex: () => this.loginCodex(),
@@ -225,6 +232,89 @@ export class AgentController {
       openWorkspaceFile: (filePath, line, column) => this.openWorkspaceFile(filePath, line, column),
       stopCurrentRun: () => this.runService.stop()
     });
+  }
+
+  private async compactChatIfNeeded(chatId: string): Promise<void> {
+    const settings = getCompactionSettings();
+    if (!settings.enabled) {
+      return;
+    }
+
+    const chat = this.chats.getChat(chatId);
+    if (!chat || chat.busy || chat.previousChatId) {
+      return;
+    }
+
+    const model = this.modelCatalog.getOption(chat.model);
+    const context = getChatContextEstimate(chat.history, this.getSystemPrompt(), model);
+    if (context.percent === undefined || context.percent < settings.thresholdPercent) {
+      return;
+    }
+
+    await this.compactChat(chat.id, 'auto');
+  }
+
+  private async compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }> {
+    const source = this.chats.getChat(chatId) || this.chats.getActiveChat();
+    if (source.busy) {
+      throw new Error('Cannot compact a chat while it is running.');
+    }
+
+    const args = { chatId: source.id, trigger };
+    const toolMessage = this.chats.appendMessage(source.id, {
+      role: 'tool',
+      name: 'compact_chat',
+      status: 'running',
+      reason: trigger === 'auto' ? 'Context token limit reached.' : 'Requested by user.',
+      args
+    });
+    this.chats.setBusy(source.id, true);
+    this.chats.setActivity(source.id, 'runningTool');
+    this.sendState();
+
+    try {
+      const summary = await this.summarizeChat(source.id);
+      this.chats.setActivity(source.id, undefined);
+      this.chats.setBusy(source.id, false);
+      const chat = this.chats.compactChat(source.id, summary);
+      const result = {
+        ok: true,
+        sourceChatId: source.id,
+        chatId: chat.id,
+        summary,
+        summaryLength: summary.length,
+        trigger
+      };
+      this.chats.updateMessage(source.id, toolMessage.id, {
+        status: 'done',
+        result,
+        usage: getMessageUsageEstimate(result)
+      });
+      this.logger.info('Chat compacted', {
+        sourceChatId: source.id,
+        chatId: chat.id,
+        trigger,
+        summaryLength: summary.length
+      });
+      this.sendState();
+      return chat;
+    } catch (error) {
+      const result = { ok: false, error: error instanceof Error ? error.message : String(error), trigger };
+      this.chats.updateMessage(source.id, toolMessage.id, {
+        status: 'error',
+        result,
+        usage: getMessageUsageEstimate(result)
+      });
+      this.logger.error('Failed to compact chat', error);
+      this.sendState();
+      throw error;
+    } finally {
+      const current = this.chats.getChat(source.id);
+      if (current) {
+        this.chats.setActivity(source.id, undefined);
+        this.chats.setBusy(source.id, false);
+      }
+    }
   }
 
   private async summarizeChat(chatId: string): Promise<string> {

@@ -114,18 +114,8 @@ async function compactChat(surface: WebviewSurface, chatId: string, deps: AgentW
   }
 
   try {
-    deps.chats.setBusy(source.id, true);
-    deps.chats.setActivity(source.id, 'thinking');
-    deps.sendState();
-
-    const summary = await deps.summarizeChat(source.id);
-    const chat = deps.chats.compactChat(chatId, summary);
+    const chat = await deps.compactChat(source.id, 'manual');
     surface.setChatId(chat.id);
-    deps.logger.info('Chat compacted from webview', {
-      sourceChatId: chatId,
-      chatId: chat.id,
-      summaryLength: summary.length
-    });
     deps.sendState();
   } catch (error) {
     deps.logger.error('Failed to compact chat', error);
@@ -133,12 +123,6 @@ async function compactChat(surface: WebviewSurface, chatId: string, deps: AgentW
       `aist: failed to compact chat — ${error instanceof Error ? error.message : String(error)}`
     );
     deps.sendState(surface);
-  } finally {
-    const current = deps.chats.getChat(source.id);
-    if (current) {
-      deps.chats.setActivity(source.id, undefined);
-      deps.chats.setBusy(source.id, false);
-    }
   }
 }
 
