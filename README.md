@@ -10,7 +10,13 @@ Minimal VS Code extension MVP for coding with OpenRouter models, TypeScript, Rea
 bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
 ```
 
-The script downloads `releases/aist-0.0.1.vsix` from this GitHub repository, installs it with the `code` CLI, and automatically restarts VS Code. Use `VSCODE_CLI=code-insiders` for VS Code Insiders.
+The script downloads `releases/aist-latest.vsix` from this GitHub repository, installs it with the `code` CLI, and automatically restarts VS Code. Use `VSCODE_CLI=code-insiders` for VS Code Insiders.
+
+To install a specific version, pass `AIST_VERSION`:
+
+```bash
+AIST_VERSION=0.0.2 bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
+```
 
 If `curl` is unavailable, clone the repository and run:
 
@@ -91,7 +97,7 @@ Build flow:
 3. `npm run build:webview` bundles the React webview and Tailwind CSS to `dist/`.
 4. `vsce package --no-dependencies` creates the `.vsix` package.
 
-The committed distributive is `releases/aist-0.0.1.vsix`; `.gitignore` allows `releases/*.vsix`, so the built extension is available for direct download from GitHub.
+The committed distributive is `releases/aist-latest.vsix`; versioned packages like `releases/aist-0.0.2.vsix` can also be kept for rollback. `.gitignore` allows `releases/*.vsix`, so the built extension is available for direct download from GitHub.
 
 ## Install locally
 
@@ -99,30 +105,35 @@ The committed distributive is `releases/aist-0.0.1.vsix`; `.gitignore` allows `r
 npm run install:extension
 ```
 
-This builds the extension, writes `dist/aist-0.0.1.vsix`, and installs it with the `code` CLI. Use `VSCODE_CLI=code-insiders npm run install:extension` for VS Code Insiders.
+This builds the extension, writes a versioned VSIX to `dist/`, and installs it with the `code` CLI. Use `VSCODE_CLI=code-insiders npm run install:extension` for VS Code Insiders.
 
 ## Publish a new version
 
 1. Update `version` in `package.json` and `package-lock.json`.
-2. Update `VERSION` and the VSIX filename references in `scripts/install-from-github.sh` and this README.
-3. Build and package the new VSIX into `releases/`:
+2. Build and package the new versioned VSIX into `releases/`:
 
    ```bash
    npm install
    npm run package -- --out releases/aist-<version>.vsix
    ```
 
-4. Check that the package was created and is not ignored by git:
+3. Update the stable latest artifact:
 
    ```bash
-   ls -lh releases/aist-<version>.vsix
-   git status --short releases/aist-<version>.vsix
+   cp releases/aist-<version>.vsix releases/aist-latest.vsix
    ```
 
-5. Commit the source changes and the new `releases/aist-<version>.vsix`, then push to `main`:
+4. Check that packages were created and are not ignored by git:
 
    ```bash
-   git add package.json package-lock.json scripts/install-from-github.sh README.md releases/aist-<version>.vsix
+   ls -lh releases/aist-<version>.vsix releases/aist-latest.vsix
+   git status --short releases/aist-<version>.vsix releases/aist-latest.vsix
+   ```
+
+5. Commit the source changes and VSIX files, then push to `main`:
+
+   ```bash
+   git add package.json package-lock.json README.md releases/aist-<version>.vsix releases/aist-latest.vsix
    git commit -m "Release aist <version>"
    git push origin main
    ```

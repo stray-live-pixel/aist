@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO="${AIST_REPO:-stray-live-pixel/aist}"
 REF="${AIST_REF:-main}"
-VERSION="${AIST_VERSION:-0.0.1}"
+VERSION="${AIST_VERSION:-latest}"
 EXTENSION_NAME="${AIST_EXTENSION_NAME:-aist}"
 VSCODE_CLI="${VSCODE_CLI:-code}"
 VSIX_FILE="${EXTENSION_NAME}-${VERSION}.vsix"
