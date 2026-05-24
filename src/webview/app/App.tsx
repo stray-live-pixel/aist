@@ -44,6 +44,9 @@ export function App() {
         agentLanguage={state.agentLanguage}
         agentMode={state.agentMode}
         agentModes={state.agentModes}
+        agentConfigScope={state.agentConfigScope}
+        projectInstructions={state.projectInstructions}
+        instructionSources={state.instructionSources}
         customSkills={state.customSkills}
         codexAuthenticated={state.codexAuthenticated}
         permissionPresets={state.toolPermissionPresets}

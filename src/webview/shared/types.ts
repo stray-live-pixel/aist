@@ -92,6 +92,16 @@ export type AgentSkill = {
   permission: ToolPermissionMode;
 };
 
+export type AgentConfigScope = 'workspace' | 'user';
+
+export type AgentInstructionSource = {
+  id: string;
+  title: string;
+  content: string;
+  priority: number;
+  kind: 'base' | 'file' | 'mode' | 'custom' | 'skills';
+};
+
 export type ToolPermissionItem = {
   name: string;
   description: string;
@@ -118,6 +128,9 @@ export type AgentState = {
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
+  agentConfigScope: AgentConfigScope;
+  projectInstructions: string;
+  instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];
   codexAuthenticated: boolean;
   toolPermissions: ToolPermissionItem[];
@@ -147,6 +160,8 @@ export type WebviewToExtensionMessage =
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
+  | { type: 'setAgentConfigScope'; scope: AgentConfigScope }
+  | { type: 'setProjectInstructions'; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
   | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }

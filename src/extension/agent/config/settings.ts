@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { readAgentConfig, updateAgentConfig } from './agentConfigStore';
 import type { AgentLanguage } from './prompts';
 
 export type AgentModeId = string;
@@ -41,11 +42,9 @@ export function getAgentMode(): AgentModeId {
 }
 
 export function getAgentModes(): AgentMode[] {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
-
-  const instructionsOverrides = config.get<Record<string, unknown>>('agentModeInstructions') || {};
-
-  const customModes = readCustomModes(config);
+  const storedConfig = readAgentConfig();
+  const instructionsOverrides = storedConfig.modeInstructions || {};
+  const customModes = readCustomModes(storedConfig.customModes);
 
   const modes: AgentMode[] = DEFAULT_AGENT_MODES.map((mode) => {
     const instructions = instructionsOverrides[mode.id];
@@ -86,21 +85,20 @@ export async function setAgentMode(modeId: AgentModeId): Promise<void> {
 }
 
 export async function setAgentModeInstructions(modeId: AgentModeId, instructions: string): Promise<void> {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
+  const storedConfig = readAgentConfig();
 
   if (isDefaultMode(modeId)) {
-    const current = config.get<Record<string, unknown>>('agentModeInstructions') || {};
-    await updateGlobal(config, 'agentModeInstructions', { ...current, [modeId]: instructions });
+    await updateAgentConfig({ modeInstructions: { ...(storedConfig.modeInstructions || {}), [modeId]: instructions } });
   } else {
-    const customModes = readCustomModes(config);
+    const customModes = readCustomModes(storedConfig.customModes);
     const updated = customModes.map((m) => (m.id === modeId ? { ...m, instructions } : m));
-    await updateGlobal(config, 'customAgentModes', updated);
+    await updateAgentConfig({ customModes: updated });
   }
 }
 
 export async function addAgentMode(label: string, instructions: string): Promise<AgentMode> {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
-  const customModes = readCustomModes(config);
+  const storedConfig = readAgentConfig();
+  const customModes = readCustomModes(storedConfig.customModes);
 
   const baseId =
     label
@@ -119,7 +117,7 @@ export async function addAgentMode(label: string, instructions: string): Promise
   const mode: AgentMode = { id, label, instructions };
   const next = [...customModes, mode];
 
-  await updateGlobal(config, 'customAgentModes', next);
+  await updateAgentConfig({ customModes: next });
   return mode;
 }
 
@@ -128,15 +126,14 @@ export async function deleteAgentMode(modeId: string): Promise<boolean> {
     return false;
   }
 
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
-  const customModes = readCustomModes(config);
+  const customModes = readCustomModes(readAgentConfig().customModes);
   const filtered = customModes.filter((m) => m.id !== modeId);
 
   if (filtered.length === customModes.length) {
     return false;
   }
 
-  await updateGlobal(config, 'customAgentModes', filtered);
+  await updateAgentConfig({ customModes: filtered });
 
   const activeId = getAgentMode();
   if (activeId === modeId) {
@@ -146,8 +143,7 @@ export async function deleteAgentMode(modeId: string): Promise<boolean> {
   return true;
 }
 
-function readCustomModes(config: vscode.WorkspaceConfiguration): AgentMode[] {
-  const raw = config.get<unknown>('customAgentModes');
+function readCustomModes(raw: unknown): AgentMode[] {
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -165,13 +161,4 @@ function readCustomModes(config: vscode.WorkspaceConfiguration): AgentMode[] {
     }
   }
   return modes;
-}
-
-async function updateGlobal(config: vscode.WorkspaceConfiguration, key: string, value: unknown): Promise<void> {
-  try {
-    await config.update(key, value, vscode.ConfigurationTarget.Global);
-  } catch (error) {
-    console.error(`[aist] Failed to save '${key}' to Global settings`, error);
-    throw error;
-  }
 }

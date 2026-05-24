@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as vscode from 'vscode';
 
+import { readAgentConfig, updateAgentConfig } from '../agent/config/agentConfigStore';
 import type { OpenRouterTool } from '../openrouter/types';
 import { getErrorMessage } from '../shared/errors';
 import { resolveWorkspacePath } from '../shared/workspace';
@@ -42,8 +43,7 @@ export const runSkillTool: OpenRouterTool = {
 };
 
 export function getAgentSkills(): AgentSkill[] {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
-  const raw = config.get<unknown>('customSkills');
+  const raw = readAgentConfig().customSkills;
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -78,7 +78,6 @@ export async function addAgentSkill(input: {
   command: string;
   permission?: ToolPermissionMode;
 }): Promise<AgentSkill> {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
   const skills = getAgentSkills();
   const baseId = createSkillId(input.label);
   let id = baseId;
@@ -97,12 +96,11 @@ export async function addAgentSkill(input: {
     permission: normalizePermission(input.permission, 'ask')
   };
 
-  await updateSkills(config, [...skills, skill]);
+  await updateSkills([...skills, skill]);
   return skill;
 }
 
 export async function updateAgentSkill(skillId: string, patch: Partial<Omit<AgentSkill, 'id'>>): Promise<boolean> {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
   const skills = getAgentSkills();
   let updated = false;
 
@@ -125,12 +123,11 @@ export async function updateAgentSkill(skillId: string, patch: Partial<Omit<Agen
     return false;
   }
 
-  await updateSkills(config, next);
+  await updateSkills(next);
   return true;
 }
 
 export async function deleteAgentSkill(skillId: string): Promise<boolean> {
-  const config = vscode.workspace.getConfiguration('openrouterAgent');
   const skills = getAgentSkills();
   const next = skills.filter((skill) => skill.id !== skillId);
 
@@ -138,7 +135,7 @@ export async function deleteAgentSkill(skillId: string): Promise<boolean> {
     return false;
   }
 
-  await updateSkills(config, next);
+  await updateSkills(next);
   return true;
 }
 
@@ -276,8 +273,8 @@ function normalizePermission(value: unknown, fallback: ToolPermissionMode): Tool
   return value === 'auto' || value === 'ask' ? value : fallback;
 }
 
-async function updateSkills(config: vscode.WorkspaceConfiguration, skills: AgentSkill[]): Promise<void> {
-  await config.update('customSkills', skills, vscode.ConfigurationTarget.Workspace);
+async function updateSkills(skills: AgentSkill[]): Promise<void> {
+  await updateAgentConfig({ customSkills: skills });
 }
 
 function requireString(value: unknown, name: string): string {

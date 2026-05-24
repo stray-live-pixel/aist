@@ -68,6 +68,8 @@ export type WebviewMessage =
   | { type: 'setAgentLanguage'; language: 'ru' | 'en' }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
+  | { type: 'setAgentConfigScope'; scope: 'workspace' | 'user' }
+  | { type: 'setProjectInstructions'; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
   | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }

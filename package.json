@@ -195,6 +195,15 @@
           },
           "description": "User-defined custom agent modes."
         },
+        "openrouterAgent.agentConfigScope": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "user"
+          ],
+          "default": "workspace",
+          "description": "Where AIST stores project-specific agent instructions, modes, and custom skills. Workspace uses .aist-agent/settings.json; user keeps data outside the repository."
+        },
         "openrouterAgent.customSkills": {
           "type": "array",
           "default": [],

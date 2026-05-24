@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../../shared/errors';
+import { setAgentConfigScope, setProjectInstructions } from '../../config/agentConfigStore';
 import { normalizeReasoningEffort } from '../../config/config';
 import {
   addAgentMode,
@@ -19,6 +20,8 @@ type SettingsMessage = Extract<
   | { type: 'setAgentLanguage' }
   | { type: 'setAgentMode' }
   | { type: 'setAgentModeInstructions' }
+  | { type: 'setAgentConfigScope' }
+  | { type: 'setProjectInstructions' }
   | { type: 'addAgentMode' }
   | { type: 'deleteAgentMode' }
 >;
@@ -30,6 +33,8 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setAgentLanguage',
     'setAgentMode',
     'setAgentModeInstructions',
+    'setAgentConfigScope',
+    'setProjectInstructions',
     'addAgentMode',
     'deleteAgentMode'
   ].includes(message.type);
@@ -68,6 +73,14 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setAgentModeInstructions':
       await saveAgentModeInstructions(message.modeId, message.instructions, deps);
+      deps.sendState();
+      return;
+    case 'setAgentConfigScope':
+      await setAgentConfigScope(message.scope);
+      deps.sendState();
+      return;
+    case 'setProjectInstructions':
+      await setProjectInstructions(message.instructions);
       deps.sendState();
       return;
     case 'addAgentMode':

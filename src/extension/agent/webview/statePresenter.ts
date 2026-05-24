@@ -8,8 +8,10 @@ import {
   getToolPermissionItems,
   getToolPermissionPresets
 } from '../../tools/permissions';
+import { getAgentConfigScope, getProjectInstructions } from '../config/agentConfigStore';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
+import { getAgentInstructionSources } from '../config/systemPrompt';
 import { mergeModels } from '../models/models';
 import { getAgentTools } from '../runtime/tools';
 import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
@@ -43,6 +45,9 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const agentModes = getAgentModes();
   const customSkills = getAgentSkills();
   const tools = getAgentTools(customSkills);
+  const agentConfigScope = getAgentConfigScope();
+  const projectInstructions = getProjectInstructions();
+  const instructionSources = getAgentInstructionSources();
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -54,7 +59,10 @@ export function sendAgentState(params: SendAgentStateParams): void {
       activeMode,
       agentModes,
       customSkills,
-      tools
+      tools,
+      agentConfigScope,
+      projectInstructions,
+      instructionSources
     });
   }
 }
@@ -68,6 +76,9 @@ type StateContext = SendAgentStateParams & {
   agentModes: unknown;
   customSkills: unknown;
   tools: ReturnType<typeof getAgentTools>;
+  agentConfigScope: string;
+  projectInstructions: string;
+  instructionSources: unknown;
 };
 
 function postStateToSurface(surface: WebviewSurface, context: StateContext): void {
@@ -96,6 +107,9 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     agentLanguage: context.language,
     agentMode: context.activeMode.id,
     agentModes: context.agentModes,
+    agentConfigScope: context.agentConfigScope,
+    projectInstructions: context.projectInstructions,
+    instructionSources: context.instructionSources,
     customSkills: context.customSkills,
     codexAuthenticated: context.codexAuthenticated,
     toolPermissions: getToolPermissionItems(),

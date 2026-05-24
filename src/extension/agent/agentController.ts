@@ -7,6 +7,7 @@ import type { OpenRouterMessage, OpenRouterTool } from '../openrouter/types';
 import type { AistLogger } from '../shared/logger';
 import { editSelection as runEditSelectionCommand } from './commands/editSelection';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from './commands/openWorkspaceFile';
+import { initializeAgentConfigStore } from './config/agentConfigStore';
 import { getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import { AgentModelCatalog } from './models/catalog';
@@ -41,6 +42,7 @@ export class AgentController {
     private readonly chats: ChatStore,
     private readonly logger: AistLogger
   ) {
+    initializeAgentConfigStore(context);
     this.codexClient = new CodexClient(context, logger);
     this.modelCatalog = new AgentModelCatalog(this.openRouterClient, this.codexClient, logger, () => this.sendState());
     this.runService = new AgentRunService({

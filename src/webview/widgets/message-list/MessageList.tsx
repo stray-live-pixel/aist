@@ -7,7 +7,7 @@ import { useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../entities/message/MessageCard';
 import { CopyMessageButton } from '../../features/copy-message/CopyMessageButton';
-import type { AgentMode, Chat, ChatMessage } from '../../shared/types';
+import type { AgentInstructionSource, AgentMode, Chat, ChatMessage } from '../../shared/types';
 import { AgentActivityStatus } from './AgentActivityStatus';
 import { EmptyState } from './EmptyState';
 import { SystemInstructionLabel } from './SystemInstructionLabel';
@@ -19,6 +19,7 @@ type MessageListProps = {
   messages: ChatMessage[];
   tools: string[];
   activeMode: AgentMode | undefined;
+  instructionSources: AgentInstructionSource[];
   busy: boolean;
   activity: Chat['activity'];
   bottomOffset?: 'none' | 'composer';
@@ -35,7 +36,15 @@ type MessageGroup =
       active: boolean;
     };
 
-export function MessageList({ messages, tools, activeMode, busy, activity, bottomOffset = 'none' }: MessageListProps) {
+export function MessageList({
+  messages,
+  tools,
+  activeMode,
+  instructionSources,
+  busy,
+  activity,
+  bottomOffset = 'none'
+}: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
   const bottomOffsetClass = bottomOffset === 'composer' ? 'pb-72' : '';
@@ -60,7 +69,7 @@ export function MessageList({ messages, tools, activeMode, busy, activity, botto
       onScroll={handleScroll}
     >
       <div className="flex w-full min-w-0 flex-col gap-2">
-        <SystemInstructionLabel mode={activeMode} />
+        <SystemInstructionLabel mode={activeMode} sources={instructionSources} />
         {messages.length === 0 ? <EmptyState tools={tools} /> : null}
         {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages)))}
         {busy ? <AgentActivityStatus activity={activity} /> : null}

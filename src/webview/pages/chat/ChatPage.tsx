@@ -27,6 +27,7 @@ export function ChatPage({ state }: ChatPageProps) {
         messages={state.activeChat.messages}
         tools={state.tools}
         activeMode={activeMode}
+        instructionSources={state.instructionSources}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
         bottomOffset="composer"

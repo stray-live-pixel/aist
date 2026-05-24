@@ -6,6 +6,8 @@ import { AgentModeSelect } from '../../features/select-agent-mode/AgentModeSelec
 import { PermissionPresetSelect } from '../../features/select-permission-preset/PermissionPresetSelect';
 import { vscode } from '../../shared/lib/vscode';
 import type {
+  AgentConfigScope,
+  AgentInstructionSource,
   AgentLanguage,
   AgentMode,
   AgentModeId,
@@ -23,6 +25,9 @@ type PermissionsPageProps = {
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
+  agentConfigScope: AgentConfigScope;
+  projectInstructions: string;
+  instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];
   codexAuthenticated: boolean;
   permissionPresets: ToolPermissionPreset[];
@@ -37,6 +42,9 @@ export function PermissionsPage({
   agentLanguage,
   agentMode,
   agentModes,
+  agentConfigScope,
+  projectInstructions,
+  instructionSources,
   customSkills,
   codexAuthenticated,
   permissionPresets,
@@ -166,6 +174,12 @@ export function PermissionsPage({
             />
           </div>
         </section>
+
+        <InstructionSettingsSection
+          scope={agentConfigScope}
+          projectInstructions={projectInstructions}
+          instructionSources={instructionSources}
+        />
 
         <section className="message-card bg-[var(--vscode-input-background)]">
           <div className="grid gap-3">
@@ -416,6 +430,62 @@ export function PermissionsPage({
     <div className="flex h-screen flex-col bg-[var(--vscode-editor-background)] text-[var(--vscode-foreground)]">
       {content}
     </div>
+  );
+}
+
+function InstructionSettingsSection({
+  scope,
+  projectInstructions,
+  instructionSources
+}: {
+  scope: AgentConfigScope;
+  projectInstructions: string;
+  instructionSources: AgentInstructionSource[];
+}) {
+  return (
+    <section className="message-card bg-[var(--vscode-input-background)]">
+      <div className="grid gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold">System instructions</h2>
+            <p className="mt-1 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
+              AIST reads AGENTS.md, CLAUDE.md and extra project instructions. Editable modes and skills are saved to the
+              selected location.
+            </p>
+          </div>
+          <select
+            className="h-8 w-48 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
+            value={scope}
+            onChange={(event) =>
+              vscode.postMessage({ type: 'setAgentConfigScope', scope: event.target.value as AgentConfigScope })
+            }
+          >
+            <option value="workspace">Workspace .aist-agent</option>
+            <option value="user">Local user storage</option>
+          </select>
+        </div>
+        <textarea
+          className="min-h-28 w-full resize-y rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 py-2 text-xs text-[var(--vscode-input-foreground)] outline-none placeholder:text-[var(--vscode-input-placeholderForeground)] focus:border-[var(--vscode-focusBorder)]"
+          placeholder="Project-specific instructions saved in the selected storage scope..."
+          value={projectInstructions}
+          onChange={(event) => vscode.postMessage({ type: 'setProjectInstructions', instructions: event.target.value })}
+        />
+        <div className="grid gap-2">
+          <div className="text-xs font-semibold text-[var(--vscode-descriptionForeground)]">Effective order</div>
+          {instructionSources.map((source) => (
+            <div key={source.id} className="rounded border border-[var(--agent-input-border)] px-3 py-2">
+              <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+                <span>{source.title}</span>
+                <span className="text-[11px] text-[var(--vscode-descriptionForeground)]">#{source.priority}</span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
+                {source.content}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
