@@ -1,10 +1,10 @@
-import { Check, ChevronRight, Code2, X } from 'lucide-react';
+import { ChevronRight, Code2 } from 'lucide-react';
 import { type MouseEvent, useEffect, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
 import type { ChatMessage } from '../../shared/types';
 import { ToolIcon } from '../../shared/ui/ToolIcon';
+import { ToolApprovalActions } from './ToolApprovalActions';
 import { ToolRawJsonModal } from './ToolRawJsonModal';
 import { ToolResultPreview } from './ToolResultPreview';
 import { WorkspaceFileLink } from './WorkspaceFileLink';
@@ -49,7 +49,11 @@ export function ToolMessageCard({ message }: { message: ChatMessage }) {
           <>
             <ToolDetailsHeader message={message} model={model} onRawClick={() => setRawOpen(true)} />
             <ToolResultPreview message={message} />
-            {needsApproval ? <ApprovalActions messageId={message.id} /> : null}
+            {needsApproval ? (
+              <div onClick={stopPropagation}>
+                <ToolApprovalActions messageId={message.id} compact onResolved={() => setExpanded(false)} />
+              </div>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -115,29 +119,6 @@ function ToolStatusBadge({ message }: { message: ChatMessage }) {
     <span className={`tool-status-badge ${getToolStatusClass(message.status)}`}>
       {formatToolStatusLocalized(message, t)}
     </span>
-  );
-}
-
-function ApprovalActions({ messageId }: { messageId: string }) {
-  const { t } = useI18n();
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2" onClick={stopPropagation}>
-      <button
-        className="primary-button h-8 min-w-0"
-        onClick={() => vscode.postMessage({ type: 'resolveToolCall', messageId, approved: true })}
-      >
-        <Check size={14} />
-        <span>{t('tool.approve')}</span>
-      </button>
-      <button
-        className="secondary-button"
-        onClick={() => vscode.postMessage({ type: 'resolveToolCall', messageId, approved: false })}
-      >
-        <X size={14} />
-        <span>{t('tool.deny')}</span>
-      </button>
-    </div>
   );
 }
 

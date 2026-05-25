@@ -52,6 +52,7 @@ export function App() {
           tools={state.toolPermissions}
           maxToolIterations={state.maxToolIterations}
           compactionSettings={state.compactionSettings}
+          approvalNotificationSettings={state.approvalNotificationSettings}
           agentLanguage={state.agentLanguage}
           agentMode={state.agentMode}
           agentModes={state.agentModes}

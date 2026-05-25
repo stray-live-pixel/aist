@@ -471,6 +471,13 @@ export const storyAgentState: AgentState = {
   maxToolIterations: 6,
   reasoningEffort: 'medium',
   compactionSettings: { enabled: true, thresholdPercent: 70, keepLastMessages: 0 },
+  approvalNotificationSettings: {
+    enabled: true,
+    systemNotifications: true,
+    sound: true,
+    volume: 0.35,
+    durationSeconds: 5
+  },
   agentLanguage: 'ru',
   agentMode: 'frontend',
   agentModes: storyAgentModes,

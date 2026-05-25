@@ -36,9 +36,21 @@ export async function handleWebviewPermissionMessage(
       deps.sendState();
       return;
     case 'resolveToolCall':
-      deps.resolveToolCall(message.messageId, message.approved);
+      deps.resolveToolCall(message.messageId, toApprovalDecision(message));
       return;
   }
+}
+
+/**
+ * UI отправляет продуктовые действия кнопок, а runtime нужен компактный объект решения.
+ * Здесь сохраняем семантику: комментарий всегда означает «не запускать инструмент, но продолжить с учётом текста».
+ */
+function toApprovalDecision(message: Extract<PermissionMessage, { type: 'resolveToolCall' }>) {
+  return {
+    approved: message.decision === 'approve',
+    continueAfterDeny: message.decision === 'deny-continue' || message.decision === 'deny-comment',
+    comment: message.comment?.trim() || undefined
+  };
 }
 
 async function applyPermissionPreset(presetId: string, deps: AgentWebviewMessageDeps): Promise<void> {

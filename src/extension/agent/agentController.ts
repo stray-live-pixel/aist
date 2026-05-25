@@ -255,7 +255,7 @@ export class AgentController {
       retargetDeletedChat: (deletedChatId, nextChatId) => this.retargetDeletedChat(deletedChatId, nextChatId),
       loginCodex: () => this.loginCodex(),
       logoutCodex: () => this.logoutCodex(),
-      resolveToolCall: (messageId, approved) => this.runService.resolveToolCall(messageId, approved),
+      resolveToolCall: (messageId, decision) => this.runService.resolveToolCall(messageId, decision),
       openWorkspaceFile: (filePath, line, column, endLine, endColumn) =>
         this.openWorkspaceFile(filePath, line, column, endLine, endColumn),
       stopCurrentRun: () => this.runService.stop()

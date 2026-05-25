@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  BellRing,
   Bot,
   CheckCircle2,
   Copy,
@@ -37,6 +38,7 @@ import type {
   AgentPromptConfig,
   AgentPromptPreset,
   AgentSkill,
+  ApprovalNotificationSettings,
   CompactionSettings,
   ToolPermissionItem,
   ToolPermissionMode,
@@ -47,12 +49,21 @@ import { Badge, Button, Card, Checkbox, Select, TextArea, TextField } from '../.
 import { IconButton } from '../../shared/ui/IconButton';
 import styles from './PermissionsPage.module.scss';
 
-type SettingsPageId = 'overview' | 'instructions' | 'modes' | 'skills' | 'permissions' | 'compaction' | 'system';
+type SettingsPageId =
+  | 'overview'
+  | 'instructions'
+  | 'modes'
+  | 'skills'
+  | 'permissions'
+  | 'notifications'
+  | 'compaction'
+  | 'system';
 
 type PermissionsPageProps = {
   tools: ToolPermissionItem[];
   maxToolIterations: number;
   compactionSettings: CompactionSettings;
+  approvalNotificationSettings: ApprovalNotificationSettings;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
@@ -105,6 +116,12 @@ const NAV_ITEMS: Array<{
     descriptionKey: 'settings.nav.permissionsDescription'
   },
   {
+    id: 'notifications',
+    labelKey: 'settings.nav.notifications',
+    icon: <BellRing size={15} />,
+    descriptionKey: 'settings.nav.notificationsDescription'
+  },
+  {
     id: 'compaction',
     labelKey: 'settings.nav.compaction',
     icon: <Gauge size={15} />,
@@ -122,6 +139,7 @@ export function PermissionsPage({
   tools,
   maxToolIterations,
   compactionSettings,
+  approvalNotificationSettings,
   agentLanguage,
   agentMode,
   agentModes,
@@ -174,6 +192,7 @@ export function PermissionsPage({
               activePermissionPresetId={activePermissionPresetId}
             />
           ) : null}
+          {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
           {activePage === 'compaction' ? <CompactionSettingsPage settings={compactionSettings} /> : null}
           {activePage === 'system' ? (
             <SystemSettingsPage
@@ -874,6 +893,85 @@ function PermissionsSettingsPage({
           {tools.map((tool) => (
             <ToolPermissionSelect key={tool.name} item={tool} />
           ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function NotificationSettingsPage({ settings }: { settings: ApprovalNotificationSettings }) {
+  const { t } = useI18n();
+
+  return (
+    <div className={styles.sectionStack}>
+      <Card title={t('settings.notifications.title')} description={t('settings.notifications.description')}>
+        <div className={styles.formGrid}>
+          <Select
+            label={t('common.status')}
+            value={settings.enabled ? 'enabled' : 'disabled'}
+            options={[
+              { value: 'enabled', label: t('common.enabled') },
+              { value: 'disabled', label: t('common.disabled') }
+            ]}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setApprovalNotificationSettings',
+                settings: { enabled: event.target.value === 'enabled' }
+              })
+            }
+          />
+          <Checkbox
+            label={t('settings.notifications.system')}
+            description={t('settings.notifications.systemDescription')}
+            checked={settings.systemNotifications}
+            disabled={!settings.enabled}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setApprovalNotificationSettings',
+                settings: { systemNotifications: event.target.checked }
+              })
+            }
+          />
+          <Checkbox
+            label={t('settings.notifications.sound')}
+            description={t('settings.notifications.soundDescription')}
+            checked={settings.sound}
+            disabled={!settings.enabled}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setApprovalNotificationSettings',
+                settings: { sound: event.target.checked }
+              })
+            }
+          />
+          <TextField
+            label={t('settings.notifications.volume')}
+            type="number"
+            min={0}
+            max={100}
+            value={Math.round(settings.volume * 100)}
+            disabled={!settings.enabled || !settings.sound}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setApprovalNotificationSettings',
+                settings: { volume: Math.max(0, Math.min(100, Number(event.target.value) || 0)) / 100 }
+              })
+            }
+          />
+          <TextField
+            label={t('settings.notifications.duration')}
+            type="number"
+            min={1}
+            max={30}
+            value={settings.durationSeconds}
+            disabled={!settings.enabled || !settings.sound}
+            onChange={(event) =>
+              vscode.postMessage({
+                type: 'setApprovalNotificationSettings',
+                settings: { durationSeconds: Math.max(1, Math.min(30, Number(event.target.value) || 5)) }
+              })
+            }
+          />
         </div>
       </Card>
     </div>

@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 import type { ChatStore } from '../../chats/chatStore';
 import type { Chat } from '../../chats/types';
 import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
@@ -6,7 +8,8 @@ import { t } from '../../shared/i18n';
 import { getSkillPermission, runAgentSkill } from '../../skills/skills';
 import { type FilesystemToolPreview, previewFilesystemTool, runFilesystemTool } from '../../tools/filesystemTools';
 import { getToolPermission } from '../../tools/permissions';
-import type { AgentRun } from '../types';
+import { getApprovalNotificationSettings } from '../config/notifications';
+import type { AgentRun, ToolApprovalDecision } from '../types';
 import { getToolReason, parseToolArguments } from './toolCalls';
 
 export type HandleAgentToolCallParams = {
@@ -17,7 +20,7 @@ export type HandleAgentToolCallParams = {
   chats: ChatStore;
   sendState(): void;
   throwIfStopped(run: AgentRun): void;
-  askToolPermission(messageId: string, run: AgentRun): Promise<boolean>;
+  askToolPermission(messageId: string, run: AgentRun): Promise<ToolApprovalDecision>;
 };
 
 /**
@@ -126,23 +129,52 @@ async function waitForToolApproval(params: ApprovalParams): Promise<void> {
     approval: 'pending',
     result: params.preview ? { preview: params.preview } : undefined
   });
+  showApprovalSystemNotification(params.toolCall.function.name);
   params.sendState();
 
-  const allowed = await params.askToolPermission(params.toolMessageId, params.run);
-  if (!allowed) {
-    denyToolCall(params);
-    throw new ToolCallDeniedError();
+  const decision = await params.askToolPermission(params.toolMessageId, params.run);
+  if (!decision.approved) {
+    denyToolCall(params, decision);
+    if (!decision.continueAfterDeny) {
+      throw new ToolCallDeniedError();
+    }
   }
 }
 
-function denyToolCall(params: ApprovalParams): void {
-  const result = { ok: false, error: 'The user denied this tool call.' };
+/**
+ * Показывает системное уведомление VS Code только для критичного ожидания решения.
+ * Звук остаётся в webview, потому что там доступен Web Audio; extension отвечает за OS/VS Code notification.
+ */
+function showApprovalSystemNotification(toolName: string): void {
+  const settings = getApprovalNotificationSettings();
+  if (!settings.enabled || !settings.systemNotifications) {
+    return;
+  }
+
+  void vscode.window.showInformationMessage(
+    `${t('approval.notification.title')}: ${t('approval.notification.message', { tool: toolName })}`,
+    { modal: false }
+  );
+}
+
+/**
+ * Фиксирует отказ как результат tool-call.
+ * Если пользователь выбрал «продолжить», модель увидит этот результат и сможет построить следующий шаг
+ * без выполнения опасного действия; если выбрана остановка — выше будет выброшена ошибка остановки цикла.
+ */
+function denyToolCall(params: ApprovalParams, decision: ToolApprovalDecision): void {
+  const result = {
+    ok: false,
+    error: decision.comment || 'The user denied this tool call.',
+    userComment: decision.comment
+  };
   params.chats.updateMessage(params.chat.id, params.toolMessageId, {
     status: 'denied',
     approval: 'denied',
     reason: params.reason,
     args: params.args,
-    result: params.preview ? { preview: params.preview, result } : result
+    result: params.preview ? { preview: params.preview, result } : result,
+    userComment: decision.comment
   });
   params.workingMessages.push({
     role: 'tool',

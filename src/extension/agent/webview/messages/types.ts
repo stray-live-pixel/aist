@@ -1,6 +1,6 @@
 import type { ChatStore } from '../../../chats/chatStore';
 import type { AistLogger } from '../../../shared/logger';
-import type { WebviewSurface } from '../../types';
+import type { ToolApprovalDecision, WebviewSurface } from '../../types';
 
 export type AgentWebviewMessageDeps = {
   chats: ChatStore;
@@ -17,7 +17,7 @@ export type AgentWebviewMessageDeps = {
   retargetDeletedChat(deletedChatId: string, nextChatId: string): void;
   loginCodex(): Promise<void>;
   logoutCodex(): Promise<void>;
-  resolveToolCall(messageId: string, approved: boolean): void;
+  resolveToolCall(messageId: string, decision: ToolApprovalDecision): void;
   openWorkspaceFile(path: string, line?: number, column?: number, endLine?: number, endColumn?: number): Promise<void>;
   stopCurrentRun(): void;
 };

@@ -11,7 +11,7 @@ import type {
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getEditorContext } from '../context/editorContext';
-import type { AgentRun } from '../types';
+import type { AgentRun, ToolApprovalDecision } from '../types';
 import { MAX_MODEL_REQUEST_ATTEMPTS, formatChatErrorMessage, isRetryableModelRequestError } from './errors';
 import { runAgentLoop } from './loop';
 import { isAbortError } from './runtime';
@@ -85,14 +85,14 @@ export class AgentRunService {
     run.abortController.abort();
     this.deps.chats.setActivity(run.chatId, 'stopping', t('activity.detail.stopRequested'));
     for (const resolver of run.permissionResolvers.values()) {
-      resolver(false);
+      resolver({ approved: false, continueAfterDeny: false });
     }
     run.permissionResolvers.clear();
     this.deps.sendState();
   }
 
-  resolveToolCall(messageId: string, approved: boolean): void {
-    this.currentRun?.permissionResolvers.get(messageId)?.(approved);
+  resolveToolCall(messageId: string, decision: ToolApprovalDecision): void {
+    this.currentRun?.permissionResolvers.get(messageId)?.(decision);
   }
 
   private startRun(chat: Chat, prompt: string): AgentRun {
@@ -234,11 +234,11 @@ export class AgentRunService {
     });
   }
 
-  private askToolPermission(messageId: string, run: AgentRun): Promise<boolean> {
+  private askToolPermission(messageId: string, run: AgentRun): Promise<ToolApprovalDecision> {
     return new Promise((resolve) => {
-      run.permissionResolvers.set(messageId, (approved) => {
+      run.permissionResolvers.set(messageId, (decision) => {
         run.permissionResolvers.delete(messageId);
-        resolve(approved);
+        resolve(decision);
       });
     });
   }

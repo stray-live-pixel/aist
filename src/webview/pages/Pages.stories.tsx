@@ -39,6 +39,7 @@ export const Settings: Story = {
       tools={storyAgentState.toolPermissions}
       maxToolIterations={storyAgentState.maxToolIterations}
       compactionSettings={storyAgentState.compactionSettings}
+      approvalNotificationSettings={storyAgentState.approvalNotificationSettings}
       agentLanguage={storyAgentState.agentLanguage}
       agentMode={storyAgentState.agentMode}
       agentModes={storyAgentState.agentModes}

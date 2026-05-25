@@ -15,6 +15,7 @@ import {
 } from '../../config/agentConfigStore';
 import { setCompactionSettings } from '../../config/compaction';
 import { normalizeReasoningEffort } from '../../config/config';
+import { setApprovalNotificationSettings } from '../../config/notifications';
 import {
   addAgentMode,
   deleteAgentMode,
@@ -30,6 +31,7 @@ type SettingsMessage = Extract<
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
   | { type: 'setCompactionSettings' }
+  | { type: 'setApprovalNotificationSettings' }
   | { type: 'setAgentLanguage' }
   | { type: 'setAgentMode' }
   | { type: 'setAgentModeInstructions' }
@@ -51,6 +53,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setMaxToolIterations',
     'setReasoningEffort',
     'setCompactionSettings',
+    'setApprovalNotificationSettings',
     'setAgentLanguage',
     'setAgentMode',
     'setAgentModeInstructions',
@@ -93,6 +96,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setCompactionSettings':
       await setCompactionSettings(message.settings);
+      deps.sendState();
+      return;
+    case 'setApprovalNotificationSettings':
+      await setApprovalNotificationSettings(message.settings);
       deps.sendState();
       return;
     case 'setAgentLanguage':

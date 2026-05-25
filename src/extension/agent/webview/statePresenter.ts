@@ -10,6 +10,7 @@ import {
 } from '../../tools/permissions';
 import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '../config/agentConfigStore';
 import { getCompactionSettings } from '../config/compaction';
+import { getApprovalNotificationSettings } from '../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
@@ -51,6 +52,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const instructionSources = getAgentInstructionSources();
   const promptConfig = getPromptConfig();
   const compactionSettings = getCompactionSettings();
+  const approvalNotificationSettings = getApprovalNotificationSettings();
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -67,7 +69,8 @@ export function sendAgentState(params: SendAgentStateParams): void {
       projectInstructions,
       promptConfig,
       instructionSources,
-      compactionSettings
+      compactionSettings,
+      approvalNotificationSettings
     });
   }
 }
@@ -86,6 +89,7 @@ type StateContext = SendAgentStateParams & {
   promptConfig: unknown;
   instructionSources: unknown;
   compactionSettings: unknown;
+  approvalNotificationSettings: unknown;
 };
 
 function omitHistory<T extends { history?: unknown }>(chat: T): Omit<T, 'history'> {
@@ -119,6 +123,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     maxToolIterations: context.maxToolIterations,
     reasoningEffort: context.reasoningEffort,
     compactionSettings: context.compactionSettings,
+    approvalNotificationSettings: context.approvalNotificationSettings,
     agentLanguage: context.language,
     agentMode: context.activeMode.id,
     agentModes: context.agentModes,

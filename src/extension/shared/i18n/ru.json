@@ -34,5 +34,7 @@
   "error.addAgentMode": "aist: не удалось добавить режим агента — {{error}}",
   "error.deleteAgentMode": "aist: не удалось удалить режим агента — {{error}}",
   "codex.login": "вход",
-  "codex.logout": "выход"
+  "codex.logout": "выход",
+  "approval.notification.title": "AIST ждёт подтверждение",
+  "approval.notification.message": "Инструмент {{tool}} готов к запуску. Выберите действие в чате."
 }

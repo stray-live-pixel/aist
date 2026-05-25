@@ -20,7 +20,18 @@ export type AgentRun = {
   abortController: AbortController;
   stopRequested: boolean;
   activityStream?: AgentActivityStream;
-  permissionResolvers: Map<string, (approved: boolean) => void>;
+  permissionResolvers: Map<string, (decision: ToolApprovalDecision) => void>;
+};
+
+/**
+ * Решение пользователя по tool approval.
+ * approved запускает инструмент; отказ может либо остановить текущий агентский цикл,
+ * либо вернуться в модель как результат tool-call, чтобы агент продолжил с учётом запрета/комментария.
+ */
+export type ToolApprovalDecision = {
+  approved: boolean;
+  continueAfterDeny: boolean;
+  comment?: string;
 };
 
 export type AgentActivityStream = ModelStreamCallbacks & {
@@ -77,6 +88,16 @@ export type WebviewMessage =
       type: 'setCompactionSettings';
       settings: Partial<{ enabled: boolean; thresholdPercent: number; keepLastMessages: number }>;
     }
+  | {
+      type: 'setApprovalNotificationSettings';
+      settings: Partial<{
+        enabled: boolean;
+        systemNotifications: boolean;
+        sound: boolean;
+        volume: number;
+        durationSeconds: number;
+      }>;
+    }
   | { type: 'setAgentLanguage'; language: 'ru' | 'en' }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
@@ -117,7 +138,12 @@ export type WebviewMessage =
   | { type: 'deleteSkill'; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
-  | { type: 'resolveToolCall'; messageId: string; approved: boolean }
+  | {
+      type: 'resolveToolCall';
+      messageId: string;
+      decision: 'approve' | 'deny-stop' | 'deny-continue' | 'deny-comment';
+      comment?: string;
+    }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop' }
   | { type: 'clear' }

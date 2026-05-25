@@ -245,6 +245,43 @@
           },
           "markdownDescription": "User-defined custom skills the agent can run through the `run_skill` tool. Skills default to requiring confirmation."
         },
+        "openrouterAgent.approvalNotifications": {
+          "type": "object",
+          "default": {
+            "enabled": true,
+            "systemNotifications": true,
+            "sound": true,
+            "volume": 0.35,
+            "durationSeconds": 5
+          },
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "systemNotifications": {
+              "type": "boolean",
+              "default": true
+            },
+            "sound": {
+              "type": "boolean",
+              "default": true
+            },
+            "volume": {
+              "type": "number",
+              "default": 0.35,
+              "minimum": 0,
+              "maximum": 1
+            },
+            "durationSeconds": {
+              "type": "number",
+              "default": 5,
+              "minimum": 1,
+              "maximum": 30
+            }
+          },
+          "markdownDescription": "Notification settings for tool-call approval prompts. AIST can show a system notification and play a gentle bell while waiting for the user's decision."
+        },
         "openrouterAgent.toolPermissions": {
           "type": "object",
           "default": {

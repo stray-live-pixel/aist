@@ -10,6 +10,7 @@ export type ChatMessage = {
   reason?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  userComment?: string;
   usage?: ChatMessageUsageEstimate;
   marker?: string;
   createdAt: number;
@@ -173,6 +174,14 @@ export type CompactionSettings = {
   keepLastMessages: number;
 };
 
+export type ApprovalNotificationSettings = {
+  enabled: boolean;
+  systemNotifications: boolean;
+  sound: boolean;
+  volume: number;
+  durationSeconds: number;
+};
+
 export type AgentState = {
   viewKind: 'sidebar' | 'editor';
   workspaceName: string;
@@ -183,6 +192,7 @@ export type AgentState = {
   maxToolIterations: number;
   reasoningEffort: ReasoningEffort;
   compactionSettings: CompactionSettings;
+  approvalNotificationSettings: ApprovalNotificationSettings;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
@@ -219,6 +229,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }
+  | { type: 'setApprovalNotificationSettings'; settings: Partial<ApprovalNotificationSettings> }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
@@ -259,7 +270,12 @@ export type WebviewToExtensionMessage =
   | { type: 'deleteSkill'; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
-  | { type: 'resolveToolCall'; messageId: string; approved: boolean }
+  | {
+      type: 'resolveToolCall';
+      messageId: string;
+      decision: 'approve' | 'deny-stop' | 'deny-continue' | 'deny-comment';
+      comment?: string;
+    }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop' }
   | { type: 'clear' }

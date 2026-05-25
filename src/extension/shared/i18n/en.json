@@ -34,5 +34,7 @@
   "error.addAgentMode": "aist: failed to add agent mode — {{error}}",
   "error.deleteAgentMode": "aist: failed to delete agent mode — {{error}}",
   "codex.login": "login",
-  "codex.logout": "logout"
+  "codex.logout": "logout",
+  "approval.notification.title": "AIST is waiting for approval",
+  "approval.notification.message": "Tool {{tool}} is ready to run. Choose an action in the chat."
 }

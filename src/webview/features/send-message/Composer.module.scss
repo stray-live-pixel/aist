@@ -28,6 +28,14 @@
   );
 }
 
+.notice {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 768px);
+  margin: 0 auto 8px;
+  pointer-events: auto;
+}
+
 .panel {
   position: relative;
   z-index: 1;

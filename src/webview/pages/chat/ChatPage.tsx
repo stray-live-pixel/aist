@@ -9,6 +9,7 @@ import { IconButton } from '../../shared/ui/IconButton';
 import { MessageList } from '../../widgets/message-list/MessageList';
 import { AgentSettingsModal } from './AgentSettingsModal';
 import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
+import { ApprovalPromptModal } from './ApprovalPromptModal';
 import { ChatListModal } from './ChatListModal';
 
 type ChatPageProps = {
@@ -18,8 +19,10 @@ type ChatPageProps = {
 export function ChatPage({ state }: ChatPageProps) {
   const [chatsOpen, setChatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [approvalMinimized, setApprovalMinimized] = useState(false);
   const activeMode = state.agentModes.find((mode) => mode.id === state.agentMode);
   const chats = useSortedChats(state);
+  const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
 
   return (
     <div className="relative flex h-screen flex-col bg-transparent text-[var(--vscode-foreground)]">
@@ -42,6 +45,17 @@ export function ChatPage({ state }: ChatPageProps) {
         floating
         settings={<AgentSettingsSummary state={state} onOpen={() => setSettingsOpen(true)} />}
         footer={<ComposerContextSummary state={state} />}
+        notice={
+          pendingApproval && approvalMinimized ? (
+            <ApprovalPromptModal
+              message={pendingApproval}
+              settings={state.approvalNotificationSettings}
+              minimized
+              onMinimize={() => setApprovalMinimized(true)}
+              onRestore={() => setApprovalMinimized(false)}
+            />
+          ) : undefined
+        }
       />
       {chatsOpen ? (
         <ChatListModal
@@ -52,6 +66,15 @@ export function ChatPage({ state }: ChatPageProps) {
         />
       ) : null}
       {settingsOpen ? <AgentSettingsModal state={state} onClose={() => setSettingsOpen(false)} /> : null}
+      {pendingApproval && !approvalMinimized ? (
+        <ApprovalPromptModal
+          message={pendingApproval}
+          settings={state.approvalNotificationSettings}
+          minimized={false}
+          onMinimize={() => setApprovalMinimized(true)}
+          onRestore={() => setApprovalMinimized(false)}
+        />
+      ) : null}
     </div>
   );
 }

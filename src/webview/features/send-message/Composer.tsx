@@ -15,9 +15,10 @@ type ComposerProps = {
   floating?: boolean;
   settings?: ReactNode;
   footer?: ReactNode;
+  notice?: ReactNode;
 };
 
-export function Composer({ busy, floating = false, settings, footer }: ComposerProps) {
+export function Composer({ busy, floating = false, settings, footer, notice }: ComposerProps) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -39,6 +40,7 @@ export function Composer({ busy, floating = false, settings, footer }: ComposerP
 
   return (
     <footer className={floating ? `${styles.root} ${styles.floatingRoot}` : styles.root}>
+      {notice ? <div className={styles.notice}>{notice}</div> : null}
       <div className={styles.panel}>
         <div className={styles.settings}>
           {settings ? settings : <span className={styles.settingsFallback}>{t('composer.noSettings')}</span>}
