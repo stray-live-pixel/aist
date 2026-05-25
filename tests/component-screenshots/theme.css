@@ -3,7 +3,14 @@
   --vscode-foreground: #cccccc;
   --vscode-descriptionForeground: #9d9d9d;
   --vscode-input-background: #2a2d2e;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-placeholderForeground: #7a7a7a;
+  --vscode-dropdown-background: #2a2d2e;
+  --vscode-dropdown-foreground: #cccccc;
   --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-list-focusBackground: #333842;
+  --vscode-list-activeSelectionBackground: #04395e;
+  --vscode-list-activeSelectionForeground: #ffffff;
   --vscode-editor-inactiveSelectionBackground: #37373d;
   --vscode-focusBorder: #007fd4;
   --vscode-textLink-foreground: #4daafc;
@@ -11,6 +18,7 @@
   --vscode-button-background: #0e639c;
   --vscode-button-foreground: #ffffff;
   --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-border: transparent;
   --vscode-button-secondaryBackground: #313131;
   --vscode-button-secondaryForeground: #cccccc;
   --vscode-button-secondaryHoverBackground: #3c3c3c;
@@ -45,4 +53,23 @@ body {
   border: 1px solid var(--agent-border);
   border-radius: 24px;
   background: color-mix(in srgb, var(--vscode-editor-background) 92%, #ffffff);
+}
+
+.component-shot-control-wide {
+  width: 224px;
+}
+
+.component-shot-composer {
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: 14px;
+}
+
+.component-shot-composer-settings {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.storyAgentModeWidth {
+  width: 224px;
 }

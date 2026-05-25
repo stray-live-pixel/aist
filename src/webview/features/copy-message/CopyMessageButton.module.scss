@@ -1,0 +1,7 @@
+/*
+ * Компонент визуально делегирует всё shared IconButton.
+ * Файл оставлен как module.scss-слой компонента, чтобы будущие локальные состояния не возвращались в global CSS или Tailwind.
+ */
+.root {
+  display: contents;
+}

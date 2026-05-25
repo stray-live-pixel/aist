@@ -6,7 +6,14 @@ import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 import { I18nProvider, translate } from '../shared/i18n';
 import { vscode } from '../shared/lib/vscode';
 import type { AgentState, ExtensionToWebviewMessage } from '../shared/types';
+import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../shared/ui';
+import { IconButton } from '../shared/ui/IconButton';
+import styles from './App.module.scss';
 
+/**
+ * Что это: корневой React-компонент webview.
+ * Зачем нужно: принимает состояние от extension через IPC и выбирает между чат-страницей, настройками и глобальной error-модалкой.
+ */
 export function App() {
   const [state, setState] = useState<AgentState | null>(null);
   const [page, setPage] = useState<'chat' | 'settings'>('chat');
@@ -34,8 +41,8 @@ export function App() {
   if (!state) {
     return (
       <>
-        <div className="flex h-screen items-center justify-center bg-[var(--vscode-editor-background)] text-[var(--vscode-descriptionForeground)]">
-          <div className="flex items-center gap-2 text-sm">
+        <div className={styles.loadingPage}>
+          <div className={styles.loadingContent}>
             <Bot size={18} />
             <span>{translate('ru', 'app.loadingAgent')}</span>
           </div>
@@ -81,22 +88,22 @@ export function App() {
 
 function GlobalErrorModal({ message, onClose }: { message: string; onClose(): void }) {
   return (
-    <div className="tool-modal-backdrop">
-      <section className="tool-modal global-error-modal" role="alertdialog" aria-modal="true" aria-label="AIST error">
-        <header className="tool-modal-header global-error-modal-header">
-          <div className="flex min-w-0 items-start gap-3">
-            <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
-            <div className="min-w-0">
+    <ModalBackdrop>
+      <ModalSurface tone="error" role="alertdialog" aria-modal="true" aria-label="AIST error">
+        <ModalHeader tone="error">
+          <div className={styles.errorHeaderMain}>
+            <AlertTriangle size={18} className={styles.errorIcon} />
+            <div className={styles.errorHeaderText}>
               <h2>AIST error</h2>
               <p>The error was also added to the chat as an informational agent message.</p>
             </div>
           </div>
-          <button className="icon-button" title="Close" onClick={onClose}>
+          <IconButton title="Close" onClick={onClose}>
             <X size={15} />
-          </button>
-        </header>
-        <pre className="tool-modal-code global-error-modal-code">{message}</pre>
-      </section>
-    </div>
+          </IconButton>
+        </ModalHeader>
+        <ModalCode tone="error">{message}</ModalCode>
+      </ModalSurface>
+    </ModalBackdrop>
   );
 }

@@ -1,0 +1,121 @@
+.logo {
+  display: inline-block;
+  width: 100px;
+  height: 100px;
+  background: currentColor;
+  mask: var(--aist-logo-uri) center / contain no-repeat;
+}
+
+.small {
+  width: 40px;
+  height: 40px;
+}
+
+.animated {
+  position: relative;
+  background: transparent;
+  mask: none;
+}
+
+.animated::before,
+.animated::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, currentColor 24%, transparent) 0%,
+    color-mix(in srgb, currentColor 76%, transparent) 34%,
+    currentColor 50%,
+    color-mix(in srgb, currentColor 76%, transparent) 66%,
+    color-mix(in srgb, currentColor 24%, transparent) 100%
+  );
+  background-size: 420% 100%;
+}
+
+.animated::before {
+  animation:
+    logoPulse 2400ms ease-in-out infinite,
+    logoBaseFade 1800ms ease-in-out infinite;
+  mask: var(--aist-logo-base-uri) center / contain no-repeat;
+}
+
+.animated::after {
+  animation:
+    logoPulse 2400ms ease-in-out infinite,
+    logoAnimatedFade 1800ms ease-in-out infinite;
+  mask: var(--aist-logo-animated-uri) center / contain no-repeat;
+}
+
+.brand {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--vscode-foreground);
+  font-family: inherit;
+}
+
+.brandText {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.brandTitle {
+  margin-top: -20px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+
+.brandSubtitle {
+  color: var(--vscode-descriptionForeground);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+@keyframes logoPulse {
+  0%,
+  100% {
+    background-position: 46% 50%;
+    filter: brightness(0.88);
+  }
+
+  50% {
+    background-position: 54% 50%;
+    filter: brightness(1.22);
+  }
+}
+
+@keyframes logoBaseFade {
+  0%,
+  32% {
+    opacity: 1;
+  }
+
+  50%,
+  82% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes logoAnimatedFade {
+  0%,
+  32% {
+    opacity: 0;
+  }
+
+  50%,
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}

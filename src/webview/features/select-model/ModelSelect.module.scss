@@ -1,0 +1,200 @@
+.root {
+  position: relative;
+  display: grid;
+  min-width: 224px;
+  max-width: 100%;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.labelIcon,
+.chevron,
+.optionCheck,
+.searchIcon {
+  flex-shrink: 0;
+}
+
+.trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+
+.trigger:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.triggerText,
+.optionText,
+.optionName,
+.optionId {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triggerText {
+  flex: 1 1 auto;
+}
+
+.chevron {
+  transition: transform 160ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: 320px;
+  gap: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-dropdown-background);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  padding: 8px;
+}
+
+.searchBox {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  padding: 0 8px;
+}
+
+.searchBox:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
+.searchIcon {
+  color: var(--vscode-descriptionForeground);
+}
+
+.searchInput {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 12px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.group {
+  display: grid;
+  gap: 4px;
+}
+
+.groupTitle {
+  padding: 8px 8px 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.optionButton {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  padding: 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+
+.optionButton:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.optionButton:focus {
+  background: var(--vscode-list-focusBackground);
+}
+
+.optionActive {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.optionCheck {
+  margin-top: 2px;
+}
+
+.optionCheckHidden {
+  opacity: 0;
+}
+
+.optionText {
+  flex: 1 1 auto;
+}
+
+.optionName {
+  display: block;
+  font-weight: 600;
+}
+
+.optionId {
+  display: block;
+}
+
+.optionIdMuted,
+.empty {
+  color: var(--vscode-descriptionForeground);
+}
+
+.empty {
+  padding: 12px 8px;
+  font-size: 12px;
+}

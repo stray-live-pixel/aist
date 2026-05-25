@@ -1,8 +1,32 @@
 import { createRoot } from 'react-dom/client';
 
+import {
+  MessageCard,
+  ToolApprovalActions,
+  ToolMessageCard,
+  ToolResultPreview,
+  WorkspaceFileLink
+} from '../../src/webview/entities/message';
+import {
+  AgentModeSelect,
+  Composer,
+  CopyMessageButton,
+  ModelSelect,
+  PermissionPresetSelect,
+  ToolPermissionSelect
+} from '../../src/webview/features';
 import { I18nProvider } from '../../src/webview/shared/i18n';
 import type { ChatMessage } from '../../src/webview/shared/types';
-import { storyAgentModes, storyMessages, storyPromptConfig, storyTools } from '../../src/webview/storybook/fixtures';
+import {
+  storyAgentModes,
+  storyMessages,
+  storyModels,
+  storyPromptConfig,
+  storyToolMessages,
+  storyToolPermissionPresets,
+  storyToolPermissions,
+  storyTools
+} from '../../src/webview/storybook/fixtures';
 import {
   AgentActivityStatus,
   EmptyState,
@@ -21,7 +45,20 @@ type ScenarioId =
   | 'agent-activity-status'
   | 'system-instruction-label'
   | 'tool-calls-cut'
-  | 'message-list';
+  | 'message-list'
+  | 'message-card-user'
+  | 'message-card-assistant'
+  | 'tool-message-card-approval'
+  | 'tool-message-card-bash'
+  | 'tool-result-preview-bash'
+  | 'tool-approval-actions'
+  | 'workspace-file-link'
+  | 'feature-agent-mode-select'
+  | 'feature-model-select'
+  | 'feature-permission-preset-select'
+  | 'feature-tool-permission-select'
+  | 'feature-copy-message-button'
+  | 'feature-composer';
 
 const storyInstructionSources = [
   {
@@ -104,6 +141,47 @@ function renderScenario(scenario: ScenarioId) {
           />
         </div>
       );
+    case 'message-card-user':
+      return userMessage ? <MessageCard message={userMessage} /> : null;
+    case 'message-card-assistant':
+      return assistantMessage ? <MessageCard message={assistantMessage} /> : null;
+    case 'tool-message-card-approval':
+      return <ToolMessageCard message={storyToolMessages.waitingApproval} />;
+    case 'tool-message-card-bash':
+      return <ToolMessageCard message={storyToolMessages.finishedBash} />;
+    case 'tool-result-preview-bash':
+      return <ToolResultPreview message={storyToolMessages.finishedBash} />;
+    case 'tool-approval-actions':
+      return <ToolApprovalActions messageId="tool-approval-screenshot" compact={false} />;
+    case 'workspace-file-link':
+      return (
+        <WorkspaceFileLink
+          file={{ path: 'src/webview/entities/message/MessageCard.tsx', line: 14, label: 'component' }}
+        />
+      );
+    case 'feature-agent-mode-select':
+      return <AgentModeSelect modes={storyAgentModes} activeId="frontend" className="component-shot-control-wide" />;
+    case 'feature-model-select':
+      return <ModelSelect model="codex:gpt-5.1-codex" models={storyModels} />;
+    case 'feature-permission-preset-select':
+      return <PermissionPresetSelect presets={storyToolPermissionPresets} activeId="balanced" />;
+    case 'feature-tool-permission-select':
+      return <ToolPermissionSelect item={storyToolPermissions[2]} />;
+    case 'feature-copy-message-button':
+      return <CopyMessageButton markdown="Copied from screenshot harness" />;
+    case 'feature-composer':
+      return (
+        <div className="component-shot-composer">
+          <Composer
+            busy={false}
+            settings={
+              <span className="component-shot-composer-settings">
+                Mode: Frontend · Safe access · Tokens: 12.4K · Cost: ~$0.0021
+              </span>
+            }
+          />
+        </div>
+      );
     case 'empty-state':
     default:
       return <EmptyState />;
@@ -116,13 +194,29 @@ function getScenarioId(): ScenarioId {
   return isScenarioId(scenario) ? scenario : 'empty-state';
 }
 
+const ALL_SCENARIOS: ScenarioId[] = [
+  'empty-state',
+  'agent-activity-status',
+  'system-instruction-label',
+  'tool-calls-cut',
+  'message-list',
+  'message-card-user',
+  'message-card-assistant',
+  'tool-message-card-approval',
+  'tool-message-card-bash',
+  'tool-result-preview-bash',
+  'tool-approval-actions',
+  'workspace-file-link',
+  'feature-agent-mode-select',
+  'feature-model-select',
+  'feature-permission-preset-select',
+  'feature-tool-permission-select',
+  'feature-copy-message-button',
+  'feature-composer'
+];
+
 function isScenarioId(value: string | null): value is ScenarioId {
-  return Boolean(
-    value &&
-    ['empty-state', 'agent-activity-status', 'system-instruction-label', 'tool-calls-cut', 'message-list'].includes(
-      value
-    )
-  );
+  return Boolean(value && ALL_SCENARIOS.includes(value as ScenarioId));
 }
 
 createRoot(document.getElementById('root')!).render(<HarnessApp />);

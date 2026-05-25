@@ -21454,6 +21454,244 @@
     }
   });
 
+  // node_modules/inline-style-parser/cjs/index.js
+  var require_cjs = __commonJS({
+    "node_modules/inline-style-parser/cjs/index.js"(exports, module) {
+      "use strict";
+      var COMMENT_REGEX = /\/\*[^*]*\*+([^/*][^*]*\*+)*\//g;
+      var NEWLINE_REGEX = /\n/g;
+      var WHITESPACE_REGEX = /^\s*/;
+      var PROPERTY_REGEX = /^(\*?[-#/*\\\w]+(\[[0-9a-z_-]+\])?)\s*/;
+      var COLON_REGEX = /^:\s*/;
+      var VALUE_REGEX = /^((?:'(?:\\'|.)*?'|"(?:\\"|.)*?"|\([^)]*?\)|[^};])+)/;
+      var SEMICOLON_REGEX = /^[;\s]*/;
+      var TRIM_REGEX = /^\s+|\s+$/g;
+      var NEWLINE = "\n";
+      var FORWARD_SLASH = "/";
+      var ASTERISK = "*";
+      var EMPTY_STRING = "";
+      var TYPE_COMMENT = "comment";
+      var TYPE_DECLARATION = "declaration";
+      function index2(style, options) {
+        if (typeof style !== "string") {
+          throw new TypeError("First argument must be a string");
+        }
+        if (!style) return [];
+        options = options || {};
+        var lineno = 1;
+        var column = 1;
+        function updatePosition(str) {
+          var lines = str.match(NEWLINE_REGEX);
+          if (lines) lineno += lines.length;
+          var i = str.lastIndexOf(NEWLINE);
+          column = ~i ? str.length - i : column + str.length;
+        }
+        function position3() {
+          var start2 = { line: lineno, column };
+          return function(node2) {
+            node2.position = new Position(start2);
+            whitespace2();
+            return node2;
+          };
+        }
+        function Position(start2) {
+          this.start = start2;
+          this.end = { line: lineno, column };
+          this.source = options.source;
+        }
+        Position.prototype.content = style;
+        function error(msg) {
+          var err = new Error(
+            options.source + ":" + lineno + ":" + column + ": " + msg
+          );
+          err.reason = msg;
+          err.filename = options.source;
+          err.line = lineno;
+          err.column = column;
+          err.source = style;
+          if (options.silent) ;
+          else {
+            throw err;
+          }
+        }
+        function match(re2) {
+          var m = re2.exec(style);
+          if (!m) return;
+          var str = m[0];
+          updatePosition(str);
+          style = style.slice(str.length);
+          return m;
+        }
+        function whitespace2() {
+          match(WHITESPACE_REGEX);
+        }
+        function comments(rules) {
+          var c;
+          rules = rules || [];
+          while (c = comment()) {
+            if (c !== false) {
+              rules.push(c);
+            }
+          }
+          return rules;
+        }
+        function comment() {
+          var pos = position3();
+          if (FORWARD_SLASH != style.charAt(0) || ASTERISK != style.charAt(1)) return;
+          var i = 2;
+          while (EMPTY_STRING != style.charAt(i) && (ASTERISK != style.charAt(i) || FORWARD_SLASH != style.charAt(i + 1))) {
+            ++i;
+          }
+          i += 2;
+          if (EMPTY_STRING === style.charAt(i - 1)) {
+            return error("End of comment missing");
+          }
+          var str = style.slice(2, i - 2);
+          column += 2;
+          updatePosition(str);
+          style = style.slice(i);
+          column += 2;
+          return pos({
+            type: TYPE_COMMENT,
+            comment: str
+          });
+        }
+        function declaration() {
+          var pos = position3();
+          var prop = match(PROPERTY_REGEX);
+          if (!prop) return;
+          comment();
+          if (!match(COLON_REGEX)) return error("property missing ':'");
+          var val = match(VALUE_REGEX);
+          var ret = pos({
+            type: TYPE_DECLARATION,
+            property: trim(prop[0].replace(COMMENT_REGEX, EMPTY_STRING)),
+            value: val ? trim(val[0].replace(COMMENT_REGEX, EMPTY_STRING)) : EMPTY_STRING
+          });
+          match(SEMICOLON_REGEX);
+          return ret;
+        }
+        function declarations() {
+          var decls = [];
+          comments(decls);
+          var decl;
+          while (decl = declaration()) {
+            if (decl !== false) {
+              decls.push(decl);
+              comments(decls);
+            }
+          }
+          return decls;
+        }
+        whitespace2();
+        return declarations();
+      }
+      function trim(str) {
+        return str ? str.replace(TRIM_REGEX, EMPTY_STRING) : EMPTY_STRING;
+      }
+      module.exports = index2;
+    }
+  });
+
+  // node_modules/style-to-object/cjs/index.js
+  var require_cjs2 = __commonJS({
+    "node_modules/style-to-object/cjs/index.js"(exports) {
+      "use strict";
+      var __importDefault = exports && exports.__importDefault || function(mod) {
+        return mod && mod.__esModule ? mod : { "default": mod };
+      };
+      Object.defineProperty(exports, "__esModule", { value: true });
+      exports.default = StyleToObject;
+      var inline_style_parser_1 = __importDefault(require_cjs());
+      function StyleToObject(style, iterator) {
+        let styleObject = null;
+        if (!style || typeof style !== "string") {
+          return styleObject;
+        }
+        const declarations = (0, inline_style_parser_1.default)(style);
+        const hasIterator = typeof iterator === "function";
+        declarations.forEach((declaration) => {
+          if (declaration.type !== "declaration") {
+            return;
+          }
+          const { property, value } = declaration;
+          if (hasIterator) {
+            iterator(property, value, declaration);
+          } else if (value) {
+            styleObject = styleObject || {};
+            styleObject[property] = value;
+          }
+        });
+        return styleObject;
+      }
+    }
+  });
+
+  // node_modules/style-to-js/cjs/utilities.js
+  var require_utilities = __commonJS({
+    "node_modules/style-to-js/cjs/utilities.js"(exports) {
+      "use strict";
+      Object.defineProperty(exports, "__esModule", { value: true });
+      exports.camelCase = void 0;
+      var CUSTOM_PROPERTY_REGEX = /^--[a-zA-Z0-9_-]+$/;
+      var HYPHEN_REGEX = /-([a-z])/g;
+      var NO_HYPHEN_REGEX = /^[^-]+$/;
+      var VENDOR_PREFIX_REGEX = /^-(webkit|moz|ms|o|khtml)-/;
+      var MS_VENDOR_PREFIX_REGEX = /^-(ms)-/;
+      var skipCamelCase = function(property) {
+        return !property || NO_HYPHEN_REGEX.test(property) || CUSTOM_PROPERTY_REGEX.test(property);
+      };
+      var capitalize2 = function(match, character) {
+        return character.toUpperCase();
+      };
+      var trimHyphen = function(match, prefix) {
+        return "".concat(prefix, "-");
+      };
+      var camelCase = function(property, options) {
+        if (options === void 0) {
+          options = {};
+        }
+        if (skipCamelCase(property)) {
+          return property;
+        }
+        property = property.toLowerCase();
+        if (options.reactCompat) {
+          property = property.replace(MS_VENDOR_PREFIX_REGEX, trimHyphen);
+        } else {
+          property = property.replace(VENDOR_PREFIX_REGEX, trimHyphen);
+        }
+        return property.replace(HYPHEN_REGEX, capitalize2);
+      };
+      exports.camelCase = camelCase;
+    }
+  });
+
+  // node_modules/style-to-js/cjs/index.js
+  var require_cjs3 = __commonJS({
+    "node_modules/style-to-js/cjs/index.js"(exports, module) {
+      "use strict";
+      var __importDefault = exports && exports.__importDefault || function(mod) {
+        return mod && mod.__esModule ? mod : { "default": mod };
+      };
+      var style_to_object_1 = __importDefault(require_cjs2());
+      var utilities_1 = require_utilities();
+      function StyleToJS(style, options) {
+        var output = {};
+        if (!style || typeof style !== "string") {
+          return output;
+        }
+        (0, style_to_object_1.default)(style, function(property, value) {
+          if (property && value) {
+            output[(0, utilities_1.camelCase)(property, options)] = value;
+          }
+        });
+        return output;
+      }
+      StyleToJS.default = StyleToJS;
+      module.exports = StyleToJS;
+    }
+  });
+
   // node_modules/react/cjs/react-jsx-runtime.development.js
   var require_react_jsx_runtime_development = __commonJS({
     "node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
@@ -21723,244 +21961,6 @@
     }
   });
 
-  // node_modules/inline-style-parser/cjs/index.js
-  var require_cjs = __commonJS({
-    "node_modules/inline-style-parser/cjs/index.js"(exports, module) {
-      "use strict";
-      var COMMENT_REGEX = /\/\*[^*]*\*+([^/*][^*]*\*+)*\//g;
-      var NEWLINE_REGEX = /\n/g;
-      var WHITESPACE_REGEX = /^\s*/;
-      var PROPERTY_REGEX = /^(\*?[-#/*\\\w]+(\[[0-9a-z_-]+\])?)\s*/;
-      var COLON_REGEX = /^:\s*/;
-      var VALUE_REGEX = /^((?:'(?:\\'|.)*?'|"(?:\\"|.)*?"|\([^)]*?\)|[^};])+)/;
-      var SEMICOLON_REGEX = /^[;\s]*/;
-      var TRIM_REGEX = /^\s+|\s+$/g;
-      var NEWLINE = "\n";
-      var FORWARD_SLASH = "/";
-      var ASTERISK = "*";
-      var EMPTY_STRING = "";
-      var TYPE_COMMENT = "comment";
-      var TYPE_DECLARATION = "declaration";
-      function index2(style, options) {
-        if (typeof style !== "string") {
-          throw new TypeError("First argument must be a string");
-        }
-        if (!style) return [];
-        options = options || {};
-        var lineno = 1;
-        var column = 1;
-        function updatePosition(str) {
-          var lines = str.match(NEWLINE_REGEX);
-          if (lines) lineno += lines.length;
-          var i = str.lastIndexOf(NEWLINE);
-          column = ~i ? str.length - i : column + str.length;
-        }
-        function position3() {
-          var start2 = { line: lineno, column };
-          return function(node2) {
-            node2.position = new Position(start2);
-            whitespace2();
-            return node2;
-          };
-        }
-        function Position(start2) {
-          this.start = start2;
-          this.end = { line: lineno, column };
-          this.source = options.source;
-        }
-        Position.prototype.content = style;
-        function error(msg) {
-          var err = new Error(
-            options.source + ":" + lineno + ":" + column + ": " + msg
-          );
-          err.reason = msg;
-          err.filename = options.source;
-          err.line = lineno;
-          err.column = column;
-          err.source = style;
-          if (options.silent) ;
-          else {
-            throw err;
-          }
-        }
-        function match(re2) {
-          var m = re2.exec(style);
-          if (!m) return;
-          var str = m[0];
-          updatePosition(str);
-          style = style.slice(str.length);
-          return m;
-        }
-        function whitespace2() {
-          match(WHITESPACE_REGEX);
-        }
-        function comments(rules) {
-          var c;
-          rules = rules || [];
-          while (c = comment()) {
-            if (c !== false) {
-              rules.push(c);
-            }
-          }
-          return rules;
-        }
-        function comment() {
-          var pos = position3();
-          if (FORWARD_SLASH != style.charAt(0) || ASTERISK != style.charAt(1)) return;
-          var i = 2;
-          while (EMPTY_STRING != style.charAt(i) && (ASTERISK != style.charAt(i) || FORWARD_SLASH != style.charAt(i + 1))) {
-            ++i;
-          }
-          i += 2;
-          if (EMPTY_STRING === style.charAt(i - 1)) {
-            return error("End of comment missing");
-          }
-          var str = style.slice(2, i - 2);
-          column += 2;
-          updatePosition(str);
-          style = style.slice(i);
-          column += 2;
-          return pos({
-            type: TYPE_COMMENT,
-            comment: str
-          });
-        }
-        function declaration() {
-          var pos = position3();
-          var prop = match(PROPERTY_REGEX);
-          if (!prop) return;
-          comment();
-          if (!match(COLON_REGEX)) return error("property missing ':'");
-          var val = match(VALUE_REGEX);
-          var ret = pos({
-            type: TYPE_DECLARATION,
-            property: trim(prop[0].replace(COMMENT_REGEX, EMPTY_STRING)),
-            value: val ? trim(val[0].replace(COMMENT_REGEX, EMPTY_STRING)) : EMPTY_STRING
-          });
-          match(SEMICOLON_REGEX);
-          return ret;
-        }
-        function declarations() {
-          var decls = [];
-          comments(decls);
-          var decl;
-          while (decl = declaration()) {
-            if (decl !== false) {
-              decls.push(decl);
-              comments(decls);
-            }
-          }
-          return decls;
-        }
-        whitespace2();
-        return declarations();
-      }
-      function trim(str) {
-        return str ? str.replace(TRIM_REGEX, EMPTY_STRING) : EMPTY_STRING;
-      }
-      module.exports = index2;
-    }
-  });
-
-  // node_modules/style-to-object/cjs/index.js
-  var require_cjs2 = __commonJS({
-    "node_modules/style-to-object/cjs/index.js"(exports) {
-      "use strict";
-      var __importDefault = exports && exports.__importDefault || function(mod) {
-        return mod && mod.__esModule ? mod : { "default": mod };
-      };
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.default = StyleToObject;
-      var inline_style_parser_1 = __importDefault(require_cjs());
-      function StyleToObject(style, iterator) {
-        let styleObject = null;
-        if (!style || typeof style !== "string") {
-          return styleObject;
-        }
-        const declarations = (0, inline_style_parser_1.default)(style);
-        const hasIterator = typeof iterator === "function";
-        declarations.forEach((declaration) => {
-          if (declaration.type !== "declaration") {
-            return;
-          }
-          const { property, value } = declaration;
-          if (hasIterator) {
-            iterator(property, value, declaration);
-          } else if (value) {
-            styleObject = styleObject || {};
-            styleObject[property] = value;
-          }
-        });
-        return styleObject;
-      }
-    }
-  });
-
-  // node_modules/style-to-js/cjs/utilities.js
-  var require_utilities = __commonJS({
-    "node_modules/style-to-js/cjs/utilities.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.camelCase = void 0;
-      var CUSTOM_PROPERTY_REGEX = /^--[a-zA-Z0-9_-]+$/;
-      var HYPHEN_REGEX = /-([a-z])/g;
-      var NO_HYPHEN_REGEX = /^[^-]+$/;
-      var VENDOR_PREFIX_REGEX = /^-(webkit|moz|ms|o|khtml)-/;
-      var MS_VENDOR_PREFIX_REGEX = /^-(ms)-/;
-      var skipCamelCase = function(property) {
-        return !property || NO_HYPHEN_REGEX.test(property) || CUSTOM_PROPERTY_REGEX.test(property);
-      };
-      var capitalize = function(match, character) {
-        return character.toUpperCase();
-      };
-      var trimHyphen = function(match, prefix) {
-        return "".concat(prefix, "-");
-      };
-      var camelCase = function(property, options) {
-        if (options === void 0) {
-          options = {};
-        }
-        if (skipCamelCase(property)) {
-          return property;
-        }
-        property = property.toLowerCase();
-        if (options.reactCompat) {
-          property = property.replace(MS_VENDOR_PREFIX_REGEX, trimHyphen);
-        } else {
-          property = property.replace(VENDOR_PREFIX_REGEX, trimHyphen);
-        }
-        return property.replace(HYPHEN_REGEX, capitalize);
-      };
-      exports.camelCase = camelCase;
-    }
-  });
-
-  // node_modules/style-to-js/cjs/index.js
-  var require_cjs3 = __commonJS({
-    "node_modules/style-to-js/cjs/index.js"(exports, module) {
-      "use strict";
-      var __importDefault = exports && exports.__importDefault || function(mod) {
-        return mod && mod.__esModule ? mod : { "default": mod };
-      };
-      var style_to_object_1 = __importDefault(require_cjs2());
-      var utilities_1 = require_utilities();
-      function StyleToJS(style, options) {
-        var output = {};
-        if (!style || typeof style !== "string") {
-          return output;
-        }
-        (0, style_to_object_1.default)(style, function(property, value) {
-          if (property && value) {
-            output[(0, utilities_1.camelCase)(property, options)] = value;
-          }
-        });
-        return output;
-      }
-      StyleToJS.default = StyleToJS;
-      module.exports = StyleToJS;
-    }
-  });
-
   // node_modules/extend/index.js
   var require_extend = __commonJS({
     "node_modules/extend/index.js"(exports, module) {
@@ -22055,1030 +22055,547 @@
   // tests/component-screenshots/harness.tsx
   var import_client = __toESM(require_client());
 
-  // src/webview/shared/i18n/index.tsx
-  var import_react = __toESM(require_react());
+  // node_modules/lucide-react/dist/esm/createLucideIcon.mjs
+  var import_react3 = __toESM(require_react(), 1);
 
-  // src/webview/shared/i18n/en.json
-  var en_default = {
-    "app.loadingAgent": "Loading agent...",
-    "common.add": "Add",
-    "common.authorize": "Authorize",
-    "common.authorized": "Authorized",
-    "common.backToChat": "Back to chat",
-    "common.cancel": "Cancel",
-    "common.cancelDelete": "Cancel delete",
-    "common.close": "Close",
-    "common.closeSettings": "Close settings",
-    "common.command": "Command",
-    "common.confirmDelete": "Confirm delete",
-    "common.copy": "Copy",
-    "common.custom": "Custom",
-    "common.delete": "Delete",
-    "common.edit": "Edit",
-    "common.description": "Description",
-    "common.disabled": "Disabled",
-    "common.enabled": "Enabled",
-    "common.instructions": "Instructions",
-    "common.name": "Name",
-    "common.notAvailable": "n/a",
-    "common.permission": "Permission",
-    "common.save": "Save",
-    "common.status": "Status",
-    "composer.noSettings": "Agent settings are not selected",
-    "composer.placeholder": "Ask the agent to inspect, create, edit, or delete workspace files...",
-    "composer.send": "Send",
-    "composer.sendMessage": "Send message",
-    "composer.stop": "Stop",
-    "composer.stopGeneration": "Stop generation",
-    "summary.agentMode": "Agent mode",
-    "summary.compact": "Compact",
-    "summary.compactTitle": "Compact chat context",
-    "summary.cost": "Cost {{cost}}",
-    "summary.model": "Model",
-    "summary.reasoningEffort": "Reasoning effort",
-    "summary.toolPermissionPreset": "Tool permission preset",
-    "summary.toolsCount": "{{count}} tools",
-    "reasoning.auto": "Auto",
-    "reasoning.low": "Low",
-    "reasoning.medium": "Medium",
-    "reasoning.high": "High",
-    "reasoning.autoDetailed": "Auto reasoning",
-    "reasoning.lowDetailed": "Low reasoning",
-    "reasoning.mediumDetailed": "Medium reasoning",
-    "reasoning.highDetailed": "High reasoning",
-    "chat.openChats": "Open chats",
-    "chat.openInEditor": "Open this chat in editor",
-    "chatList.title": "Chats",
-    "chatList.description": "History is hidden by default to keep the editor focused on messages.",
-    "chatList.new": "New",
-    "chatList.close": "Close chats",
-    "chatList.duplicate": "Duplicate chat",
-    "chatList.delete": "Delete chat",
-    "chatList.message_one": "{{count}} message",
-    "chatList.message_other": "{{count}} messages",
-    "message.expand": "Expand message",
-    "message.collapse": "Collapse message",
-    "message.you": "You",
-    "message.agent": "Agent",
-    "message.status": "Status",
-    "message.error": "Error",
-    "message.tool": "Tool",
-    "message.copyMarkdown": "Copy markdown",
-    "activity.waitingForApproval": "Waiting for approval",
-    "activity.runningTool": "Running tool",
-    "activity.answering": "Model is answering",
-    "activity.stopping": "Stopping",
-    "activity.thinking": "Model is thinking",
-    "activity.detail.waitingForApproval": "A tool is ready, but AIST is waiting for your approval.",
-    "activity.detail.runningTool": "A tool is currently running in the workspace.",
-    "activity.detail.answering": "The model is streaming text and AIST is preparing the answer.",
-    "activity.detail.stopping": "Abort requested. AIST is cancelling the current operation.",
-    "tool.approve": "Approve",
-    "tool.deny": "Deny",
-    "tool.showJson": "Show JSON",
-    "tool.closeJson": "Close",
-    "tool.showDetails": "Show tool details",
-    "tool.hideDetails": "Hide tool details",
-    "tool.openFile": "Open file in editor",
-    "tool.status.approvalNeeded": "Approval needed",
-    "tool.status.waiting": "Waiting",
-    "tool.status.running": "Running",
-    "tool.status.done": "Done",
-    "tool.status.error": "Error",
-    "tool.status.denied": "Denied",
-    "tool.status.unknown": "Unknown",
-    "tool.preview.code": "Code preview",
-    "tool.preview.truncated": "truncated",
-    "tool.preview.emptyFile": "File is empty.",
-    "tool.preview.moreItems": "\u2026more items hidden",
-    "tool.preview.moreFiles": "\u2026more files hidden",
-    "tool.preview.waitingOutput": "Waiting for command output...",
-    "tool.preview.noOutput": "Command completed with no output.",
-    "tool.preview.noModels": "No models found",
-    "tool.preview.noTools": "no tools",
-    "tool.fact.cwd": "cwd",
-    "tool.fact.status": "status",
-    "tool.fact.timeout": "timeout",
-    "tool.fact.duration": "duration",
-    "tool.fact.signal": "signal",
-    "tool.result.timedOut": "Timed out",
-    "tool.result.finished": "Finished",
-    "tool.result.exit": "Exit {{code}}",
-    "tool.result.lines_one": "{{count}} line",
-    "tool.result.lines_other": "{{count}} lines",
-    "tool.action.get_workspace_info": "WORKSPACE INFO",
-    "tool.action.list_files": "LIST FILES",
-    "tool.action.read_file": "READ FILE",
-    "tool.action.grep_search": "GREP SEARCH",
-    "tool.action.run_bash_script": "RUN BASH",
-    "tool.action.run_skill": "RUN SKILL",
-    "tool.action.compact_chat": "COMPACT CHAT",
-    "tool.action.write_file": "WRITE FILE",
-    "tool.action.replace_in_file": "REPLACE IN FILE",
-    "tool.action.create_directory": "CREATE DIRECTORY",
-    "tool.action.delete_path": "DELETE PATH",
-    "tool.action.fallback": "TOOL CALL",
-    "tool.summary.cwd": "cwd {{cwd}}",
-    "tool.summary.skill": "skill {{skill}}",
-    "tool.summary.matches": "{{count}} matches",
-    "tool.summary.entries": "{{count}} entries",
-    "tool.summary.replacements": "{{count}} replacements",
-    "tool.summary.bytes": "{{count}} bytes",
-    "tool.summary.newChat": "new chat {{chatId}}",
-    "tool.summary.compacted": "compacted",
-    "tool.summary.toolError": "Tool error",
-    "tool.summary.timedOut": "timed out",
-    "tool.summary.exit": "exit {{code}}",
-    "tool.summary.unknown": "unknown",
-    "tool.label.get_workspace_info": "Workspace info",
-    "tool.label.list_files": "List files",
-    "tool.label.read_file": "Read file",
-    "tool.label.grep_search": "Search repository",
-    "tool.label.run_bash_script": "Run Bash script",
-    "tool.label.write_file": "Write file",
-    "tool.label.replace_in_file": "Replace in file",
-    "tool.label.create_directory": "Create directory",
-    "tool.label.delete_path": "Delete path",
-    "tool.label.run_skill": "Run skill",
-    "tool.label.fallback": "Tool call",
-    "tool.description.get_workspace_info": "Get current workspace and active editor metadata.",
-    "tool.description.list_files": "List files and directories under a workspace-relative path.",
-    "tool.description.read_file": "Read a UTF-8 text file from the workspace.",
-    "tool.description.grep_search": "Search workspace files for text or a regular expression.",
-    "tool.description.run_bash_script": "Run a Bash script inside the workspace.",
-    "tool.description.write_file": "Create or overwrite a UTF-8 text file in the workspace.",
-    "tool.description.replace_in_file": "Replace text in an existing UTF-8 file.",
-    "tool.description.create_directory": "Create a workspace directory, including parent directories.",
-    "tool.description.delete_path": "Delete a workspace file or directory.",
-    "tool.description.run_skill": "Run a custom Bash-backed skill.",
-    "toolCalls.show": "Show tool calls",
-    "toolCalls.hide": "Hide tool calls",
-    "toolCalls.hidden_one": "{{count}} tool call hidden",
-    "toolCalls.hidden_other": "{{count}} tool calls hidden",
-    "empty.title": "Ready to work with your codebase",
-    "empty.description": "Ask for edits, repository search, file inspection, or command execution. Tool calls stay compact in the chat history.",
-    "systemInstructions.title": "System instructions \xB7 {{count}} sources",
-    "systemInstructions.shortTitle": "Instructions",
-    "systemInstructions.manageDescription": "Change active instructions and mode for the next agent request.",
-    "systemInstructions.activeSet": "Active set",
-    "systemInstructions.activeSetDescription": "Pick reusable instructions and one mode to apply right now.",
-    "systemInstructions.modeSelect": "Mode",
-    "systemInstructions.noMode": "No mode",
-    "systemInstructions.effectiveSources": "Effective sources",
-    "systemInstructions.hide": "Hide system instructions",
-    "systemInstructions.show": "Show system instructions",
-    "systemInstructions.mode": "Mode: {{mode}}",
-    "systemInstructions.fallbackTitle": "System instruction",
-    "systemInstructions.noAdditional": "No additional instructions.",
-    "select.search": "Search...",
-    "select.noOptions": "No options found",
-    "modelSelect.search": "Search models...",
-    "modelSelect.models": "Models",
-    "settings.title": "Agent settings",
-    "settings.modalDescription": "Model, access and reasoning live here so the composer stays focused on typing.",
-    "settings.requestTitle": "Request settings",
-    "settings.requestDescription": "These controls used to sit under the prompt. Keeping them here reduces visual noise while preserving quick access from the summary line.",
-    "settings.sidebarTitle": "Agent settings",
-    "settings.nav.overview": "Overview",
-    "settings.nav.overviewDescription": "Model-adjacent request settings and status.",
-    "settings.nav.instructions": "Instructions",
-    "settings.nav.instructionsDescription": "AGENTS.md, CLAUDE.md and project instructions.",
-    "settings.nav.modes": "Modes",
-    "settings.nav.modesDescription": "Working modes and their system instructions.",
-    "settings.nav.skills": "Skills",
-    "settings.nav.skillsDescription": "Custom Bash-backed run_skill actions.",
-    "settings.nav.permissions": "Permissions",
-    "settings.nav.permissionsDescription": "Tool access presets and per-tool confirmations.",
-    "settings.nav.compaction": "Compaction",
-    "settings.nav.compactionDescription": "Control when old context is split out of the active chat.",
-    "settings.nav.system": "System",
-    "settings.nav.systemDescription": "Language, Codex auth and execution limits.",
-    "settings.overview.profileTitle": "Current agent profile",
-    "settings.overview.profileDescription": "A compact summary of rules and capabilities used by the next request.",
-    "settings.overview.storage": "Storage: {{value}}",
-    "settings.overview.storageWorkspace": ".aist-agent",
-    "settings.overview.storageUser": "local user",
-    "settings.overview.permissions": "Permissions: {{value}}",
-    "settings.overview.mode": "Mode: {{value}}",
-    "settings.overview.defaultMode": "Default",
-    "settings.overview.skills": "Skills: {{count}}",
-    "settings.overview.instructionSources": "Instruction sources: {{count}}",
-    "settings.overview.codex": "Codex: {{value}}",
-    "settings.overview.codexAuthorized": "authorized",
-    "settings.overview.codexNotConnected": "not connected",
-    "settings.overview.orderTitle": "Effective instruction order",
-    "settings.overview.orderDescription": "The agent receives these blocks from top to bottom.",
-    "settings.instructions.storageTitle": "Storage scope",
-    "settings.instructions.storageDescription": "Workspace settings are saved to .aist-agent/settings.json. Local user storage stays outside the repository.",
-    "settings.instructions.saveTo": "Save settings to",
-    "settings.instructions.workspace": "Workspace .aist-agent",
-    "settings.instructions.user": "Local user storage",
-    "settings.instructions.projectTitle": "Project instructions",
-    "settings.instructions.projectDescription": "Extra rules appended after AGENTS.md and CLAUDE.md.",
-    "settings.instructions.projectPlaceholder": "Project-specific instructions saved in the selected storage scope...",
-    "settings.instructions.effectiveTitle": "Effective order",
-    "settings.instructions.effectiveDescription": "Read-only view of the instruction blocks sent to the model.",
-    "settings.modes.activeTitle": "Active mode",
-    "settings.modes.activeDescription": "Select a working mode and edit the instruction text applied to chats.",
-    "settings.modes.customTitle": "Custom modes",
-    "settings.modes.customDescription": "Create reusable instruction profiles for different kinds of work.",
-    "settings.modes.addMode": "Add mode",
-    "settings.modes.modeName": "Mode name",
-    "settings.modes.modePlaceholder": "Expert reviewer",
-    "settings.promptManager.title": "Instructions and modes",
-    "settings.promptManager.description": "Use Current to choose what the agent receives on the next request. Global and Project tabs are the instruction and mode library.",
-    "settings.promptManager.guide": "Guide",
-    "settings.promptManager.tab.global": "Global",
-    "settings.promptManager.tab.local": "Project",
-    "settings.promptManager.tab.priorities": "Current",
-    "settings.promptManager.scope.global": "Global",
-    "settings.promptManager.scope.local": "Project",
-    "settings.promptManager.kind.instruction": "Instruction",
-    "settings.promptManager.kind.mode": "Mode",
-    "settings.promptManager.instruction.global.title": "Global instructions",
-    "settings.promptManager.instruction.local.title": "Project instructions",
-    "settings.promptManager.mode.global.title": "Global modes",
-    "settings.promptManager.mode.local.title": "Project modes",
-    "settings.promptManager.instruction.description": "Reusable system instructions. Enable any subset on the Active tab.",
-    "settings.promptManager.mode.description": "A mode is one standalone instruction used as your current role, such as coder or architect.",
-    "settings.promptManager.addInstruction": "Add instruction",
-    "settings.promptManager.addMode": "Add mode",
-    "settings.promptManager.empty": "No items yet. Add one or copy an existing item to customize it.",
-    "settings.promptManager.itemDescription": "{{scope}} \xB7 {{kind}} \xB7 {{id}}",
-    "settings.promptManager.editItem": "Edit {{label}}",
-    "settings.promptManager.newItem": "New {{kind}}",
-    "settings.promptManager.editorDescription": "{{scope}} {{kind}}",
-    "settings.promptManager.instructionText": "Instruction text",
-    "settings.promptManager.activeTitle": "What the agent receives now",
-    "settings.promptManager.activeDescription": "Choose one mode and extra instructions. This set is added to the next agent request.",
-    "settings.promptManager.presetsTitle": "Presets",
-    "settings.promptManager.presetsDescription": "A preset is an agent working mode plus selected instructions.",
-    "settings.promptManager.addPreset": "Add preset",
-    "settings.promptManager.noPresets": "No presets yet. Add the first preset to combine a mode and instructions.",
-    "settings.promptManager.editPreset": "Edit preset",
-    "settings.promptManager.newPreset": "New preset",
-    "settings.promptManager.presetEditorDescription": "Name the preset, choose an agent working mode, and add instructions with the pluses.",
-    "settings.promptManager.globalInstructions": "Global instructions",
-    "settings.promptManager.localInstructions": "Local instructions",
-    "settings.promptManager.applyPreset": "Apply preset",
-    "settings.promptManager.choosePreset": "Choose preset",
-    "settings.promptManager.presetName": "Preset name",
-    "settings.promptManager.presetNamePlaceholder": "My coding setup",
-    "settings.promptManager.saveCurrentAsPreset": "Save current as preset",
-    "settings.promptManager.presetDescription": "{{count}} instruction(s) \xB7 {{mode}}",
-    "settings.promptManager.apply": "Apply",
-    "settings.promptManager.rename": "Rename",
-    "settings.promptManager.noInstructions": "No instructions",
-    "settings.promptManager.helpTitle": "How instructions work",
-    "settings.promptManager.helpDescription": "Small guide for modes, instructions, and presets.",
-    "settings.promptManager.helpInstructions": "are reusable rules. Add as many as you want, then enable only the ones needed for the current project.",
-    "settings.promptManager.helpModes": "are one standalone role instruction, for example Coder or Architect. You can work with a mode even when no instructions are enabled.",
-    "settings.promptManager.helpPresets": "save a selected set of instructions plus one mode. Use them to switch quickly between setups like Coding, Design, Review, or Testing.",
-    "settings.promptManager.helpStorage": "Global items are stored in your home folder. Project items are stored in .aist-agent and override global priorities.",
-    "settings.skills.title": "Custom skills",
-    "settings.skills.description": "Add Bash-backed skills the agent can call with run_skill. Input is passed via stdin and AIST_SKILL_INPUT.",
-    "settings.skills.addSkill": "Add skill",
-    "settings.skills.namePlaceholder": "Run focused tests",
-    "settings.skills.descriptionPlaceholder": "When should the agent use this skill?",
-    "settings.skills.empty": "No custom skills yet.",
-    "settings.permissions.presetsTitle": "Permission presets",
-    "settings.permissions.presetsDescription": "Quickly switch the current tool access profile for the AI agent.",
-    "settings.permissions.customActive": "Custom permissions are active",
-    "settings.permissions.perToolTitle": "Per-tool permissions",
-    "settings.permissions.perToolDescription": "Fine-tune which tools require confirmation.",
-    "settings.compaction.title": "Context compaction",
-    "settings.compaction.description": "When context becomes too large, AIST can start a fresh chat linked to the previous one. Old messages stay visible but stop being sent to the model.",
-    "settings.compaction.threshold": "Threshold percent",
-    "settings.compaction.keepLast": "Keep last messages in new context",
-    "settings.compaction.keepLastHint": "0 means old context is fully cut off after the compaction line.",
-    "settings.system.languageTitle": "Language",
-    "settings.system.languageDescription": "Controls agent answers, tool-call explanations, and extension UI language.",
-    "settings.system.responseLanguage": "Response language",
-    "settings.system.iterationTitle": "Tool iteration limit",
-    "settings.system.iterationDescription": "Maximum model/tool-call turns per request. Set to 0 to run without a limit.",
-    "settings.system.codexTitle": "ChatGPT Codex",
-    "settings.system.codexDescriptionAuthorized": "Authorization is active. Codex models are available.",
-    "settings.system.codexDescriptionUnauthorized": "Authorize ChatGPT Codex to use codex:* models.",
-    "settings.system.logout": "Logout",
-    "settings.permission.ask": "Ask permission",
-    "settings.permission.auto": "Run automatically",
-    "settings.permission.default": "Default: {{permission}}",
-    "settings.permission.access": "Access",
-    "settings.permission.customDescription": "Current permissions do not match a preset.",
-    "settings.preset.confirm-all.label": "Confirm all",
-    "settings.preset.confirm-all.description": "Ask before every tool call.",
-    "settings.preset.balanced.label": "Balanced",
-    "settings.preset.balanced.description": "Read and search automatically; ask before shell commands and file changes.",
-    "settings.preset.fast-edit.label": "Fast edit",
-    "settings.preset.fast-edit.description": "Read, search, create, and edit automatically; ask before shell commands and deletion.",
-    "settings.preset.autonomous.label": "Autonomous",
-    "settings.preset.autonomous.description": "Run every available tool automatically.",
-    "settings.instructions.empty": "No instruction sources found.",
-    "settings.instructions.priority": "Priority #{{priority}}",
-    "settings.mode.default.label": "Default",
-    "settings.mode.careful.label": "Careful",
-    "tool.denyStop": "Stop agent",
-    "tool.denyContinue": "Deny",
-    "tool.denyWithComment": "Deny with comment",
-    "tool.commentLabel": "User comment",
-    "tool.commentPlaceholder": "What should the agent consider next?",
-    "approval.title": "Approval required",
-    "approval.description": "The agent is waiting for your decision on a tool call.",
-    "approval.descriptionTool": "The agent wants to run {{tool}}.",
-    "approval.minimize": "Minimize approval",
-    "approval.noticeTitle": "User approval required",
-    "settings.nav.notifications": "Notifications",
-    "settings.nav.notificationsDescription": "System notifications and a gentle sound while approval is pending.",
-    "settings.notifications.title": "Approval notifications",
-    "settings.notifications.description": "Configure how AIST gets your attention when the agent cannot continue without your decision.",
-    "settings.notifications.system": "System notifications",
-    "settings.notifications.systemDescription": "Show an operating system notification while waiting for approval.",
-    "settings.notifications.sound": "Sound signal",
-    "settings.notifications.soundDescription": "Play a gentle bell while the agent waits for approval.",
-    "settings.notifications.volume": "Volume, %",
-    "settings.notifications.duration": "Duration, sec."
+  // node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
+  var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
+    return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
+  }).join(" ").trim();
+
+  // node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
+  var toKebabCase = (string3) => string3.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
+  // node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
+  var toCamelCase = (string3) => string3.replace(
+    /^([A-Z])|[\s-_]+(\w)/g,
+    (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
+  );
+
+  // node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
+  var toPascalCase = (string3) => {
+    const camelCase = toCamelCase(string3);
+    return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
   };
 
-  // src/webview/shared/i18n/ru.json
-  var ru_default = {
-    "app.loadingAgent": "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0430\u0433\u0435\u043D\u0442\u0430...",
-    "common.add": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C",
-    "common.authorize": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u0442\u044C",
-    "common.authorized": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u043D",
-    "common.backToChat": "\u041D\u0430\u0437\u0430\u0434 \u043A \u0447\u0430\u0442\u0443",
-    "common.cancel": "\u041E\u0442\u043C\u0435\u043D\u0430",
-    "common.cancelDelete": "\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435",
-    "common.close": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
-    "common.closeSettings": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438",
-    "common.command": "\u041A\u043E\u043C\u0430\u043D\u0434\u0430",
-    "common.confirmDelete": "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435",
-    "common.copy": "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
-    "common.custom": "\u0421\u0432\u043E\u0438",
-    "common.delete": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
-    "common.edit": "\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
-    "common.description": "\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435",
-    "common.disabled": "\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
-    "common.enabled": "\u0412\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
-    "common.instructions": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "common.name": "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435",
-    "common.notAvailable": "\u043D/\u0434",
-    "common.permission": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435",
-    "common.save": "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C",
-    "common.status": "\u0421\u0442\u0430\u0442\u0443\u0441",
-    "composer.noSettings": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0430\u0433\u0435\u043D\u0442\u0430 \u043D\u0435 \u0432\u044B\u0431\u0440\u0430\u043D\u044B",
-    "composer.placeholder": "\u041F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0430\u0433\u0435\u043D\u0442\u0430 \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C, \u0441\u043E\u0437\u0434\u0430\u0442\u044C, \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0438\u043B\u0438 \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u0444\u0430\u0439\u043B\u044B \u043F\u0440\u043E\u0435\u043A\u0442\u0430...",
-    "composer.send": "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C",
-    "composer.sendMessage": "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435",
-    "composer.stop": "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C",
-    "composer.stopGeneration": "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044E",
-    "summary.agentMode": "\u0420\u0435\u0436\u0438\u043C \u0430\u0433\u0435\u043D\u0442\u0430",
-    "summary.compact": "\u0421\u0436\u0430\u0442\u044C",
-    "summary.compactTitle": "\u0421\u0436\u0430\u0442\u044C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0447\u0430\u0442\u0430",
-    "summary.cost": "\u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C {{cost}}",
-    "summary.model": "\u041C\u043E\u0434\u0435\u043B\u044C",
-    "summary.reasoningEffort": "\u0423\u0441\u0438\u043B\u0438\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u044F",
-    "summary.toolPermissionPreset": "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0439 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "summary.toolsCount": "{{count}} \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "reasoning.auto": "\u0410\u0432\u0442\u043E",
-    "reasoning.low": "\u041D\u0438\u0437\u043A\u043E\u0435",
-    "reasoning.medium": "\u0421\u0440\u0435\u0434\u043D\u0435\u0435",
-    "reasoning.high": "\u0412\u044B\u0441\u043E\u043A\u043E\u0435",
-    "reasoning.autoDetailed": "\u0410\u0432\u0442\u043E \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
-    "reasoning.lowDetailed": "\u041D\u0438\u0437\u043A\u043E\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
-    "reasoning.mediumDetailed": "\u0421\u0440\u0435\u0434\u043D\u0435\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
-    "reasoning.highDetailed": "\u0412\u044B\u0441\u043E\u043A\u043E\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
-    "chat.openChats": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0447\u0430\u0442\u044B",
-    "chat.openInEditor": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u044D\u0442\u043E\u0442 \u0447\u0430\u0442 \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435",
-    "chatList.title": "\u0427\u0430\u0442\u044B",
-    "chatList.description": "\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u0441\u043A\u0440\u044B\u0442\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E, \u0447\u0442\u043E\u0431\u044B \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440 \u043E\u0441\u0442\u0430\u0432\u0430\u043B\u0441\u044F \u0441\u0444\u043E\u043A\u0443\u0441\u0438\u0440\u043E\u0432\u0430\u043D \u043D\u0430 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F\u0445.",
-    "chatList.new": "\u041D\u043E\u0432\u044B\u0439",
-    "chatList.close": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u0447\u0430\u0442\u044B",
-    "chatList.duplicate": "\u0414\u0443\u0431\u043B\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0447\u0430\u0442",
-    "chatList.delete": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0447\u0430\u0442",
-    "chatList.message_one": "{{count}} \u0441\u043E\u043E\u0431\u0449.",
-    "chatList.message_other": "{{count}} \u0441\u043E\u043E\u0431\u0449.",
-    "message.expand": "\u0420\u0430\u0437\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435",
-    "message.collapse": "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435",
-    "message.you": "\u0412\u044B",
-    "message.agent": "\u0410\u0433\u0435\u043D\u0442",
-    "message.status": "\u0421\u0442\u0430\u0442\u0443\u0441",
-    "message.error": "\u041E\u0448\u0438\u0431\u043A\u0430",
-    "message.tool": "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442",
-    "message.copyMarkdown": "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C Markdown",
-    "activity.waitingForApproval": "\u041E\u0436\u0438\u0434\u0430\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F",
-    "activity.runningTool": "\u0412\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442",
-    "activity.answering": "\u041C\u043E\u0434\u0435\u043B\u044C \u043E\u0442\u0432\u0435\u0447\u0430\u0435\u0442",
-    "activity.stopping": "\u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442\u0441\u044F",
-    "activity.thinking": "\u041C\u043E\u0434\u0435\u043B\u044C \u0434\u0443\u043C\u0430\u0435\u0442",
-    "activity.detail.waitingForApproval": "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442 \u0433\u043E\u0442\u043E\u0432, \u043D\u043E AIST \u0436\u0434\u0451\u0442 \u0432\u0430\u0448\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435.",
-    "activity.detail.runningTool": "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442 \u0441\u0435\u0439\u0447\u0430\u0441 \u0432\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F \u0432 \u043F\u0440\u043E\u0435\u043A\u0442\u0435.",
-    "activity.detail.answering": "\u041C\u043E\u0434\u0435\u043B\u044C \u0441\u0442\u0440\u0438\u043C\u0438\u0442 \u0442\u0435\u043A\u0441\u0442, AIST \u0433\u043E\u0442\u043E\u0432\u0438\u0442 \u043E\u0442\u0432\u0435\u0442.",
-    "activity.detail.stopping": "\u0417\u0430\u043F\u0440\u043E\u0448\u0435\u043D\u0430 \u043E\u0442\u043C\u0435\u043D\u0430. AIST \u043E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 \u0442\u0435\u043A\u0443\u0449\u0443\u044E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044E.",
-    "tool.approve": "\u0420\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u044C",
-    "tool.deny": "\u041E\u0442\u043A\u043B\u043E\u043D\u0438\u0442\u044C",
-    "tool.showJson": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C JSON",
-    "tool.closeJson": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
-    "tool.showDetails": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
-    "tool.hideDetails": "\u0421\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
-    "tool.openFile": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0444\u0430\u0439\u043B \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435",
-    "tool.status.approvalNeeded": "\u041D\u0443\u0436\u043D\u043E \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
-    "tool.status.waiting": "\u041E\u0436\u0438\u0434\u0430\u043D\u0438\u0435",
-    "tool.status.running": "\u0412\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F",
-    "tool.status.done": "\u0413\u043E\u0442\u043E\u0432\u043E",
-    "tool.status.error": "\u041E\u0448\u0438\u0431\u043A\u0430",
-    "tool.status.denied": "\u041E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u043E",
-    "tool.status.unknown": "\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E",
-    "tool.preview.code": "\u041F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u043A\u043E\u0434\u0430",
-    "tool.preview.truncated": "\u043E\u0431\u0440\u0435\u0437\u0430\u043D\u043E",
-    "tool.preview.emptyFile": "\u0424\u0430\u0439\u043B \u043F\u0443\u0441\u0442\u043E\u0439.",
-    "tool.preview.moreItems": "\u2026\u0435\u0449\u0451 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0441\u043A\u0440\u044B\u0442\u044B",
-    "tool.preview.moreFiles": "\u2026\u0435\u0449\u0451 \u0444\u0430\u0439\u043B\u044B \u0441\u043A\u0440\u044B\u0442\u044B",
-    "tool.preview.waitingOutput": "\u041E\u0436\u0438\u0434\u0430\u043D\u0438\u0435 \u0432\u044B\u0432\u043E\u0434\u0430 \u043A\u043E\u043C\u0430\u043D\u0434\u044B...",
-    "tool.preview.noOutput": "\u041A\u043E\u043C\u0430\u043D\u0434\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B\u0430\u0441\u044C \u0431\u0435\u0437 \u0432\u044B\u0432\u043E\u0434\u0430.",
-    "tool.preview.noModels": "\u041C\u043E\u0434\u0435\u043B\u0438 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B",
-    "tool.preview.noTools": "\u0431\u0435\u0437 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "tool.fact.cwd": "\u043F\u0430\u043F\u043A\u0430",
-    "tool.fact.status": "\u0441\u0442\u0430\u0442\u0443\u0441",
-    "tool.fact.timeout": "\u0442\u0430\u0439\u043C\u0430\u0443\u0442",
-    "tool.fact.duration": "\u0434\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C",
-    "tool.fact.signal": "\u0441\u0438\u0433\u043D\u0430\u043B",
-    "tool.result.timedOut": "\u0422\u0430\u0439\u043C\u0430\u0443\u0442",
-    "tool.result.finished": "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E",
-    "tool.result.exit": "\u041A\u043E\u0434 {{code}}",
-    "tool.result.lines_one": "{{count}} \u0441\u0442\u0440\u043E\u043A\u0430",
-    "tool.result.lines_other": "{{count}} \u0441\u0442\u0440\u043E\u043A",
-    "tool.action.get_workspace_info": "\u0418\u041D\u0424\u041E \u041F\u0420\u041E\u0415\u041A\u0422\u0410",
-    "tool.action.list_files": "\u0421\u041F\u0418\u0421\u041E\u041A \u0424\u0410\u0419\u041B\u041E\u0412",
-    "tool.action.read_file": "\u0427\u0422\u0415\u041D\u0418\u0415 \u0424\u0410\u0419\u041B\u0410",
-    "tool.action.grep_search": "\u041F\u041E\u0418\u0421\u041A",
-    "tool.action.run_bash_script": "BASH",
-    "tool.action.run_skill": "\u041D\u0410\u0412\u042B\u041A",
-    "tool.action.compact_chat": "\u0421\u0416\u0410\u0422\u0418\u0415 \u0427\u0410\u0422\u0410",
-    "tool.action.write_file": "\u0417\u0410\u041F\u0418\u0421\u042C \u0424\u0410\u0419\u041B\u0410",
-    "tool.action.replace_in_file": "\u0417\u0410\u041C\u0415\u041D\u0410 \u0412 \u0424\u0410\u0419\u041B\u0415",
-    "tool.action.create_directory": "\u0421\u041E\u0417\u0414\u0410\u041D\u0418\u0415 \u041F\u0410\u041F\u041A\u0418",
-    "tool.action.delete_path": "\u0423\u0414\u0410\u041B\u0415\u041D\u0418\u0415",
-    "tool.action.fallback": "\u0412\u042B\u0417\u041E\u0412 \u0418\u041D\u0421\u0422\u0420\u0423\u041C\u0415\u041D\u0422\u0410",
-    "tool.summary.cwd": "\u043F\u0430\u043F\u043A\u0430 {{cwd}}",
-    "tool.summary.skill": "\u043D\u0430\u0432\u044B\u043A {{skill}}",
-    "tool.summary.matches": "{{count}} \u0441\u043E\u0432\u043F\u0430\u0434\u0435\u043D\u0438\u0439",
-    "tool.summary.entries": "{{count}} \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432",
-    "tool.summary.replacements": "{{count}} \u0437\u0430\u043C\u0435\u043D",
-    "tool.summary.bytes": "{{count}} \u0431\u0430\u0439\u0442",
-    "tool.summary.newChat": "\u043D\u043E\u0432\u044B\u0439 \u0447\u0430\u0442 {{chatId}}",
-    "tool.summary.compacted": "\u0441\u0436\u0430\u0442\u043E",
-    "tool.summary.toolError": "\u041E\u0448\u0438\u0431\u043A\u0430 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
-    "tool.summary.timedOut": "\u0442\u0430\u0439\u043C\u0430\u0443\u0442",
-    "tool.summary.exit": "\u043A\u043E\u0434 {{code}}",
-    "tool.summary.unknown": "\u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E",
-    "tool.label.get_workspace_info": "\u0418\u043D\u0444\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
-    "tool.label.list_files": "\u0421\u043F\u0438\u0441\u043E\u043A \u0444\u0430\u0439\u043B\u043E\u0432",
-    "tool.label.read_file": "\u0427\u0438\u0442\u0430\u0442\u044C \u0444\u0430\u0439\u043B",
-    "tool.label.grep_search": "\u041F\u043E\u0438\u0441\u043A \u043F\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0443",
-    "tool.label.run_bash_script": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C Bash",
-    "tool.label.write_file": "\u0417\u0430\u043F\u0438\u0441\u0430\u0442\u044C \u0444\u0430\u0439\u043B",
-    "tool.label.replace_in_file": "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0444\u0430\u0439\u043B\u0435",
-    "tool.label.create_directory": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443",
-    "tool.label.delete_path": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0443\u0442\u044C",
-    "tool.label.run_skill": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u043D\u0430\u0432\u044B\u043A",
-    "tool.label.fallback": "\u0412\u044B\u0437\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
-    "tool.description.get_workspace_info": "\u041F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u0442\u0435\u043A\u0443\u0449\u0443\u044E \u043F\u0430\u043F\u043A\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u0438 \u0434\u0430\u043D\u043D\u044B\u0435 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0430.",
-    "tool.description.list_files": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0444\u0430\u0439\u043B\u044B \u0438 \u043F\u0430\u043F\u043A\u0438 \u043F\u043E \u043F\u0443\u0442\u0438 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
-    "tool.description.read_file": "\u041F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C UTF-8 \u0444\u0430\u0439\u043B \u0438\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
-    "tool.description.grep_search": "\u041D\u0430\u0439\u0442\u0438 \u0442\u0435\u043A\u0441\u0442 \u0438\u043B\u0438 \u0440\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u043E\u0435 \u0432\u044B\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0432 \u0444\u0430\u0439\u043B\u0430\u0445 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
-    "tool.description.run_bash_script": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C Bash-\u0441\u043A\u0440\u0438\u043F\u0442 \u0432\u043D\u0443\u0442\u0440\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
-    "tool.description.write_file": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0438\u043B\u0438 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0438\u0441\u0430\u0442\u044C UTF-8 \u0444\u0430\u0439\u043B \u0432 \u043F\u0440\u043E\u0435\u043A\u0442\u0435.",
-    "tool.description.replace_in_file": "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0432 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u043C UTF-8 \u0444\u0430\u0439\u043B\u0435.",
-    "tool.description.create_directory": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443 \u0432 \u043F\u0440\u043E\u0435\u043A\u0442\u0435, \u0432\u043A\u043B\u044E\u0447\u0430\u044F \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u043F\u0430\u043F\u043A\u0438.",
-    "tool.description.delete_path": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0444\u0430\u0439\u043B \u0438\u043B\u0438 \u043F\u0430\u043F\u043A\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
-    "tool.description.run_skill": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 Bash-\u043D\u0430\u0432\u044B\u043A.",
-    "toolCalls.show": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0432\u044B\u0437\u043E\u0432\u044B \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "toolCalls.hide": "\u0421\u043A\u0440\u044B\u0442\u044C \u0432\u044B\u0437\u043E\u0432\u044B \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "toolCalls.hidden_one": "\u0421\u043A\u0440\u044B\u0442 {{count}} \u0432\u044B\u0437\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
-    "toolCalls.hidden_other": "\u0421\u043A\u0440\u044B\u0442\u043E {{count}} \u0432\u044B\u0437\u043E\u0432\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "empty.title": "\u0413\u043E\u0442\u043E\u0432 \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C \u0441 \u0432\u0430\u0448\u0438\u043C \u043A\u043E\u0434\u043E\u043C",
-    "empty.description": "\u041F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0432\u043D\u0435\u0441\u0442\u0438 \u043F\u0440\u0430\u0432\u043A\u0438, \u043D\u0430\u0439\u0442\u0438 \u0447\u0442\u043E-\u0442\u043E \u0432 \u0440\u0435\u043F\u043E\u0437\u0438\u0442\u043E\u0440\u0438\u0438, \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0444\u0430\u0439\u043B\u044B \u0438\u043B\u0438 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u043A\u043E\u043C\u0430\u043D\u0434\u0443.<br>\u0412\u044B\u0437\u043E\u0432\u044B \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u043A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u043C\u0438 \u0432 \u0438\u0441\u0442\u043E\u0440\u0438\u0438 \u0447\u0430\u0442\u0430.",
-    "systemInstructions.title": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \xB7 {{count}} \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u043E\u0432",
-    "systemInstructions.shortTitle": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "systemInstructions.manageDescription": "\u041C\u0435\u043D\u044F\u0439\u0442\u0435 \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u0438 \u0440\u0435\u0436\u0438\u043C \u0434\u043B\u044F \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0430\u0433\u0435\u043D\u0442\u0430.",
-    "systemInstructions.activeSet": "\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440",
-    "systemInstructions.activeSetDescription": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u0438 \u043E\u0434\u0438\u043D \u0440\u0435\u0436\u0438\u043C, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u043F\u0440\u0438\u043C\u0435\u043D\u044F\u044E\u0442\u0441\u044F \u0441\u0435\u0439\u0447\u0430\u0441.",
-    "systemInstructions.modeSelect": "\u0420\u0435\u0436\u0438\u043C",
-    "systemInstructions.noMode": "\u0411\u0435\u0437 \u0440\u0435\u0436\u0438\u043C\u0430",
-    "systemInstructions.effectiveSources": "\u0418\u0442\u043E\u0433\u043E\u0432\u044B\u0435 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438",
-    "systemInstructions.hide": "\u0421\u043A\u0440\u044B\u0442\u044C \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "systemInstructions.show": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "systemInstructions.mode": "\u0420\u0435\u0436\u0438\u043C: {{mode}}",
-    "systemInstructions.fallbackTitle": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u0430\u044F \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F",
-    "systemInstructions.noAdditional": "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0445 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u043D\u0435\u0442.",
-    "select.search": "\u041F\u043E\u0438\u0441\u043A...",
-    "select.noOptions": "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E",
-    "modelSelect.search": "\u041F\u043E\u0438\u0441\u043A \u043C\u043E\u0434\u0435\u043B\u0435\u0439...",
-    "modelSelect.models": "\u041C\u043E\u0434\u0435\u043B\u0438",
-    "settings.title": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0430\u0433\u0435\u043D\u0442\u0430",
-    "settings.modalDescription": "\u041C\u043E\u0434\u0435\u043B\u044C, \u0434\u043E\u0441\u0442\u0443\u043F \u0438 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435 \u043D\u0430\u0445\u043E\u0434\u044F\u0442\u0441\u044F \u0437\u0434\u0435\u0441\u044C, \u0447\u0442\u043E\u0431\u044B composer \u043E\u0441\u0442\u0430\u0432\u0430\u043B\u0441\u044F \u0441\u0444\u043E\u043A\u0443\u0441\u0438\u0440\u043E\u0432\u0430\u043D \u043D\u0430 \u0432\u0432\u043E\u0434\u0435.",
-    "settings.requestTitle": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430",
-    "settings.requestDescription": "\u0420\u0430\u043D\u044C\u0448\u0435 \u044D\u0442\u0438 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044B \u0431\u044B\u043B\u0438 \u043F\u043E\u0434 prompt. \u0417\u0434\u0435\u0441\u044C \u043E\u043D\u0438 \u043C\u0435\u043D\u044C\u0448\u0435 \u0448\u0443\u043C\u044F\u0442 \u0432\u0438\u0437\u0443\u0430\u043B\u044C\u043D\u043E, \u043D\u043E \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u0431\u044B\u0441\u0442\u0440\u043E \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B \u0438\u0437 \u0441\u0442\u0440\u043E\u043A\u0438 summary.",
-    "settings.sidebarTitle": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0430\u0433\u0435\u043D\u0442\u0430",
-    "settings.nav.overview": "\u041E\u0431\u0437\u043E\u0440",
-    "settings.nav.overviewDescription": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0438 \u0441\u0442\u0430\u0442\u0443\u0441 \u0440\u044F\u0434\u043E\u043C \u0441 \u043C\u043E\u0434\u0435\u043B\u044C\u044E.",
-    "settings.nav.instructions": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.nav.instructionsDescription": "AGENTS.md, CLAUDE.md \u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
-    "settings.nav.modes": "\u0420\u0435\u0436\u0438\u043C\u044B",
-    "settings.nav.modesDescription": "\u0420\u0430\u0431\u043E\u0447\u0438\u0435 \u0440\u0435\u0436\u0438\u043C\u044B \u0438 \u0438\u0445 \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438.",
-    "settings.nav.skills": "\u041D\u0430\u0432\u044B\u043A\u0438",
-    "settings.nav.skillsDescription": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 Bash-\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0434\u043B\u044F run_skill.",
-    "settings.nav.permissions": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F",
-    "settings.nav.permissionsDescription": "\u041F\u0440\u043E\u0444\u0438\u043B\u0438 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430\u043C \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043F\u043E \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430\u043C.",
-    "settings.nav.compaction": "\u0421\u0436\u0430\u0442\u0438\u0435",
-    "settings.nav.compactionDescription": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0430 \u0441\u0442\u0430\u0440\u043E\u0433\u043E \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430 \u0438\u0437 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0447\u0430\u0442\u0430.",
-    "settings.nav.system": "\u0421\u0438\u0441\u0442\u0435\u043C\u0430",
-    "settings.nav.systemDescription": "\u042F\u0437\u044B\u043A, \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044F Codex \u0438 \u043B\u0438\u043C\u0438\u0442\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F.",
-    "settings.overview.profileTitle": "\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0430\u0433\u0435\u043D\u0442\u0430",
-    "settings.overview.profileDescription": "\u041A\u0440\u0430\u0442\u043A\u0430\u044F \u0441\u0432\u043E\u0434\u043A\u0430 \u043F\u0440\u0430\u0432\u0438\u043B \u0438 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439 \u0434\u043B\u044F \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0430.",
-    "settings.overview.storage": "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435: {{value}}",
-    "settings.overview.storageWorkspace": ".aist-agent",
-    "settings.overview.storageUser": "\u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0435",
-    "settings.overview.permissions": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F: {{value}}",
-    "settings.overview.mode": "\u0420\u0435\u0436\u0438\u043C: {{value}}",
-    "settings.overview.defaultMode": "\u041E\u0431\u044B\u0447\u043D\u044B\u0439",
-    "settings.overview.skills": "\u041D\u0430\u0432\u044B\u043A\u0438: {{count}}",
-    "settings.overview.instructionSources": "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439: {{count}}",
-    "settings.overview.codex": "Codex: {{value}}",
-    "settings.overview.codexAuthorized": "\u0430\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u043D",
-    "settings.overview.codexNotConnected": "\u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D",
-    "settings.overview.orderTitle": "\u041F\u043E\u0440\u044F\u0434\u043E\u043A \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0445 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439",
-    "settings.overview.orderDescription": "\u0410\u0433\u0435\u043D\u0442 \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u0442 \u044D\u0442\u0438 \u0431\u043B\u043E\u043A\u0438 \u0441\u0432\u0435\u0440\u0445\u0443 \u0432\u043D\u0438\u0437.",
-    "settings.instructions.storageTitle": "\u041E\u0431\u043B\u0430\u0441\u0442\u044C \u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F",
-    "settings.instructions.storageDescription": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 workspace \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442\u0441\u044F \u0432 .aist-agent/settings.json. \u041B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0435 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0432\u043D\u0435 \u0440\u0435\u043F\u043E\u0437\u0438\u0442\u043E\u0440\u0438\u044F.",
-    "settings.instructions.saveTo": "\u0421\u043E\u0445\u0440\u0430\u043D\u044F\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0432",
-    "settings.instructions.workspace": "Workspace .aist-agent",
-    "settings.instructions.user": "\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0435 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435",
-    "settings.instructions.projectTitle": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
-    "settings.instructions.projectDescription": "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \u043F\u043E\u0441\u043B\u0435 AGENTS.md \u0438 CLAUDE.md.",
-    "settings.instructions.projectPlaceholder": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438, \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0435 \u0432 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u043C \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435...",
-    "settings.instructions.effectiveTitle": "\u0418\u0442\u043E\u0433\u043E\u0432\u044B\u0439 \u043F\u043E\u0440\u044F\u0434\u043E\u043A",
-    "settings.instructions.effectiveDescription": "Read-only \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u0431\u043B\u043E\u043A\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439, \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u044B\u0445 \u043C\u043E\u0434\u0435\u043B\u0438.",
-    "settings.modes.activeTitle": "\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u0440\u0435\u0436\u0438\u043C",
-    "settings.modes.activeDescription": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0430\u0431\u043E\u0447\u0438\u0439 \u0440\u0435\u0436\u0438\u043C \u0438 \u043E\u0442\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u0443\u0439\u0442\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438, \u043F\u0440\u0438\u043C\u0435\u043D\u044F\u0435\u043C\u044B\u0435 \u043A \u0447\u0430\u0442\u0430\u043C.",
-    "settings.modes.customTitle": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u0440\u0435\u0436\u0438\u043C\u044B",
-    "settings.modes.customDescription": "\u0421\u043E\u0437\u0434\u0430\u0432\u0430\u0439\u0442\u0435 \u043F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u0434\u043B\u044F \u0440\u0430\u0437\u043D\u044B\u0445 \u0437\u0430\u0434\u0430\u0447.",
-    "settings.modes.addMode": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0435\u0436\u0438\u043C",
-    "settings.modes.modeName": "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0440\u0435\u0436\u0438\u043C\u0430",
-    "settings.modes.modePlaceholder": "\u042D\u043A\u0441\u043F\u0435\u0440\u0442\u043D\u044B\u0439 \u0440\u0435\u0432\u044C\u044E\u0435\u0440",
-    "settings.promptManager.title": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u0438 \u0440\u0435\u0436\u0438\u043C\u044B",
-    "settings.promptManager.description": "\u041D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0435 \xAB\u0421\u0435\u0439\u0447\u0430\u0441 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E\xBB \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435, \u0447\u0442\u043E \u0430\u0433\u0435\u043D\u0442 \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0432 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u0437\u0430\u043F\u0440\u043E\u0441\u0435. \u041D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0430\u0445 \xAB\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435\xBB \u0438 \xAB\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435\xBB \u0445\u0440\u0430\u043D\u0438\u0442\u0441\u044F \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u0438 \u0440\u0435\u0436\u0438\u043C\u043E\u0432.",
-    "settings.promptManager.guide": "\u0421\u043F\u0440\u0430\u0432\u043A\u0430",
-    "settings.promptManager.tab.global": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435",
-    "settings.promptManager.tab.local": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435",
-    "settings.promptManager.tab.priorities": "\u0421\u0435\u0439\u0447\u0430\u0441 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
-    "settings.promptManager.scope.global": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0439",
-    "settings.promptManager.scope.local": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0439",
-    "settings.promptManager.kind.instruction": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F",
-    "settings.promptManager.kind.mode": "\u0420\u0435\u0436\u0438\u043C",
-    "settings.promptManager.instruction.global.title": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.promptManager.instruction.local.title": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.promptManager.mode.global.title": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u0440\u0435\u0436\u0438\u043C\u044B",
-    "settings.promptManager.mode.local.title": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0435\u0436\u0438\u043C\u044B",
-    "settings.promptManager.instruction.description": "\u041F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438. \u0412\u043A\u043B\u044E\u0447\u0430\u0439\u0442\u0435 \u043D\u0443\u0436\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440 \u043D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0435 \xAB\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0435\xBB.",
-    "settings.promptManager.mode.description": "\u0420\u0435\u0436\u0438\u043C \u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u0430\u044F \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F \u0440\u043E\u043B\u0438, \u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440 coder \u0438\u043B\u0438 architect.",
-    "settings.promptManager.addInstruction": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044E",
-    "settings.promptManager.addMode": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0435\u0436\u0438\u043C",
-    "settings.promptManager.empty": "\u042D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442. \u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u043D\u043E\u0432\u044B\u0439 \u0438\u043B\u0438 \u0441\u043A\u043E\u043F\u0438\u0440\u0443\u0439\u0442\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0439, \u0447\u0442\u043E\u0431\u044B \u043D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C \u0435\u0433\u043E.",
-    "settings.promptManager.itemDescription": "{{scope}} \xB7 {{kind}} \xB7 {{id}}",
-    "settings.promptManager.editItem": "\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C {{label}}",
-    "settings.promptManager.newItem": "\u041D\u043E\u0432\u044B\u0439 \u044D\u043B\u0435\u043C\u0435\u043D\u0442: {{kind}}",
-    "settings.promptManager.editorDescription": "{{scope}} {{kind}}",
-    "settings.promptManager.instructionText": "\u0422\u0435\u043A\u0441\u0442 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.promptManager.activeTitle": "\u0427\u0442\u043E \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0430\u0433\u0435\u043D\u0442 \u0441\u0435\u0439\u0447\u0430\u0441",
-    "settings.promptManager.activeDescription": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043E\u0434\u0438\u043D \u0440\u0435\u0436\u0438\u043C \u0438 \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438. \u042D\u0442\u043E\u0442 \u043D\u0430\u0431\u043E\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u0432 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u0430\u0433\u0435\u043D\u0442\u0430.",
-    "settings.promptManager.presetsTitle": "\u041F\u0440\u0435\u0441\u0435\u0442\u044B",
-    "settings.promptManager.presetsDescription": "\u041F\u0440\u0435\u0441\u0435\u0442 \u2014 \u044D\u0442\u043E \u0440\u0435\u0436\u0438\u043C \u0440\u0430\u0431\u043E\u0442\u044B \u0430\u0433\u0435\u043D\u0442\u0430 \u043F\u043B\u044E\u0441 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438.",
-    "settings.promptManager.addPreset": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043F\u0440\u0435\u0441\u0435\u0442",
-    "settings.promptManager.noPresets": "\u041F\u0440\u0435\u0441\u0435\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442. \u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u043F\u0435\u0440\u0432\u044B\u0439 \u043F\u0440\u0435\u0441\u0435\u0442, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0431\u0440\u0430\u0442\u044C \u0440\u0435\u0436\u0438\u043C \u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438.",
-    "settings.promptManager.editPreset": "\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u0435\u0441\u0435\u0442\u0430",
-    "settings.promptManager.newPreset": "\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u0435\u0441\u0435\u0442",
-    "settings.promptManager.presetEditorDescription": "\u0417\u0430\u0434\u0430\u0439\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435, \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0435\u0436\u0438\u043C \u0440\u0430\u0431\u043E\u0442\u044B \u0430\u0433\u0435\u043D\u0442\u0430 \u0438 \u043E\u0442\u043C\u0435\u0442\u044C\u0442\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u043F\u043B\u044E\u0441\u043E\u043C.",
-    "settings.promptManager.globalInstructions": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.promptManager.localInstructions": "\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.promptManager.applyPreset": "\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u043F\u0440\u0435\u0441\u0435\u0442",
-    "settings.promptManager.choosePreset": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u0435\u0441\u0435\u0442",
-    "settings.promptManager.presetName": "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u0435\u0441\u0435\u0442\u0430",
-    "settings.promptManager.presetNamePlaceholder": "\u041C\u043E\u0439 \u043D\u0430\u0431\u043E\u0440 \u0434\u043B\u044F \u043A\u043E\u0434\u0430",
-    "settings.promptManager.saveCurrentAsPreset": "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u043D\u0430\u0431\u043E\u0440 \u043A\u0430\u043A \u043F\u0440\u0435\u0441\u0435\u0442",
-    "settings.promptManager.presetDescription": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439: {{count}} \xB7 {{mode}}",
-    "settings.promptManager.apply": "\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C",
-    "settings.promptManager.rename": "\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C",
-    "settings.promptManager.noInstructions": "\u0411\u0435\u0437 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439",
-    "settings.promptManager.helpTitle": "\u041A\u0430\u043A \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0442 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
-    "settings.promptManager.helpDescription": "\u041A\u0440\u0430\u0442\u043A\u0430\u044F \u0441\u043F\u0440\u0430\u0432\u043A\u0430 \u043F\u043E \u0440\u0435\u0436\u0438\u043C\u0430\u043C, \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F\u043C \u0438 \u043F\u0440\u0435\u0441\u0435\u0442\u0430\u043C.",
-    "settings.promptManager.helpInstructions": "\u2014 \u043F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u0430. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043D\u0443\u0436\u043D\u043E, \u0430 \u0437\u0430\u0442\u0435\u043C \u0432\u043A\u043B\u044E\u0447\u0430\u0439\u0442\u0435 \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u0435, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u043D\u0443\u0436\u043D\u044B \u0442\u0435\u043A\u0443\u0449\u0435\u043C\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0443.",
-    "settings.promptManager.helpModes": "\u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u0430\u044F \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F \u0440\u043E\u043B\u0438, \u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440 Coder \u0438\u043B\u0438 Architect. \u0421 \u0440\u0435\u0436\u0438\u043C\u043E\u043C \u043C\u043E\u0436\u043D\u043E \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C \u0434\u0430\u0436\u0435 \u0431\u0435\u0437 \u0432\u043A\u043B\u044E\u0447\u0451\u043D\u043D\u044B\u0445 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439.",
-    "settings.promptManager.helpPresets": "\u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u0438 \u043E\u0434\u0438\u043D \u0440\u0435\u0436\u0438\u043C. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u0438\u0445 \u0434\u043B\u044F \u0431\u044B\u0441\u0442\u0440\u043E\u0433\u043E \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F \u043C\u0435\u0436\u0434\u0443 \u043D\u0430\u0431\u043E\u0440\u0430\u043C\u0438 \u0434\u043B\u044F \u043A\u043E\u0434\u0430, \u0434\u0438\u0437\u0430\u0439\u043D\u0430, \u0440\u0435\u0432\u044C\u044E \u0438\u043B\u0438 \u0442\u0435\u0441\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F.",
-    "settings.promptManager.helpStorage": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0445\u0440\u0430\u043D\u044F\u0442\u0441\u044F \u0432 \u0434\u043E\u043C\u0430\u0448\u043D\u0435\u0439 \u043F\u0430\u043F\u043A\u0435. \u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0445\u0440\u0430\u043D\u044F\u0442\u0441\u044F \u0432 .aist-agent \u0438 \u043F\u0435\u0440\u0435\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u044E\u0442 \u0433\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442\u044B.",
-    "settings.skills.title": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u043D\u0430\u0432\u044B\u043A\u0438",
-    "settings.skills.description": "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 Bash-\u043D\u0430\u0432\u044B\u043A\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u0430\u0433\u0435\u043D\u0442 \u0441\u043C\u043E\u0436\u0435\u0442 \u0432\u044B\u0437\u044B\u0432\u0430\u0442\u044C \u0447\u0435\u0440\u0435\u0437 run_skill. \u0412\u0432\u043E\u0434 \u043F\u0435\u0440\u0435\u0434\u0430\u0451\u0442\u0441\u044F \u0447\u0435\u0440\u0435\u0437 stdin \u0438 AIST_SKILL_INPUT.",
-    "settings.skills.addSkill": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u0430\u0432\u044B\u043A",
-    "settings.skills.namePlaceholder": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u0442\u043E\u0447\u0435\u0447\u043D\u044B\u0435 \u0442\u0435\u0441\u0442\u044B",
-    "settings.skills.descriptionPlaceholder": "\u041A\u043E\u0433\u0434\u0430 \u0430\u0433\u0435\u043D\u0442\u0443 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u044D\u0442\u043E\u0442 \u043D\u0430\u0432\u044B\u043A?",
-    "settings.skills.empty": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0445 \u043D\u0430\u0432\u044B\u043A\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442.",
-    "settings.permissions.presetsTitle": "\u041F\u0440\u043E\u0444\u0438\u043B\u0438 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0439",
-    "settings.permissions.presetsDescription": "\u0411\u044B\u0441\u0442\u0440\u043E \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0439\u0442\u0435 \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F AI-\u0430\u0433\u0435\u043D\u0442\u0430.",
-    "settings.permissions.customActive": "\u0410\u043A\u0442\u0438\u0432\u043D\u044B \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F",
-    "settings.permissions.perToolTitle": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F \u043F\u043E \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430\u043C",
-    "settings.permissions.perToolDescription": "\u0422\u043E\u0447\u043D\u043E \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u0442\u0435, \u043A\u0430\u043A\u0438\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B \u0442\u0440\u0435\u0431\u0443\u044E\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F.",
-    "settings.compaction.title": "\u0421\u0436\u0430\u0442\u0438\u0435 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430",
-    "settings.compaction.description": "\u041A\u043E\u0433\u0434\u0430 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u0438\u043C, AIST \u043C\u043E\u0436\u0435\u0442 \u043D\u0430\u0447\u0430\u0442\u044C \u0441\u0432\u0435\u0436\u0438\u0439 \u0447\u0430\u0442, \u0441\u0432\u044F\u0437\u0430\u043D\u043D\u044B\u0439 \u0441 \u043F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u043C. \u0421\u0442\u0430\u0440\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u0432\u0438\u0434\u0438\u043C\u044B\u043C\u0438, \u043D\u043E \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u043C\u043E\u0434\u0435\u043B\u0438.",
-    "settings.compaction.threshold": "\u041F\u043E\u0440\u043E\u0433 \u0432 \u043F\u0440\u043E\u0446\u0435\u043D\u0442\u0430\u0445",
-    "settings.compaction.keepLast": "\u041E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0432 \u043D\u043E\u0432\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435",
-    "settings.compaction.keepLastHint": "0 \u043E\u0437\u043D\u0430\u0447\u0430\u0435\u0442, \u0447\u0442\u043E \u0441\u0442\u0430\u0440\u044B\u0439 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E \u043E\u0442\u0440\u0435\u0437\u0430\u0435\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u0441\u0442\u0440\u043E\u043A\u0438 \u0441\u0436\u0430\u0442\u0438\u044F.",
-    "settings.system.languageTitle": "\u042F\u0437\u044B\u043A",
-    "settings.system.languageDescription": "\u0423\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u0442 \u043E\u0442\u0432\u0435\u0442\u0430\u043C\u0438 \u0430\u0433\u0435\u043D\u0442\u0430, \u043E\u0431\u044A\u044F\u0441\u043D\u0435\u043D\u0438\u044F\u043C\u0438 tool-call \u0438 \u044F\u0437\u044B\u043A\u043E\u043C \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F.",
-    "settings.system.responseLanguage": "\u042F\u0437\u044B\u043A \u043E\u0442\u0432\u0435\u0442\u043E\u0432",
-    "settings.system.iterationTitle": "\u041B\u0438\u043C\u0438\u0442 \u0438\u0442\u0435\u0440\u0430\u0446\u0438\u0439 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
-    "settings.system.iterationDescription": "\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C \u0445\u043E\u0434\u043E\u0432 \u043C\u043E\u0434\u0435\u043B\u044C/tool-call \u043D\u0430 \u043E\u0434\u0438\u043D \u0437\u0430\u043F\u0440\u043E\u0441. 0 \u2014 \u0431\u0435\u0437 \u043B\u0438\u043C\u0438\u0442\u0430.",
-    "settings.system.codexTitle": "ChatGPT Codex",
-    "settings.system.codexDescriptionAuthorized": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044F \u0430\u043A\u0442\u0438\u0432\u043D\u0430. \u041C\u043E\u0434\u0435\u043B\u0438 Codex \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B.",
-    "settings.system.codexDescriptionUnauthorized": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 ChatGPT Codex, \u0447\u0442\u043E\u0431\u044B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u043C\u043E\u0434\u0435\u043B\u0438 codex:*.",
-    "settings.system.logout": "\u0412\u044B\u0439\u0442\u0438",
-    "settings.permission.ask": "\u0421\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435",
-    "settings.permission.auto": "\u0417\u0430\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438",
-    "settings.permission.default": "\u041F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E: {{permission}}",
-    "settings.permission.access": "\u0414\u043E\u0441\u0442\u0443\u043F",
-    "settings.permission.customDescription": "\u0422\u0435\u043A\u0443\u0449\u0438\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0442 \u0441 \u043F\u0440\u043E\u0444\u0438\u043B\u0435\u043C.",
-    "settings.preset.confirm-all.label": "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0442\u044C \u0432\u0441\u0451",
-    "settings.preset.confirm-all.description": "\u0421\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u0434 \u043A\u0430\u0436\u0434\u044B\u043C \u0432\u044B\u0437\u043E\u0432\u043E\u043C \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430.",
-    "settings.preset.balanced.label": "\u0421\u0431\u0430\u043B\u0430\u043D\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439",
-    "settings.preset.balanced.description": "\u0427\u0438\u0442\u0430\u0442\u044C \u0438 \u0438\u0441\u043A\u0430\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438; \u0441\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u0434 shell-\u043A\u043E\u043C\u0430\u043D\u0434\u0430\u043C\u0438 \u0438 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0435\u043C \u0444\u0430\u0439\u043B\u043E\u0432.",
-    "settings.preset.fast-edit.label": "\u0411\u044B\u0441\u0442\u0440\u043E\u0435 \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
-    "settings.preset.fast-edit.description": "\u0427\u0438\u0442\u0430\u0442\u044C, \u0438\u0441\u043A\u0430\u0442\u044C, \u0441\u043E\u0437\u0434\u0430\u0432\u0430\u0442\u044C \u0438 \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438; \u0441\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u0434 shell-\u043A\u043E\u043C\u0430\u043D\u0434\u0430\u043C\u0438 \u0438 \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435\u043C.",
-    "settings.preset.autonomous.label": "\u0410\u0432\u0442\u043E\u043D\u043E\u043C\u043D\u044B\u0439",
-    "settings.preset.autonomous.description": "\u0417\u0430\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0432\u0441\u0435 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438.",
-    "settings.instructions.empty": "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B.",
-    "settings.instructions.priority": "\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442 #{{priority}}",
-    "settings.mode.default.label": "\u041E\u0431\u044B\u0447\u043D\u044B\u0439",
-    "settings.mode.careful.label": "\u041E\u0441\u0442\u043E\u0440\u043E\u0436\u043D\u044B\u0439",
-    "tool.denyStop": "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0430\u0433\u0435\u043D\u0442\u0430",
-    "tool.denyContinue": "\u041D\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0442\u044C",
-    "tool.denyWithComment": "\u041D\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0442\u044C \u0441 \u043A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0435\u043C",
-    "tool.commentLabel": "\u041A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0439 \u043E\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F",
-    "tool.commentPlaceholder": "\u0427\u0442\u043E \u0430\u0433\u0435\u043D\u0442\u0443 \u0443\u0447\u0435\u0441\u0442\u044C \u0434\u0430\u043B\u044C\u0448\u0435?",
-    "approval.title": "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
-    "approval.description": "\u0410\u0433\u0435\u043D\u0442 \u0436\u0434\u0451\u0442 \u0432\u0430\u0448\u0435 \u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u043F\u043E \u0432\u044B\u0437\u043E\u0432\u0443 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430.",
-    "approval.descriptionTool": "\u0410\u0433\u0435\u043D\u0442 \u0445\u043E\u0447\u0435\u0442 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442 {{tool}}.",
-    "approval.minimize": "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
-    "approval.noticeTitle": "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u043E\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F",
-    "settings.nav.notifications": "\u0423\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F",
-    "settings.nav.notificationsDescription": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u0438 \u043C\u044F\u0433\u043A\u0438\u0439 \u0437\u0432\u0443\u043A\u043E\u0432\u043E\u0439 \u0441\u0438\u0433\u043D\u0430\u043B \u043F\u0440\u0438 \u043E\u0436\u0438\u0434\u0430\u043D\u0438\u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F.",
-    "settings.notifications.title": "\u0423\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u043E \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0438",
-    "settings.notifications.description": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u0442\u0435, \u043A\u0430\u043A AIST \u043F\u0440\u0438\u0432\u043B\u0435\u043A\u0430\u0435\u0442 \u0432\u043D\u0438\u043C\u0430\u043D\u0438\u0435, \u043A\u043E\u0433\u0434\u0430 \u0430\u0433\u0435\u043D\u0442 \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0431\u0435\u0437 \u0432\u0430\u0448\u0435\u0433\u043E \u0440\u0435\u0448\u0435\u043D\u0438\u044F.",
-    "settings.notifications.system": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F",
-    "settings.notifications.systemDescription": "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439 \u0441\u0438\u0441\u0442\u0435\u043C\u044B \u043F\u0440\u0438 \u043E\u0436\u0438\u0434\u0430\u043D\u0438\u0438 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F.",
-    "settings.notifications.sound": "\u0417\u0432\u0443\u043A\u043E\u0432\u043E\u0439 \u0441\u0438\u0433\u043D\u0430\u043B",
-    "settings.notifications.soundDescription": "\u0418\u0433\u0440\u0430\u0442\u044C \u043D\u0435\u0436\u043D\u044B\u0439 \u0437\u0432\u043E\u043D\u043E\u0447\u0435\u043A, \u043F\u043E\u043A\u0430 \u0430\u0433\u0435\u043D\u0442 \u0436\u0434\u0451\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435.",
-    "settings.notifications.volume": "\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C, %",
-    "settings.notifications.duration": "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C, \u0441\u0435\u043A."
+  // node_modules/lucide-react/dist/esm/Icon.mjs
+  var import_react2 = __toESM(require_react(), 1);
+
+  // node_modules/lucide-react/dist/esm/defaultAttributes.mjs
+  var defaultAttributes = {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
   };
 
-  // src/webview/shared/i18n/index.tsx
-  var import_jsx_runtime = __toESM(require_jsx_runtime());
-  var dictionaries = {
-    en: en_default,
-    ru: ru_default
-  };
-  var LocaleContext = (0, import_react.createContext)("ru");
-  function I18nProvider({ language, children }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LocaleContext.Provider, { value: language === "en" ? "en" : "ru", children });
-  }
-  function useLanguage() {
-    return (0, import_react.useContext)(LocaleContext);
-  }
-  function useI18n() {
-    const language = useLanguage();
-    return {
-      language,
-      t: (key, values) => translate(language, key, values)
-    };
-  }
-  function translate(language, key, values) {
-    const dictionary = dictionaries[language === "en" ? "en" : "ru"];
-    const template = dictionary[key] ?? dictionaries.en[key] ?? key;
-    return interpolate(template, values);
-  }
-  function pluralKey(language, baseKey, count) {
-    const suffix = language === "en" && count === 1 ? "one" : count === 1 ? "one" : "other";
-    return `${baseKey}_${suffix}`;
-  }
-  function interpolate(template, values) {
-    if (!values) {
-      return template;
+  // node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
+  var hasA11yProp = (props) => {
+    for (const prop in props) {
+      if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
+        return true;
+      }
     }
-    return template.replace(/{{(\w+)}}/g, (match, name2) => String(values[name2] ?? match));
-  }
+    return false;
+  };
 
-  // src/webview/storybook/fixtures.ts
-  var storyNow = (/* @__PURE__ */ new Date("2026-05-24T12:30:00Z")).getTime();
-  var storyTools = [
-    "get_workspace_info",
-    "list_files",
-    "read_file",
-    "grep_search",
-    "run_bash_script",
-    "write_file",
-    "replace_in_file",
-    "create_directory",
-    "delete_path"
-  ];
-  var storyAgentModes = [
-    {
-      id: "default",
-      label: "Default",
-      instructions: "Be concise, inspect the repository before editing, and explain important tradeoffs."
-    },
-    {
-      id: "careful",
-      label: "Careful",
-      instructions: "Prefer small, reversible changes. Run verification after each risky edit."
-    },
-    {
-      id: "frontend",
-      label: "Frontend polish",
-      instructions: "Focus on layout, interaction states, responsive behavior, and visual consistency."
-    }
-  ];
-  var storyInstructionSources = [
-    {
-      id: "base",
-      title: "AIST base system prompt",
-      content: "Core coding-agent rules, language policy and tool usage rules.",
-      priority: 0,
-      kind: "base"
-    },
-    {
-      id: "AGENTS.md",
-      title: "AGENTS.md",
-      content: "Follow Feature-Sliced Design and keep files small.",
-      priority: 20,
-      kind: "file"
-    },
-    {
-      id: "project-instructions",
-      title: ".aist-agent project instructions",
-      content: "Prefer simple implementations and run typecheck after edits.",
-      priority: 40,
-      kind: "custom"
-    },
-    {
-      id: "mode:frontend",
-      title: "Mode: Frontend polish",
-      content: storyAgentModes[2].instructions,
-      priority: 50,
-      kind: "mode"
-    }
-  ];
-  var storyPromptConfig = {
-    globalInstructions: [
-      {
-        id: "practical-coding",
-        label: "Practical coding",
-        content: "Work briefly and practically. Inspect relevant files before editing.",
-        scope: "global",
-        kind: "instruction"
-      }
-    ],
-    localInstructions: [
-      {
-        id: "project-style",
-        label: "Project style",
-        content: "Follow Feature-Sliced Design and keep files small.",
-        scope: "local",
-        kind: "instruction"
-      }
-    ],
-    globalModes: [
-      {
-        id: "coder",
-        label: "Coder",
-        instructions: "Implement the requested change directly and verify it.",
-        scope: "global",
-        kind: "mode"
-      }
-    ],
-    localModes: [
-      {
-        id: "frontend",
-        label: "Frontend polish",
-        instructions: "Focus on layout, interaction states, responsive behavior, and visual consistency.",
-        scope: "local",
-        kind: "mode"
-      }
-    ],
-    presets: [
-      {
-        id: "coding",
-        label: "Coding",
-        instructionRefs: [
-          { scope: "global", id: "practical-coding" },
-          { scope: "local", id: "project-style" }
-        ],
-        modeRef: { scope: "global", id: "coder" }
-      }
-    ],
-    activeInstructionRefs: [
-      { scope: "global", id: "practical-coding" },
-      { scope: "local", id: "project-style" }
-    ],
-    activeModeRef: { scope: "local", id: "frontend" },
-    activePresetId: "coding"
-  };
-  var storyMessages = [
-    {
-      id: "msg-user",
-      role: "user",
-      content: "\u0414\u043E\u0431\u0430\u0432\u044C Storybook \u0438 \u043F\u043E\u043A\u0430\u0436\u0438 \u043A\u043B\u044E\u0447\u0435\u0432\u044B\u0435 \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B.",
-      createdAt: storyNow - 1e3 * 60 * 8
-    },
-    {
-      id: "msg-assistant",
-      role: "assistant",
-      content: "\u0413\u043E\u0442\u043E\u0432\u043E. \u042F \u0434\u043E\u0431\u0430\u0432\u0438\u043B \u043A\u043E\u043D\u0444\u0438\u0433, \u043C\u043E\u043A VS Code API \u0438 \u0438\u0441\u0442\u043E\u0440\u0438\u0438 \u0434\u043B\u044F \u043E\u0441\u043D\u043E\u0432\u043D\u044B\u0445 \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u043E\u0432.\n\n- `MessageCard`\n- `ToolMessageCard`\n- `Composer`\n- \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B \u0447\u0430\u0442\u0430 \u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A",
-      usage: {
-        tokens: 2680,
-        promptTokens: 1400,
-        completionTokens: 1280,
-        costUsd: 28e-4
-      },
-      createdAt: storyNow - 1e3 * 60 * 6
-    },
-    {
-      id: "tool-read-file",
-      role: "tool",
-      name: "read_file",
-      status: "done",
-      args: { path: "src/webview/app/App.tsx" },
-      result: {
-        path: "src/webview/app/App.tsx",
-        content: "import { useEffect, useState } from 'react';\n\nexport function App() {\n  return <div />;\n}\n"
-      },
-      usage: { tokens: 420, costUsd: 4e-4 },
-      createdAt: storyNow - 1e3 * 60 * 3
-    },
-    {
-      id: "tool-grep",
-      role: "tool",
-      name: "grep_search",
-      status: "done",
-      args: { query: "MessageCard" },
-      result: {
-        matches: [
-          { path: "src/webview/entities/message/MessageCard.tsx", line: 14, column: 17 },
-          { path: "src/webview/widgets/message-list/message-list/MessageList.tsx", line: 38, column: 12 }
-        ],
-        truncated: false
-      },
-      createdAt: storyNow - 1e3 * 60 * 2
-    },
-    {
-      id: "msg-agent-error",
-      role: "assistant",
-      marker: "aist:internal-error-message:v1",
-      content: "**AIST error (model request attempt 1/3)**\n\nNetwork connection was interrupted. Retrying the request.",
-      createdAt: storyNow - 1e3 * 60
-    },
-    {
-      id: "msg-agent-tools-summary",
-      role: "assistant",
-      content: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u043B \u043C\u0435\u0441\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F `MessageCard` \u0438 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0443 tool calls \u043F\u043E\u0434 \u043E\u0431\u0449\u0438\u0439 cut.",
-      createdAt: storyNow - 1e3 * 45
-    }
-  ];
-  var storyToolMessages = {
-    waitingApproval: {
-      id: "tool-approval",
-      role: "tool",
-      name: "replace_in_file",
-      status: "waiting",
-      approval: "pending",
-      reason: "Need permission before changing source files.",
-      args: { path: "src/webview/app/styles.css", search: ".message-card", replace: ".message-card" },
-      result: { preview: { path: "src/webview/app/styles.css", replacements: 3 } },
-      createdAt: storyNow - 1e3 * 90
-    },
-    runningBash: {
-      id: "tool-bash",
-      role: "tool",
-      name: "run_bash_script",
-      status: "running",
-      args: { script: "npm run typecheck" },
-      reason: "Verifying TypeScript after Storybook setup.",
-      createdAt: storyNow - 1e3 * 70
-    },
-    finishedBash: {
-      id: "tool-bash-done",
-      role: "tool",
-      name: "run_bash_script",
-      status: "done",
-      args: {
-        script: "npm run test -- --run src/webview/entities/message/toolValue.test.ts",
-        cwd: ".",
-        timeoutMs: 12e4
-      },
-      result: {
-        ok: true,
-        cwd: ".",
-        exitCode: 0,
-        signal: null,
-        timedOut: false,
-        durationMs: 1840,
-        stdout: "\u2713 src/webview/entities/message/toolValue.test.ts (4 tests) 12ms\n\nTest Files  1 passed (1)\nTests  4 passed (4)",
-        stderr: "",
-        stdoutTruncated: false,
-        stderrTruncated: false
-      },
-      reason: "Checking the parser helpers still behave correctly.",
-      createdAt: storyNow - 1e3 * 55
-    },
-    errored: {
-      id: "tool-error",
-      role: "tool",
-      name: "delete_path",
-      status: "error",
-      args: { path: "dist/old.js" },
-      result: { error: "Permission denied by user." },
-      createdAt: storyNow - 1e3 * 40
-    },
-    listFiles: {
-      id: "tool-list",
-      role: "tool",
-      name: "list_files",
-      status: "done",
-      args: { path: "src/webview" },
-      result: {
-        entries: [
-          { path: "src/webview/app", type: "directory" },
-          { path: "src/webview/entities", type: "directory" },
-          { path: "src/webview/features", type: "directory" },
-          { path: "src/webview/widgets", type: "directory" }
+  // node_modules/lucide-react/dist/esm/context.mjs
+  var import_react = __toESM(require_react(), 1);
+  var LucideContext = (0, import_react.createContext)({});
+  var useLucideContext = () => (0, import_react.useContext)(LucideContext);
+
+  // node_modules/lucide-react/dist/esm/Icon.mjs
+  var Icon = (0, import_react2.forwardRef)(
+    ({ color: color2, size, strokeWidth, absoluteStrokeWidth, className = "", children, iconNode, ...rest }, ref) => {
+      const {
+        size: contextSize = 24,
+        strokeWidth: contextStrokeWidth = 2,
+        absoluteStrokeWidth: contextAbsoluteStrokeWidth = false,
+        color: contextColor = "currentColor",
+        className: contextClass = ""
+      } = useLucideContext() ?? {};
+      const calculatedStrokeWidth = absoluteStrokeWidth ?? contextAbsoluteStrokeWidth ? Number(strokeWidth ?? contextStrokeWidth) * 24 / Number(size ?? contextSize) : strokeWidth ?? contextStrokeWidth;
+      return (0, import_react2.createElement)(
+        "svg",
+        {
+          ref,
+          ...defaultAttributes,
+          width: size ?? contextSize ?? defaultAttributes.width,
+          height: size ?? contextSize ?? defaultAttributes.height,
+          stroke: color2 ?? contextColor,
+          strokeWidth: calculatedStrokeWidth,
+          className: mergeClasses("lucide", contextClass, className),
+          ...!children && !hasA11yProp(rest) && { "aria-hidden": "true" },
+          ...rest
+        },
+        [
+          ...iconNode.map(([tag, attrs]) => (0, import_react2.createElement)(tag, attrs)),
+          ...Array.isArray(children) ? children : [children]
         ]
-      },
-      createdAt: storyNow - 1e3 * 20
+      );
     }
+  );
+
+  // node_modules/lucide-react/dist/esm/createLucideIcon.mjs
+  var createLucideIcon = (iconName, iconNode) => {
+    const Component = (0, import_react3.forwardRef)(
+      ({ className, ...props }, ref) => (0, import_react3.createElement)(Icon, {
+        ref,
+        iconNode,
+        className: mergeClasses(
+          `lucide-${toKebabCase(toPascalCase(iconName))}`,
+          `lucide-${iconName}`,
+          className
+        ),
+        ...props
+      })
+    );
+    Component.displayName = toPascalCase(iconName);
+    return Component;
   };
-  var storyChatSummaries = [
-    {
-      id: "chat-active",
-      title: "Storybook setup",
-      model: "codex:gpt-5.1-codex",
-      messageCount: storyMessages.length,
-      lastUserMessage: "Can you help wire Storybook into the webview?",
-      busy: false,
-      lastMessageAt: storyNow,
-      updatedAt: storyNow
-    },
-    {
-      id: "chat-review",
-      title: "Review tool cards",
-      model: "openai/gpt-4o-mini",
-      messageCount: 12,
-      lastUserMessage: "Review the tool approval cards and raw JSON view.",
-      busy: false,
-      lastMessageAt: storyNow - 1e3 * 60 * 50,
-      updatedAt: storyNow - 1e3 * 60 * 45
-    },
-    {
-      id: "chat-busy",
-      title: "Running typecheck",
-      model: "anthropic/claude-3.7-sonnet",
-      messageCount: 7,
-      lastUserMessage: "Run typecheck and fix the failing TypeScript errors.",
-      busy: true,
-      lastMessageAt: storyNow - 1e3 * 60 * 120,
-      updatedAt: storyNow - 1e3 * 60 * 10
-    }
+
+  // node_modules/lucide-react/dist/esm/icons/arrow-left.mjs
+  var __iconNode = [
+    ["path", { d: "m12 19-7-7 7-7", key: "1l729n" }],
+    ["path", { d: "M19 12H5", key: "x3x0zl" }]
   ];
-  var storyActiveChat = {
-    id: "chat-active",
-    title: "Storybook setup",
-    model: "codex:gpt-5.1-codex",
-    previousChat: void 0,
-    messages: storyMessages,
-    lastAnswer: storyMessages[1]?.content || "",
-    busy: false,
-    context: {
-      tokens: 34800,
-      maxTokens: 128e3,
-      percent: 27,
-      inputCostUsd: 42e-4
-    },
-    usage: {
-      promptTokens: 9200,
-      completionTokens: 4100,
-      totalTokens: 13300,
-      costUsd: 0.0184
-    },
-    createdAt: storyNow - 1e3 * 60 * 60,
-    updatedAt: storyNow
-  };
+  var ArrowLeft = createLucideIcon("arrow-left", __iconNode);
+
+  // node_modules/lucide-react/dist/esm/icons/bell-ring.mjs
+  var __iconNode2 = [
+    ["path", { d: "M10.268 21a2 2 0 0 0 3.464 0", key: "vwvbt9" }],
+    ["path", { d: "M22 8c0-2.3-.8-4.3-2-6", key: "5bb3ad" }],
+    [
+      "path",
+      {
+        d: "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326",
+        key: "11g9vi"
+      }
+    ],
+    ["path", { d: "M4 2C2.8 3.7 2 5.7 2 8", key: "tap9e0" }]
+  ];
+  var BellRing = createLucideIcon("bell-ring", __iconNode2);
+
+  // node_modules/lucide-react/dist/esm/icons/bot.mjs
+  var __iconNode3 = [
+    ["path", { d: "M12 8V4H8", key: "hb8ula" }],
+    ["rect", { width: "16", height: "12", x: "4", y: "8", rx: "2", key: "enze0r" }],
+    ["path", { d: "M2 14h2", key: "vft8re" }],
+    ["path", { d: "M20 14h2", key: "4cs60a" }],
+    ["path", { d: "M15 13v2", key: "1xurst" }],
+    ["path", { d: "M9 13v2", key: "rq6x2g" }]
+  ];
+  var Bot = createLucideIcon("bot", __iconNode3);
+
+  // node_modules/lucide-react/dist/esm/icons/check.mjs
+  var __iconNode4 = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
+  var Check = createLucideIcon("check", __iconNode4);
+
+  // node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
+  var __iconNode5 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
+  var ChevronDown = createLucideIcon("chevron-down", __iconNode5);
+
+  // node_modules/lucide-react/dist/esm/icons/chevron-right.mjs
+  var __iconNode6 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
+  var ChevronRight = createLucideIcon("chevron-right", __iconNode6);
+
+  // node_modules/lucide-react/dist/esm/icons/circle-check.mjs
+  var __iconNode7 = [
+    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+    ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
+  ];
+  var CircleCheck = createLucideIcon("circle-check", __iconNode7);
+
+  // node_modules/lucide-react/dist/esm/icons/circle-play.mjs
+  var __iconNode8 = [
+    [
+      "path",
+      {
+        d: "M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z",
+        key: "kmsa83"
+      }
+    ],
+    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]
+  ];
+  var CirclePlay = createLucideIcon("circle-play", __iconNode8);
+
+  // node_modules/lucide-react/dist/esm/icons/circle-question-mark.mjs
+  var __iconNode9 = [
+    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+    ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3", key: "1u773s" }],
+    ["path", { d: "M12 17h.01", key: "p32p05" }]
+  ];
+  var CircleQuestionMark = createLucideIcon("circle-question-mark", __iconNode9);
+
+  // node_modules/lucide-react/dist/esm/icons/code-xml.mjs
+  var __iconNode10 = [
+    ["path", { d: "m18 16 4-4-4-4", key: "1inbqp" }],
+    ["path", { d: "m6 8-4 4 4 4", key: "15zrgr" }],
+    ["path", { d: "m14.5 4-5 16", key: "e7oirm" }]
+  ];
+  var CodeXml = createLucideIcon("code-xml", __iconNode10);
+
+  // node_modules/lucide-react/dist/esm/icons/copy.mjs
+  var __iconNode11 = [
+    ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
+    ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
+  ];
+  var Copy = createLucideIcon("copy", __iconNode11);
+
+  // node_modules/lucide-react/dist/esm/icons/cpu.mjs
+  var __iconNode12 = [
+    ["path", { d: "M12 20v2", key: "1lh1kg" }],
+    ["path", { d: "M12 2v2", key: "tus03m" }],
+    ["path", { d: "M17 20v2", key: "1rnc9c" }],
+    ["path", { d: "M17 2v2", key: "11trls" }],
+    ["path", { d: "M2 12h2", key: "1t8f8n" }],
+    ["path", { d: "M2 17h2", key: "7oei6x" }],
+    ["path", { d: "M2 7h2", key: "asdhe0" }],
+    ["path", { d: "M20 12h2", key: "1q8mjw" }],
+    ["path", { d: "M20 17h2", key: "1fpfkl" }],
+    ["path", { d: "M20 7h2", key: "1o8tra" }],
+    ["path", { d: "M7 20v2", key: "4gnj0m" }],
+    ["path", { d: "M7 2v2", key: "1i4yhu" }],
+    ["rect", { x: "4", y: "4", width: "16", height: "16", rx: "2", key: "1vbyd7" }],
+    ["rect", { x: "8", y: "8", width: "8", height: "8", rx: "1", key: "z9xiuo" }]
+  ];
+  var Cpu = createLucideIcon("cpu", __iconNode12);
+
+  // node_modules/lucide-react/dist/esm/icons/file-code-corner.mjs
+  var __iconNode13 = [
+    [
+      "path",
+      {
+        d: "M4 12.15V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-3.35",
+        key: "1wthlu"
+      }
+    ],
+    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
+    ["path", { d: "m5 16-3 3 3 3", key: "331omg" }],
+    ["path", { d: "m9 22 3-3-3-3", key: "lsp7cz" }]
+  ];
+  var FileCodeCorner = createLucideIcon("file-code-corner", __iconNode13);
+
+  // node_modules/lucide-react/dist/esm/icons/file-pen-line.mjs
+  var __iconNode14 = [
+    [
+      "path",
+      {
+        d: "M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z",
+        key: "ukzhwg"
+      }
+    ],
+    ["path", { d: "M14.487 7.858A1 1 0 0 1 14 7V2", key: "1klhew" }],
+    [
+      "path",
+      {
+        d: "M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l2.516 2.516",
+        key: "rxaxab"
+      }
+    ],
+    ["path", { d: "M8 18h1", key: "13wk12" }]
+  ];
+  var FilePenLine = createLucideIcon("file-pen-line", __iconNode14);
+
+  // node_modules/lucide-react/dist/esm/icons/file-text.mjs
+  var __iconNode15 = [
+    [
+      "path",
+      {
+        d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
+        key: "1oefj6"
+      }
+    ],
+    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
+    ["path", { d: "M10 9H8", key: "b1mrlr" }],
+    ["path", { d: "M16 13H8", key: "t4e002" }],
+    ["path", { d: "M16 17H8", key: "z1uh3a" }]
+  ];
+  var FileText = createLucideIcon("file-text", __iconNode15);
+
+  // node_modules/lucide-react/dist/esm/icons/folder-plus.mjs
+  var __iconNode16 = [
+    ["path", { d: "M12 10v6", key: "1bos4e" }],
+    ["path", { d: "M9 13h6", key: "1uhe8q" }],
+    [
+      "path",
+      {
+        d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
+        key: "1kt360"
+      }
+    ]
+  ];
+  var FolderPlus = createLucideIcon("folder-plus", __iconNode16);
+
+  // node_modules/lucide-react/dist/esm/icons/folder-tree.mjs
+  var __iconNode17 = [
+    [
+      "path",
+      {
+        d: "M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z",
+        key: "hod4my"
+      }
+    ],
+    [
+      "path",
+      {
+        d: "M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z",
+        key: "w4yl2u"
+      }
+    ],
+    ["path", { d: "M3 5a2 2 0 0 0 2 2h3", key: "f2jnh7" }],
+    ["path", { d: "M3 3v13a2 2 0 0 0 2 2h3", key: "k8epm1" }]
+  ];
+  var FolderTree = createLucideIcon("folder-tree", __iconNode17);
+
+  // node_modules/lucide-react/dist/esm/icons/folder.mjs
+  var __iconNode18 = [
+    [
+      "path",
+      {
+        d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
+        key: "1kt360"
+      }
+    ]
+  ];
+  var Folder = createLucideIcon("folder", __iconNode18);
+
+  // node_modules/lucide-react/dist/esm/icons/gauge.mjs
+  var __iconNode19 = [
+    ["path", { d: "m12 14 4-4", key: "9kzdfg" }],
+    ["path", { d: "M3.34 19a10 10 0 1 1 17.32 0", key: "19p75a" }]
+  ];
+  var Gauge = createLucideIcon("gauge", __iconNode19);
+
+  // node_modules/lucide-react/dist/esm/icons/info.mjs
+  var __iconNode20 = [
+    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+    ["path", { d: "M12 16v-4", key: "1dtifu" }],
+    ["path", { d: "M12 8h.01", key: "e9boi3" }]
+  ];
+  var Info = createLucideIcon("info", __iconNode20);
+
+  // node_modules/lucide-react/dist/esm/icons/key-round.mjs
+  var __iconNode21 = [
+    [
+      "path",
+      {
+        d: "M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z",
+        key: "1s6t7t"
+      }
+    ],
+    ["circle", { cx: "16.5", cy: "7.5", r: ".5", fill: "currentColor", key: "w0ekpg" }]
+  ];
+  var KeyRound = createLucideIcon("key-round", __iconNode21);
+
+  // node_modules/lucide-react/dist/esm/icons/list-tree.mjs
+  var __iconNode22 = [
+    ["path", { d: "M8 5h13", key: "1pao27" }],
+    ["path", { d: "M13 12h8", key: "h98zly" }],
+    ["path", { d: "M13 19h8", key: "c3s6r1" }],
+    ["path", { d: "M3 10a2 2 0 0 0 2 2h3", key: "1npucw" }],
+    ["path", { d: "M3 5v12a2 2 0 0 0 2 2h3", key: "x1gjn2" }]
+  ];
+  var ListTree = createLucideIcon("list-tree", __iconNode22);
+
+  // node_modules/lucide-react/dist/esm/icons/loader-circle.mjs
+  var __iconNode23 = [["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]];
+  var LoaderCircle = createLucideIcon("loader-circle", __iconNode23);
+
+  // node_modules/lucide-react/dist/esm/icons/log-in.mjs
+  var __iconNode24 = [
+    ["path", { d: "m10 17 5-5-5-5", key: "1bsop3" }],
+    ["path", { d: "M15 12H3", key: "6jk70r" }],
+    ["path", { d: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4", key: "u53s6r" }]
+  ];
+  var LogIn = createLucideIcon("log-in", __iconNode24);
+
+  // node_modules/lucide-react/dist/esm/icons/log-out.mjs
+  var __iconNode25 = [
+    ["path", { d: "m16 17 5-5-5-5", key: "1bji2h" }],
+    ["path", { d: "M21 12H9", key: "dn1m92" }],
+    ["path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", key: "1uf3rs" }]
+  ];
+  var LogOut = createLucideIcon("log-out", __iconNode25);
+
+  // node_modules/lucide-react/dist/esm/icons/message-square-text.mjs
+  var __iconNode26 = [
+    [
+      "path",
+      {
+        d: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z",
+        key: "18887p"
+      }
+    ],
+    ["path", { d: "M7 11h10", key: "1twpyw" }],
+    ["path", { d: "M7 15h6", key: "d9of3u" }],
+    ["path", { d: "M7 7h8", key: "af5zfr" }]
+  ];
+  var MessageSquareText = createLucideIcon("message-square-text", __iconNode26);
+
+  // node_modules/lucide-react/dist/esm/icons/play.mjs
+  var __iconNode27 = [
+    [
+      "path",
+      {
+        d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
+        key: "10ikf1"
+      }
+    ]
+  ];
+  var Play = createLucideIcon("play", __iconNode27);
+
+  // node_modules/lucide-react/dist/esm/icons/plus.mjs
+  var __iconNode28 = [
+    ["path", { d: "M5 12h14", key: "1ays0h" }],
+    ["path", { d: "M12 5v14", key: "s699le" }]
+  ];
+  var Plus = createLucideIcon("plus", __iconNode28);
+
+  // node_modules/lucide-react/dist/esm/icons/replace.mjs
+  var __iconNode29 = [
+    ["path", { d: "M14 4a1 1 0 0 1 1-1", key: "dhj8ez" }],
+    ["path", { d: "M15 10a1 1 0 0 1-1-1", key: "1mnyi5" }],
+    ["path", { d: "M21 4a1 1 0 0 0-1-1", key: "sfs9ap" }],
+    ["path", { d: "M21 9a1 1 0 0 1-1 1", key: "mp6qeo" }],
+    ["path", { d: "m3 7 3 3 3-3", key: "x25e72" }],
+    ["path", { d: "M6 10V5a2 2 0 0 1 2-2h2", key: "15xut4" }],
+    ["rect", { x: "3", y: "14", width: "7", height: "7", rx: "1", key: "1bkyp8" }]
+  ];
+  var Replace = createLucideIcon("replace", __iconNode29);
+
+  // node_modules/lucide-react/dist/esm/icons/save.mjs
+  var __iconNode30 = [
+    [
+      "path",
+      {
+        d: "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
+        key: "1c8476"
+      }
+    ],
+    ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", key: "1ydtos" }],
+    ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7", key: "t51u73" }]
+  ];
+  var Save = createLucideIcon("save", __iconNode30);
+
+  // node_modules/lucide-react/dist/esm/icons/search.mjs
+  var __iconNode31 = [
+    ["path", { d: "m21 21-4.34-4.34", key: "14j7rj" }],
+    ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }]
+  ];
+  var Search = createLucideIcon("search", __iconNode31);
+
+  // node_modules/lucide-react/dist/esm/icons/send-horizontal.mjs
+  var __iconNode32 = [
+    [
+      "path",
+      {
+        d: "M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z",
+        key: "117uat"
+      }
+    ],
+    ["path", { d: "M6 12h16", key: "s4cdu5" }]
+  ];
+  var SendHorizontal = createLucideIcon("send-horizontal", __iconNode32);
+
+  // node_modules/lucide-react/dist/esm/icons/shield-check.mjs
+  var __iconNode33 = [
+    [
+      "path",
+      {
+        d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
+        key: "oel41y"
+      }
+    ],
+    ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
+  ];
+  var ShieldCheck = createLucideIcon("shield-check", __iconNode33);
+
+  // node_modules/lucide-react/dist/esm/icons/sliders-horizontal.mjs
+  var __iconNode34 = [
+    ["path", { d: "M10 5H3", key: "1qgfaw" }],
+    ["path", { d: "M12 19H3", key: "yhmn1j" }],
+    ["path", { d: "M14 3v4", key: "1sua03" }],
+    ["path", { d: "M16 17v4", key: "1q0r14" }],
+    ["path", { d: "M21 12h-9", key: "1o4lsq" }],
+    ["path", { d: "M21 19h-5", key: "1rlt1p" }],
+    ["path", { d: "M21 5h-7", key: "1oszz2" }],
+    ["path", { d: "M8 10v4", key: "tgpxqk" }],
+    ["path", { d: "M8 12H3", key: "a7s4jb" }]
+  ];
+  var SlidersHorizontal = createLucideIcon("sliders-horizontal", __iconNode34);
+
+  // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
+  var __iconNode35 = [
+    [
+      "path",
+      {
+        d: "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z",
+        key: "1s2grr"
+      }
+    ],
+    ["path", { d: "M20 2v4", key: "1rf3ol" }],
+    ["path", { d: "M22 4h-4", key: "gwowj6" }],
+    ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
+  ];
+  var Sparkles = createLucideIcon("sparkles", __iconNode35);
+
+  // node_modules/lucide-react/dist/esm/icons/square.mjs
+  var __iconNode36 = [
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]
+  ];
+  var Square = createLucideIcon("square", __iconNode36);
+
+  // node_modules/lucide-react/dist/esm/icons/terminal.mjs
+  var __iconNode37 = [
+    ["path", { d: "M12 19h8", key: "baeox8" }],
+    ["path", { d: "m4 17 6-6-6-6", key: "1yngyt" }]
+  ];
+  var Terminal = createLucideIcon("terminal", __iconNode37);
+
+  // node_modules/lucide-react/dist/esm/icons/trash-2.mjs
+  var __iconNode38 = [
+    ["path", { d: "M10 11v6", key: "nco0om" }],
+    ["path", { d: "M14 11v6", key: "outv1u" }],
+    ["path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6", key: "miytrc" }],
+    ["path", { d: "M3 6h18", key: "d0wm0j" }],
+    ["path", { d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2", key: "e791ji" }]
+  ];
+  var Trash2 = createLucideIcon("trash-2", __iconNode38);
+
+  // node_modules/lucide-react/dist/esm/icons/user.mjs
+  var __iconNode39 = [
+    ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
+    ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
+  ];
+  var User = createLucideIcon("user", __iconNode39);
+
+  // node_modules/lucide-react/dist/esm/icons/wrench.mjs
+  var __iconNode40 = [
+    [
+      "path",
+      {
+        d: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z",
+        key: "1ngwbx"
+      }
+    ]
+  ];
+  var Wrench = createLucideIcon("wrench", __iconNode40);
+
+  // node_modules/lucide-react/dist/esm/icons/x.mjs
+  var __iconNode41 = [
+    ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
+    ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
+  ];
+  var X = createLucideIcon("x", __iconNode41);
+
+  // src/webview/entities/message/message-card/MessageCard.tsx
+  var import_react14 = __toESM(require_react());
 
   // node_modules/devlop/lib/default.js
   function ok() {
@@ -23155,7 +22672,7 @@
   }
 
   // node_modules/property-information/lib/util/info.js
-  var Info = class {
+  var Info2 = class {
     /**
      * @param {string} property
      *   Property.
@@ -23169,18 +22686,18 @@
       this.property = property;
     }
   };
-  Info.prototype.attribute = "";
-  Info.prototype.booleanish = false;
-  Info.prototype.boolean = false;
-  Info.prototype.commaOrSpaceSeparated = false;
-  Info.prototype.commaSeparated = false;
-  Info.prototype.defined = false;
-  Info.prototype.mustUseProperty = false;
-  Info.prototype.number = false;
-  Info.prototype.overloadedBoolean = false;
-  Info.prototype.property = "";
-  Info.prototype.spaceSeparated = false;
-  Info.prototype.space = void 0;
+  Info2.prototype.attribute = "";
+  Info2.prototype.booleanish = false;
+  Info2.prototype.boolean = false;
+  Info2.prototype.commaOrSpaceSeparated = false;
+  Info2.prototype.commaSeparated = false;
+  Info2.prototype.defined = false;
+  Info2.prototype.mustUseProperty = false;
+  Info2.prototype.number = false;
+  Info2.prototype.overloadedBoolean = false;
+  Info2.prototype.property = "";
+  Info2.prototype.spaceSeparated = false;
+  Info2.prototype.space = void 0;
 
   // node_modules/property-information/lib/util/types.js
   var types_exports = {};
@@ -23210,7 +22727,7 @@
     /** @type {ReadonlyArray<keyof typeof types>} */
     Object.keys(types_exports)
   );
-  var DefinedInfo = class extends Info {
+  var DefinedInfo = class extends Info2 {
     /**
      * @constructor
      * @param {string} property
@@ -24320,7 +23837,7 @@
   function find(schema, value) {
     const normal = normalize(value);
     let property = value;
-    let Type = Info;
+    let Type = Info2;
     if (normal in schema.normal) {
       return schema.property[schema.normal[normal]];
     }
@@ -24703,11 +24220,11 @@
       }
     }
   }
-  function productionCreate(_, jsx32, jsxs27) {
+  function productionCreate(_, jsx46, jsxs38) {
     return create2;
     function create2(_2, type, props, key) {
       const isStaticChildren = Array.isArray(props.children);
-      const fn = isStaticChildren ? jsxs27 : jsx32;
+      const fn = isStaticChildren ? jsxs38 : jsx46;
       return key ? fn(type, props, key) : fn(type, props);
     }
   }
@@ -24952,8 +24469,8 @@
   };
 
   // node_modules/react-markdown/lib/index.js
-  var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-  var import_react2 = __toESM(require_react(), 1);
+  var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+  var import_react4 = __toESM(require_react(), 1);
 
   // node_modules/mdast-util-to-string/lib/index.js
   var emptyOptions2 = {};
@@ -32624,11 +32141,11 @@
     }
     visit(tree, transform);
     return toJsxRuntime(tree, {
-      Fragment: import_jsx_runtime2.Fragment,
+      Fragment: import_jsx_runtime.Fragment,
       components,
       ignoreInvalidStyle: true,
-      jsx: import_jsx_runtime2.jsx,
-      jsxs: import_jsx_runtime2.jsxs,
+      jsx: import_jsx_runtime.jsx,
+      jsxs: import_jsx_runtime.jsxs,
       passKeys: true,
       passNode: true
     });
@@ -35735,588 +35252,1459 @@
     toMarkdownExtensions.push(gfmToMarkdown(settings));
   }
 
-  // src/webview/shared/lib/assets.ts
-  function getWebviewAssetUri(assetKey) {
-    return window.__AIST_ASSETS__?.[assetKey];
-  }
+  // src/webview/shared/i18n/index.tsx
+  var import_react5 = __toESM(require_react());
 
-  // src/webview/shared/ui/AistLogo.tsx
-  var import_jsx_runtime3 = __toESM(require_jsx_runtime());
-  function AistLogo({ className = "", assetKey = "logo", title = "aist" }) {
-    const logoUri = getWebviewAssetUri(assetKey);
-    if (!logoUri) {
-      return null;
-    }
-    const style = {
-      "--aist-logo-uri": `url(${logoUri})`
+  // src/webview/shared/i18n/en.json
+  var en_default = {
+    "app.loadingAgent": "Loading agent...",
+    "common.add": "Add",
+    "common.authorize": "Authorize",
+    "common.authorized": "Authorized",
+    "common.backToChat": "Back to chat",
+    "common.cancel": "Cancel",
+    "common.cancelDelete": "Cancel delete",
+    "common.close": "Close",
+    "common.closeSettings": "Close settings",
+    "common.command": "Command",
+    "common.confirmDelete": "Confirm delete",
+    "common.copy": "Copy",
+    "common.custom": "Custom",
+    "common.delete": "Delete",
+    "common.edit": "Edit",
+    "common.description": "Description",
+    "common.disabled": "Disabled",
+    "common.enabled": "Enabled",
+    "common.instructions": "Instructions",
+    "common.name": "Name",
+    "common.notAvailable": "n/a",
+    "common.permission": "Permission",
+    "common.save": "Save",
+    "common.status": "Status",
+    "composer.noSettings": "Agent settings are not selected",
+    "composer.placeholder": "Ask the agent to inspect, create, edit, or delete workspace files...",
+    "composer.send": "Send",
+    "composer.sendMessage": "Send message",
+    "composer.stop": "Stop",
+    "composer.stopGeneration": "Stop generation",
+    "summary.agentMode": "Agent mode",
+    "summary.compact": "Compact",
+    "summary.compactTitle": "Compact chat context",
+    "summary.cost": "Cost {{cost}}",
+    "summary.model": "Model",
+    "summary.reasoningEffort": "Reasoning effort",
+    "summary.toolPermissionPreset": "Tool permission preset",
+    "summary.toolsCount": "{{count}} tools",
+    "reasoning.auto": "Auto",
+    "reasoning.low": "Low",
+    "reasoning.medium": "Medium",
+    "reasoning.high": "High",
+    "reasoning.autoDetailed": "Auto reasoning",
+    "reasoning.lowDetailed": "Low reasoning",
+    "reasoning.mediumDetailed": "Medium reasoning",
+    "reasoning.highDetailed": "High reasoning",
+    "chat.openChats": "Open chats",
+    "chat.openInEditor": "Open this chat in editor",
+    "chatList.title": "Chats",
+    "chatList.description": "History is hidden by default to keep the editor focused on messages.",
+    "chatList.new": "New",
+    "chatList.close": "Close chats",
+    "chatList.duplicate": "Duplicate chat",
+    "chatList.delete": "Delete chat",
+    "chatList.message_one": "{{count}} message",
+    "chatList.message_other": "{{count}} messages",
+    "message.expand": "Expand message",
+    "message.collapse": "Collapse message",
+    "message.you": "You",
+    "message.agent": "Agent",
+    "message.status": "Status",
+    "message.error": "Error",
+    "message.tool": "Tool",
+    "message.copyMarkdown": "Copy markdown",
+    "activity.waitingForApproval": "Waiting for approval",
+    "activity.runningTool": "Running tool",
+    "activity.answering": "Model is answering",
+    "activity.stopping": "Stopping",
+    "activity.thinking": "Model is thinking",
+    "activity.detail.waitingForApproval": "A tool is ready, but AIST is waiting for your approval.",
+    "activity.detail.runningTool": "A tool is currently running in the workspace.",
+    "activity.detail.answering": "The model is streaming text and AIST is preparing the answer.",
+    "activity.detail.stopping": "Abort requested. AIST is cancelling the current operation.",
+    "tool.approve": "Approve",
+    "tool.deny": "Deny",
+    "tool.showJson": "Show JSON",
+    "tool.closeJson": "Close",
+    "tool.showDetails": "Show tool details",
+    "tool.hideDetails": "Hide tool details",
+    "tool.openFile": "Open file in editor",
+    "tool.status.approvalNeeded": "Approval needed",
+    "tool.status.waiting": "Waiting",
+    "tool.status.running": "Running",
+    "tool.status.done": "Done",
+    "tool.status.error": "Error",
+    "tool.status.denied": "Denied",
+    "tool.status.unknown": "Unknown",
+    "tool.preview.code": "Code preview",
+    "tool.preview.truncated": "truncated",
+    "tool.preview.emptyFile": "File is empty.",
+    "tool.preview.moreItems": "\u2026more items hidden",
+    "tool.preview.moreFiles": "\u2026more files hidden",
+    "tool.preview.waitingOutput": "Waiting for command output...",
+    "tool.preview.noOutput": "Command completed with no output.",
+    "tool.preview.noModels": "No models found",
+    "tool.preview.noTools": "no tools",
+    "tool.fact.cwd": "cwd",
+    "tool.fact.status": "status",
+    "tool.fact.timeout": "timeout",
+    "tool.fact.duration": "duration",
+    "tool.fact.signal": "signal",
+    "tool.result.timedOut": "Timed out",
+    "tool.result.finished": "Finished",
+    "tool.result.exit": "Exit {{code}}",
+    "tool.result.lines_one": "{{count}} line",
+    "tool.result.lines_other": "{{count}} lines",
+    "tool.action.get_workspace_info": "WORKSPACE INFO",
+    "tool.action.list_files": "LIST FILES",
+    "tool.action.read_file": "READ FILE",
+    "tool.action.grep_search": "GREP SEARCH",
+    "tool.action.run_bash_script": "RUN BASH",
+    "tool.action.run_skill": "RUN SKILL",
+    "tool.action.compact_chat": "COMPACT CHAT",
+    "tool.action.write_file": "WRITE FILE",
+    "tool.action.replace_in_file": "REPLACE IN FILE",
+    "tool.action.create_directory": "CREATE DIRECTORY",
+    "tool.action.delete_path": "DELETE PATH",
+    "tool.action.fallback": "TOOL CALL",
+    "tool.summary.cwd": "cwd {{cwd}}",
+    "tool.summary.skill": "skill {{skill}}",
+    "tool.summary.matches": "{{count}} matches",
+    "tool.summary.entries": "{{count}} entries",
+    "tool.summary.replacements": "{{count}} replacements",
+    "tool.summary.bytes": "{{count}} bytes",
+    "tool.summary.newChat": "new chat {{chatId}}",
+    "tool.summary.compacted": "compacted",
+    "tool.summary.toolError": "Tool error",
+    "tool.summary.timedOut": "timed out",
+    "tool.summary.exit": "exit {{code}}",
+    "tool.summary.unknown": "unknown",
+    "tool.label.get_workspace_info": "Workspace info",
+    "tool.label.list_files": "List files",
+    "tool.label.read_file": "Read file",
+    "tool.label.grep_search": "Search repository",
+    "tool.label.run_bash_script": "Run Bash script",
+    "tool.label.write_file": "Write file",
+    "tool.label.replace_in_file": "Replace in file",
+    "tool.label.create_directory": "Create directory",
+    "tool.label.delete_path": "Delete path",
+    "tool.label.run_skill": "Run skill",
+    "tool.label.fallback": "Tool call",
+    "tool.description.get_workspace_info": "Get current workspace and active editor metadata.",
+    "tool.description.list_files": "List files and directories under a workspace-relative path.",
+    "tool.description.read_file": "Read a UTF-8 text file from the workspace.",
+    "tool.description.grep_search": "Search workspace files for text or a regular expression.",
+    "tool.description.run_bash_script": "Run a Bash script inside the workspace.",
+    "tool.description.write_file": "Create or overwrite a UTF-8 text file in the workspace.",
+    "tool.description.replace_in_file": "Replace text in an existing UTF-8 file.",
+    "tool.description.create_directory": "Create a workspace directory, including parent directories.",
+    "tool.description.delete_path": "Delete a workspace file or directory.",
+    "tool.description.run_skill": "Run a custom Bash-backed skill.",
+    "toolCalls.show": "Show tool calls",
+    "toolCalls.hide": "Hide tool calls",
+    "toolCalls.hidden_one": "{{count}} tool call hidden",
+    "toolCalls.hidden_other": "{{count}} tool calls hidden",
+    "empty.title": "Ready to work with your codebase",
+    "empty.description": "Ask for edits, repository search, file inspection, or command execution. Tool calls stay compact in the chat history.",
+    "systemInstructions.title": "System instructions \xB7 {{count}} sources",
+    "systemInstructions.shortTitle": "Instructions",
+    "systemInstructions.manageDescription": "Change active instructions and mode for the next agent request.",
+    "systemInstructions.activeSet": "Active set",
+    "systemInstructions.activeSetDescription": "Pick reusable instructions and one mode to apply right now.",
+    "systemInstructions.modeSelect": "Mode",
+    "systemInstructions.noMode": "No mode",
+    "systemInstructions.effectiveSources": "Effective sources",
+    "systemInstructions.hide": "Hide system instructions",
+    "systemInstructions.show": "Show system instructions",
+    "systemInstructions.mode": "Mode: {{mode}}",
+    "systemInstructions.fallbackTitle": "System instruction",
+    "systemInstructions.noAdditional": "No additional instructions.",
+    "select.search": "Search...",
+    "select.noOptions": "No options found",
+    "modelSelect.search": "Search models...",
+    "modelSelect.models": "Models",
+    "settings.title": "Agent settings",
+    "settings.modalDescription": "Model, access and reasoning live here so the composer stays focused on typing.",
+    "settings.requestTitle": "Request settings",
+    "settings.requestDescription": "These controls used to sit under the prompt. Keeping them here reduces visual noise while preserving quick access from the summary line.",
+    "settings.sidebarTitle": "Agent settings",
+    "settings.nav.overview": "Overview",
+    "settings.nav.overviewDescription": "Model-adjacent request settings and status.",
+    "settings.nav.instructions": "Instructions",
+    "settings.nav.instructionsDescription": "AGENTS.md, CLAUDE.md and project instructions.",
+    "settings.nav.modes": "Modes",
+    "settings.nav.modesDescription": "Working modes and their system instructions.",
+    "settings.nav.skills": "Skills",
+    "settings.nav.skillsDescription": "Custom Bash-backed run_skill actions.",
+    "settings.nav.permissions": "Permissions",
+    "settings.nav.permissionsDescription": "Tool access presets and per-tool confirmations.",
+    "settings.nav.compaction": "Compaction",
+    "settings.nav.compactionDescription": "Control when old context is split out of the active chat.",
+    "settings.nav.system": "System",
+    "settings.nav.systemDescription": "Language, Codex auth and execution limits.",
+    "settings.overview.profileTitle": "Current agent profile",
+    "settings.overview.profileDescription": "A compact summary of rules and capabilities used by the next request.",
+    "settings.overview.storage": "Storage: {{value}}",
+    "settings.overview.storageWorkspace": ".aist-agent",
+    "settings.overview.storageUser": "local user",
+    "settings.overview.permissions": "Permissions: {{value}}",
+    "settings.overview.mode": "Mode: {{value}}",
+    "settings.overview.defaultMode": "Default",
+    "settings.overview.skills": "Skills: {{count}}",
+    "settings.overview.instructionSources": "Instruction sources: {{count}}",
+    "settings.overview.codex": "Codex: {{value}}",
+    "settings.overview.codexAuthorized": "authorized",
+    "settings.overview.codexNotConnected": "not connected",
+    "settings.overview.orderTitle": "Effective instruction order",
+    "settings.overview.orderDescription": "The agent receives these blocks from top to bottom.",
+    "settings.instructions.storageTitle": "Storage scope",
+    "settings.instructions.storageDescription": "Workspace settings are saved to .aist-agent/settings.json. Local user storage stays outside the repository.",
+    "settings.instructions.saveTo": "Save settings to",
+    "settings.instructions.workspace": "Workspace .aist-agent",
+    "settings.instructions.user": "Local user storage",
+    "settings.instructions.projectTitle": "Project instructions",
+    "settings.instructions.projectDescription": "Extra rules appended after AGENTS.md and CLAUDE.md.",
+    "settings.instructions.projectPlaceholder": "Project-specific instructions saved in the selected storage scope...",
+    "settings.instructions.effectiveTitle": "Effective order",
+    "settings.instructions.effectiveDescription": "Read-only view of the instruction blocks sent to the model.",
+    "settings.modes.activeTitle": "Active mode",
+    "settings.modes.activeDescription": "Select a working mode and edit the instruction text applied to chats.",
+    "settings.modes.customTitle": "Custom modes",
+    "settings.modes.customDescription": "Create reusable instruction profiles for different kinds of work.",
+    "settings.modes.addMode": "Add mode",
+    "settings.modes.modeName": "Mode name",
+    "settings.modes.modePlaceholder": "Expert reviewer",
+    "settings.promptManager.title": "Instructions and modes",
+    "settings.promptManager.description": "Use Current to choose what the agent receives on the next request. Global and Project tabs are the instruction and mode library.",
+    "settings.promptManager.guide": "Guide",
+    "settings.promptManager.tab.global": "Global",
+    "settings.promptManager.tab.local": "Project",
+    "settings.promptManager.tab.priorities": "Current",
+    "settings.promptManager.scope.global": "Global",
+    "settings.promptManager.scope.local": "Project",
+    "settings.promptManager.kind.instruction": "Instruction",
+    "settings.promptManager.kind.mode": "Mode",
+    "settings.promptManager.instruction.global.title": "Global instructions",
+    "settings.promptManager.instruction.local.title": "Project instructions",
+    "settings.promptManager.mode.global.title": "Global modes",
+    "settings.promptManager.mode.local.title": "Project modes",
+    "settings.promptManager.instruction.description": "Reusable system instructions. Enable any subset on the Active tab.",
+    "settings.promptManager.mode.description": "A mode is one standalone instruction used as your current role, such as coder or architect.",
+    "settings.promptManager.addInstruction": "Add instruction",
+    "settings.promptManager.addMode": "Add mode",
+    "settings.promptManager.empty": "No items yet. Add one or copy an existing item to customize it.",
+    "settings.promptManager.itemDescription": "{{scope}} \xB7 {{kind}} \xB7 {{id}}",
+    "settings.promptManager.editItem": "Edit {{label}}",
+    "settings.promptManager.newItem": "New {{kind}}",
+    "settings.promptManager.editorDescription": "{{scope}} {{kind}}",
+    "settings.promptManager.instructionText": "Instruction text",
+    "settings.promptManager.activeTitle": "What the agent receives now",
+    "settings.promptManager.activeDescription": "Choose one mode and extra instructions. This set is added to the next agent request.",
+    "settings.promptManager.presetsTitle": "Presets",
+    "settings.promptManager.presetsDescription": "A preset is an agent working mode plus selected instructions.",
+    "settings.promptManager.addPreset": "Add preset",
+    "settings.promptManager.noPresets": "No presets yet. Add the first preset to combine a mode and instructions.",
+    "settings.promptManager.editPreset": "Edit preset",
+    "settings.promptManager.newPreset": "New preset",
+    "settings.promptManager.presetEditorDescription": "Name the preset, choose an agent working mode, and add instructions with the pluses.",
+    "settings.promptManager.globalInstructions": "Global instructions",
+    "settings.promptManager.localInstructions": "Local instructions",
+    "settings.promptManager.applyPreset": "Apply preset",
+    "settings.promptManager.choosePreset": "Choose preset",
+    "settings.promptManager.presetName": "Preset name",
+    "settings.promptManager.presetNamePlaceholder": "My coding setup",
+    "settings.promptManager.saveCurrentAsPreset": "Save current as preset",
+    "settings.promptManager.presetDescription": "{{count}} instruction(s) \xB7 {{mode}}",
+    "settings.promptManager.apply": "Apply",
+    "settings.promptManager.rename": "Rename",
+    "settings.promptManager.noInstructions": "No instructions",
+    "settings.promptManager.helpTitle": "How instructions work",
+    "settings.promptManager.helpDescription": "Small guide for modes, instructions, and presets.",
+    "settings.promptManager.helpInstructions": "are reusable rules. Add as many as you want, then enable only the ones needed for the current project.",
+    "settings.promptManager.helpModes": "are one standalone role instruction, for example Coder or Architect. You can work with a mode even when no instructions are enabled.",
+    "settings.promptManager.helpPresets": "save a selected set of instructions plus one mode. Use them to switch quickly between setups like Coding, Design, Review, or Testing.",
+    "settings.promptManager.helpStorage": "Global items are stored in your home folder. Project items are stored in .aist-agent and override global priorities.",
+    "settings.skills.title": "Custom skills",
+    "settings.skills.description": "Add Bash-backed skills the agent can call with run_skill. Input is passed via stdin and AIST_SKILL_INPUT.",
+    "settings.skills.addSkill": "Add skill",
+    "settings.skills.namePlaceholder": "Run focused tests",
+    "settings.skills.descriptionPlaceholder": "When should the agent use this skill?",
+    "settings.skills.empty": "No custom skills yet.",
+    "settings.permissions.presetsTitle": "Permission presets",
+    "settings.permissions.presetsDescription": "Quickly switch the current tool access profile for the AI agent.",
+    "settings.permissions.customActive": "Custom permissions are active",
+    "settings.permissions.perToolTitle": "Per-tool permissions",
+    "settings.permissions.perToolDescription": "Fine-tune which tools require confirmation.",
+    "settings.compaction.title": "Context compaction",
+    "settings.compaction.description": "When context becomes too large, AIST can start a fresh chat linked to the previous one. Old messages stay visible but stop being sent to the model.",
+    "settings.compaction.threshold": "Threshold percent",
+    "settings.compaction.keepLast": "Keep last messages in new context",
+    "settings.compaction.keepLastHint": "0 means old context is fully cut off after the compaction line.",
+    "settings.system.languageTitle": "Language",
+    "settings.system.languageDescription": "Controls agent answers, tool-call explanations, and extension UI language.",
+    "settings.system.responseLanguage": "Response language",
+    "settings.system.iterationTitle": "Tool iteration limit",
+    "settings.system.iterationDescription": "Maximum model/tool-call turns per request. Set to 0 to run without a limit.",
+    "settings.system.codexTitle": "ChatGPT Codex",
+    "settings.system.codexDescriptionAuthorized": "Authorization is active. Codex models are available.",
+    "settings.system.codexDescriptionUnauthorized": "Authorize ChatGPT Codex to use codex:* models.",
+    "settings.system.logout": "Logout",
+    "settings.permission.ask": "Ask permission",
+    "settings.permission.auto": "Run automatically",
+    "settings.permission.default": "Default: {{permission}}",
+    "settings.permission.access": "Access",
+    "settings.permission.customDescription": "Current permissions do not match a preset.",
+    "settings.preset.confirm-all.label": "Confirm all",
+    "settings.preset.confirm-all.description": "Ask before every tool call.",
+    "settings.preset.balanced.label": "Balanced",
+    "settings.preset.balanced.description": "Read and search automatically; ask before shell commands and file changes.",
+    "settings.preset.fast-edit.label": "Fast edit",
+    "settings.preset.fast-edit.description": "Read, search, create, and edit automatically; ask before shell commands and deletion.",
+    "settings.preset.autonomous.label": "Autonomous",
+    "settings.preset.autonomous.description": "Run every available tool automatically.",
+    "settings.instructions.empty": "No instruction sources found.",
+    "settings.instructions.priority": "Priority #{{priority}}",
+    "settings.mode.default.label": "Default",
+    "settings.mode.careful.label": "Careful",
+    "tool.denyStop": "Stop agent",
+    "tool.denyContinue": "Deny",
+    "tool.denyWithComment": "Deny with comment",
+    "tool.commentLabel": "User comment",
+    "tool.commentPlaceholder": "What should the agent consider next?",
+    "approval.title": "Approval required",
+    "approval.description": "The agent is waiting for your decision on a tool call.",
+    "approval.descriptionTool": "The agent wants to run {{tool}}.",
+    "approval.minimize": "Minimize approval",
+    "approval.noticeTitle": "User approval required",
+    "settings.nav.notifications": "Notifications",
+    "settings.nav.notificationsDescription": "System notifications and a gentle sound while approval is pending.",
+    "settings.notifications.title": "Approval notifications",
+    "settings.notifications.description": "Configure how AIST gets your attention when the agent cannot continue without your decision.",
+    "settings.notifications.system": "System notifications",
+    "settings.notifications.systemDescription": "Show an operating system notification while waiting for approval.",
+    "settings.notifications.sound": "Sound signal",
+    "settings.notifications.soundDescription": "Play a gentle bell while the agent waits for approval.",
+    "settings.notifications.volume": "Volume, %",
+    "settings.notifications.duration": "Duration, sec."
+  };
+
+  // src/webview/shared/i18n/ru.json
+  var ru_default = {
+    "app.loadingAgent": "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0430\u0433\u0435\u043D\u0442\u0430...",
+    "common.add": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C",
+    "common.authorize": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u0442\u044C",
+    "common.authorized": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u043D",
+    "common.backToChat": "\u041D\u0430\u0437\u0430\u0434 \u043A \u0447\u0430\u0442\u0443",
+    "common.cancel": "\u041E\u0442\u043C\u0435\u043D\u0430",
+    "common.cancelDelete": "\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435",
+    "common.close": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
+    "common.closeSettings": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438",
+    "common.command": "\u041A\u043E\u043C\u0430\u043D\u0434\u0430",
+    "common.confirmDelete": "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435",
+    "common.copy": "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+    "common.custom": "\u0421\u0432\u043E\u0438",
+    "common.delete": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
+    "common.edit": "\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+    "common.description": "\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435",
+    "common.disabled": "\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
+    "common.enabled": "\u0412\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
+    "common.instructions": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "common.name": "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435",
+    "common.notAvailable": "\u043D/\u0434",
+    "common.permission": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435",
+    "common.save": "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C",
+    "common.status": "\u0421\u0442\u0430\u0442\u0443\u0441",
+    "composer.noSettings": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0430\u0433\u0435\u043D\u0442\u0430 \u043D\u0435 \u0432\u044B\u0431\u0440\u0430\u043D\u044B",
+    "composer.placeholder": "\u041F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0430\u0433\u0435\u043D\u0442\u0430 \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C, \u0441\u043E\u0437\u0434\u0430\u0442\u044C, \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0438\u043B\u0438 \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u0444\u0430\u0439\u043B\u044B \u043F\u0440\u043E\u0435\u043A\u0442\u0430...",
+    "composer.send": "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C",
+    "composer.sendMessage": "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435",
+    "composer.stop": "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C",
+    "composer.stopGeneration": "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044E",
+    "summary.agentMode": "\u0420\u0435\u0436\u0438\u043C \u0430\u0433\u0435\u043D\u0442\u0430",
+    "summary.compact": "\u0421\u0436\u0430\u0442\u044C",
+    "summary.compactTitle": "\u0421\u0436\u0430\u0442\u044C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0447\u0430\u0442\u0430",
+    "summary.cost": "\u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C {{cost}}",
+    "summary.model": "\u041C\u043E\u0434\u0435\u043B\u044C",
+    "summary.reasoningEffort": "\u0423\u0441\u0438\u043B\u0438\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u044F",
+    "summary.toolPermissionPreset": "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0439 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "summary.toolsCount": "{{count}} \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "reasoning.auto": "\u0410\u0432\u0442\u043E",
+    "reasoning.low": "\u041D\u0438\u0437\u043A\u043E\u0435",
+    "reasoning.medium": "\u0421\u0440\u0435\u0434\u043D\u0435\u0435",
+    "reasoning.high": "\u0412\u044B\u0441\u043E\u043A\u043E\u0435",
+    "reasoning.autoDetailed": "\u0410\u0432\u0442\u043E \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
+    "reasoning.lowDetailed": "\u041D\u0438\u0437\u043A\u043E\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
+    "reasoning.mediumDetailed": "\u0421\u0440\u0435\u0434\u043D\u0435\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
+    "reasoning.highDetailed": "\u0412\u044B\u0441\u043E\u043A\u043E\u0435 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435",
+    "chat.openChats": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0447\u0430\u0442\u044B",
+    "chat.openInEditor": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u044D\u0442\u043E\u0442 \u0447\u0430\u0442 \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435",
+    "chatList.title": "\u0427\u0430\u0442\u044B",
+    "chatList.description": "\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u0441\u043A\u0440\u044B\u0442\u0430 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E, \u0447\u0442\u043E\u0431\u044B \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440 \u043E\u0441\u0442\u0430\u0432\u0430\u043B\u0441\u044F \u0441\u0444\u043E\u043A\u0443\u0441\u0438\u0440\u043E\u0432\u0430\u043D \u043D\u0430 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F\u0445.",
+    "chatList.new": "\u041D\u043E\u0432\u044B\u0439",
+    "chatList.close": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u0447\u0430\u0442\u044B",
+    "chatList.duplicate": "\u0414\u0443\u0431\u043B\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0447\u0430\u0442",
+    "chatList.delete": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0447\u0430\u0442",
+    "chatList.message_one": "{{count}} \u0441\u043E\u043E\u0431\u0449.",
+    "chatList.message_other": "{{count}} \u0441\u043E\u043E\u0431\u0449.",
+    "message.expand": "\u0420\u0430\u0437\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435",
+    "message.collapse": "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435",
+    "message.you": "\u0412\u044B",
+    "message.agent": "\u0410\u0433\u0435\u043D\u0442",
+    "message.status": "\u0421\u0442\u0430\u0442\u0443\u0441",
+    "message.error": "\u041E\u0448\u0438\u0431\u043A\u0430",
+    "message.tool": "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B",
+    "message.copyMarkdown": "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C Markdown",
+    "activity.waitingForApproval": "\u041E\u0436\u0438\u0434\u0430\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F",
+    "activity.runningTool": "\u0412\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442",
+    "activity.answering": "\u041C\u043E\u0434\u0435\u043B\u044C \u043E\u0442\u0432\u0435\u0447\u0430\u0435\u0442",
+    "activity.stopping": "\u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442\u0441\u044F",
+    "activity.thinking": "\u041C\u043E\u0434\u0435\u043B\u044C \u0434\u0443\u043C\u0430\u0435\u0442",
+    "activity.detail.waitingForApproval": "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442 \u0433\u043E\u0442\u043E\u0432, \u043D\u043E AIST \u0436\u0434\u0451\u0442 \u0432\u0430\u0448\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435.",
+    "activity.detail.runningTool": "\u0418\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442 \u0441\u0435\u0439\u0447\u0430\u0441 \u0432\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F \u0432 \u043F\u0440\u043E\u0435\u043A\u0442\u0435.",
+    "activity.detail.answering": "\u041C\u043E\u0434\u0435\u043B\u044C \u0441\u0442\u0440\u0438\u043C\u0438\u0442 \u0442\u0435\u043A\u0441\u0442, AIST \u0433\u043E\u0442\u043E\u0432\u0438\u0442 \u043E\u0442\u0432\u0435\u0442.",
+    "activity.detail.stopping": "\u0417\u0430\u043F\u0440\u043E\u0448\u0435\u043D\u0430 \u043E\u0442\u043C\u0435\u043D\u0430. AIST \u043E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 \u0442\u0435\u043A\u0443\u0449\u0443\u044E \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044E.",
+    "tool.approve": "\u0420\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u044C",
+    "tool.deny": "\u041E\u0442\u043A\u043B\u043E\u043D\u0438\u0442\u044C",
+    "tool.showJson": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C JSON",
+    "tool.closeJson": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
+    "tool.showDetails": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
+    "tool.hideDetails": "\u0421\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
+    "tool.openFile": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0444\u0430\u0439\u043B \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435",
+    "tool.status.approvalNeeded": "\u041D\u0443\u0436\u043D\u043E \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
+    "tool.status.waiting": "\u041E\u0436\u0438\u0434\u0430\u043D\u0438\u0435",
+    "tool.status.running": "\u0412\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F",
+    "tool.status.done": "\u0413\u043E\u0442\u043E\u0432\u043E",
+    "tool.status.error": "\u041E\u0448\u0438\u0431\u043A\u0430",
+    "tool.status.denied": "\u041E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u043E",
+    "tool.status.unknown": "\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E",
+    "tool.preview.code": "\u041F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u043A\u043E\u0434\u0430",
+    "tool.preview.truncated": "\u043E\u0431\u0440\u0435\u0437\u0430\u043D\u043E",
+    "tool.preview.emptyFile": "\u0424\u0430\u0439\u043B \u043F\u0443\u0441\u0442\u043E\u0439.",
+    "tool.preview.moreItems": "\u2026\u0435\u0449\u0451 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0441\u043A\u0440\u044B\u0442\u044B",
+    "tool.preview.moreFiles": "\u2026\u0435\u0449\u0451 \u0444\u0430\u0439\u043B\u044B \u0441\u043A\u0440\u044B\u0442\u044B",
+    "tool.preview.waitingOutput": "\u041E\u0436\u0438\u0434\u0430\u043D\u0438\u0435 \u0432\u044B\u0432\u043E\u0434\u0430 \u043A\u043E\u043C\u0430\u043D\u0434\u044B...",
+    "tool.preview.noOutput": "\u041A\u043E\u043C\u0430\u043D\u0434\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B\u0430\u0441\u044C \u0431\u0435\u0437 \u0432\u044B\u0432\u043E\u0434\u0430.",
+    "tool.preview.noModels": "\u041C\u043E\u0434\u0435\u043B\u0438 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B",
+    "tool.preview.noTools": "\u0431\u0435\u0437 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "tool.fact.cwd": "\u043F\u0430\u043F\u043A\u0430",
+    "tool.fact.status": "\u0441\u0442\u0430\u0442\u0443\u0441",
+    "tool.fact.timeout": "\u0442\u0430\u0439\u043C\u0430\u0443\u0442",
+    "tool.fact.duration": "\u0434\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C",
+    "tool.fact.signal": "\u0441\u0438\u0433\u043D\u0430\u043B",
+    "tool.result.timedOut": "\u0422\u0430\u0439\u043C\u0430\u0443\u0442",
+    "tool.result.finished": "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E",
+    "tool.result.exit": "\u041A\u043E\u0434 {{code}}",
+    "tool.result.lines_one": "{{count}} \u0441\u0442\u0440\u043E\u043A\u0430",
+    "tool.result.lines_other": "{{count}} \u0441\u0442\u0440\u043E\u043A",
+    "tool.action.get_workspace_info": "\u0418\u041D\u0424\u041E \u041F\u0420\u041E\u0415\u041A\u0422\u0410",
+    "tool.action.list_files": "\u0421\u041F\u0418\u0421\u041E\u041A \u0424\u0410\u0419\u041B\u041E\u0412",
+    "tool.action.read_file": "\u0427\u0422\u0415\u041D\u0418\u0415 \u0424\u0410\u0419\u041B\u0410",
+    "tool.action.grep_search": "\u041F\u041E\u0418\u0421\u041A",
+    "tool.action.run_bash_script": "BASH",
+    "tool.action.run_skill": "\u041D\u0410\u0412\u042B\u041A",
+    "tool.action.compact_chat": "\u0421\u0416\u0410\u0422\u0418\u0415 \u0427\u0410\u0422\u0410",
+    "tool.action.write_file": "\u0417\u0410\u041F\u0418\u0421\u042C \u0424\u0410\u0419\u041B\u0410",
+    "tool.action.replace_in_file": "\u0417\u0410\u041C\u0415\u041D\u0410 \u0412 \u0424\u0410\u0419\u041B\u0415",
+    "tool.action.create_directory": "\u0421\u041E\u0417\u0414\u0410\u041D\u0418\u0415 \u041F\u0410\u041F\u041A\u0418",
+    "tool.action.delete_path": "\u0423\u0414\u0410\u041B\u0415\u041D\u0418\u0415",
+    "tool.action.fallback": "\u0412\u042B\u0417\u041E\u0412 \u0418\u041D\u0421\u0422\u0420\u0423\u041C\u0415\u041D\u0422\u0410",
+    "tool.summary.cwd": "\u043F\u0430\u043F\u043A\u0430 {{cwd}}",
+    "tool.summary.skill": "\u043D\u0430\u0432\u044B\u043A {{skill}}",
+    "tool.summary.matches": "{{count}} \u0441\u043E\u0432\u043F\u0430\u0434\u0435\u043D\u0438\u0439",
+    "tool.summary.entries": "{{count}} \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432",
+    "tool.summary.replacements": "{{count}} \u0437\u0430\u043C\u0435\u043D",
+    "tool.summary.bytes": "{{count}} \u0431\u0430\u0439\u0442",
+    "tool.summary.newChat": "\u043D\u043E\u0432\u044B\u0439 \u0447\u0430\u0442 {{chatId}}",
+    "tool.summary.compacted": "\u0441\u0436\u0430\u0442\u043E",
+    "tool.summary.toolError": "\u041E\u0448\u0438\u0431\u043A\u0430 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
+    "tool.summary.timedOut": "\u0442\u0430\u0439\u043C\u0430\u0443\u0442",
+    "tool.summary.exit": "\u043A\u043E\u0434 {{code}}",
+    "tool.summary.unknown": "\u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E",
+    "tool.label.get_workspace_info": "\u0418\u043D\u0444\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
+    "tool.label.list_files": "\u0421\u043F\u0438\u0441\u043E\u043A \u0444\u0430\u0439\u043B\u043E\u0432",
+    "tool.label.read_file": "\u0427\u0438\u0442\u0430\u0442\u044C \u0444\u0430\u0439\u043B",
+    "tool.label.grep_search": "\u041F\u043E\u0438\u0441\u043A \u043F\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0443",
+    "tool.label.run_bash_script": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C Bash",
+    "tool.label.write_file": "\u0417\u0430\u043F\u0438\u0441\u0430\u0442\u044C \u0444\u0430\u0439\u043B",
+    "tool.label.replace_in_file": "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0444\u0430\u0439\u043B\u0435",
+    "tool.label.create_directory": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443",
+    "tool.label.delete_path": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043F\u0443\u0442\u044C",
+    "tool.label.run_skill": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u043D\u0430\u0432\u044B\u043A",
+    "tool.label.fallback": "\u0412\u044B\u0437\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
+    "tool.description.get_workspace_info": "\u041F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u0442\u0435\u043A\u0443\u0449\u0443\u044E \u043F\u0430\u043F\u043A\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u0438 \u0434\u0430\u043D\u043D\u044B\u0435 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0430.",
+    "tool.description.list_files": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0444\u0430\u0439\u043B\u044B \u0438 \u043F\u0430\u043F\u043A\u0438 \u043F\u043E \u043F\u0443\u0442\u0438 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
+    "tool.description.read_file": "\u041F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C UTF-8 \u0444\u0430\u0439\u043B \u0438\u0437 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
+    "tool.description.grep_search": "\u041D\u0430\u0439\u0442\u0438 \u0442\u0435\u043A\u0441\u0442 \u0438\u043B\u0438 \u0440\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u043E\u0435 \u0432\u044B\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0432 \u0444\u0430\u0439\u043B\u0430\u0445 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
+    "tool.description.run_bash_script": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C Bash-\u0441\u043A\u0440\u0438\u043F\u0442 \u0432\u043D\u0443\u0442\u0440\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
+    "tool.description.write_file": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0438\u043B\u0438 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0438\u0441\u0430\u0442\u044C UTF-8 \u0444\u0430\u0439\u043B \u0432 \u043F\u0440\u043E\u0435\u043A\u0442\u0435.",
+    "tool.description.replace_in_file": "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0432 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u043C UTF-8 \u0444\u0430\u0439\u043B\u0435.",
+    "tool.description.create_directory": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0430\u043F\u043A\u0443 \u0432 \u043F\u0440\u043E\u0435\u043A\u0442\u0435, \u0432\u043A\u043B\u044E\u0447\u0430\u044F \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u043F\u0430\u043F\u043A\u0438.",
+    "tool.description.delete_path": "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0444\u0430\u0439\u043B \u0438\u043B\u0438 \u043F\u0430\u043F\u043A\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
+    "tool.description.run_skill": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 Bash-\u043D\u0430\u0432\u044B\u043A.",
+    "toolCalls.show": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0432\u044B\u0437\u043E\u0432\u044B \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "toolCalls.hide": "\u0421\u043A\u0440\u044B\u0442\u044C \u0432\u044B\u0437\u043E\u0432\u044B \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "toolCalls.hidden_one": "\u0421\u043A\u0440\u044B\u0442 {{count}} \u0432\u044B\u0437\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430",
+    "toolCalls.hidden_other": "\u0421\u043A\u0440\u044B\u0442\u043E {{count}} \u0432\u044B\u0437\u043E\u0432\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "empty.title": "\u0413\u043E\u0442\u043E\u0432 \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C \u0441 \u0432\u0430\u0448\u0438\u043C \u043A\u043E\u0434\u043E\u043C",
+    "empty.description": "\u041F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0432\u043D\u0435\u0441\u0442\u0438 \u043F\u0440\u0430\u0432\u043A\u0438, \u043D\u0430\u0439\u0442\u0438 \u0447\u0442\u043E-\u0442\u043E \u0432 \u0440\u0435\u043F\u043E\u0437\u0438\u0442\u043E\u0440\u0438\u0438, \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0444\u0430\u0439\u043B\u044B \u0438\u043B\u0438 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u043A\u043E\u043C\u0430\u043D\u0434\u0443.<br>\u0412\u044B\u0437\u043E\u0432\u044B \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u043A\u043E\u043C\u043F\u0430\u043A\u0442\u043D\u044B\u043C\u0438 \u0432 \u0438\u0441\u0442\u043E\u0440\u0438\u0438 \u0447\u0430\u0442\u0430.",
+    "systemInstructions.title": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \xB7 {{count}} \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u043E\u0432",
+    "systemInstructions.shortTitle": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "systemInstructions.manageDescription": "\u041C\u0435\u043D\u044F\u0439\u0442\u0435 \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u0438 \u0440\u0435\u0436\u0438\u043C \u0434\u043B\u044F \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0430\u0433\u0435\u043D\u0442\u0430.",
+    "systemInstructions.activeSet": "\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440",
+    "systemInstructions.activeSetDescription": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u0438 \u043E\u0434\u0438\u043D \u0440\u0435\u0436\u0438\u043C, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u043F\u0440\u0438\u043C\u0435\u043D\u044F\u044E\u0442\u0441\u044F \u0441\u0435\u0439\u0447\u0430\u0441.",
+    "systemInstructions.modeSelect": "\u0420\u0435\u0436\u0438\u043C",
+    "systemInstructions.noMode": "\u0411\u0435\u0437 \u0440\u0435\u0436\u0438\u043C\u0430",
+    "systemInstructions.effectiveSources": "\u0418\u0442\u043E\u0433\u043E\u0432\u044B\u0435 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438",
+    "systemInstructions.hide": "\u0421\u043A\u0440\u044B\u0442\u044C \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "systemInstructions.show": "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "systemInstructions.mode": "\u0420\u0435\u0436\u0438\u043C: {{mode}}",
+    "systemInstructions.fallbackTitle": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u0430\u044F \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F",
+    "systemInstructions.noAdditional": "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0445 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u043D\u0435\u0442.",
+    "select.search": "\u041F\u043E\u0438\u0441\u043A...",
+    "select.noOptions": "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E",
+    "modelSelect.search": "\u041F\u043E\u0438\u0441\u043A \u043C\u043E\u0434\u0435\u043B\u0435\u0439...",
+    "modelSelect.models": "\u041C\u043E\u0434\u0435\u043B\u0438",
+    "settings.title": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0430\u0433\u0435\u043D\u0442\u0430",
+    "settings.modalDescription": "\u041C\u043E\u0434\u0435\u043B\u044C, \u0434\u043E\u0441\u0442\u0443\u043F \u0438 \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u0435 \u043D\u0430\u0445\u043E\u0434\u044F\u0442\u0441\u044F \u0437\u0434\u0435\u0441\u044C, \u0447\u0442\u043E\u0431\u044B composer \u043E\u0441\u0442\u0430\u0432\u0430\u043B\u0441\u044F \u0441\u0444\u043E\u043A\u0443\u0441\u0438\u0440\u043E\u0432\u0430\u043D \u043D\u0430 \u0432\u0432\u043E\u0434\u0435.",
+    "settings.requestTitle": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430",
+    "settings.requestDescription": "\u0420\u0430\u043D\u044C\u0448\u0435 \u044D\u0442\u0438 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044B \u0431\u044B\u043B\u0438 \u043F\u043E\u0434 prompt. \u0417\u0434\u0435\u0441\u044C \u043E\u043D\u0438 \u043C\u0435\u043D\u044C\u0448\u0435 \u0448\u0443\u043C\u044F\u0442 \u0432\u0438\u0437\u0443\u0430\u043B\u044C\u043D\u043E, \u043D\u043E \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u0431\u044B\u0441\u0442\u0440\u043E \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B \u0438\u0437 \u0441\u0442\u0440\u043E\u043A\u0438 summary.",
+    "settings.sidebarTitle": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0430\u0433\u0435\u043D\u0442\u0430",
+    "settings.nav.overview": "\u041E\u0431\u0437\u043E\u0440",
+    "settings.nav.overviewDescription": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0438 \u0441\u0442\u0430\u0442\u0443\u0441 \u0440\u044F\u0434\u043E\u043C \u0441 \u043C\u043E\u0434\u0435\u043B\u044C\u044E.",
+    "settings.nav.instructions": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.nav.instructionsDescription": "AGENTS.md, CLAUDE.md \u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430.",
+    "settings.nav.modes": "\u0420\u0435\u0436\u0438\u043C\u044B",
+    "settings.nav.modesDescription": "\u0420\u0430\u0431\u043E\u0447\u0438\u0435 \u0440\u0435\u0436\u0438\u043C\u044B \u0438 \u0438\u0445 \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438.",
+    "settings.nav.skills": "\u041D\u0430\u0432\u044B\u043A\u0438",
+    "settings.nav.skillsDescription": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 Bash-\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0434\u043B\u044F run_skill.",
+    "settings.nav.permissions": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F",
+    "settings.nav.permissionsDescription": "\u041F\u0440\u043E\u0444\u0438\u043B\u0438 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430\u043C \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043F\u043E \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430\u043C.",
+    "settings.nav.compaction": "\u0421\u0436\u0430\u0442\u0438\u0435",
+    "settings.nav.compactionDescription": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u0430 \u0441\u0442\u0430\u0440\u043E\u0433\u043E \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430 \u0438\u0437 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0447\u0430\u0442\u0430.",
+    "settings.nav.system": "\u0421\u0438\u0441\u0442\u0435\u043C\u0430",
+    "settings.nav.systemDescription": "\u042F\u0437\u044B\u043A, \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044F Codex \u0438 \u043B\u0438\u043C\u0438\u0442\u044B \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F.",
+    "settings.overview.profileTitle": "\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0430\u0433\u0435\u043D\u0442\u0430",
+    "settings.overview.profileDescription": "\u041A\u0440\u0430\u0442\u043A\u0430\u044F \u0441\u0432\u043E\u0434\u043A\u0430 \u043F\u0440\u0430\u0432\u0438\u043B \u0438 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439 \u0434\u043B\u044F \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0430.",
+    "settings.overview.storage": "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435: {{value}}",
+    "settings.overview.storageWorkspace": ".aist-agent",
+    "settings.overview.storageUser": "\u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0435",
+    "settings.overview.permissions": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F: {{value}}",
+    "settings.overview.mode": "\u0420\u0435\u0436\u0438\u043C: {{value}}",
+    "settings.overview.defaultMode": "\u041E\u0431\u044B\u0447\u043D\u044B\u0439",
+    "settings.overview.skills": "\u041D\u0430\u0432\u044B\u043A\u0438: {{count}}",
+    "settings.overview.instructionSources": "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439: {{count}}",
+    "settings.overview.codex": "Codex: {{value}}",
+    "settings.overview.codexAuthorized": "\u0430\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u043D",
+    "settings.overview.codexNotConnected": "\u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D",
+    "settings.overview.orderTitle": "\u041F\u043E\u0440\u044F\u0434\u043E\u043A \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0445 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439",
+    "settings.overview.orderDescription": "\u0410\u0433\u0435\u043D\u0442 \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u0442 \u044D\u0442\u0438 \u0431\u043B\u043E\u043A\u0438 \u0441\u0432\u0435\u0440\u0445\u0443 \u0432\u043D\u0438\u0437.",
+    "settings.instructions.storageTitle": "\u041E\u0431\u043B\u0430\u0441\u0442\u044C \u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F",
+    "settings.instructions.storageDescription": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 workspace \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442\u0441\u044F \u0432 .aist-agent/settings.json. \u041B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0435 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0432\u043D\u0435 \u0440\u0435\u043F\u043E\u0437\u0438\u0442\u043E\u0440\u0438\u044F.",
+    "settings.instructions.saveTo": "\u0421\u043E\u0445\u0440\u0430\u043D\u044F\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0432",
+    "settings.instructions.workspace": "Workspace .aist-agent",
+    "settings.instructions.user": "\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u043E\u0435 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435",
+    "settings.instructions.projectTitle": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430",
+    "settings.instructions.projectDescription": "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \u043F\u043E\u0441\u043B\u0435 AGENTS.md \u0438 CLAUDE.md.",
+    "settings.instructions.projectPlaceholder": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438, \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0435 \u0432 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u043C \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435...",
+    "settings.instructions.effectiveTitle": "\u0418\u0442\u043E\u0433\u043E\u0432\u044B\u0439 \u043F\u043E\u0440\u044F\u0434\u043E\u043A",
+    "settings.instructions.effectiveDescription": "Read-only \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440 \u0431\u043B\u043E\u043A\u043E\u0432 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439, \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u044B\u0445 \u043C\u043E\u0434\u0435\u043B\u0438.",
+    "settings.modes.activeTitle": "\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0439 \u0440\u0435\u0436\u0438\u043C",
+    "settings.modes.activeDescription": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0430\u0431\u043E\u0447\u0438\u0439 \u0440\u0435\u0436\u0438\u043C \u0438 \u043E\u0442\u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u0443\u0439\u0442\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438, \u043F\u0440\u0438\u043C\u0435\u043D\u044F\u0435\u043C\u044B\u0435 \u043A \u0447\u0430\u0442\u0430\u043C.",
+    "settings.modes.customTitle": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u0440\u0435\u0436\u0438\u043C\u044B",
+    "settings.modes.customDescription": "\u0421\u043E\u0437\u0434\u0430\u0432\u0430\u0439\u0442\u0435 \u043F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u0434\u043B\u044F \u0440\u0430\u0437\u043D\u044B\u0445 \u0437\u0430\u0434\u0430\u0447.",
+    "settings.modes.addMode": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0435\u0436\u0438\u043C",
+    "settings.modes.modeName": "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0440\u0435\u0436\u0438\u043C\u0430",
+    "settings.modes.modePlaceholder": "\u042D\u043A\u0441\u043F\u0435\u0440\u0442\u043D\u044B\u0439 \u0440\u0435\u0432\u044C\u044E\u0435\u0440",
+    "settings.promptManager.title": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u0438 \u0440\u0435\u0436\u0438\u043C\u044B",
+    "settings.promptManager.description": "\u041D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0435 \xAB\u0421\u0435\u0439\u0447\u0430\u0441 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E\xBB \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435, \u0447\u0442\u043E \u0430\u0433\u0435\u043D\u0442 \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0432 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u0437\u0430\u043F\u0440\u043E\u0441\u0435. \u041D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0430\u0445 \xAB\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435\xBB \u0438 \xAB\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435\xBB \u0445\u0440\u0430\u043D\u0438\u0442\u0441\u044F \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u0438 \u0440\u0435\u0436\u0438\u043C\u043E\u0432.",
+    "settings.promptManager.guide": "\u0421\u043F\u0440\u0430\u0432\u043A\u0430",
+    "settings.promptManager.tab.global": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435",
+    "settings.promptManager.tab.local": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435",
+    "settings.promptManager.tab.priorities": "\u0421\u0435\u0439\u0447\u0430\u0441 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
+    "settings.promptManager.scope.global": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0439",
+    "settings.promptManager.scope.local": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0439",
+    "settings.promptManager.kind.instruction": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F",
+    "settings.promptManager.kind.mode": "\u0420\u0435\u0436\u0438\u043C",
+    "settings.promptManager.instruction.global.title": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.promptManager.instruction.local.title": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.promptManager.mode.global.title": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u0440\u0435\u0436\u0438\u043C\u044B",
+    "settings.promptManager.mode.local.title": "\u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0435\u0436\u0438\u043C\u044B",
+    "settings.promptManager.instruction.description": "\u041F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438. \u0412\u043A\u043B\u044E\u0447\u0430\u0439\u0442\u0435 \u043D\u0443\u0436\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440 \u043D\u0430 \u0432\u043A\u043B\u0430\u0434\u043A\u0435 \xAB\u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0435\xBB.",
+    "settings.promptManager.mode.description": "\u0420\u0435\u0436\u0438\u043C \u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u0430\u044F \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F \u0440\u043E\u043B\u0438, \u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440 coder \u0438\u043B\u0438 architect.",
+    "settings.promptManager.addInstruction": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044E",
+    "settings.promptManager.addMode": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0440\u0435\u0436\u0438\u043C",
+    "settings.promptManager.empty": "\u042D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442. \u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u043D\u043E\u0432\u044B\u0439 \u0438\u043B\u0438 \u0441\u043A\u043E\u043F\u0438\u0440\u0443\u0439\u0442\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0439, \u0447\u0442\u043E\u0431\u044B \u043D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C \u0435\u0433\u043E.",
+    "settings.promptManager.itemDescription": "{{scope}} \xB7 {{kind}} \xB7 {{id}}",
+    "settings.promptManager.editItem": "\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C {{label}}",
+    "settings.promptManager.newItem": "\u041D\u043E\u0432\u044B\u0439 \u044D\u043B\u0435\u043C\u0435\u043D\u0442: {{kind}}",
+    "settings.promptManager.editorDescription": "{{scope}} {{kind}}",
+    "settings.promptManager.instructionText": "\u0422\u0435\u043A\u0441\u0442 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.promptManager.activeTitle": "\u0427\u0442\u043E \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0430\u0433\u0435\u043D\u0442 \u0441\u0435\u0439\u0447\u0430\u0441",
+    "settings.promptManager.activeDescription": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043E\u0434\u0438\u043D \u0440\u0435\u0436\u0438\u043C \u0438 \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438. \u042D\u0442\u043E\u0442 \u043D\u0430\u0431\u043E\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D \u0432 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u0430\u0433\u0435\u043D\u0442\u0430.",
+    "settings.promptManager.presetsTitle": "\u041F\u0440\u0435\u0441\u0435\u0442\u044B",
+    "settings.promptManager.presetsDescription": "\u041F\u0440\u0435\u0441\u0435\u0442 \u2014 \u044D\u0442\u043E \u0440\u0435\u0436\u0438\u043C \u0440\u0430\u0431\u043E\u0442\u044B \u0430\u0433\u0435\u043D\u0442\u0430 \u043F\u043B\u044E\u0441 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438.",
+    "settings.promptManager.addPreset": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043F\u0440\u0435\u0441\u0435\u0442",
+    "settings.promptManager.noPresets": "\u041F\u0440\u0435\u0441\u0435\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442. \u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u043F\u0435\u0440\u0432\u044B\u0439 \u043F\u0440\u0435\u0441\u0435\u0442, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0431\u0440\u0430\u0442\u044C \u0440\u0435\u0436\u0438\u043C \u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438.",
+    "settings.promptManager.editPreset": "\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u0435\u0441\u0435\u0442\u0430",
+    "settings.promptManager.newPreset": "\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u0435\u0441\u0435\u0442",
+    "settings.promptManager.presetEditorDescription": "\u0417\u0430\u0434\u0430\u0439\u0442\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435, \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0435\u0436\u0438\u043C \u0440\u0430\u0431\u043E\u0442\u044B \u0430\u0433\u0435\u043D\u0442\u0430 \u0438 \u043E\u0442\u043C\u0435\u0442\u044C\u0442\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438 \u043F\u043B\u044E\u0441\u043E\u043C.",
+    "settings.promptManager.globalInstructions": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.promptManager.localInstructions": "\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.promptManager.applyPreset": "\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u043F\u0440\u0435\u0441\u0435\u0442",
+    "settings.promptManager.choosePreset": "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u0435\u0441\u0435\u0442",
+    "settings.promptManager.presetName": "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u0435\u0441\u0435\u0442\u0430",
+    "settings.promptManager.presetNamePlaceholder": "\u041C\u043E\u0439 \u043D\u0430\u0431\u043E\u0440 \u0434\u043B\u044F \u043A\u043E\u0434\u0430",
+    "settings.promptManager.saveCurrentAsPreset": "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u043D\u0430\u0431\u043E\u0440 \u043A\u0430\u043A \u043F\u0440\u0435\u0441\u0435\u0442",
+    "settings.promptManager.presetDescription": "\u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439: {{count}} \xB7 {{mode}}",
+    "settings.promptManager.apply": "\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C",
+    "settings.promptManager.rename": "\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C",
+    "settings.promptManager.noInstructions": "\u0411\u0435\u0437 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439",
+    "settings.promptManager.helpTitle": "\u041A\u0430\u043A \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0442 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438",
+    "settings.promptManager.helpDescription": "\u041A\u0440\u0430\u0442\u043A\u0430\u044F \u0441\u043F\u0440\u0430\u0432\u043A\u0430 \u043F\u043E \u0440\u0435\u0436\u0438\u043C\u0430\u043C, \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F\u043C \u0438 \u043F\u0440\u0435\u0441\u0435\u0442\u0430\u043C.",
+    "settings.promptManager.helpInstructions": "\u2014 \u043F\u0435\u0440\u0435\u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u043C\u044B\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u0430. \u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043D\u0443\u0436\u043D\u043E, \u0430 \u0437\u0430\u0442\u0435\u043C \u0432\u043A\u043B\u044E\u0447\u0430\u0439\u0442\u0435 \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u0435, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u043D\u0443\u0436\u043D\u044B \u0442\u0435\u043A\u0443\u0449\u0435\u043C\u0443 \u043F\u0440\u043E\u0435\u043A\u0442\u0443.",
+    "settings.promptManager.helpModes": "\u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u0430\u044F \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F \u0440\u043E\u043B\u0438, \u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440 Coder \u0438\u043B\u0438 Architect. \u0421 \u0440\u0435\u0436\u0438\u043C\u043E\u043C \u043C\u043E\u0436\u043D\u043E \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C \u0434\u0430\u0436\u0435 \u0431\u0435\u0437 \u0432\u043A\u043B\u044E\u0447\u0451\u043D\u043D\u044B\u0445 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439.",
+    "settings.promptManager.helpPresets": "\u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u0438 \u043E\u0434\u0438\u043D \u0440\u0435\u0436\u0438\u043C. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u0438\u0445 \u0434\u043B\u044F \u0431\u044B\u0441\u0442\u0440\u043E\u0433\u043E \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F \u043C\u0435\u0436\u0434\u0443 \u043D\u0430\u0431\u043E\u0440\u0430\u043C\u0438 \u0434\u043B\u044F \u043A\u043E\u0434\u0430, \u0434\u0438\u0437\u0430\u0439\u043D\u0430, \u0440\u0435\u0432\u044C\u044E \u0438\u043B\u0438 \u0442\u0435\u0441\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F.",
+    "settings.promptManager.helpStorage": "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0445\u0440\u0430\u043D\u044F\u0442\u0441\u044F \u0432 \u0434\u043E\u043C\u0430\u0448\u043D\u0435\u0439 \u043F\u0430\u043F\u043A\u0435. \u041F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0435 \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0445\u0440\u0430\u043D\u044F\u0442\u0441\u044F \u0432 .aist-agent \u0438 \u043F\u0435\u0440\u0435\u043E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u044E\u0442 \u0433\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442\u044B.",
+    "settings.skills.title": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u043D\u0430\u0432\u044B\u043A\u0438",
+    "settings.skills.description": "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 Bash-\u043D\u0430\u0432\u044B\u043A\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u0430\u0433\u0435\u043D\u0442 \u0441\u043C\u043E\u0436\u0435\u0442 \u0432\u044B\u0437\u044B\u0432\u0430\u0442\u044C \u0447\u0435\u0440\u0435\u0437 run_skill. \u0412\u0432\u043E\u0434 \u043F\u0435\u0440\u0435\u0434\u0430\u0451\u0442\u0441\u044F \u0447\u0435\u0440\u0435\u0437 stdin \u0438 AIST_SKILL_INPUT.",
+    "settings.skills.addSkill": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u0430\u0432\u044B\u043A",
+    "settings.skills.namePlaceholder": "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u0442\u043E\u0447\u0435\u0447\u043D\u044B\u0435 \u0442\u0435\u0441\u0442\u044B",
+    "settings.skills.descriptionPlaceholder": "\u041A\u043E\u0433\u0434\u0430 \u0430\u0433\u0435\u043D\u0442\u0443 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u044D\u0442\u043E\u0442 \u043D\u0430\u0432\u044B\u043A?",
+    "settings.skills.empty": "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0445 \u043D\u0430\u0432\u044B\u043A\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442.",
+    "settings.permissions.presetsTitle": "\u041F\u0440\u043E\u0444\u0438\u043B\u0438 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0439",
+    "settings.permissions.presetsDescription": "\u0411\u044B\u0441\u0442\u0440\u043E \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0439\u0442\u0435 \u0442\u0435\u043A\u0443\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u0434\u043B\u044F AI-\u0430\u0433\u0435\u043D\u0442\u0430.",
+    "settings.permissions.customActive": "\u0410\u043A\u0442\u0438\u0432\u043D\u044B \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F",
+    "settings.permissions.perToolTitle": "\u0420\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F \u043F\u043E \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430\u043C",
+    "settings.permissions.perToolDescription": "\u0422\u043E\u0447\u043D\u043E \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u0442\u0435, \u043A\u0430\u043A\u0438\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B \u0442\u0440\u0435\u0431\u0443\u044E\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F.",
+    "settings.compaction.title": "\u0421\u0436\u0430\u0442\u0438\u0435 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430",
+    "settings.compaction.description": "\u041A\u043E\u0433\u0434\u0430 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u0438\u043C, AIST \u043C\u043E\u0436\u0435\u0442 \u043D\u0430\u0447\u0430\u0442\u044C \u0441\u0432\u0435\u0436\u0438\u0439 \u0447\u0430\u0442, \u0441\u0432\u044F\u0437\u0430\u043D\u043D\u044B\u0439 \u0441 \u043F\u0440\u0435\u0434\u044B\u0434\u0443\u0449\u0438\u043C. \u0421\u0442\u0430\u0440\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u0432\u0438\u0434\u0438\u043C\u044B\u043C\u0438, \u043D\u043E \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u043C\u043E\u0434\u0435\u043B\u0438.",
+    "settings.compaction.threshold": "\u041F\u043E\u0440\u043E\u0433 \u0432 \u043F\u0440\u043E\u0446\u0435\u043D\u0442\u0430\u0445",
+    "settings.compaction.keepLast": "\u041E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0432 \u043D\u043E\u0432\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435",
+    "settings.compaction.keepLastHint": "0 \u043E\u0437\u043D\u0430\u0447\u0430\u0435\u0442, \u0447\u0442\u043E \u0441\u0442\u0430\u0440\u044B\u0439 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E \u043E\u0442\u0440\u0435\u0437\u0430\u0435\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u0441\u0442\u0440\u043E\u043A\u0438 \u0441\u0436\u0430\u0442\u0438\u044F.",
+    "settings.system.languageTitle": "\u042F\u0437\u044B\u043A",
+    "settings.system.languageDescription": "\u0423\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u0442 \u043E\u0442\u0432\u0435\u0442\u0430\u043C\u0438 \u0430\u0433\u0435\u043D\u0442\u0430, \u043E\u0431\u044A\u044F\u0441\u043D\u0435\u043D\u0438\u044F\u043C\u0438 tool-call \u0438 \u044F\u0437\u044B\u043A\u043E\u043C \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u044F.",
+    "settings.system.responseLanguage": "\u042F\u0437\u044B\u043A \u043E\u0442\u0432\u0435\u0442\u043E\u0432",
+    "settings.system.iterationTitle": "\u041B\u0438\u043C\u0438\u0442 \u0438\u0442\u0435\u0440\u0430\u0446\u0438\u0439 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u043E\u0432",
+    "settings.system.iterationDescription": "\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C \u0445\u043E\u0434\u043E\u0432 \u043C\u043E\u0434\u0435\u043B\u044C/tool-call \u043D\u0430 \u043E\u0434\u0438\u043D \u0437\u0430\u043F\u0440\u043E\u0441. 0 \u2014 \u0431\u0435\u0437 \u043B\u0438\u043C\u0438\u0442\u0430.",
+    "settings.system.codexTitle": "ChatGPT Codex",
+    "settings.system.codexDescriptionAuthorized": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044F \u0430\u043A\u0442\u0438\u0432\u043D\u0430. \u041C\u043E\u0434\u0435\u043B\u0438 Codex \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B.",
+    "settings.system.codexDescriptionUnauthorized": "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u0443\u0439\u0442\u0435 ChatGPT Codex, \u0447\u0442\u043E\u0431\u044B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C \u043C\u043E\u0434\u0435\u043B\u0438 codex:*.",
+    "settings.system.logout": "\u0412\u044B\u0439\u0442\u0438",
+    "settings.permission.ask": "\u0421\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435",
+    "settings.permission.auto": "\u0417\u0430\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438",
+    "settings.permission.default": "\u041F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E: {{permission}}",
+    "settings.permission.access": "\u0414\u043E\u0441\u0442\u0443\u043F",
+    "settings.permission.customDescription": "\u0422\u0435\u043A\u0443\u0449\u0438\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0442 \u0441 \u043F\u0440\u043E\u0444\u0438\u043B\u0435\u043C.",
+    "settings.preset.confirm-all.label": "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0442\u044C \u0432\u0441\u0451",
+    "settings.preset.confirm-all.description": "\u0421\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u0434 \u043A\u0430\u0436\u0434\u044B\u043C \u0432\u044B\u0437\u043E\u0432\u043E\u043C \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430.",
+    "settings.preset.balanced.label": "\u0421\u0431\u0430\u043B\u0430\u043D\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439",
+    "settings.preset.balanced.description": "\u0427\u0438\u0442\u0430\u0442\u044C \u0438 \u0438\u0441\u043A\u0430\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438; \u0441\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u0434 shell-\u043A\u043E\u043C\u0430\u043D\u0434\u0430\u043C\u0438 \u0438 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0435\u043C \u0444\u0430\u0439\u043B\u043E\u0432.",
+    "settings.preset.fast-edit.label": "\u0411\u044B\u0441\u0442\u0440\u043E\u0435 \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
+    "settings.preset.fast-edit.description": "\u0427\u0438\u0442\u0430\u0442\u044C, \u0438\u0441\u043A\u0430\u0442\u044C, \u0441\u043E\u0437\u0434\u0430\u0432\u0430\u0442\u044C \u0438 \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438; \u0441\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C \u043F\u0435\u0440\u0435\u0434 shell-\u043A\u043E\u043C\u0430\u043D\u0434\u0430\u043C\u0438 \u0438 \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u0435\u043C.",
+    "settings.preset.autonomous.label": "\u0410\u0432\u0442\u043E\u043D\u043E\u043C\u043D\u044B\u0439",
+    "settings.preset.autonomous.description": "\u0417\u0430\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0432\u0441\u0435 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438.",
+    "settings.instructions.empty": "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B.",
+    "settings.instructions.priority": "\u041F\u0440\u0438\u043E\u0440\u0438\u0442\u0435\u0442 #{{priority}}",
+    "settings.mode.default.label": "\u041E\u0431\u044B\u0447\u043D\u044B\u0439",
+    "settings.mode.careful.label": "\u041E\u0441\u0442\u043E\u0440\u043E\u0436\u043D\u044B\u0439",
+    "tool.denyStop": "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0430\u0433\u0435\u043D\u0442\u0430",
+    "tool.denyContinue": "\u041D\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0442\u044C",
+    "tool.denyWithComment": "\u041D\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0442\u044C \u0441 \u043A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0435\u043C",
+    "tool.commentLabel": "\u041A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0439 \u043E\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F",
+    "tool.commentPlaceholder": "\u0427\u0442\u043E \u0430\u0433\u0435\u043D\u0442\u0443 \u0443\u0447\u0435\u0441\u0442\u044C \u0434\u0430\u043B\u044C\u0448\u0435?",
+    "approval.title": "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
+    "approval.description": "\u0410\u0433\u0435\u043D\u0442 \u0436\u0434\u0451\u0442 \u0432\u0430\u0448\u0435 \u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u043F\u043E \u0432\u044B\u0437\u043E\u0432\u0443 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u0430.",
+    "approval.descriptionTool": "\u0410\u0433\u0435\u043D\u0442 \u0445\u043E\u0447\u0435\u0442 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442 {{tool}}.",
+    "approval.minimize": "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
+    "approval.noticeTitle": "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u043E\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F",
+    "settings.nav.notifications": "\u0423\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F",
+    "settings.nav.notificationsDescription": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u0438 \u043C\u044F\u0433\u043A\u0438\u0439 \u0437\u0432\u0443\u043A\u043E\u0432\u043E\u0439 \u0441\u0438\u0433\u043D\u0430\u043B \u043F\u0440\u0438 \u043E\u0436\u0438\u0434\u0430\u043D\u0438\u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F.",
+    "settings.notifications.title": "\u0423\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u043E \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0438",
+    "settings.notifications.description": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u0442\u0435, \u043A\u0430\u043A AIST \u043F\u0440\u0438\u0432\u043B\u0435\u043A\u0430\u0435\u0442 \u0432\u043D\u0438\u043C\u0430\u043D\u0438\u0435, \u043A\u043E\u0433\u0434\u0430 \u0430\u0433\u0435\u043D\u0442 \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u0431\u0435\u0437 \u0432\u0430\u0448\u0435\u0433\u043E \u0440\u0435\u0448\u0435\u043D\u0438\u044F.",
+    "settings.notifications.system": "\u0421\u0438\u0441\u0442\u0435\u043C\u043D\u044B\u0435 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F",
+    "settings.notifications.systemDescription": "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u043E\u043D\u043D\u043E\u0439 \u0441\u0438\u0441\u0442\u0435\u043C\u044B \u043F\u0440\u0438 \u043E\u0436\u0438\u0434\u0430\u043D\u0438\u0438 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0438\u044F.",
+    "settings.notifications.sound": "\u0417\u0432\u0443\u043A\u043E\u0432\u043E\u0439 \u0441\u0438\u0433\u043D\u0430\u043B",
+    "settings.notifications.soundDescription": "\u0418\u0433\u0440\u0430\u0442\u044C \u043D\u0435\u0436\u043D\u044B\u0439 \u0437\u0432\u043E\u043D\u043E\u0447\u0435\u043A, \u043F\u043E\u043A\u0430 \u0430\u0433\u0435\u043D\u0442 \u0436\u0434\u0451\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435.",
+    "settings.notifications.volume": "\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C, %",
+    "settings.notifications.duration": "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C, \u0441\u0435\u043A."
+  };
+
+  // src/webview/shared/i18n/index.tsx
+  var import_jsx_runtime2 = __toESM(require_jsx_runtime());
+  var dictionaries = {
+    en: en_default,
+    ru: ru_default
+  };
+  var LocaleContext = (0, import_react5.createContext)("ru");
+  function I18nProvider({ language, children }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(LocaleContext.Provider, { value: language === "en" ? "en" : "ru", children });
+  }
+  function useLanguage() {
+    return (0, import_react5.useContext)(LocaleContext);
+  }
+  function useI18n() {
+    const language = useLanguage();
+    return {
+      language,
+      t: (key, values) => translate(language, key, values)
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `aist-logo ${className}`.trim(), style, role: "img", "aria-label": title });
   }
-  function AistAnimatedLogo({
-    className = "",
-    baseAssetKey = "logo",
-    animatedAssetKey = "logoAnimated",
-    title = "aist"
-  }) {
-    const baseLogoUri = getWebviewAssetUri(baseAssetKey);
-    const animatedLogoUri = getWebviewAssetUri(animatedAssetKey);
-    if (!baseLogoUri || !animatedLogoUri) {
-      return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(AistLogo, { className, assetKey: baseAssetKey, title });
+  function translate(language, key, values) {
+    const dictionary = dictionaries[language === "en" ? "en" : "ru"];
+    const template = dictionary[key] ?? dictionaries.en[key] ?? key;
+    return interpolate(template, values);
+  }
+  function pluralKey(language, baseKey, count) {
+    const suffix = language === "en" && count === 1 ? "one" : count === 1 ? "one" : "other";
+    return `${baseKey}_${suffix}`;
+  }
+  function interpolate(template, values) {
+    if (!values) {
+      return template;
     }
-    const style = {
-      "--aist-logo-base-uri": `url(${baseLogoUri})`,
-      "--aist-logo-animated-uri": `url(${animatedLogoUri})`
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `aist-logo aist-logo-animated ${className}`.trim(), style, role: "img", "aria-label": title });
-  }
-  function AistBrand({ animated = false }) {
-    const Logo = animated ? AistAnimatedLogo : AistLogo;
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "aist-brand", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Logo, {}),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "grid gap-1 text-center", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "aist-brand-title text-base font-semibold tracking-[0.22em]", children: "AIST AGENT" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "aist-brand-subtitle text-sm text-[var(--vscode-descriptionForeground)]", children: "Above the complexity" })
-      ] })
-    ] });
+    return template.replace(/{{(\w+)}}/g, (match, name2) => String(values[name2] ?? match));
   }
 
-  // src/webview/widgets/message-list/agent-activity-status/AgentActivityStatus.module.scss
-  var AgentActivityStatus_module_default = {
-    root: "AgentActivityStatus_module_root",
-    logo: "AgentActivityStatus_module_logo",
-    content: "AgentActivityStatus_module_content",
-    title: "AgentActivityStatus_module_title",
-    detail: "AgentActivityStatus_module_detail"
-  };
-
-  // src/webview/widgets/message-list/agent-activity-status/utils.ts
-  function formatActivity(activity, t) {
-    switch (activity) {
-      case "waitingForApproval":
-        return t("activity.waitingForApproval");
-      case "runningTool":
-        return t("activity.runningTool");
-      case "answering":
-        return t("activity.answering");
-      case "stopping":
-        return t("activity.stopping");
-      default:
-        return t("activity.thinking");
-    }
-  }
-  function getDefaultDetail(activity, t) {
-    switch (activity) {
-      case "waitingForApproval":
-        return t("activity.detail.waitingForApproval");
-      case "runningTool":
-        return t("activity.detail.runningTool");
-      case "answering":
-        return t("activity.detail.answering");
-      case "stopping":
-        return t("activity.detail.stopping");
-      default:
-        return t("activity.thinking");
-    }
-  }
-
-  // src/webview/widgets/message-list/agent-activity-status/AgentActivityStatus.tsx
-  var import_jsx_runtime4 = __toESM(require_jsx_runtime());
-  function AgentActivityStatus({ activity, detail }) {
-    const { t } = useI18n();
-    const secondaryText = detail || getDefaultDetail(activity, t);
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: AgentActivityStatus_module_default.root, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AistAnimatedLogo, { className: AgentActivityStatus_module_default.logo }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: AgentActivityStatus_module_default.content, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: AgentActivityStatus_module_default.title, children: formatActivity(activity, t) }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: AgentActivityStatus_module_default.detail, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Markdown, { remarkPlugins: [remarkGfm], children: secondaryText }) })
-      ] })
-    ] });
-  }
-
-  // node_modules/lucide-react/dist/esm/createLucideIcon.mjs
-  var import_react5 = __toESM(require_react(), 1);
-
-  // node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
-  var mergeClasses = (...classes) => classes.filter((className, index2, array) => {
-    return Boolean(className) && className.trim() !== "" && array.indexOf(className) === index2;
-  }).join(" ").trim();
-
-  // node_modules/lucide-react/dist/esm/shared/src/utils/toKebabCase.mjs
-  var toKebabCase = (string3) => string3.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
-
-  // node_modules/lucide-react/dist/esm/shared/src/utils/toCamelCase.mjs
-  var toCamelCase = (string3) => string3.replace(
-    /^([A-Z])|[\s-_]+(\w)/g,
-    (match, p1, p2) => p2 ? p2.toUpperCase() : p1.toLowerCase()
-  );
-
-  // node_modules/lucide-react/dist/esm/shared/src/utils/toPascalCase.mjs
-  var toPascalCase = (string3) => {
-    const camelCase = toCamelCase(string3);
-    return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
-  };
-
-  // node_modules/lucide-react/dist/esm/Icon.mjs
-  var import_react4 = __toESM(require_react(), 1);
-
-  // node_modules/lucide-react/dist/esm/defaultAttributes.mjs
-  var defaultAttributes = {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: 24,
-    height: 24,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  };
-
-  // node_modules/lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs
-  var hasA11yProp = (props) => {
-    for (const prop in props) {
-      if (prop.startsWith("aria-") || prop === "role" || prop === "title") {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  // node_modules/lucide-react/dist/esm/context.mjs
-  var import_react3 = __toESM(require_react(), 1);
-  var LucideContext = (0, import_react3.createContext)({});
-  var useLucideContext = () => (0, import_react3.useContext)(LucideContext);
-
-  // node_modules/lucide-react/dist/esm/Icon.mjs
-  var Icon = (0, import_react4.forwardRef)(
-    ({ color: color2, size, strokeWidth, absoluteStrokeWidth, className = "", children, iconNode, ...rest }, ref) => {
-      const {
-        size: contextSize = 24,
-        strokeWidth: contextStrokeWidth = 2,
-        absoluteStrokeWidth: contextAbsoluteStrokeWidth = false,
-        color: contextColor = "currentColor",
-        className: contextClass = ""
-      } = useLucideContext() ?? {};
-      const calculatedStrokeWidth = absoluteStrokeWidth ?? contextAbsoluteStrokeWidth ? Number(strokeWidth ?? contextStrokeWidth) * 24 / Number(size ?? contextSize) : strokeWidth ?? contextStrokeWidth;
-      return (0, import_react4.createElement)(
-        "svg",
-        {
-          ref,
-          ...defaultAttributes,
-          width: size ?? contextSize ?? defaultAttributes.width,
-          height: size ?? contextSize ?? defaultAttributes.height,
-          stroke: color2 ?? contextColor,
-          strokeWidth: calculatedStrokeWidth,
-          className: mergeClasses("lucide", contextClass, className),
-          ...!children && !hasA11yProp(rest) && { "aria-hidden": "true" },
-          ...rest
-        },
-        [
-          ...iconNode.map(([tag, attrs]) => (0, import_react4.createElement)(tag, attrs)),
-          ...Array.isArray(children) ? children : [children]
-        ]
-      );
-    }
-  );
-
-  // node_modules/lucide-react/dist/esm/createLucideIcon.mjs
-  var createLucideIcon = (iconName, iconNode) => {
-    const Component = (0, import_react5.forwardRef)(
-      ({ className, ...props }, ref) => (0, import_react5.createElement)(Icon, {
-        ref,
-        iconNode,
-        className: mergeClasses(
-          `lucide-${toKebabCase(toPascalCase(iconName))}`,
-          `lucide-${iconName}`,
-          className
-        ),
-        ...props
-      })
-    );
-    Component.displayName = toPascalCase(iconName);
-    return Component;
-  };
-
-  // node_modules/lucide-react/dist/esm/icons/bot.mjs
-  var __iconNode = [
-    ["path", { d: "M12 8V4H8", key: "hb8ula" }],
-    ["rect", { width: "16", height: "12", x: "4", y: "8", rx: "2", key: "enze0r" }],
-    ["path", { d: "M2 14h2", key: "vft8re" }],
-    ["path", { d: "M20 14h2", key: "4cs60a" }],
-    ["path", { d: "M15 13v2", key: "1xurst" }],
-    ["path", { d: "M9 13v2", key: "rq6x2g" }]
-  ];
-  var Bot = createLucideIcon("bot", __iconNode);
-
-  // node_modules/lucide-react/dist/esm/icons/check.mjs
-  var __iconNode2 = [["path", { d: "M20 6 9 17l-5-5", key: "1gmf2c" }]];
-  var Check = createLucideIcon("check", __iconNode2);
-
-  // node_modules/lucide-react/dist/esm/icons/chevron-down.mjs
-  var __iconNode3 = [["path", { d: "m6 9 6 6 6-6", key: "qrunsl" }]];
-  var ChevronDown = createLucideIcon("chevron-down", __iconNode3);
-
-  // node_modules/lucide-react/dist/esm/icons/chevron-right.mjs
-  var __iconNode4 = [["path", { d: "m9 18 6-6-6-6", key: "mthhwq" }]];
-  var ChevronRight = createLucideIcon("chevron-right", __iconNode4);
-
-  // node_modules/lucide-react/dist/esm/icons/circle-play.mjs
-  var __iconNode5 = [
-    [
-      "path",
-      {
-        d: "M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z",
-        key: "kmsa83"
-      }
-    ],
-    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }]
-  ];
-  var CirclePlay = createLucideIcon("circle-play", __iconNode5);
-
-  // node_modules/lucide-react/dist/esm/icons/circle-question-mark.mjs
-  var __iconNode6 = [
-    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-    ["path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3", key: "1u773s" }],
-    ["path", { d: "M12 17h.01", key: "p32p05" }]
-  ];
-  var CircleQuestionMark = createLucideIcon("circle-question-mark", __iconNode6);
-
-  // node_modules/lucide-react/dist/esm/icons/code-xml.mjs
-  var __iconNode7 = [
-    ["path", { d: "m18 16 4-4-4-4", key: "1inbqp" }],
-    ["path", { d: "m6 8-4 4 4 4", key: "15zrgr" }],
-    ["path", { d: "m14.5 4-5 16", key: "e7oirm" }]
-  ];
-  var CodeXml = createLucideIcon("code-xml", __iconNode7);
-
-  // node_modules/lucide-react/dist/esm/icons/copy.mjs
-  var __iconNode8 = [
-    ["rect", { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2", key: "17jyea" }],
-    ["path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2", key: "zix9uf" }]
-  ];
-  var Copy = createLucideIcon("copy", __iconNode8);
-
-  // node_modules/lucide-react/dist/esm/icons/file-code-corner.mjs
-  var __iconNode9 = [
-    [
-      "path",
-      {
-        d: "M4 12.15V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-3.35",
-        key: "1wthlu"
-      }
-    ],
-    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
-    ["path", { d: "m5 16-3 3 3 3", key: "331omg" }],
-    ["path", { d: "m9 22 3-3-3-3", key: "lsp7cz" }]
-  ];
-  var FileCodeCorner = createLucideIcon("file-code-corner", __iconNode9);
-
-  // node_modules/lucide-react/dist/esm/icons/file-pen-line.mjs
-  var __iconNode10 = [
-    [
-      "path",
-      {
-        d: "M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z",
-        key: "ukzhwg"
-      }
-    ],
-    ["path", { d: "M14.487 7.858A1 1 0 0 1 14 7V2", key: "1klhew" }],
-    [
-      "path",
-      {
-        d: "M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l2.516 2.516",
-        key: "rxaxab"
-      }
-    ],
-    ["path", { d: "M8 18h1", key: "13wk12" }]
-  ];
-  var FilePenLine = createLucideIcon("file-pen-line", __iconNode10);
-
-  // node_modules/lucide-react/dist/esm/icons/file-text.mjs
-  var __iconNode11 = [
-    [
-      "path",
-      {
-        d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
-        key: "1oefj6"
-      }
-    ],
-    ["path", { d: "M14 2v5a1 1 0 0 0 1 1h5", key: "wfsgrz" }],
-    ["path", { d: "M10 9H8", key: "b1mrlr" }],
-    ["path", { d: "M16 13H8", key: "t4e002" }],
-    ["path", { d: "M16 17H8", key: "z1uh3a" }]
-  ];
-  var FileText = createLucideIcon("file-text", __iconNode11);
-
-  // node_modules/lucide-react/dist/esm/icons/folder-plus.mjs
-  var __iconNode12 = [
-    ["path", { d: "M12 10v6", key: "1bos4e" }],
-    ["path", { d: "M9 13h6", key: "1uhe8q" }],
-    [
-      "path",
-      {
-        d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
-        key: "1kt360"
-      }
-    ]
-  ];
-  var FolderPlus = createLucideIcon("folder-plus", __iconNode12);
-
-  // node_modules/lucide-react/dist/esm/icons/folder-tree.mjs
-  var __iconNode13 = [
-    [
-      "path",
-      {
-        d: "M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z",
-        key: "hod4my"
-      }
-    ],
-    [
-      "path",
-      {
-        d: "M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z",
-        key: "w4yl2u"
-      }
-    ],
-    ["path", { d: "M3 5a2 2 0 0 0 2 2h3", key: "f2jnh7" }],
-    ["path", { d: "M3 3v13a2 2 0 0 0 2 2h3", key: "k8epm1" }]
-  ];
-  var FolderTree = createLucideIcon("folder-tree", __iconNode13);
-
-  // node_modules/lucide-react/dist/esm/icons/folder.mjs
-  var __iconNode14 = [
-    [
-      "path",
-      {
-        d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
-        key: "1kt360"
-      }
-    ]
-  ];
-  var Folder = createLucideIcon("folder", __iconNode14);
-
-  // node_modules/lucide-react/dist/esm/icons/info.mjs
-  var __iconNode15 = [
-    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-    ["path", { d: "M12 16v-4", key: "1dtifu" }],
-    ["path", { d: "M12 8h.01", key: "e9boi3" }]
-  ];
-  var Info2 = createLucideIcon("info", __iconNode15);
-
-  // node_modules/lucide-react/dist/esm/icons/list-tree.mjs
-  var __iconNode16 = [
-    ["path", { d: "M8 5h13", key: "1pao27" }],
-    ["path", { d: "M13 12h8", key: "h98zly" }],
-    ["path", { d: "M13 19h8", key: "c3s6r1" }],
-    ["path", { d: "M3 10a2 2 0 0 0 2 2h3", key: "1npucw" }],
-    ["path", { d: "M3 5v12a2 2 0 0 0 2 2h3", key: "x1gjn2" }]
-  ];
-  var ListTree = createLucideIcon("list-tree", __iconNode16);
-
-  // node_modules/lucide-react/dist/esm/icons/loader-circle.mjs
-  var __iconNode17 = [["path", { d: "M21 12a9 9 0 1 1-6.219-8.56", key: "13zald" }]];
-  var LoaderCircle = createLucideIcon("loader-circle", __iconNode17);
-
-  // node_modules/lucide-react/dist/esm/icons/message-square-text.mjs
-  var __iconNode18 = [
-    [
-      "path",
-      {
-        d: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z",
-        key: "18887p"
-      }
-    ],
-    ["path", { d: "M7 11h10", key: "1twpyw" }],
-    ["path", { d: "M7 15h6", key: "d9of3u" }],
-    ["path", { d: "M7 7h8", key: "af5zfr" }]
-  ];
-  var MessageSquareText = createLucideIcon("message-square-text", __iconNode18);
-
-  // node_modules/lucide-react/dist/esm/icons/play.mjs
-  var __iconNode19 = [
-    [
-      "path",
-      {
-        d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
-        key: "10ikf1"
-      }
-    ]
-  ];
-  var Play = createLucideIcon("play", __iconNode19);
-
-  // node_modules/lucide-react/dist/esm/icons/plus.mjs
-  var __iconNode20 = [
-    ["path", { d: "M5 12h14", key: "1ays0h" }],
-    ["path", { d: "M12 5v14", key: "s699le" }]
-  ];
-  var Plus = createLucideIcon("plus", __iconNode20);
-
-  // node_modules/lucide-react/dist/esm/icons/replace.mjs
-  var __iconNode21 = [
-    ["path", { d: "M14 4a1 1 0 0 1 1-1", key: "dhj8ez" }],
-    ["path", { d: "M15 10a1 1 0 0 1-1-1", key: "1mnyi5" }],
-    ["path", { d: "M21 4a1 1 0 0 0-1-1", key: "sfs9ap" }],
-    ["path", { d: "M21 9a1 1 0 0 1-1 1", key: "mp6qeo" }],
-    ["path", { d: "m3 7 3 3 3-3", key: "x25e72" }],
-    ["path", { d: "M6 10V5a2 2 0 0 1 2-2h2", key: "15xut4" }],
-    ["rect", { x: "3", y: "14", width: "7", height: "7", rx: "1", key: "1bkyp8" }]
-  ];
-  var Replace = createLucideIcon("replace", __iconNode21);
-
-  // node_modules/lucide-react/dist/esm/icons/save.mjs
-  var __iconNode22 = [
-    [
-      "path",
-      {
-        d: "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
-        key: "1c8476"
-      }
-    ],
-    ["path", { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7", key: "1ydtos" }],
-    ["path", { d: "M7 3v4a1 1 0 0 0 1 1h7", key: "t51u73" }]
-  ];
-  var Save = createLucideIcon("save", __iconNode22);
-
-  // node_modules/lucide-react/dist/esm/icons/search.mjs
-  var __iconNode23 = [
-    ["path", { d: "m21 21-4.34-4.34", key: "14j7rj" }],
-    ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }]
-  ];
-  var Search = createLucideIcon("search", __iconNode23);
-
-  // node_modules/lucide-react/dist/esm/icons/sparkles.mjs
-  var __iconNode24 = [
-    [
-      "path",
-      {
-        d: "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z",
-        key: "1s2grr"
-      }
-    ],
-    ["path", { d: "M20 2v4", key: "1rf3ol" }],
-    ["path", { d: "M22 4h-4", key: "gwowj6" }],
-    ["circle", { cx: "4", cy: "20", r: "2", key: "6kqj1y" }]
-  ];
-  var Sparkles = createLucideIcon("sparkles", __iconNode24);
-
-  // node_modules/lucide-react/dist/esm/icons/square.mjs
-  var __iconNode25 = [
-    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }]
-  ];
-  var Square = createLucideIcon("square", __iconNode25);
-
-  // node_modules/lucide-react/dist/esm/icons/terminal.mjs
-  var __iconNode26 = [
-    ["path", { d: "M12 19h8", key: "baeox8" }],
-    ["path", { d: "m4 17 6-6-6-6", key: "1yngyt" }]
-  ];
-  var Terminal = createLucideIcon("terminal", __iconNode26);
-
-  // node_modules/lucide-react/dist/esm/icons/trash-2.mjs
-  var __iconNode27 = [
-    ["path", { d: "M10 11v6", key: "nco0om" }],
-    ["path", { d: "M14 11v6", key: "outv1u" }],
-    ["path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6", key: "miytrc" }],
-    ["path", { d: "M3 6h18", key: "d0wm0j" }],
-    ["path", { d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2", key: "e791ji" }]
-  ];
-  var Trash2 = createLucideIcon("trash-2", __iconNode27);
-
-  // node_modules/lucide-react/dist/esm/icons/user.mjs
-  var __iconNode28 = [
-    ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
-    ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
-  ];
-  var User = createLucideIcon("user", __iconNode28);
-
-  // node_modules/lucide-react/dist/esm/icons/wrench.mjs
-  var __iconNode29 = [
-    [
-      "path",
-      {
-        d: "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z",
-        key: "1ngwbx"
-      }
-    ]
-  ];
-  var Wrench = createLucideIcon("wrench", __iconNode29);
-
-  // node_modules/lucide-react/dist/esm/icons/x.mjs
-  var __iconNode30 = [
-    ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
-    ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
-  ];
-  var X = createLucideIcon("x", __iconNode30);
-
-  // src/webview/widgets/message-list/empty-state/EmptyState.module.scss
-  var EmptyState_module_default = {
-    root: "EmptyState_module_root",
-    sparkles: "EmptyState_module_sparkles",
-    text: "EmptyState_module_text",
-    title: "EmptyState_module_title",
-    description: "EmptyState_module_description"
-  };
-
-  // src/webview/widgets/message-list/empty-state/EmptyState.tsx
-  var import_jsx_runtime5 = __toESM(require_jsx_runtime());
-  function EmptyState(_props) {
-    const { t } = useI18n();
-    const hasLogo = Boolean(getWebviewAssetUri("logo"));
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: EmptyState_module_default.root, children: [
-      hasLogo ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(AistBrand, {}) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Sparkles, { className: EmptyState_module_default.sparkles, size: 100 }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: EmptyState_module_default.text, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h1", { className: EmptyState_module_default.title, children: t("empty.title") }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: EmptyState_module_default.description, children: t("empty.description") })
-      ] })
-    ] });
-  }
-
-  // src/webview/widgets/message-list/message-list/MessageList.tsx
-  var import_react18 = __toESM(require_react());
-
-  // src/webview/entities/message/MessageCard.tsx
-  var import_react8 = __toESM(require_react());
-
-  // src/webview/entities/message/ToolMessageCard.tsx
-  var import_react7 = __toESM(require_react());
+  // src/webview/entities/message/tool-message-card/ToolMessageCard.tsx
+  var import_react13 = __toESM(require_react());
 
   // src/webview/shared/ui/ToolIcon.tsx
-  var import_jsx_runtime6 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime3 = __toESM(require_jsx_runtime());
   function ToolIcon({ name: name2, size = 16, className }) {
     switch (name2) {
       case "get_workspace_info":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Info2, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Info, { size, className });
       case "list_files":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FolderTree, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FolderTree, { size, className });
       case "read_file":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FileText, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FileText, { size, className });
       case "grep_search":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Search, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Search, { size, className });
       case "run_bash_script":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Terminal, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Terminal, { size, className });
       case "write_file":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FilePenLine, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FilePenLine, { size, className });
       case "replace_in_file":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Replace, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Replace, { size, className });
       case "create_directory":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FolderPlus, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FolderPlus, { size, className });
       case "delete_path":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Trash2, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Trash2, { size, className });
       case "run_skill":
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CirclePlay, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CirclePlay, { size, className });
       default:
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Wrench, { size, className });
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Wrench, { size, className });
     }
   }
 
-  // src/webview/entities/message/ToolApprovalActions.tsx
-  var import_react6 = __toESM(require_react());
+  // src/webview/entities/message/tool-approval-actions/ToolApprovalActions.tsx
+  var import_react12 = __toESM(require_react());
 
   // src/webview/shared/lib/vscode.ts
   var vscode = acquireVsCodeApi();
 
-  // src/webview/entities/message/ToolApprovalActions.tsx
+  // src/webview/shared/ui/lib/classNames.ts
+  function classNames(...values) {
+    return values.filter(Boolean).join(" ");
+  }
+
+  // src/webview/shared/ui/badge/Badge.module.scss
+  var Badge_module_default = {
+    badge: "Badge_module_badge",
+    icon: "Badge_module_icon",
+    neutral: "Badge_module_neutral",
+    accent: "Badge_module_accent",
+    success: "Badge_module_success",
+    warning: "Badge_module_warning",
+    danger: "Badge_module_danger"
+  };
+
+  // src/webview/shared/ui/badge/Badge.tsx
+  var import_jsx_runtime4 = __toESM(require_jsx_runtime());
+  function Badge({ tone = "neutral", icon, className, children, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: classNames(Badge_module_default.badge, Badge_module_default[tone], className), ...props, children: [
+      icon ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: Badge_module_default.icon, children: icon }) : null,
+      children
+    ] });
+  }
+
+  // src/webview/shared/ui/button/Button.tsx
+  var import_react6 = __toESM(require_react());
+
+  // src/webview/shared/ui/button/Button.module.scss
+  var Button_module_default = {
+    button: "Button_module_button",
+    content: "Button_module_content",
+    icon: "Button_module_icon",
+    sm: "Button_module_sm",
+    md: "Button_module_md",
+    lg: "Button_module_lg",
+    fullWidth: "Button_module_fullWidth",
+    primary: "Button_module_primary",
+    secondary: "Button_module_secondary",
+    ghost: "Button_module_ghost",
+    danger: "Button_module_danger"
+  };
+
+  // src/webview/shared/ui/button/Button.tsx
+  var import_jsx_runtime5 = __toESM(require_jsx_runtime());
+  var Button = (0, import_react6.forwardRef)(
+    ({ variant = "secondary", size = "md", leadingIcon, trailingIcon, fullWidth, className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+      "button",
+      {
+        ref,
+        className: classNames(Button_module_default.button, Button_module_default[variant], Button_module_default[size], fullWidth && Button_module_default.fullWidth, className),
+        ...props,
+        children: [
+          leadingIcon ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: Button_module_default.icon, children: leadingIcon }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: Button_module_default.content, children }),
+          trailingIcon ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: Button_module_default.icon, children: trailingIcon }) : null
+        ]
+      }
+    )
+  );
+  Button.displayName = "Button";
+
+  // src/webview/shared/ui/card/Card.module.scss
+  var Card_module_default = {
+    card: "Card_module_card",
+    default: "Card_module_default",
+    elevated: "Card_module_elevated",
+    accent: "Card_module_accent",
+    header: "Card_module_header",
+    heading: "Card_module_heading",
+    title: "Card_module_title",
+    description: "Card_module_description",
+    actions: "Card_module_actions",
+    body: "Card_module_body"
+  };
+
+  // src/webview/shared/ui/card/Card.tsx
+  var import_jsx_runtime6 = __toESM(require_jsx_runtime());
+  function Card({ tone = "default", title, description, actions, className, children, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("section", { className: classNames(Card_module_default.card, Card_module_default[tone], className), ...props, children: [
+      title || description || actions ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: Card_module_default.header, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: Card_module_default.heading, children: [
+          title ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { className: Card_module_default.title, children: title }) : null,
+          description ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: Card_module_default.description, children: description }) : null
+        ] }),
+        actions ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: Card_module_default.actions, children: actions }) : null
+      ] }) : null,
+      children ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: Card_module_default.body, children }) : null
+    ] });
+  }
+
+  // src/webview/shared/ui/checkbox/Checkbox.tsx
+  var import_react7 = __toESM(require_react());
+
+  // src/webview/shared/ui/checkbox/Checkbox.module.scss
+  var Checkbox_module_default = {
+    checkbox: "Checkbox_module_checkbox",
+    boxWrap: "Checkbox_module_boxWrap",
+    input: "Checkbox_module_input",
+    box: "Checkbox_module_box",
+    text: "Checkbox_module_text",
+    label: "Checkbox_module_label",
+    description: "Checkbox_module_description"
+  };
+
+  // src/webview/shared/ui/checkbox/Checkbox.tsx
   var import_jsx_runtime7 = __toESM(require_jsx_runtime());
+  var Checkbox = (0, import_react7.forwardRef)(
+    ({ label, description, className, id, ...props }, ref) => {
+      const generatedId = (0, import_react7.useId)();
+      const inputId = id || generatedId;
+      return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("label", { className: classNames(Checkbox_module_default.checkbox, className), htmlFor: inputId, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: Checkbox_module_default.boxWrap, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { ref, id: inputId, className: Checkbox_module_default.input, type: "checkbox", ...props }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: Checkbox_module_default.box, "aria-hidden": "true", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Check, { size: 13 }) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: Checkbox_module_default.text, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: Checkbox_module_default.label, children: label }),
+          description ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: Checkbox_module_default.description, children: description }) : null
+        ] })
+      ] });
+    }
+  );
+  Checkbox.displayName = "Checkbox";
+
+  // src/webview/shared/ui/keyboard-shortcut/KeyboardShortcut.module.scss
+  var KeyboardShortcut_module_default = {
+    shortcut: "KeyboardShortcut_module_shortcut",
+    label: "KeyboardShortcut_module_label",
+    keys: "KeyboardShortcut_module_keys",
+    keyGroup: "KeyboardShortcut_module_keyGroup",
+    separator: "KeyboardShortcut_module_separator",
+    keycap: "KeyboardShortcut_module_keycap"
+  };
+
+  // src/webview/shared/ui/keyboard-shortcut/KeyboardShortcut.tsx
+  var import_jsx_runtime8 = __toESM(require_jsx_runtime());
+  function KeyboardShortcut({ keys: keys2, separator = "+", label, className, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: classNames(KeyboardShortcut_module_default.shortcut, className), ...props, children: [
+      label ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: KeyboardShortcut_module_default.label, children: label }) : null,
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: KeyboardShortcut_module_default.keys, "aria-hidden": "true", children: keys2.map((key, index2) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: KeyboardShortcut_module_default.keyGroup, children: [
+        index2 > 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: KeyboardShortcut_module_default.separator, children: separator }) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Keycap, { children: key })
+      ] }, index2)) })
+    ] });
+  }
+  function Keycap({ className, children, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("kbd", { className: classNames(KeyboardShortcut_module_default.keycap, className), ...props, children });
+  }
+
+  // src/webview/shared/ui/modal/Modal.module.scss
+  var Modal_module_default = {
+    backdrop: "Modal_module_backdrop",
+    approvalBackdrop: "Modal_module_approvalBackdrop",
+    modal: "Modal_module_modal",
+    settingsModal: "Modal_module_settingsModal",
+    approvalModal: "Modal_module_approvalModal",
+    errorModal: "Modal_module_errorModal",
+    header: "Modal_module_header",
+    approvalHeader: "Modal_module_approvalHeader",
+    errorHeader: "Modal_module_errorHeader",
+    code: "Modal_module_code",
+    errorCode: "Modal_module_errorCode"
+  };
+
+  // src/webview/shared/ui/modal/Modal.tsx
+  var import_jsx_runtime9 = __toESM(require_jsx_runtime());
+  function ModalBackdrop({ tone = "default", className, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: classNames(Modal_module_default.backdrop, tone === "approval" && Modal_module_default.approvalBackdrop, className), ...props });
+  }
+  function ModalSurface({ tone = "default", size = "default", className, children, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      "section",
+      {
+        className: classNames(
+          Modal_module_default.modal,
+          tone === "approval" && Modal_module_default.approvalModal,
+          tone === "error" && Modal_module_default.errorModal,
+          size === "settings" && Modal_module_default.settingsModal,
+          className
+        ),
+        ...props,
+        children
+      }
+    );
+  }
+  function ModalHeader({ tone = "default", className, children, ...props }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      "header",
+      {
+        className: classNames(
+          Modal_module_default.header,
+          tone === "approval" && Modal_module_default.approvalHeader,
+          tone === "error" && Modal_module_default.errorHeader,
+          className
+        ),
+        ...props,
+        children
+      }
+    );
+  }
+
+  // src/webview/shared/ui/select/Select.tsx
+  var import_react8 = __toESM(require_react());
+  var import_react_dom = __toESM(require_react_dom());
+
+  // src/webview/shared/ui/select/Select.module.scss
+  var Select_module_default = {
+    field: "Select_module_field",
+    label: "Select_module_label",
+    nativeSelect: "Select_module_nativeSelect",
+    control: "Select_module_control",
+    trigger: "Select_module_trigger",
+    open: "Select_module_open",
+    invalid: "Select_module_invalid",
+    value: "Select_module_value",
+    placeholder: "Select_module_placeholder",
+    icon: "Select_module_icon",
+    withIcon: "Select_module_withIcon",
+    chevron: "Select_module_chevron",
+    dropdown: "Select_module_dropdown",
+    searchBox: "Select_module_searchBox",
+    searchIcon: "Select_module_searchIcon",
+    searchInput: "Select_module_searchInput",
+    options: "Select_module_options",
+    optionGroup: "Select_module_optionGroup",
+    categoryButton: "Select_module_categoryButton",
+    categoryChevron: "Select_module_categoryChevron",
+    categoryLabel: "Select_module_categoryLabel",
+    categoryCount: "Select_module_categoryCount",
+    option: "Select_module_option",
+    optionActive: "Select_module_optionActive",
+    check: "Select_module_check",
+    checkVisible: "Select_module_checkVisible",
+    optionLabel: "Select_module_optionLabel",
+    empty: "Select_module_empty",
+    sm: "Select_module_sm",
+    dropdownSm: "Select_module_dropdownSm",
+    dropdownTop: "Select_module_dropdownTop",
+    hint: "Select_module_hint",
+    error: "Select_module_error"
+  };
+
+  // src/webview/shared/ui/select/Select.tsx
+  var import_jsx_runtime10 = __toESM(require_jsx_runtime());
+  function getEstimatedDropdownHeight(optionCount, searchable, size, categoryCount = 0) {
+    const padding = 8;
+    const searchHeight = searchable ? size === "sm" ? 32 : 34 : 0;
+    const optionsGap = searchable ? 4 : 0;
+    const optionHeight = 27;
+    const categoryHeight = 26;
+    const emptyHeight = 32;
+    return padding + searchHeight + optionsGap + categoryCount * categoryHeight + Math.max(optionCount, 1) * (optionCount ? optionHeight : emptyHeight);
+  }
+  function buildOptionGroups(options, categories) {
+    if (!categories?.length) {
+      return [{ key: "default", options }];
+    }
+    const groups = /* @__PURE__ */ new Map();
+    const uncategorized = [];
+    for (const category of categories) {
+      groups.set(category.id, { key: category.id, category, options: [] });
+    }
+    for (const option of options) {
+      const group = option.category ? groups.get(option.category) : void 0;
+      if (group) {
+        group.options.push(option);
+      } else {
+        uncategorized.push(option);
+      }
+    }
+    return [
+      ...Array.from(groups.values()).filter((group) => group.options.length),
+      ...uncategorized.length ? [{ key: "default", options: uncategorized }] : []
+    ];
+  }
+  var Select = (0, import_react8.forwardRef)(
+    ({
+      label,
+      hint,
+      error,
+      options,
+      categories,
+      placeholder,
+      size = "md",
+      leadingIcon,
+      displayLabels,
+      className,
+      id,
+      value,
+      defaultValue,
+      disabled,
+      searchable = true,
+      onChange,
+      onValueChange,
+      ...props
+    }, ref) => {
+      const { t } = useI18n();
+      const generatedId = (0, import_react8.useId)();
+      const selectId = id || generatedId;
+      const rootRef = (0, import_react8.useRef)(null);
+      const dropdownRef = (0, import_react8.useRef)(null);
+      const searchRef = (0, import_react8.useRef)(null);
+      const controlled = value !== void 0;
+      const [internalValue, setInternalValue] = (0, import_react8.useState)(defaultValue || "");
+      const [open, setOpen] = (0, import_react8.useState)(false);
+      const [query, setQuery] = (0, import_react8.useState)("");
+      const [dropdownPosition, setDropdownPosition] = (0, import_react8.useState)();
+      const [collapsedCategories, setCollapsedCategories] = (0, import_react8.useState)(
+        () => new Set((categories || []).filter((category) => category.defaultCollapsed).map((category) => category.id))
+      );
+      const currentValue = controlled ? value : internalValue;
+      const selected = options.find((option) => option.value === currentValue);
+      const selectFallback = t("summary.model");
+      const displayLabel = (selected ? displayLabels?.[selected.value] || selected.label : void 0) || placeholder || selectFallback;
+      const categoryById = (0, import_react8.useMemo)(
+        () => new Map((categories || []).map((category) => [category.id, category])),
+        [categories]
+      );
+      const normalizedQuery = query.trim().toLowerCase();
+      const filteredOptions = (0, import_react8.useMemo)(() => {
+        if (!normalizedQuery) {
+          return options;
+        }
+        return options.filter((option) => {
+          const categoryLabel = option.category ? categoryById.get(option.category)?.label || option.category : "";
+          return `${option.label} ${option.value} ${categoryLabel}`.toLowerCase().includes(normalizedQuery);
+        });
+      }, [categoryById, normalizedQuery, options]);
+      const optionGroups = (0, import_react8.useMemo)(() => buildOptionGroups(filteredOptions, categories), [categories, filteredOptions]);
+      const visibleOptionCount = (0, import_react8.useMemo)(
+        () => optionGroups.reduce((count, group) => {
+          const collapsed = group.category && !normalizedQuery && collapsedCategories.has(group.category.id);
+          return count + (collapsed ? 0 : group.options.length);
+        }, 0),
+        [collapsedCategories, normalizedQuery, optionGroups]
+      );
+      (0, import_react8.useEffect)(() => {
+        if (disabled) {
+          setOpen(false);
+          setQuery("");
+        }
+      }, [disabled]);
+      (0, import_react8.useEffect)(() => {
+        setCollapsedCategories((current) => {
+          const categoryIds = new Set((categories || []).map((category) => category.id));
+          const next = /* @__PURE__ */ new Set();
+          for (const category of categories || []) {
+            if (current.has(category.id) || category.defaultCollapsed) {
+              next.add(category.id);
+            }
+          }
+          for (const categoryId of current) {
+            if (categoryIds.has(categoryId)) {
+              next.add(categoryId);
+            }
+          }
+          return next;
+        });
+      }, [categories]);
+      (0, import_react8.useLayoutEffect)(() => {
+        if (!open) {
+          setDropdownPosition(void 0);
+          return;
+        }
+        updateDropdownPosition();
+      }, [open, size, visibleOptionCount, optionGroups.length, searchable, query]);
+      (0, import_react8.useEffect)(() => {
+        if (!open) {
+          return;
+        }
+        searchRef.current?.focus();
+        function handlePointerDown(event) {
+          const target = event.target;
+          if (!rootRef.current?.contains(target) && !dropdownRef.current?.contains(target)) {
+            closeDropdown();
+          }
+        }
+        function handleKeyDown(event) {
+          if (event.key === "Escape") {
+            closeDropdown();
+          }
+        }
+        document.addEventListener("pointerdown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("resize", updateDropdownPosition);
+        window.addEventListener("scroll", updateDropdownPosition, true);
+        return () => {
+          document.removeEventListener("pointerdown", handlePointerDown);
+          document.removeEventListener("keydown", handleKeyDown);
+          window.removeEventListener("resize", updateDropdownPosition);
+          window.removeEventListener("scroll", updateDropdownPosition, true);
+        };
+      }, [open]);
+      function updateDropdownPosition() {
+        const root4 = rootRef.current;
+        if (!root4) {
+          return;
+        }
+        const rect = root4.getBoundingClientRect();
+        const gap = size === "sm" ? 6 : 8;
+        const viewportPadding = 12;
+        const preferredHeight = Math.min(
+          size === "sm" ? 292 : 320,
+          getEstimatedDropdownHeight(visibleOptionCount, searchable, size, optionGroups.length)
+        );
+        const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+        const spaceAbove = rect.top - viewportPadding;
+        const placement = spaceBelow >= Math.min(preferredHeight, spaceAbove) ? "bottom" : "top";
+        const availableHeight = Math.max(96, placement === "bottom" ? spaceBelow - gap : spaceAbove - gap);
+        const maxHeight = Math.min(preferredHeight, availableHeight);
+        const width = Math.max(rect.width, Math.min(size === "sm" ? 280 : 320, window.innerWidth - viewportPadding * 2));
+        const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - viewportPadding - width);
+        const top = placement === "bottom" ? rect.bottom + gap : rect.top - gap - maxHeight;
+        setDropdownPosition({ top, left, width, maxHeight, placement });
+      }
+      function closeDropdown() {
+        setOpen(false);
+        setQuery("");
+      }
+      function toggleCategory(categoryId) {
+        setCollapsedCategories((current) => {
+          const next = new Set(current);
+          if (next.has(categoryId)) {
+            next.delete(categoryId);
+          } else {
+            next.add(categoryId);
+          }
+          return next;
+        });
+      }
+      function selectValue(nextValue) {
+        const nextOption = options.find((option) => option.value === nextValue);
+        if (!nextOption || nextOption.disabled || disabled) {
+          return;
+        }
+        if (!controlled) {
+          setInternalValue(nextValue);
+        }
+        onValueChange?.(nextValue);
+        onChange?.({ target: { value: nextValue }, currentTarget: { value: nextValue } });
+        closeDropdown();
+      }
+      const dropdown = open ? (0, import_react_dom.createPortal)(
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+          "span",
+          {
+            ref: dropdownRef,
+            className: classNames(
+              Select_module_default.dropdown,
+              size === "sm" && Select_module_default.dropdownSm,
+              dropdownPosition?.placement === "top" && Select_module_default.dropdownTop
+            ),
+            style: dropdownPosition ? {
+              top: dropdownPosition.top,
+              left: dropdownPosition.left,
+              width: dropdownPosition.width,
+              height: dropdownPosition.maxHeight,
+              maxHeight: dropdownPosition.maxHeight
+            } : void 0,
+            role: "presentation",
+            children: [
+              searchable ? /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: Select_module_default.searchBox, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Search, { size: 14, className: Select_module_default.searchIcon }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                  "input",
+                  {
+                    ref: searchRef,
+                    className: Select_module_default.searchInput,
+                    placeholder: t("select.search"),
+                    value: query,
+                    onChange: (event) => setQuery(event.target.value),
+                    onKeyDown: (event) => {
+                      if (event.key === "Enter") {
+                        const firstEnabled = filteredOptions.find((option) => !option.disabled);
+                        if (firstEnabled) {
+                          selectValue(firstEnabled.value);
+                        }
+                      }
+                    }
+                  }
+                )
+              ] }) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.options, role: "listbox", "aria-label": label || placeholder || selectFallback, children: filteredOptions.length ? optionGroups.map((group) => {
+                const collapsed = group.category && !normalizedQuery && collapsedCategories.has(group.category.id);
+                return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: Select_module_default.optionGroup, children: [
+                  group.category ? /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                    "button",
+                    {
+                      type: "button",
+                      className: Select_module_default.categoryButton,
+                      "aria-expanded": !collapsed,
+                      onClick: () => toggleCategory(group.category.id),
+                      children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ChevronDown, { className: Select_module_default.categoryChevron, size: 12 }),
+                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.categoryLabel, children: group.category.label }),
+                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.categoryCount, children: group.options.length })
+                      ]
+                    }
+                  ) : null,
+                  !collapsed ? group.options.map((option) => {
+                    const active = option.value === currentValue;
+                    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                      "button",
+                      {
+                        type: "button",
+                        className: classNames(Select_module_default.option, active && Select_module_default.optionActive),
+                        disabled: option.disabled,
+                        role: "option",
+                        "aria-selected": active,
+                        onClick: () => selectValue(option.value),
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Check, { size: 14, className: classNames(Select_module_default.check, active && Select_module_default.checkVisible) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.optionLabel, children: option.label })
+                        ]
+                      },
+                      option.value
+                    );
+                  }) : null
+                ] }, group.key);
+              }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.empty, children: t("select.noOptions") }) })
+            ]
+          }
+        ),
+        document.body
+      ) : null;
+      return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("label", { ref: rootRef, className: classNames(Select_module_default.field, Select_module_default[size], className), htmlFor: selectId, children: [
+        label ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.label, children: label }) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "hidden", name: props.name, value: currentValue || "" }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+          "select",
+          {
+            ref,
+            id: selectId,
+            className: Select_module_default.nativeSelect,
+            tabIndex: -1,
+            "aria-hidden": "true",
+            value: currentValue || "",
+            disabled,
+            onChange: () => void 0,
+            ...props,
+            children: [
+              placeholder ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: "", children: placeholder }) : null,
+              categories?.length ? buildOptionGroups(options, categories).map(
+                (group) => group.category ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("optgroup", { label: group.category.label, children: group.options.map((option) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value)) }, group.key) : group.options.map((option) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value))
+              ) : options.map((option) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value))
+            ]
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: classNames(Select_module_default.control, error && Select_module_default.invalid, open && Select_module_default.open), children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: classNames(Select_module_default.trigger, leadingIcon ? Select_module_default.withIcon : void 0),
+            disabled,
+            "aria-haspopup": "listbox",
+            "aria-expanded": open,
+            "aria-label": props["aria-label"] || label || placeholder || selectFallback,
+            title: props.title || selected?.label || placeholder,
+            onClick: () => setOpen((current) => !current),
+            children: [
+              leadingIcon ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.icon, children: leadingIcon }) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: classNames(Select_module_default.value, !selected && Select_module_default.placeholder), children: displayLabel }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ChevronDown, { className: Select_module_default.chevron, size: size === "sm" ? 14 : 16 })
+            ]
+          }
+        ) }),
+        dropdown,
+        error ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.error, children: error }) : hint ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: Select_module_default.hint, children: hint }) : null
+      ] });
+    }
+  );
+  Select.displayName = "Select";
+
+  // src/webview/shared/ui/switch/Switch.tsx
+  var import_react9 = __toESM(require_react());
+
+  // src/webview/shared/ui/switch/Switch.module.scss
+  var Switch_module_default = {
+    switch: "Switch_module_switch",
+    text: "Switch_module_text",
+    label: "Switch_module_label",
+    description: "Switch_module_description",
+    trackWrap: "Switch_module_trackWrap",
+    input: "Switch_module_input",
+    track: "Switch_module_track",
+    thumb: "Switch_module_thumb"
+  };
+
+  // src/webview/shared/ui/switch/Switch.tsx
+  var import_jsx_runtime11 = __toESM(require_jsx_runtime());
+  var Switch = (0, import_react9.forwardRef)(
+    ({ label, description, className, id, ...props }, ref) => {
+      const generatedId = (0, import_react9.useId)();
+      const inputId = id || generatedId;
+      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("label", { className: classNames(Switch_module_default.switch, className), htmlFor: inputId, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: Switch_module_default.text, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: Switch_module_default.label, children: label }),
+          description ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: Switch_module_default.description, children: description }) : null
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: Switch_module_default.trackWrap, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("input", { ref, id: inputId, className: Switch_module_default.input, type: "checkbox", ...props }),
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: Switch_module_default.track, "aria-hidden": "true", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: Switch_module_default.thumb }) })
+        ] })
+      ] });
+    }
+  );
+  Switch.displayName = "Switch";
+
+  // src/webview/shared/ui/text-area/TextArea.tsx
+  var import_react10 = __toESM(require_react());
+
+  // src/webview/shared/ui/text-area/TextArea.module.scss
+  var TextArea_module_default = {
+    field: "TextArea_module_field",
+    label: "TextArea_module_label",
+    textarea: "TextArea_module_textarea",
+    invalid: "TextArea_module_invalid",
+    hint: "TextArea_module_hint",
+    error: "TextArea_module_error"
+  };
+
+  // src/webview/shared/ui/text-area/TextArea.tsx
+  var import_jsx_runtime12 = __toESM(require_jsx_runtime());
+  var TextArea = (0, import_react10.forwardRef)(
+    ({ label, hint, error, className, id, ...props }, ref) => {
+      const generatedId = (0, import_react10.useId)();
+      const inputId = id || generatedId;
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("label", { className: classNames(TextArea_module_default.field, className), htmlFor: inputId, children: [
+        label ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: TextArea_module_default.label, children: label }) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+          "textarea",
+          {
+            ref,
+            id: inputId,
+            className: classNames(TextArea_module_default.textarea, error && TextArea_module_default.invalid),
+            "aria-invalid": Boolean(error),
+            ...props
+          }
+        ),
+        error ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: TextArea_module_default.error, children: error }) : hint ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: TextArea_module_default.hint, children: hint }) : null
+      ] });
+    }
+  );
+  TextArea.displayName = "TextArea";
+
+  // src/webview/shared/ui/text-field/TextField.tsx
+  var import_react11 = __toESM(require_react());
+
+  // src/webview/shared/ui/text-field/TextField.module.scss
+  var TextField_module_default = {
+    field: "TextField_module_field",
+    label: "TextField_module_label",
+    control: "TextField_module_control",
+    invalid: "TextField_module_invalid",
+    input: "TextField_module_input",
+    icon: "TextField_module_icon",
+    trailing: "TextField_module_trailing",
+    hint: "TextField_module_hint",
+    error: "TextField_module_error"
+  };
+
+  // src/webview/shared/ui/text-field/TextField.tsx
+  var import_jsx_runtime13 = __toESM(require_jsx_runtime());
+  var TextField = (0, import_react11.forwardRef)(
+    ({ label, hint, error, leadingIcon, trailingSlot, className, id, ...props }, ref) => {
+      const generatedId = (0, import_react11.useId)();
+      const inputId = id || generatedId;
+      return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("label", { className: classNames(TextField_module_default.field, className), htmlFor: inputId, children: [
+        label ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: TextField_module_default.label, children: label }) : null,
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: classNames(TextField_module_default.control, error && TextField_module_default.invalid), children: [
+          leadingIcon ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: TextField_module_default.icon, children: leadingIcon }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { ref, id: inputId, className: TextField_module_default.input, "aria-invalid": Boolean(error), ...props }),
+          trailingSlot ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: TextField_module_default.trailing, children: trailingSlot }) : null
+        ] }),
+        error ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: TextField_module_default.error, children: error }) : hint ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: TextField_module_default.hint, children: hint }) : null
+      ] });
+    }
+  );
+  TextField.displayName = "TextField";
+
+  // src/webview/entities/message/tool-approval-actions/ToolApprovalActions.module.scss
+  var ToolApprovalActions_module_default = {
+    root: "ToolApprovalActions_module_root",
+    compact: "ToolApprovalActions_module_compact",
+    buttonRow: "ToolApprovalActions_module_buttonRow",
+    approveButton: "ToolApprovalActions_module_approveButton",
+    comment: "ToolApprovalActions_module_comment",
+    commentLabel: "ToolApprovalActions_module_commentLabel",
+    textarea: "ToolApprovalActions_module_textarea"
+  };
+
+  // src/webview/entities/message/tool-approval-actions/ToolApprovalActions.tsx
+  var import_jsx_runtime14 = __toESM(require_jsx_runtime());
   function ToolApprovalActions({
     messageId,
     compact = false,
@@ -36324,21 +36712,22 @@
     onResolved
   }) {
     const { t } = useI18n();
-    const [comment, setComment] = (0, import_react6.useState)("");
+    const [comment, setComment] = (0, import_react12.useState)("");
     const cleanComment = comment.trim();
     function resolve(decision) {
       vscode.postMessage({ type: "resolveToolCall", messageId, decision, comment: cleanComment || void 0 });
       onResolved?.();
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: `tool-approval-actions ${compact ? "tool-approval-actions-compact" : ""}`, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("label", { className: "tool-approval-comment", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(MessageSquareText, { size: 13 }),
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: `${ToolApprovalActions_module_default.root} ${compact ? ToolApprovalActions_module_default.compact : ""}`, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("label", { className: ToolApprovalActions_module_default.comment, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: ToolApprovalActions_module_default.commentLabel, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MessageSquareText, { size: 13 }),
           t("tool.commentLabel")
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
           "textarea",
           {
+            className: ToolApprovalActions_module_default.textarea,
             value: comment,
             rows: compact ? 2 : 3,
             placeholder: t("tool.commentPlaceholder"),
@@ -36346,25 +36735,37 @@
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "tool-approval-button-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("button", { className: "primary-button h-8 min-w-0", autoFocus: autoFocusApprove, onClick: () => resolve("approve"), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Check, { size: 14 }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: t("tool.approve") })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("button", { className: "danger-button", onClick: () => resolve("deny-stop"), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Square, { size: 13 }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: t("tool.denyStop") })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("button", { className: "secondary-button", onClick: () => resolve("deny-continue"), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Play, { size: 13 }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: t("tool.denyContinue") })
-        ] })
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: ToolApprovalActions_module_default.buttonRow, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          Button,
+          {
+            className: ToolApprovalActions_module_default.approveButton,
+            variant: "primary",
+            autoFocus: autoFocusApprove,
+            leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Check, { size: 14 }),
+            onClick: () => resolve("approve"),
+            children: t("tool.approve")
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Button, { variant: "danger", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Square, { size: 13 }), onClick: () => resolve("deny-stop"), children: t("tool.denyStop") }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Button, { variant: "secondary", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Play, { size: 13 }), onClick: () => resolve("deny-continue"), children: t("tool.denyContinue") })
       ] })
     ] });
   }
 
-  // src/webview/entities/message/ToolRawJsonModal.tsx
-  var import_jsx_runtime8 = __toESM(require_jsx_runtime());
+  // src/webview/entities/message/tool-raw-json-modal/ToolRawJsonModal.module.scss
+  var ToolRawJsonModal_module_default = {
+    backdrop: "ToolRawJsonModal_module_backdrop",
+    modal: "ToolRawJsonModal_module_modal",
+    header: "ToolRawJsonModal_module_header",
+    headerTitle: "ToolRawJsonModal_module_headerTitle",
+    headerSubtitle: "ToolRawJsonModal_module_headerSubtitle",
+    closeButton: "ToolRawJsonModal_module_closeButton",
+    code: "ToolRawJsonModal_module_code"
+  };
+
+  // src/webview/entities/message/tool-raw-json-modal/ToolRawJsonModal.tsx
+  var import_jsx_runtime15 = __toESM(require_jsx_runtime());
   function ToolRawJsonModal({ message, onClose }) {
     const { t } = useI18n();
     const raw = JSON.stringify(
@@ -36372,30 +36773,36 @@
       null,
       2
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "tool-modal-backdrop", role: "presentation", onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("section", { className: "tool-modal", role: "dialog", "aria-modal": "true", onClick: stopPropagation, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("header", { className: "tool-modal-header", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h2", { children: "JSON" }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { children: message.name || "tool call" })
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: ToolRawJsonModal_module_default.backdrop, role: "presentation", onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("section", { className: ToolRawJsonModal_module_default.modal, role: "dialog", "aria-modal": "true", onClick: stopPropagation, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("header", { className: ToolRawJsonModal_module_default.header, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("h2", { className: ToolRawJsonModal_module_default.headerTitle, children: "JSON" }),
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { className: ToolRawJsonModal_module_default.headerSubtitle, children: message.name || "tool call" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("button", { className: "tool-icon-button", title: t("common.close"), onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(X, { size: 14 }) })
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("button", { className: ToolRawJsonModal_module_default.closeButton, title: t("common.close"), onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(X, { size: 14 }) })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("pre", { className: "tool-modal-code", children: raw })
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("pre", { className: ToolRawJsonModal_module_default.code, children: raw })
     ] }) });
   }
   function stopPropagation(event) {
     event.stopPropagation();
   }
 
-  // src/webview/entities/message/WorkspaceFileLink.tsx
-  var import_jsx_runtime9 = __toESM(require_jsx_runtime());
+  // src/webview/entities/message/workspace-file-link/WorkspaceFileLink.module.scss
+  var WorkspaceFileLink_module_default = {
+    root: "WorkspaceFileLink_module_root",
+    label: "WorkspaceFileLink_module_label"
+  };
+
+  // src/webview/entities/message/workspace-file-link/WorkspaceFileLink.tsx
+  var import_jsx_runtime16 = __toESM(require_jsx_runtime());
   function WorkspaceFileLink({ file }) {
     const { t } = useI18n();
     const label = file.line ? `${file.path}:${file.line}` : file.path;
-    return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
       "button",
       {
-        className: "tool-file-link",
+        className: WorkspaceFileLink_module_default.root,
         title: t("tool.openFile"),
         onClick: (event) => {
           event.stopPropagation();
@@ -36409,14 +36816,14 @@
           });
         },
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(FileCodeCorner, { size: 13 }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "truncate", children: file.label ? `${label} \xB7 ${file.label}` : label })
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(FileCodeCorner, { size: 13 }),
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: WorkspaceFileLink_module_default.label, children: file.label ? `${label} \xB7 ${file.label}` : label })
         ]
       }
     );
   }
 
-  // src/webview/entities/message/toolValue.ts
+  // src/webview/entities/message/tool-value/toolValue.ts
   function getToolResult(message) {
     const result = message.result;
     const nested = asRecord(result?.result);
@@ -36439,7 +36846,7 @@
     return Boolean(asRecord(result.preview) && Object.keys(result).length === 1);
   }
 
-  // src/webview/entities/message/toolMessageModel.ts
+  // src/webview/entities/message/tool-message-model/toolMessageModel.ts
   var TOOL_META = {
     get_workspace_info: { actionKey: "tool.action.get_workspace_info", tone: "slate" },
     list_files: { actionKey: "tool.action.list_files", tone: "blue" },
@@ -36574,119 +36981,7 @@
     });
   }
 
-  // src/webview/entities/message/ToolResultPreview.tsx
-  var import_jsx_runtime10 = __toESM(require_jsx_runtime());
-  var CODE_PREVIEW_LIMIT = 1200;
-  var LIST_PREVIEW_LIMIT = 24;
-  function ToolResultPreview({ message }) {
-    const { t } = useI18n();
-    const model = buildToolDisplayModel(message, t);
-    const result = getToolResult(message);
-    const preview = getToolPreview(message);
-    const secondaryFiles = getSecondaryFiles(model.files, model.primaryFile);
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "tool-result-preview", children: [
-      message.reason ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Reason, { text: message.reason }) : null,
-      secondaryFiles.length ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(FileLinks, { files: secondaryFiles.slice(0, 12) }) : null,
-      renderPrimaryResult(message, result, preview)
-    ] });
-  }
-  function renderPrimaryResult(message, result, preview) {
-    if (message.name === "run_bash_script") return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(BashScriptResult, { message, result });
-    if (!result && preview) return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CompactFacts, { result: preview });
-    if (!result) return null;
-    if (asString(result.error)) return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ErrorText, { text: asString(result.error) || "" });
-    if (message.name === "read_file") return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CodePreview, { result });
-    if (message.name === "list_files") return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(EntriesList, { result });
-    if (message.name === "grep_search") return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(SearchFiles, { result });
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CompactFacts, { result });
-  }
-  function CodePreview({ result }) {
-    const { t } = useI18n();
-    const content3 = asString(result.content) || "";
-    const isLong = content3.length > CODE_PREVIEW_LIMIT;
-    const preview = isLong ? `${content3.slice(0, CODE_PREVIEW_LIMIT)}
-\u2026` : content3;
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("details", { className: "tool-details", open: !isLong, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("summary", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ChevronRight, { size: 13 }),
-        t("tool.preview.code"),
-        " ",
-        Boolean(result.truncated) || isLong ? `\xB7 ${t("tool.preview.truncated")}` : ""
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("pre", { className: "tool-code-preview", children: preview || t("tool.preview.emptyFile") })
-    ] });
-  }
-  function EntriesList({ result }) {
-    const { t } = useI18n();
-    const entries = arrayValue(result.entries);
-    const truncated = Boolean(result.truncated) || entries.length > LIST_PREVIEW_LIMIT;
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("ul", { className: "tool-list-preview", children: [
-      entries.slice(0, LIST_PREVIEW_LIMIT).map(renderEntryItem),
-      truncated ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("li", { className: "opacity-70", children: t("tool.preview.moreItems") }) : null
-    ] });
-  }
-  function SearchFiles({ result }) {
-    const { t } = useI18n();
-    const files = getUniqueSearchFiles(result);
-    const truncated = Boolean(result.truncated) || files.length > LIST_PREVIEW_LIMIT;
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("ul", { className: "tool-list-preview tool-list-vertical", children: [
-      files.slice(0, LIST_PREVIEW_LIMIT).map(renderSearchFile),
-      truncated ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("li", { className: "opacity-70", children: t("tool.preview.moreFiles") }) : null
-    ] });
-  }
-  function BashScriptResult({ message, result }) {
-    const { t } = useI18n();
-    const stdout = asString(result?.stdout) || "";
-    const stderr = asString(result?.stderr) || "";
-    const error = asString(result?.error);
-    const command = asString(message.args?.script) || "bash -lc";
-    const facts = getBashFacts(message, result, t);
-    const hasOutput = Boolean(stdout || stderr);
-    const completedQuietly = Boolean(result && !error && !hasOutput);
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "tool-bash-preview", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "tool-bash-command", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "tool-bash-command-label", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Terminal, { size: 13 }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: t("common.command") })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("pre", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("code", { children: command }) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("dl", { className: "tool-bash-facts", children: facts.map((fact) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: fact.tone ? `tool-bash-fact-${fact.tone}` : void 0, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("dt", { children: fact.label }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("dd", { children: fact.value })
-      ] }, fact.label)) }),
-      error ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ErrorText, { text: error }) : null,
-      !result ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "text-[var(--vscode-descriptionForeground)]", children: t("tool.preview.waitingOutput") }) : null,
-      stdout ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-        OutputBlock,
-        {
-          label: `stdout${result?.stdoutTruncated ? ` \xB7 ${t("tool.preview.truncated")}` : ""}`,
-          text: stdout,
-          tone: "stdout"
-        }
-      ) : null,
-      stderr ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-        OutputBlock,
-        {
-          label: `stderr${result?.stderrTruncated ? ` \xB7 ${t("tool.preview.truncated")}` : ""}`,
-          text: stderr,
-          tone: "stderr"
-        }
-      ) : null,
-      completedQuietly ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "text-[var(--vscode-descriptionForeground)]", children: t("tool.preview.noOutput") }) : null
-    ] });
-  }
-  function OutputBlock({ label, text: text7, tone }) {
-    const { language, t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("details", { className: `tool-details tool-output-block tool-output-${tone}`, open: true, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("summary", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ChevronRight, { size: 13 }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: label }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("em", { children: getLineCountLabel(text7, language, t) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("pre", { className: "tool-code-preview", children: text7 })
-    ] });
-  }
+  // src/webview/entities/message/tool-result-preview/utils.ts
   function getBashFacts(message, result, t) {
     const cwd2 = asString(result?.cwd) || asString(message.args?.cwd) || ".";
     const facts = [{ label: t("tool.fact.cwd"), value: cwd2 }];
@@ -36707,6 +37002,18 @@
     if (signal) facts.push({ label: t("tool.fact.signal"), value: signal });
     return facts;
   }
+  function getUniqueSearchFiles(result) {
+    const files = arrayValue(result.matches).map(fileFromSearchMatch2).filter(Boolean);
+    return uniqueFiles2(files);
+  }
+  function getSecondaryFiles(files, primary) {
+    if (!primary) return files;
+    return files.filter((file) => fileKey(file) !== fileKey(primary));
+  }
+  function getLineCountLabel(text7, language, t) {
+    const lines = text7 ? text7.split(/\r?\n/).length : 0;
+    return t(pluralKey(language, "tool.result.lines", lines), { count: lines });
+  }
   function numberValue(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : void 0;
   }
@@ -36715,45 +37022,10 @@
     if (durationMs < 6e4) return `${(durationMs / 1e3).toFixed(1)}s`;
     return `${Math.round(durationMs / 1e3)}s`;
   }
-  function getLineCountLabel(text7, language, t) {
-    const lines = text7 ? text7.split(/\r?\n/).length : 0;
-    return t(pluralKey(language, "tool.result.lines", lines), { count: lines });
-  }
-  function renderEntryItem(entry, index2) {
-    const item = asRecord(entry);
-    const path2 = asString(item?.path) || `entry-${index2}`;
-    const type = asString(item?.type) || "file";
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("li", { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Folder, { size: 13 }),
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: path2 }),
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("em", { children: type })
-    ] }, `${path2}-${index2}`);
-  }
-  function renderSearchFile(file) {
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("li", { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ListTree, { size: 13 }),
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(WorkspaceFileLink, { file })
-    ] }, fileKey(file));
-  }
-  function FileLinks({ files }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex flex-wrap gap-1.5", children: files.map((file) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(WorkspaceFileLink, { file }, fileKey(file))) });
-  }
-  function CompactFacts({ result }) {
-    const facts = Object.entries(result).filter(([, value]) => typeof value !== "object").map(([key, value]) => `${key}: ${String(value)}`);
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "text-[var(--vscode-descriptionForeground)]", children: facts.join(" \xB7 ") });
-  }
-  function getUniqueSearchFiles(result) {
-    const files = arrayValue(result.matches).map(fileFromSearchMatch2).filter(Boolean);
-    return uniqueFiles2(files);
-  }
   function fileFromSearchMatch2(match) {
     const item = asRecord(match);
     const path2 = asString(item?.path);
     return path2 ? { path: path2 } : void 0;
-  }
-  function getSecondaryFiles(files, primary) {
-    if (!primary) return files;
-    return files.filter((file) => fileKey(file) !== fileKey(primary));
   }
   function uniqueFiles2(files) {
     const seen = /* @__PURE__ */ new Set();
@@ -36767,54 +37039,195 @@
   function fileKey(file) {
     return `${file.path}:${file.line || 0}:${file.column || 0}`;
   }
-  function Reason({ text: text7 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "leading-5 text-[var(--vscode-descriptionForeground)]", children: text7 });
-  }
-  function ErrorText({ text: text7 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "text-[var(--vscode-errorForeground)]", children: text7 });
-  }
 
-  // src/webview/entities/message/messageFormatting.tsx
-  var import_jsx_runtime11 = __toESM(require_jsx_runtime());
-  function formatToolStatusLocalized(message, t) {
-    if (message.approval === "pending") return t("tool.status.approvalNeeded");
-    if (message.status === "waiting") return t("tool.status.waiting");
-    if (message.status === "running") return t("tool.status.running");
-    if (message.status === "done") return t("tool.status.done");
-    if (message.status === "error") return t("tool.status.error");
-    if (message.status === "denied") return t("tool.status.denied");
-    return t("tool.status.unknown");
-  }
-  function getToolStatusClass(status) {
-    return status === "error" || status === "denied" ? "border-[var(--vscode-errorForeground)] text-[var(--vscode-errorForeground)]" : "border-[var(--agent-border)] text-[var(--vscode-descriptionForeground)]";
-  }
-  function formatMessageDate(timestamp) {
-    if (!timestamp) return null;
-    const date = new Date(timestamp);
-    const time = [date.getHours(), date.getMinutes(), date.getSeconds()].map(padTimePart).join(":");
-    const day = padTimePart(date.getDate());
-    const month = padTimePart(date.getMonth() + 1);
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "tool-date-label", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: time }),
-      " ",
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { children: [
-        day,
-        ".",
-        month,
-        ".",
-        date.getFullYear()
-      ] })
+  // src/webview/entities/message/tool-result-preview/ToolResultPreview.module.scss
+  var ToolResultPreview_module_default = {
+    root: "ToolResultPreview_module_root",
+    reason: "ToolResultPreview_module_reason",
+    errorText: "ToolResultPreview_module_errorText",
+    fileLinks: "ToolResultPreview_module_fileLinks",
+    details: "ToolResultPreview_module_details",
+    codePreview: "ToolResultPreview_module_codePreview",
+    listPreview: "ToolResultPreview_module_listPreview",
+    listVertical: "ToolResultPreview_module_listVertical",
+    truncated: "ToolResultPreview_module_truncated",
+    bashPreview: "ToolResultPreview_module_bashPreview",
+    bashCommand: "ToolResultPreview_module_bashCommand",
+    bashCommandLabel: "ToolResultPreview_module_bashCommandLabel",
+    bashCommandPre: "ToolResultPreview_module_bashCommandPre",
+    bashFacts: "ToolResultPreview_module_bashFacts",
+    factOk: "ToolResultPreview_module_factOk",
+    factError: "ToolResultPreview_module_factError",
+    factRunning: "ToolResultPreview_module_factRunning",
+    outputBlock: "ToolResultPreview_module_outputBlock",
+    stderr: "ToolResultPreview_module_stderr",
+    waitingOutput: "ToolResultPreview_module_waitingOutput",
+    noOutput: "ToolResultPreview_module_noOutput",
+    compactFacts: "ToolResultPreview_module_compactFacts"
+  };
+
+  // src/webview/entities/message/tool-result-preview/ToolResultPreview.tsx
+  var import_jsx_runtime17 = __toESM(require_jsx_runtime());
+  var CODE_PREVIEW_LIMIT = 1200;
+  var LIST_PREVIEW_LIMIT = 24;
+  function ToolResultPreview({ message }) {
+    const { t } = useI18n();
+    const model = buildToolDisplayModel(message, t);
+    const result = getToolResult(message);
+    const preview = getToolPreview(message);
+    const secondaryFiles = getSecondaryFiles(model.files, model.primaryFile);
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: ToolResultPreview_module_default.root, children: [
+      message.reason ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Reason, { text: message.reason }) : null,
+      secondaryFiles.length ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(FileLinks, { files: secondaryFiles.slice(0, 12) }) : null,
+      renderPrimaryResult(message, result, preview)
     ] });
   }
-  function formatMessageUsage(usage) {
-    const label = getUsageLabel(usage);
-    if (!label) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "ml-2 font-normal normal-case text-[var(--vscode-descriptionForeground)]", children: label });
+  function renderPrimaryResult(message, result, preview) {
+    if (message.name === "run_bash_script") return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(BashScriptResult, { message, result });
+    if (!result && preview) return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(CompactFacts, { result: preview });
+    if (!result) return null;
+    if (asString(result.error)) return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ErrorText, { text: asString(result.error) || "" });
+    if (message.name === "read_file") return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(CodePreview, { result });
+    if (message.name === "list_files") return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(EntriesList, { result });
+    if (message.name === "grep_search") return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(SearchFiles, { result });
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(CompactFacts, { result });
   }
-  function formatMessageUsagePill(usage) {
-    const label = getUsageLabel(usage);
-    if (!label) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "tool-usage-pill", children: label });
+  function CodePreview({ result }) {
+    const { t } = useI18n();
+    const content3 = asString(result.content) || "";
+    const isLong = content3.length > CODE_PREVIEW_LIMIT;
+    const preview = isLong ? `${content3.slice(0, CODE_PREVIEW_LIMIT)}
+\u2026` : content3;
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("details", { className: ToolResultPreview_module_default.details, open: !isLong, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("summary", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ChevronRight, { size: 13 }),
+        t("tool.preview.code"),
+        " ",
+        Boolean(result.truncated) || isLong ? `\xB7 ${t("tool.preview.truncated")}` : ""
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("pre", { className: ToolResultPreview_module_default.codePreview, children: preview || t("tool.preview.emptyFile") })
+    ] });
+  }
+  function EntriesList({ result }) {
+    const { t } = useI18n();
+    const entries = arrayValue(result.entries);
+    const truncated = Boolean(result.truncated) || entries.length > LIST_PREVIEW_LIMIT;
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("ul", { className: ToolResultPreview_module_default.listPreview, children: [
+      entries.slice(0, LIST_PREVIEW_LIMIT).map(renderEntryItem),
+      truncated ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("li", { className: ToolResultPreview_module_default.truncated, children: t("tool.preview.moreItems") }) : null
+    ] });
+  }
+  function SearchFiles({ result }) {
+    const { t } = useI18n();
+    const files = getUniqueSearchFiles(result);
+    const truncated = Boolean(result.truncated) || files.length > LIST_PREVIEW_LIMIT;
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("ul", { className: `${ToolResultPreview_module_default.listPreview} ${ToolResultPreview_module_default.listVertical}`, children: [
+      files.slice(0, LIST_PREVIEW_LIMIT).map(renderSearchFile),
+      truncated ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("li", { className: ToolResultPreview_module_default.truncated, children: t("tool.preview.moreFiles") }) : null
+    ] });
+  }
+  function BashScriptResult({ message, result }) {
+    const { t } = useI18n();
+    const stdout = asString(result?.stdout) || "";
+    const stderr = asString(result?.stderr) || "";
+    const error = asString(result?.error);
+    const command = asString(message.args?.script) || "bash -lc";
+    const facts = getBashFacts(message, result, t);
+    const hasOutput = Boolean(stdout || stderr);
+    const completedQuietly = Boolean(result && !error && !hasOutput);
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: ToolResultPreview_module_default.bashPreview, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: ToolResultPreview_module_default.bashCommand, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: ToolResultPreview_module_default.bashCommandLabel, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Terminal, { size: 13 }),
+          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("span", { children: t("common.command") })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("pre", { className: ToolResultPreview_module_default.bashCommandPre, children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("code", { children: command }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("dl", { className: ToolResultPreview_module_default.bashFacts, children: facts.map((fact) => /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: fact.tone ? ToolResultPreview_module_default[`fact${capitalize(fact.tone)}`] : void 0, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("dt", { children: fact.label }),
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("dd", { children: fact.value })
+      ] }, fact.label)) }),
+      error ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ErrorText, { text: error }) : null,
+      !result ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: ToolResultPreview_module_default.waitingOutput, children: t("tool.preview.waitingOutput") }) : null,
+      stdout ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+        OutputBlock,
+        {
+          label: `stdout${result?.stdoutTruncated ? ` \xB7 ${t("tool.preview.truncated")}` : ""}`,
+          text: stdout,
+          tone: "stdout"
+        }
+      ) : null,
+      stderr ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+        OutputBlock,
+        {
+          label: `stderr${result?.stderrTruncated ? ` \xB7 ${t("tool.preview.truncated")}` : ""}`,
+          text: stderr,
+          tone: "stderr"
+        }
+      ) : null,
+      completedQuietly ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: ToolResultPreview_module_default.noOutput, children: t("tool.preview.noOutput") }) : null
+    ] });
+  }
+  function OutputBlock({ label, text: text7, tone }) {
+    const { language, t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("details", { className: `${ToolResultPreview_module_default.details} ${ToolResultPreview_module_default.outputBlock} ${tone === "stderr" ? ToolResultPreview_module_default.stderr : ""}`, open: true, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("summary", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ChevronRight, { size: 13 }),
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("span", { children: label }),
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("em", { children: getLineCountLabel(text7, language, t) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("pre", { className: ToolResultPreview_module_default.codePreview, children: text7 })
+    ] });
+  }
+  function renderEntryItem(entry, index2) {
+    const item = asRecord(entry);
+    const path2 = asString(item?.path) || `entry-${index2}`;
+    const type = asString(item?.type) || "file";
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("li", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Folder, { size: 13 }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("span", { children: path2 }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("em", { children: type })
+    ] }, `${path2}-${index2}`);
+  }
+  function renderSearchFile(file) {
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("li", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ListTree, { size: 13 }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(WorkspaceFileLink, { file })
+    ] }, `${file.path}:${file.line || 0}:${file.column || 0}`);
+  }
+  function FileLinks({ files }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("div", { className: ToolResultPreview_module_default.fileLinks, children: files.map((file) => /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(WorkspaceFileLink, { file }, `${file.path}:${file.line || 0}:${file.column || 0}`)) });
+  }
+  function CompactFacts({ result }) {
+    const facts = Object.entries(result).filter(([, value]) => typeof value !== "object").map(([key, value]) => `${key}: ${String(value)}`);
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: ToolResultPreview_module_default.compactFacts, children: facts.join(" \xB7 ") });
+  }
+  function Reason({ text: text7 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: ToolResultPreview_module_default.reason, children: text7 });
+  }
+  function ErrorText({ text: text7 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: ToolResultPreview_module_default.errorText, children: text7 });
+  }
+  function capitalize(value) {
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  // src/webview/entities/message/message-formatting/MessageFormatting.module.scss
+  var MessageFormatting_module_default = {
+    dateLabel: "MessageFormatting_module_dateLabel",
+    usageInline: "MessageFormatting_module_usageInline",
+    usagePill: "MessageFormatting_module_usagePill"
+  };
+
+  // src/webview/entities/message/message-formatting/utils.ts
+  function formatTokens(tokens) {
+    if (tokens >= 1e6) return `${(tokens / 1e6).toFixed(1)}M`;
+    if (tokens >= 1e3) return `${(tokens / 1e3).toFixed(1)}K`;
+    return String(tokens);
+  }
+  function formatCost(costUsd) {
+    if (costUsd === 0) return "$0.00";
+    return costUsd < 1e-4 ? `~$${costUsd.toFixed(6)}` : `~$${costUsd.toFixed(4)}`;
   }
   function getUsageLabel(usage) {
     const tokens = usage?.tokens || (usage?.promptTokens || 0) + (usage?.completionTokens || 0);
@@ -36826,38 +37239,113 @@
   function padTimePart(value) {
     return String(value).padStart(2, "0");
   }
-  function formatTokens(tokens) {
-    if (tokens >= 1e6) return `${(tokens / 1e6).toFixed(1)}M`;
-    if (tokens >= 1e3) return `${(tokens / 1e3).toFixed(1)}K`;
-    return String(tokens);
+
+  // src/webview/entities/message/message-formatting/messageFormatting.tsx
+  var import_jsx_runtime18 = __toESM(require_jsx_runtime());
+  function formatToolStatusLocalized(message, t) {
+    if (message.approval === "pending") return t("tool.status.approvalNeeded");
+    if (message.status === "waiting") return t("tool.status.waiting");
+    if (message.status === "running") return t("tool.status.running");
+    if (message.status === "done") return t("tool.status.done");
+    if (message.status === "error") return t("tool.status.error");
+    if (message.status === "denied") return t("tool.status.denied");
+    return t("tool.status.unknown");
   }
-  function formatCost(costUsd) {
-    if (costUsd === 0) return "$0.00";
-    return costUsd < 1e-4 ? `~$${costUsd.toFixed(6)}` : `~$${costUsd.toFixed(4)}`;
+  function getToolStatusClass(status) {
+    return status === "error" || status === "denied" ? "error" : "neutral";
+  }
+  function formatMessageDate(timestamp) {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    const time = [date.getHours(), date.getMinutes(), date.getSeconds()].map(padTimePart).join(":");
+    const day = padTimePart(date.getDate());
+    const month = padTimePart(date.getMonth() + 1);
+    return /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)("span", { className: MessageFormatting_module_default.dateLabel, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("strong", { children: time }),
+      " ",
+      /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)("span", { children: [
+        day,
+        ".",
+        month,
+        ".",
+        date.getFullYear()
+      ] })
+    ] });
+  }
+  function formatMessageUsage(usage) {
+    const label = getUsageLabel(usage);
+    if (!label) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("span", { className: MessageFormatting_module_default.usageInline, children: label });
+  }
+  function formatMessageUsagePill(usage) {
+    const label = getUsageLabel(usage);
+    if (!label) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("span", { className: MessageFormatting_module_default.usagePill, children: label });
   }
 
-  // src/webview/entities/message/ToolMessageCard.tsx
-  var import_jsx_runtime12 = __toESM(require_jsx_runtime());
+  // src/webview/entities/message/tool-message-card/utils.ts
+  var TONE_CLASS_MAP = {
+    blue: "toneBlue",
+    green: "toneGreen",
+    purple: "tonePurple",
+    amber: "toneAmber",
+    rose: "toneRose",
+    cyan: "toneCyan",
+    slate: "toneSlate"
+  };
+
+  // src/webview/entities/message/tool-message-card/ToolMessageCard.module.scss
+  var ToolMessageCard_module_default = {
+    root: "ToolMessageCard_module_root",
+    errorBorder: "ToolMessageCard_module_errorBorder",
+    body: "ToolMessageCard_module_body",
+    headerRow: "ToolMessageCard_module_headerRow",
+    chevronButton: "ToolMessageCard_module_chevronButton",
+    headerMain: "ToolMessageCard_module_headerMain",
+    iconPill: "ToolMessageCard_module_iconPill",
+    iconPillLabel: "ToolMessageCard_module_iconPillLabel",
+    title: "ToolMessageCard_module_title",
+    titleText: "ToolMessageCard_module_titleText",
+    reasonRow: "ToolMessageCard_module_reasonRow",
+    detailsHeader: "ToolMessageCard_module_detailsHeader",
+    summary: "ToolMessageCard_module_summary",
+    iconButton: "ToolMessageCard_module_iconButton",
+    statusBadge: "ToolMessageCard_module_statusBadge",
+    statusNeutral: "ToolMessageCard_module_statusNeutral",
+    statusError: "ToolMessageCard_module_statusError",
+    toneBlue: "ToolMessageCard_module_toneBlue",
+    toneGreen: "ToolMessageCard_module_toneGreen",
+    tonePurple: "ToolMessageCard_module_tonePurple",
+    toneAmber: "ToolMessageCard_module_toneAmber",
+    toneRose: "ToolMessageCard_module_toneRose",
+    toneCyan: "ToolMessageCard_module_toneCyan",
+    toneSlate: "ToolMessageCard_module_toneSlate"
+  };
+
+  // src/webview/entities/message/tool-message-card/ToolMessageCard.tsx
+  var import_jsx_runtime19 = __toESM(require_jsx_runtime());
   function ToolMessageCard({ message, collapseToolId }) {
     const { t } = useI18n();
-    const [expanded, setExpanded] = (0, import_react7.useState)(message.approval === "pending");
-    const [rawOpen, setRawOpen] = (0, import_react7.useState)(false);
+    const [expanded, setExpanded] = (0, import_react13.useState)(message.approval === "pending");
+    const [rawOpen, setRawOpen] = (0, import_react13.useState)(false);
     const model = buildToolDisplayModel(message, t);
     const isRunning = message.status === "running" || message.status === "waiting";
     const needsApproval = message.approval === "pending";
-    (0, import_react7.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (needsApproval) {
         setExpanded(true);
       }
     }, [needsApproval]);
-    (0, import_react7.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       if (collapseToolId === message.id && !needsApproval) {
         setExpanded(false);
       }
     }, [collapseToolId, message.id, needsApproval]);
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("article", { className: getCardClassName(message, model), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tool-card-body", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+    const toneClass = ToolMessageCard_module_default[TONE_CLASS_MAP[model.tone]] || "";
+    const errorClass = message.status === "error" ? ToolMessageCard_module_default.errorBorder : "";
+    return /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("article", { className: `${ToolMessageCard_module_default.root} ${toneClass} ${errorClass}`, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("div", { className: ToolMessageCard_module_default.body, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(
           ToolHeaderContent,
           {
             message,
@@ -36867,58 +37355,51 @@
             onToggle: () => setExpanded((value) => !value)
           }
         ),
-        expanded ? /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolDetailsHeader, { message, model, onRawClick: () => setRawOpen(true) }),
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolResultPreview, { message }),
-          needsApproval ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { onClick: stopPropagation2, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolApprovalActions, { messageId: message.id, compact: true, onResolved: () => setExpanded(false) }) }) : null
+        expanded ? /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)(import_jsx_runtime19.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ToolDetailsHeader, { message, model, onRawClick: () => setRawOpen(true) }),
+          /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ToolResultPreview, { message }),
+          needsApproval ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("div", { onClick: stopPropagation2, children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ToolApprovalActions, { messageId: message.id, compact: true, onResolved: () => setExpanded(false) }) }) : null
         ] }) : null
       ] }),
       formatMessageUsagePill(message.usage),
-      rawOpen ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolRawJsonModal, { message, onClose: closeRawModal(setRawOpen) }) : null
+      rawOpen ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ToolRawJsonModal, { message, onClose: closeRawModal(setRawOpen) }) : null
     ] });
   }
   function ToolHeaderContent({ message, model, expanded, isRunning, onToggle }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tool-header-row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("div", { className: ToolMessageCard_module_default.headerRow, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(
         "button",
         {
-          className: "tool-chevron-button",
+          className: ToolMessageCard_module_default.chevronButton,
           title: expanded ? t("tool.hideDetails") : t("tool.showDetails"),
           "aria-expanded": expanded,
           onClick: stopAndRun(onToggle),
-          children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ChevronRight, { size: 14 })
+          children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ChevronRight, { size: 14 })
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tool-header-main", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "tool-icon-pill", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolIcon, { name: message.name, size: 14, className: isRunning ? "animate-pulse" : "" }),
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tool-icon-pill-label", children: model.action })
+      /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("div", { className: ToolMessageCard_module_default.headerMain, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("span", { className: ToolMessageCard_module_default.iconPill, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ToolIcon, { name: message.name, size: 14, className: isRunning ? "animate-pulse" : "" }),
+          /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: ToolMessageCard_module_default.iconPillLabel, children: model.action })
         ] }),
         formatMessageDate(message.createdAt),
-        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolTitle, { model })
+        /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(ToolTitle, { model })
       ] }),
-      !expanded && message.reason ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "tool-reason-row", children: message.reason }) : null
+      !expanded && message.reason ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("div", { className: ToolMessageCard_module_default.reasonRow, children: message.reason }) : null
     ] });
   }
   function ToolDetailsHeader({ message, model, onRawClick }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tool-details-header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tool-summary", children: model.summary }),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ToolStatusBadge, { message }),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("button", { className: "tool-icon-button", title: t("tool.showJson"), onClick: stopAndRun(onRawClick), children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(CodeXml, { size: 14 }) })
+    const statusClassName = getToolStatusClass(message.status);
+    return /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("div", { className: ToolMessageCard_module_default.detailsHeader, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: ToolMessageCard_module_default.summary, children: model.summary }),
+      /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: `${ToolMessageCard_module_default.statusBadge} ${ToolMessageCard_module_default[statusClassName === "error" ? "statusError" : "statusNeutral"]}`, children: formatToolStatusLocalized(message, t) }),
+      /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("button", { className: ToolMessageCard_module_default.iconButton, title: t("tool.showJson"), onClick: stopAndRun(onRawClick), children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(CodeXml, { size: 14 }) })
     ] });
   }
   function ToolTitle({ model }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "tool-title", children: model.primaryFile ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(WorkspaceFileLink, { file: model.primaryFile }) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tool-title-text", children: model.title }) });
-  }
-  function ToolStatusBadge({ message }) {
-    const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: `tool-status-badge ${getToolStatusClass(message.status)}`, children: formatToolStatusLocalized(message, t) });
-  }
-  function getCardClassName(message, model) {
-    const errorClass = message.status === "error" ? "border-[var(--vscode-errorForeground)]" : "";
-    return `message-card tool-card tool-tone-${model.tone} ${errorClass}`;
+    return /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("div", { className: ToolMessageCard_module_default.title, children: model.primaryFile ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(WorkspaceFileLink, { file: model.primaryFile }) : /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: ToolMessageCard_module_default.titleText, children: model.title }) });
   }
   function stopPropagation2(event) {
     event.stopPropagation();
@@ -36936,21 +37417,78 @@
     };
   }
 
-  // src/webview/entities/message/MessageCard.tsx
-  var import_jsx_runtime13 = __toESM(require_jsx_runtime());
+  // src/webview/entities/message/message-card/utils.tsx
+  var import_jsx_runtime20 = __toESM(require_jsx_runtime());
+  function getMessageVariant(role, t, styles) {
+    const variants = {
+      user: {
+        icon: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(User, { size: 16 }),
+        label: t("message.you"),
+        className: styles.user
+      },
+      assistant: {
+        icon: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(Bot, { size: 16 }),
+        label: t("message.agent"),
+        className: styles.assistant
+      },
+      status: {
+        icon: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(LoaderCircle, { size: 16, className: styles.spinIcon }),
+        label: t("message.status"),
+        className: styles.status
+      },
+      error: {
+        icon: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(Wrench, { size: 16 }),
+        label: t("message.error"),
+        className: styles.error
+      },
+      tool: {
+        icon: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(Wrench, { size: 16 }),
+        label: t("message.tool"),
+        className: ""
+      }
+    };
+    return variants[role] || variants.assistant;
+  }
+  function isCollapsibleMessage(message) {
+    return message.role === "user" || message.role === "assistant";
+  }
+
+  // src/webview/entities/message/message-card/MessageCard.module.scss
+  var MessageCard_module_default = {
+    root: "MessageCard_module_root",
+    user: "MessageCard_module_user",
+    assistant: "MessageCard_module_assistant",
+    status: "MessageCard_module_status",
+    error: "MessageCard_module_error",
+    cutCard: "MessageCard_module_cutCard",
+    collapsed: "MessageCard_module_collapsed",
+    expanded: "MessageCard_module_expanded",
+    cutShadow: "MessageCard_module_cutShadow",
+    cutButton: "MessageCard_module_cutButton",
+    markdownBody: "MessageCard_module_markdownBody",
+    header: "MessageCard_module_header",
+    headerMeta: "MessageCard_module_headerMeta",
+    spinIcon: "MessageCard_module_spinIcon",
+    spin: "MessageCard_module_spin"
+  };
+
+  // src/webview/entities/message/message-card/MessageCard.tsx
+  var import_jsx_runtime21 = __toESM(require_jsx_runtime());
   function MessageCard({ message, actions, defaultExpanded = true, collapseToolId }) {
     const { t } = useI18n();
     if (message.role === "tool") {
-      return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(ToolMessageCard, { message, collapseToolId });
+      return /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(ToolMessageCard, { message, collapseToolId });
     }
-    const variant = getMessageVariant(message.role, t);
+    const variant = getMessageVariant(message.role, t, MessageCard_module_default);
     const collapsible = isCollapsibleMessage(message);
-    const [expanded, setExpanded] = (0, import_react8.useState)(!collapsible || defaultExpanded);
-    (0, import_react8.useEffect)(() => {
+    const [expanded, setExpanded] = (0, import_react14.useState)(!collapsible || defaultExpanded);
+    (0, import_react14.useEffect)(() => {
       setExpanded(!collapsible || defaultExpanded);
     }, [collapsible, defaultExpanded, message.id]);
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("article", { className: getMessageClassName(variant.className, collapsible, expanded), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    const cutClass = collapsible ? expanded ? MessageCard_module_default.expanded : MessageCard_module_default.collapsed : "";
+    const rootClassName = `${MessageCard_module_default.root} ${collapsible ? MessageCard_module_default.cutCard : ""} ${cutClass} ${variant.className}`;
+    return /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("article", { className: rootClassName, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(
         MessageHeader,
         {
           icon: variant.icon,
@@ -36962,700 +37500,1176 @@
           onToggle: () => setExpanded((value) => !value)
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "markdown-body", children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Markdown, { remarkPlugins: [remarkGfm], children: message.content || "" }) }),
-      collapsible && !expanded ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "message-cut-shadow" }) : null
+      /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("div", { className: MessageCard_module_default.markdownBody, children: /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(Markdown, { remarkPlugins: [remarkGfm], children: message.content || "" }) }),
+      collapsible && !expanded ? /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("div", { className: MessageCard_module_default.cutShadow }) : null
     ] });
   }
   function MessageHeader({ icon, label, message, actions, collapsible, expanded, onToggle }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "mb-2 flex items-center justify-between gap-3", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: HEADER_CLASS_NAME, children: [
-        collapsible ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("div", { className: MessageCard_module_default.header, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("div", { className: MessageCard_module_default.headerMeta, children: [
+        collapsible ? /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(
           "button",
           {
-            className: "message-cut-button",
+            className: MessageCard_module_default.cutButton,
             title: expanded ? t("message.collapse") : t("message.expand"),
             "aria-expanded": expanded,
             onClick: onToggle,
-            children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(ChevronRight, { size: 14 })
+            children: /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(ChevronRight, { size: 14 })
           }
         ) : null,
         icon,
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: label }),
+        /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("span", { children: label }),
         formatMessageDate(message.createdAt),
         formatMessageUsage(message.usage)
       ] }),
       actions
     ] });
   }
-  function isCollapsibleMessage(message) {
-    return message.role === "user" || message.role === "assistant";
+
+  // src/webview/features/configure-tool-permission/ToolPermissionSelect.module.scss
+  var ToolPermissionSelect_module_default = {
+    root: "ToolPermissionSelect_module_root",
+    layout: "ToolPermissionSelect_module_layout",
+    content: "ToolPermissionSelect_module_content",
+    title: "ToolPermissionSelect_module_title",
+    description: "ToolPermissionSelect_module_description",
+    defaultPermission: "ToolPermissionSelect_module_defaultPermission",
+    select: "ToolPermissionSelect_module_select"
+  };
+
+  // src/webview/features/configure-tool-permission/utils.ts
+  function formatPermission(permission, t) {
+    return permission === "auto" ? t("settings.permission.auto") : t("settings.permission.ask");
   }
-  function getMessageClassName(className, collapsible, expanded) {
-    const cutClass = collapsible ? expanded ? "message-cut-expanded" : "message-cut-collapsed" : "";
-    return `message-card message-cut-card ${cutClass} ${className}`;
+
+  // src/webview/features/configure-tool-permission/ToolPermissionSelect.tsx
+  var import_jsx_runtime22 = __toESM(require_jsx_runtime());
+  function ToolPermissionSelect({ item }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime22.jsx)("article", { className: ToolPermissionSelect_module_default.root, children: /* @__PURE__ */ (0, import_jsx_runtime22.jsxs)("div", { className: ToolPermissionSelect_module_default.layout, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime22.jsxs)("div", { className: ToolPermissionSelect_module_default.content, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime22.jsxs)("div", { className: ToolPermissionSelect_module_default.title, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(ToolIcon, { name: item.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime22.jsx)("span", { children: t(`tool.label.${item.name}`) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime22.jsx)("p", { className: ToolPermissionSelect_module_default.description, children: t(`tool.description.${item.name}`) }),
+        /* @__PURE__ */ (0, import_jsx_runtime22.jsx)("p", { className: ToolPermissionSelect_module_default.defaultPermission, children: t("settings.permission.default", { permission: formatPermission(item.defaultPermission, t) }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime22.jsxs)(
+        "select",
+        {
+          className: ToolPermissionSelect_module_default.select,
+          value: item.permission,
+          onChange: (event) => vscode.postMessage({
+            type: "setToolPermission",
+            toolName: item.name,
+            permission: event.target.value
+          }),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime22.jsx)("option", { value: "ask", children: t("settings.permission.ask") }),
+            /* @__PURE__ */ (0, import_jsx_runtime22.jsx)("option", { value: "auto", children: t("settings.permission.auto") })
+          ]
+        }
+      )
+    ] }) });
   }
-  function getMessageVariant(role, t) {
-    const variants = {
-      user: {
-        icon: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(User, { size: 16 }),
-        label: t("message.you"),
-        className: "message-card-user"
-      },
-      assistant: {
-        icon: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Bot, { size: 16 }),
-        label: t("message.agent"),
-        className: "message-card-assistant"
-      },
-      status: {
-        icon: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(LoaderCircle, { size: 16, className: "animate-spin" }),
-        label: t("message.status"),
-        className: "border-dashed text-[var(--vscode-descriptionForeground)]"
-      },
-      error: {
-        icon: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Wrench, { size: 16 }),
-        label: t("message.error"),
-        className: "border-[var(--vscode-errorForeground)] text-[var(--vscode-errorForeground)]"
-      },
-      tool: {
-        icon: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Wrench, { size: 16 }),
-        label: t("message.tool"),
-        className: ""
-      }
-    };
-    return variants[role] || variants.assistant;
-  }
-  var HEADER_CLASS_NAME = [
-    "flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-normal",
-    "text-[var(--vscode-descriptionForeground)]"
-  ].join(" ");
+
+  // src/webview/shared/ui/IconButton.module.scss
+  var IconButton_module_default = {
+    root: "IconButton_module_root"
+  };
 
   // src/webview/shared/ui/IconButton.tsx
-  var import_jsx_runtime14 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime23 = __toESM(require_jsx_runtime());
   function IconButton({ title, children, disabled, onClick }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("button", { className: "icon-button", title, "aria-label": title, disabled, onClick, children });
+    return /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("button", { className: IconButton_module_default.root, title, "aria-label": title, disabled, onClick, children });
   }
 
+  // src/webview/features/copy-message/CopyMessageButton.module.scss
+  var CopyMessageButton_module_default = {
+    root: "CopyMessageButton_module_root"
+  };
+
   // src/webview/features/copy-message/CopyMessageButton.tsx
-  var import_jsx_runtime15 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime24 = __toESM(require_jsx_runtime());
   function CopyMessageButton({ markdown }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { className: CopyMessageButton_module_default.root, children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(
       IconButton,
       {
         title: t("message.copyMarkdown"),
         disabled: !markdown,
         onClick: () => vscode.postMessage({ type: "copyMessage", markdown }),
-        children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(Copy, { size: 15 })
+        children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(Copy, { size: 15 })
       }
-    );
+    ) });
   }
 
-  // src/webview/widgets/message-list/system-instruction-label/SystemInstructionLabel.tsx
-  var import_react16 = __toESM(require_react());
-  var import_react_dom2 = __toESM(require_react_dom());
-
-  // src/webview/pages/permissions/PermissionsPage.tsx
+  // src/webview/features/select-agent-mode/AgentModeSelect.tsx
   var import_react15 = __toESM(require_react());
 
-  // src/webview/features/configure-tool-permission/ToolPermissionSelect.tsx
-  var import_jsx_runtime16 = __toESM(require_jsx_runtime());
+  // src/webview/features/select-agent-mode/AgentModeSelect.module.scss
+  var AgentModeSelect_module_default = {
+    root: "AgentModeSelect_module_root",
+    trigger: "AgentModeSelect_module_trigger",
+    triggerLabel: "AgentModeSelect_module_triggerLabel",
+    optionLabel: "AgentModeSelect_module_optionLabel",
+    chevron: "AgentModeSelect_module_chevron",
+    checkIcon: "AgentModeSelect_module_checkIcon",
+    chevronOpen: "AgentModeSelect_module_chevronOpen",
+    menu: "AgentModeSelect_module_menu",
+    item: "AgentModeSelect_module_item",
+    itemActive: "AgentModeSelect_module_itemActive",
+    optionButton: "AgentModeSelect_module_optionButton",
+    checkHidden: "AgentModeSelect_module_checkHidden",
+    itemAction: "AgentModeSelect_module_itemAction",
+    itemActionDanger: "AgentModeSelect_module_itemActionDanger"
+  };
 
-  // src/webview/features/select-permission-preset/PermissionPresetSelect.tsx
-  var import_jsx_runtime17 = __toESM(require_jsx_runtime());
-
-  // src/webview/shared/ui/lib/classNames.ts
-  function classNames(...values) {
-    return values.filter(Boolean).join(" ");
+  // src/webview/features/select-agent-mode/utils.ts
+  var DEFAULT_MODE_IDS = /* @__PURE__ */ new Set(["default", "careful"]);
+  function canDeleteAgentMode(modeId) {
+    return !DEFAULT_MODE_IDS.has(modeId);
   }
 
-  // src/webview/shared/ui/badge/Badge.tsx
-  var import_jsx_runtime18 = __toESM(require_jsx_runtime());
-
-  // src/webview/shared/ui/button/Button.tsx
-  var import_react9 = __toESM(require_react());
-
-  // src/webview/shared/ui/button/Button.module.scss
-  var Button_module_default = {
-    button: "Button_module_button",
-    content: "Button_module_content",
-    icon: "Button_module_icon",
-    sm: "Button_module_sm",
-    md: "Button_module_md",
-    lg: "Button_module_lg",
-    fullWidth: "Button_module_fullWidth",
-    primary: "Button_module_primary",
-    secondary: "Button_module_secondary",
-    ghost: "Button_module_ghost",
-    danger: "Button_module_danger"
-  };
-
-  // src/webview/shared/ui/button/Button.tsx
-  var import_jsx_runtime19 = __toESM(require_jsx_runtime());
-  var Button = (0, import_react9.forwardRef)(
-    ({ variant = "secondary", size = "md", leadingIcon, trailingIcon, fullWidth, className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)(
-      "button",
-      {
-        ref,
-        className: classNames(Button_module_default.button, Button_module_default[variant], Button_module_default[size], fullWidth && Button_module_default.fullWidth, className),
-        ...props,
-        children: [
-          leadingIcon ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: Button_module_default.icon, children: leadingIcon }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: Button_module_default.content, children }),
-          trailingIcon ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: Button_module_default.icon, children: trailingIcon }) : null
-        ]
+  // src/webview/features/select-agent-mode/AgentModeSelect.tsx
+  var import_jsx_runtime25 = __toESM(require_jsx_runtime());
+  function AgentModeSelect({ modes, activeId, className }) {
+    const { t } = useI18n();
+    const rootRef = (0, import_react15.useRef)(null);
+    const [open, setOpen] = (0, import_react15.useState)(false);
+    const [deleteTargetId, setDeleteTargetId] = (0, import_react15.useState)();
+    const activeMode = modes.find((mode) => mode.id === activeId) || modes[0];
+    (0, import_react15.useEffect)(() => {
+      if (!open) {
+        setDeleteTargetId(void 0);
+        return;
       }
-    )
-  );
-  Button.displayName = "Button";
-
-  // src/webview/shared/ui/card/Card.module.scss
-  var Card_module_default = {
-    card: "Card_module_card",
-    default: "Card_module_default",
-    elevated: "Card_module_elevated",
-    accent: "Card_module_accent",
-    header: "Card_module_header",
-    heading: "Card_module_heading",
-    title: "Card_module_title",
-    description: "Card_module_description",
-    actions: "Card_module_actions",
-    body: "Card_module_body"
-  };
-
-  // src/webview/shared/ui/card/Card.tsx
-  var import_jsx_runtime20 = __toESM(require_jsx_runtime());
-  function Card({ tone = "default", title, description, actions, className, children, ...props }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("section", { className: classNames(Card_module_default.card, Card_module_default[tone], className), ...props, children: [
-      title || description || actions ? /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("header", { className: Card_module_default.header, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("div", { className: Card_module_default.heading, children: [
-          title ? /* @__PURE__ */ (0, import_jsx_runtime20.jsx)("h3", { className: Card_module_default.title, children: title }) : null,
-          description ? /* @__PURE__ */ (0, import_jsx_runtime20.jsx)("p", { className: Card_module_default.description, children: description }) : null
-        ] }),
-        actions ? /* @__PURE__ */ (0, import_jsx_runtime20.jsx)("div", { className: Card_module_default.actions, children: actions }) : null
-      ] }) : null,
-      children ? /* @__PURE__ */ (0, import_jsx_runtime20.jsx)("div", { className: Card_module_default.body, children }) : null
+      function handlePointerDown(event) {
+        if (!rootRef.current?.contains(event.target)) {
+          setOpen(false);
+        }
+      }
+      function handleKeyDown(event) {
+        if (event.key === "Escape") {
+          setOpen(false);
+        }
+      }
+      document.addEventListener("pointerdown", handlePointerDown);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("pointerdown", handlePointerDown);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [open]);
+    (0, import_react15.useEffect)(() => {
+      if (deleteTargetId && !modes.some((mode) => mode.id === deleteTargetId)) {
+        setDeleteTargetId(void 0);
+      }
+    }, [modes, deleteTargetId]);
+    function selectMode(modeId) {
+      vscode.postMessage({ type: "setAgentMode", modeId });
+      setOpen(false);
+      setDeleteTargetId(void 0);
+    }
+    function deleteMode(modeId) {
+      vscode.postMessage({ type: "deleteAgentMode", modeId });
+      setDeleteTargetId(void 0);
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { ref: rootRef, className: className ? `${AgentModeSelect_module_default.root} ${className}` : AgentModeSelect_module_default.root, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: AgentModeSelect_module_default.trigger,
+          "aria-haspopup": "listbox",
+          "aria-expanded": open,
+          onClick: () => setOpen((value) => !value),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: AgentModeSelect_module_default.triggerLabel, children: activeMode?.label ?? activeId }),
+            /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(ChevronDown, { size: 14, className: open ? `${AgentModeSelect_module_default.chevron} ${AgentModeSelect_module_default.chevronOpen}` : AgentModeSelect_module_default.chevron })
+          ]
+        }
+      ),
+      open ? /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("div", { className: AgentModeSelect_module_default.menu, role: "listbox", "aria-label": t("summary.agentMode"), children: modes.map((mode) => {
+        const active = mode.id === activeId;
+        const deletable = canDeleteAgentMode(mode.id);
+        const confirmingDelete = deleteTargetId === mode.id;
+        return /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("div", { className: active ? `${AgentModeSelect_module_default.item} ${AgentModeSelect_module_default.itemActive}` : AgentModeSelect_module_default.item, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: AgentModeSelect_module_default.optionButton,
+              role: "option",
+              "aria-selected": active,
+              onClick: () => selectMode(mode.id),
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(Check, { size: 14, className: active ? AgentModeSelect_module_default.checkIcon : `${AgentModeSelect_module_default.checkIcon} ${AgentModeSelect_module_default.checkHidden}` }),
+                /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: AgentModeSelect_module_default.optionLabel, children: mode.label })
+              ]
+            }
+          ),
+          deletable ? confirmingDelete ? /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)(import_jsx_runtime25.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(
+              "button",
+              {
+                type: "button",
+                className: AgentModeSelect_module_default.itemActionDanger,
+                title: t("common.confirmDelete"),
+                "aria-label": t("common.confirmDelete"),
+                onClick: () => deleteMode(mode.id),
+                children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(Check, { size: 14 })
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(
+              "button",
+              {
+                type: "button",
+                className: AgentModeSelect_module_default.itemAction,
+                title: t("common.cancelDelete"),
+                "aria-label": t("common.cancelDelete"),
+                onClick: () => setDeleteTargetId(void 0),
+                children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(X, { size: 14 })
+              }
+            )
+          ] }) : /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(
+            "button",
+            {
+              type: "button",
+              className: AgentModeSelect_module_default.itemActionDanger,
+              title: t("common.delete"),
+              "aria-label": t("common.delete"),
+              onClick: () => setDeleteTargetId(mode.id),
+              children: /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(Trash2, { size: 14 })
+            }
+          ) : null
+        ] }, mode.id);
+      }) }) : null
     ] });
   }
 
-  // src/webview/shared/ui/checkbox/Checkbox.tsx
-  var import_react10 = __toESM(require_react());
+  // src/webview/features/select-model/ModelSelect.tsx
+  var import_react16 = __toESM(require_react());
 
-  // src/webview/shared/ui/checkbox/Checkbox.module.scss
-  var Checkbox_module_default = {
-    checkbox: "Checkbox_module_checkbox",
-    boxWrap: "Checkbox_module_boxWrap",
-    input: "Checkbox_module_input",
-    box: "Checkbox_module_box",
-    text: "Checkbox_module_text",
-    label: "Checkbox_module_label",
-    description: "Checkbox_module_description"
+  // src/webview/features/select-model/ModelSelect.module.scss
+  var ModelSelect_module_default = {
+    root: "ModelSelect_module_root",
+    label: "ModelSelect_module_label",
+    labelIcon: "ModelSelect_module_labelIcon",
+    chevron: "ModelSelect_module_chevron",
+    optionCheck: "ModelSelect_module_optionCheck",
+    searchIcon: "ModelSelect_module_searchIcon",
+    trigger: "ModelSelect_module_trigger",
+    triggerText: "ModelSelect_module_triggerText",
+    optionText: "ModelSelect_module_optionText",
+    optionName: "ModelSelect_module_optionName",
+    optionId: "ModelSelect_module_optionId",
+    chevronOpen: "ModelSelect_module_chevronOpen",
+    menu: "ModelSelect_module_menu",
+    searchBox: "ModelSelect_module_searchBox",
+    searchInput: "ModelSelect_module_searchInput",
+    list: "ModelSelect_module_list",
+    group: "ModelSelect_module_group",
+    groupTitle: "ModelSelect_module_groupTitle",
+    optionButton: "ModelSelect_module_optionButton",
+    optionActive: "ModelSelect_module_optionActive",
+    optionCheckHidden: "ModelSelect_module_optionCheckHidden",
+    optionIdMuted: "ModelSelect_module_optionIdMuted",
+    empty: "ModelSelect_module_empty"
   };
 
-  // src/webview/shared/ui/checkbox/Checkbox.tsx
-  var import_jsx_runtime21 = __toESM(require_jsx_runtime());
-  var Checkbox = (0, import_react10.forwardRef)(
-    ({ label, description, className, id, ...props }, ref) => {
-      const generatedId = (0, import_react10.useId)();
-      const inputId = id || generatedId;
-      return /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("label", { className: classNames(Checkbox_module_default.checkbox, className), htmlFor: inputId, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("span", { className: Checkbox_module_default.boxWrap, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("input", { ref, id: inputId, className: Checkbox_module_default.input, type: "checkbox", ...props }),
-          /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("span", { className: Checkbox_module_default.box, "aria-hidden": "true", children: /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(Check, { size: 13 }) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("span", { className: Checkbox_module_default.text, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("span", { className: Checkbox_module_default.label, children: label }),
-          description ? /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("span", { className: Checkbox_module_default.description, children: description }) : null
-        ] })
-      ] });
-    }
-  );
-  Checkbox.displayName = "Checkbox";
-
-  // src/webview/shared/ui/keyboard-shortcut/KeyboardShortcut.tsx
-  var import_jsx_runtime22 = __toESM(require_jsx_runtime());
-
-  // src/webview/shared/ui/select/Select.tsx
-  var import_react11 = __toESM(require_react());
-  var import_react_dom = __toESM(require_react_dom());
-
-  // src/webview/shared/ui/select/Select.module.scss
-  var Select_module_default = {
-    field: "Select_module_field",
-    label: "Select_module_label",
-    nativeSelect: "Select_module_nativeSelect",
-    control: "Select_module_control",
-    trigger: "Select_module_trigger",
-    open: "Select_module_open",
-    invalid: "Select_module_invalid",
-    value: "Select_module_value",
-    placeholder: "Select_module_placeholder",
-    icon: "Select_module_icon",
-    withIcon: "Select_module_withIcon",
-    chevron: "Select_module_chevron",
-    dropdown: "Select_module_dropdown",
-    searchBox: "Select_module_searchBox",
-    searchIcon: "Select_module_searchIcon",
-    searchInput: "Select_module_searchInput",
-    options: "Select_module_options",
-    optionGroup: "Select_module_optionGroup",
-    categoryButton: "Select_module_categoryButton",
-    categoryChevron: "Select_module_categoryChevron",
-    categoryLabel: "Select_module_categoryLabel",
-    categoryCount: "Select_module_categoryCount",
-    option: "Select_module_option",
-    optionActive: "Select_module_optionActive",
-    check: "Select_module_check",
-    checkVisible: "Select_module_checkVisible",
-    optionLabel: "Select_module_optionLabel",
-    empty: "Select_module_empty",
-    sm: "Select_module_sm",
-    dropdownSm: "Select_module_dropdownSm",
-    dropdownTop: "Select_module_dropdownTop",
-    hint: "Select_module_hint",
-    error: "Select_module_error"
-  };
-
-  // src/webview/shared/ui/select/Select.tsx
-  var import_jsx_runtime23 = __toESM(require_jsx_runtime());
-  function getEstimatedDropdownHeight(optionCount, searchable, size, categoryCount = 0) {
-    const padding = 8;
-    const searchHeight = searchable ? size === "sm" ? 32 : 34 : 0;
-    const optionsGap = searchable ? 4 : 0;
-    const optionHeight = 27;
-    const categoryHeight = 26;
-    const emptyHeight = 32;
-    return padding + searchHeight + optionsGap + categoryCount * categoryHeight + Math.max(optionCount, 1) * (optionCount ? optionHeight : emptyHeight);
+  // src/webview/features/select-model/utils.ts
+  function getProviderLabel(provider) {
+    return provider === "codex" ? "ChatGPT Codex" : "OpenRouter";
   }
-  function buildOptionGroups(options, categories) {
-    if (!categories?.length) {
-      return [{ key: "default", options }];
+  function getSelectedModel(model, models) {
+    return models.find((item) => item.id === model) || {
+      id: model,
+      name: model,
+      provider: model.startsWith("codex:") ? "codex" : "openrouter",
+      supportsTools: true
+    };
+  }
+  function filterModels(models, query) {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return models;
     }
-    const groups = /* @__PURE__ */ new Map();
-    const uncategorized = [];
-    for (const category of categories) {
-      groups.set(category.id, { key: category.id, category, options: [] });
-    }
-    for (const option of options) {
-      const group = option.category ? groups.get(option.category) : void 0;
-      if (group) {
-        group.options.push(option);
-      } else {
-        uncategorized.push(option);
-      }
-    }
+    return models.filter(
+      (item) => `${item.name} ${item.id} ${getProviderLabel(item.provider)}`.toLowerCase().includes(normalizedQuery)
+    );
+  }
+  function groupModelsByProvider(models) {
     return [
-      ...Array.from(groups.values()).filter((group) => group.options.length),
-      ...uncategorized.length ? [{ key: "default", options: uncategorized }] : []
-    ];
-  }
-  var Select = (0, import_react11.forwardRef)(
-    ({
-      label,
-      hint,
-      error,
-      options,
-      categories,
-      placeholder,
-      size = "md",
-      leadingIcon,
-      displayLabels,
-      className,
-      id,
-      value,
-      defaultValue,
-      disabled,
-      searchable = true,
-      onChange,
-      onValueChange,
-      ...props
-    }, ref) => {
-      const { t } = useI18n();
-      const generatedId = (0, import_react11.useId)();
-      const selectId = id || generatedId;
-      const rootRef = (0, import_react11.useRef)(null);
-      const dropdownRef = (0, import_react11.useRef)(null);
-      const searchRef = (0, import_react11.useRef)(null);
-      const controlled = value !== void 0;
-      const [internalValue, setInternalValue] = (0, import_react11.useState)(defaultValue || "");
-      const [open, setOpen] = (0, import_react11.useState)(false);
-      const [query, setQuery] = (0, import_react11.useState)("");
-      const [dropdownPosition, setDropdownPosition] = (0, import_react11.useState)();
-      const [collapsedCategories, setCollapsedCategories] = (0, import_react11.useState)(
-        () => new Set((categories || []).filter((category) => category.defaultCollapsed).map((category) => category.id))
-      );
-      const currentValue = controlled ? value : internalValue;
-      const selected = options.find((option) => option.value === currentValue);
-      const selectFallback = t("summary.model");
-      const displayLabel = (selected ? displayLabels?.[selected.value] || selected.label : void 0) || placeholder || selectFallback;
-      const categoryById = (0, import_react11.useMemo)(
-        () => new Map((categories || []).map((category) => [category.id, category])),
-        [categories]
-      );
-      const normalizedQuery = query.trim().toLowerCase();
-      const filteredOptions = (0, import_react11.useMemo)(() => {
-        if (!normalizedQuery) {
-          return options;
-        }
-        return options.filter((option) => {
-          const categoryLabel = option.category ? categoryById.get(option.category)?.label || option.category : "";
-          return `${option.label} ${option.value} ${categoryLabel}`.toLowerCase().includes(normalizedQuery);
-        });
-      }, [categoryById, normalizedQuery, options]);
-      const optionGroups = (0, import_react11.useMemo)(() => buildOptionGroups(filteredOptions, categories), [categories, filteredOptions]);
-      const visibleOptionCount = (0, import_react11.useMemo)(
-        () => optionGroups.reduce((count, group) => {
-          const collapsed = group.category && !normalizedQuery && collapsedCategories.has(group.category.id);
-          return count + (collapsed ? 0 : group.options.length);
-        }, 0),
-        [collapsedCategories, normalizedQuery, optionGroups]
-      );
-      (0, import_react11.useEffect)(() => {
-        if (disabled) {
-          setOpen(false);
-          setQuery("");
-        }
-      }, [disabled]);
-      (0, import_react11.useEffect)(() => {
-        setCollapsedCategories((current) => {
-          const categoryIds = new Set((categories || []).map((category) => category.id));
-          const next = /* @__PURE__ */ new Set();
-          for (const category of categories || []) {
-            if (current.has(category.id) || category.defaultCollapsed) {
-              next.add(category.id);
-            }
-          }
-          for (const categoryId of current) {
-            if (categoryIds.has(categoryId)) {
-              next.add(categoryId);
-            }
-          }
-          return next;
-        });
-      }, [categories]);
-      (0, import_react11.useLayoutEffect)(() => {
-        if (!open) {
-          setDropdownPosition(void 0);
-          return;
-        }
-        updateDropdownPosition();
-      }, [open, size, visibleOptionCount, optionGroups.length, searchable, query]);
-      (0, import_react11.useEffect)(() => {
-        if (!open) {
-          return;
-        }
-        searchRef.current?.focus();
-        function handlePointerDown(event) {
-          const target = event.target;
-          if (!rootRef.current?.contains(target) && !dropdownRef.current?.contains(target)) {
-            closeDropdown();
-          }
-        }
-        function handleKeyDown(event) {
-          if (event.key === "Escape") {
-            closeDropdown();
-          }
-        }
-        document.addEventListener("pointerdown", handlePointerDown);
-        document.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("resize", updateDropdownPosition);
-        window.addEventListener("scroll", updateDropdownPosition, true);
-        return () => {
-          document.removeEventListener("pointerdown", handlePointerDown);
-          document.removeEventListener("keydown", handleKeyDown);
-          window.removeEventListener("resize", updateDropdownPosition);
-          window.removeEventListener("scroll", updateDropdownPosition, true);
-        };
-      }, [open]);
-      function updateDropdownPosition() {
-        const root4 = rootRef.current;
-        if (!root4) {
-          return;
-        }
-        const rect = root4.getBoundingClientRect();
-        const gap = size === "sm" ? 6 : 8;
-        const viewportPadding = 12;
-        const preferredHeight = Math.min(
-          size === "sm" ? 292 : 320,
-          getEstimatedDropdownHeight(visibleOptionCount, searchable, size, optionGroups.length)
-        );
-        const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
-        const spaceAbove = rect.top - viewportPadding;
-        const placement = spaceBelow >= Math.min(preferredHeight, spaceAbove) ? "bottom" : "top";
-        const availableHeight = Math.max(96, placement === "bottom" ? spaceBelow - gap : spaceAbove - gap);
-        const maxHeight = Math.min(preferredHeight, availableHeight);
-        const width = Math.max(rect.width, Math.min(size === "sm" ? 280 : 320, window.innerWidth - viewportPadding * 2));
-        const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - viewportPadding - width);
-        const top = placement === "bottom" ? rect.bottom + gap : rect.top - gap - maxHeight;
-        setDropdownPosition({ top, left, width, maxHeight, placement });
+      {
+        provider: "openrouter",
+        label: "OpenRouter",
+        options: models.filter((item) => (item.provider || "openrouter") === "openrouter")
+      },
+      {
+        provider: "codex",
+        label: "ChatGPT Codex",
+        options: models.filter((item) => item.provider === "codex")
       }
-      function closeDropdown() {
+    ].filter((group) => group.options.length);
+  }
+
+  // src/webview/features/select-model/ModelSelect.tsx
+  var import_jsx_runtime26 = __toESM(require_jsx_runtime());
+  function ModelSelect({ model, models, disabled }) {
+    const { t } = useI18n();
+    const rootRef = (0, import_react16.useRef)(null);
+    const searchRef = (0, import_react16.useRef)(null);
+    const [open, setOpen] = (0, import_react16.useState)(false);
+    const [query, setQuery] = (0, import_react16.useState)("");
+    const selected = (0, import_react16.useMemo)(() => getSelectedModel(model, models), [model, models]);
+    const options = (0, import_react16.useMemo)(() => filterModels(models, query), [models, query]);
+    const groups = (0, import_react16.useMemo)(() => groupModelsByProvider(options), [options]);
+    (0, import_react16.useEffect)(() => {
+      if (disabled) {
         setOpen(false);
         setQuery("");
       }
-      function toggleCategory(categoryId) {
-        setCollapsedCategories((current) => {
-          const next = new Set(current);
-          if (next.has(categoryId)) {
-            next.delete(categoryId);
-          } else {
-            next.add(categoryId);
-          }
-          return next;
-        });
+    }, [disabled]);
+    (0, import_react16.useEffect)(() => {
+      if (!open) {
+        return;
       }
-      function selectValue(nextValue) {
-        const nextOption = options.find((option) => option.value === nextValue);
-        if (!nextOption || nextOption.disabled || disabled) {
-          return;
+      searchRef.current?.focus();
+      function handlePointerDown(event) {
+        if (!rootRef.current?.contains(event.target)) {
+          setOpen(false);
+          setQuery("");
         }
-        if (!controlled) {
-          setInternalValue(nextValue);
-        }
-        onValueChange?.(nextValue);
-        onChange?.({ target: { value: nextValue }, currentTarget: { value: nextValue } });
-        closeDropdown();
       }
-      const dropdown = open ? (0, import_react_dom.createPortal)(
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
-          "span",
-          {
-            ref: dropdownRef,
-            className: classNames(
-              Select_module_default.dropdown,
-              size === "sm" && Select_module_default.dropdownSm,
-              dropdownPosition?.placement === "top" && Select_module_default.dropdownTop
-            ),
-            style: dropdownPosition ? {
-              top: dropdownPosition.top,
-              left: dropdownPosition.left,
-              width: dropdownPosition.width,
-              height: dropdownPosition.maxHeight,
-              maxHeight: dropdownPosition.maxHeight
-            } : void 0,
-            role: "presentation",
-            children: [
-              searchable ? /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { className: Select_module_default.searchBox, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(Search, { size: 14, className: Select_module_default.searchIcon }),
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
-                  "input",
-                  {
-                    ref: searchRef,
-                    className: Select_module_default.searchInput,
-                    placeholder: t("select.search"),
-                    value: query,
-                    onChange: (event) => setQuery(event.target.value),
-                    onKeyDown: (event) => {
-                      if (event.key === "Enter") {
-                        const firstEnabled = filteredOptions.find((option) => !option.disabled);
-                        if (firstEnabled) {
-                          selectValue(firstEnabled.value);
-                        }
-                      }
-                    }
-                  }
-                )
-              ] }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.options, role: "listbox", "aria-label": label || placeholder || selectFallback, children: filteredOptions.length ? optionGroups.map((group) => {
-                const collapsed = group.category && !normalizedQuery && collapsedCategories.has(group.category.id);
-                return /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { className: Select_module_default.optionGroup, children: [
-                  group.category ? /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
-                    "button",
-                    {
-                      type: "button",
-                      className: Select_module_default.categoryButton,
-                      "aria-expanded": !collapsed,
-                      onClick: () => toggleCategory(group.category.id),
-                      children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(ChevronDown, { className: Select_module_default.categoryChevron, size: 12 }),
-                        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.categoryLabel, children: group.category.label }),
-                        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.categoryCount, children: group.options.length })
-                      ]
-                    }
-                  ) : null,
-                  !collapsed ? group.options.map((option) => {
-                    const active = option.value === currentValue;
-                    return /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
-                      "button",
-                      {
-                        type: "button",
-                        className: classNames(Select_module_default.option, active && Select_module_default.optionActive),
-                        disabled: option.disabled,
-                        role: "option",
-                        "aria-selected": active,
-                        onClick: () => selectValue(option.value),
-                        children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(Check, { size: 14, className: classNames(Select_module_default.check, active && Select_module_default.checkVisible) }),
-                          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.optionLabel, children: option.label })
-                        ]
-                      },
-                      option.value
-                    );
-                  }) : null
-                ] }, group.key);
-              }) : /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.empty, children: t("select.noOptions") }) })
-            ]
-          }
-        ),
-        document.body
-      ) : null;
-      return /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("label", { ref: rootRef, className: classNames(Select_module_default.field, Select_module_default[size], className), htmlFor: selectId, children: [
-        label ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.label, children: label }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("input", { type: "hidden", name: props.name, value: currentValue || "" }),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
-          "select",
-          {
-            ref,
-            id: selectId,
-            className: Select_module_default.nativeSelect,
-            tabIndex: -1,
-            "aria-hidden": "true",
-            value: currentValue || "",
-            disabled,
-            onChange: () => void 0,
-            ...props,
-            children: [
-              placeholder ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: "", children: placeholder }) : null,
-              categories?.length ? buildOptionGroups(options, categories).map(
-                (group) => group.category ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("optgroup", { label: group.category.label, children: group.options.map((option) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value)) }, group.key) : group.options.map((option) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value))
-              ) : options.map((option) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: option.value, disabled: option.disabled, children: option.label }, option.value))
-            ]
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: classNames(Select_module_default.control, error && Select_module_default.invalid, open && Select_module_default.open), children: /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
-          "button",
-          {
-            type: "button",
-            className: classNames(Select_module_default.trigger, leadingIcon ? Select_module_default.withIcon : void 0),
-            disabled,
-            "aria-haspopup": "listbox",
-            "aria-expanded": open,
-            "aria-label": props["aria-label"] || label || placeholder || selectFallback,
-            title: props.title || selected?.label || placeholder,
-            onClick: () => setOpen((current) => !current),
-            children: [
-              leadingIcon ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.icon, children: leadingIcon }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: classNames(Select_module_default.value, !selected && Select_module_default.placeholder), children: displayLabel }),
-              /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(ChevronDown, { className: Select_module_default.chevron, size: size === "sm" ? 14 : 16 })
-            ]
-          }
-        ) }),
-        dropdown,
-        error ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.error, children: error }) : hint ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: Select_module_default.hint, children: hint }) : null
-      ] });
+      function handleKeyDown(event) {
+        if (event.key === "Escape") {
+          setOpen(false);
+          setQuery("");
+        }
+      }
+      document.addEventListener("pointerdown", handlePointerDown);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("pointerdown", handlePointerDown);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [open]);
+    function selectModel(nextModel) {
+      vscode.postMessage({ type: "setModel", model: nextModel });
+      setOpen(false);
+      setQuery("");
     }
-  );
-  Select.displayName = "Select";
-
-  // src/webview/shared/ui/switch/Switch.tsx
-  var import_react12 = __toESM(require_react());
-
-  // src/webview/shared/ui/switch/Switch.module.scss
-  var Switch_module_default = {
-    switch: "Switch_module_switch",
-    text: "Switch_module_text",
-    label: "Switch_module_label",
-    description: "Switch_module_description",
-    trackWrap: "Switch_module_trackWrap",
-    input: "Switch_module_input",
-    track: "Switch_module_track",
-    thumb: "Switch_module_thumb"
-  };
-
-  // src/webview/shared/ui/switch/Switch.tsx
-  var import_jsx_runtime24 = __toESM(require_jsx_runtime());
-  var Switch = (0, import_react12.forwardRef)(
-    ({ label, description, className, id, ...props }, ref) => {
-      const generatedId = (0, import_react12.useId)();
-      const inputId = id || generatedId;
-      return /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)("label", { className: classNames(Switch_module_default.switch, className), htmlFor: inputId, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)("span", { className: Switch_module_default.text, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { className: Switch_module_default.label, children: label }),
-          description ? /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { className: Switch_module_default.description, children: description }) : null
+    return /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { ref: rootRef, className: ModelSelect_module_default.root, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("span", { className: ModelSelect_module_default.label, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(Cpu, { size: 14, className: ModelSelect_module_default.labelIcon }),
+        /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { children: t("summary.model") })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: ModelSelect_module_default.trigger,
+          disabled,
+          "aria-haspopup": "listbox",
+          "aria-expanded": open,
+          onClick: () => setOpen((value) => !value),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("span", { className: ModelSelect_module_default.triggerText, children: [
+              selected.name,
+              " (",
+              selected.id,
+              ")"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(ChevronDown, { size: 14, className: open ? `${ModelSelect_module_default.chevron} ${ModelSelect_module_default.chevronOpen}` : ModelSelect_module_default.chevron })
+          ]
+        }
+      ),
+      open ? /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: ModelSelect_module_default.menu, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: ModelSelect_module_default.searchBox, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(Search, { size: 14, className: ModelSelect_module_default.searchIcon }),
+          /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(
+            "input",
+            {
+              ref: searchRef,
+              className: ModelSelect_module_default.searchInput,
+              placeholder: t("modelSelect.search"),
+              value: query,
+              onChange: (event) => setQuery(event.target.value)
+            }
+          )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)("span", { className: Switch_module_default.trackWrap, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("input", { ref, id: inputId, className: Switch_module_default.input, type: "checkbox", ...props }),
-          /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { className: Switch_module_default.track, "aria-hidden": "true", children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { className: Switch_module_default.thumb }) })
-        ] })
-      ] });
-    }
-  );
-  Switch.displayName = "Switch";
+        /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("div", { className: ModelSelect_module_default.list, role: "listbox", "aria-label": t("modelSelect.models"), children: groups.length ? groups.map((group) => /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: ModelSelect_module_default.group, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("div", { className: ModelSelect_module_default.groupTitle, children: group.label }),
+          group.options.map((item) => {
+            const active = item.id === model;
+            return /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: active ? `${ModelSelect_module_default.optionButton} ${ModelSelect_module_default.optionActive}` : ModelSelect_module_default.optionButton,
+                role: "option",
+                "aria-selected": active,
+                onClick: () => selectModel(item.id),
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(
+                    Check,
+                    {
+                      size: 14,
+                      className: active ? ModelSelect_module_default.optionCheck : `${ModelSelect_module_default.optionCheck} ${ModelSelect_module_default.optionCheckHidden}`
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("span", { className: ModelSelect_module_default.optionText, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { className: ModelSelect_module_default.optionName, children: item.name }),
+                    /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("span", { className: active ? ModelSelect_module_default.optionId : `${ModelSelect_module_default.optionId} ${ModelSelect_module_default.optionIdMuted}`, children: [
+                      item.id,
+                      item.supportsTools ? "" : ` - ${t("tool.preview.noTools")}`
+                    ] })
+                  ] })
+                ]
+              },
+              item.id
+            );
+          })
+        ] }, group.provider)) : /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("div", { className: ModelSelect_module_default.empty, children: t("tool.preview.noModels") }) })
+      ] }) : null
+    ] });
+  }
 
-  // src/webview/shared/ui/text-area/TextArea.tsx
-  var import_react13 = __toESM(require_react());
-
-  // src/webview/shared/ui/text-area/TextArea.module.scss
-  var TextArea_module_default = {
-    field: "TextArea_module_field",
-    label: "TextArea_module_label",
-    textarea: "TextArea_module_textarea",
-    invalid: "TextArea_module_invalid",
-    hint: "TextArea_module_hint",
-    error: "TextArea_module_error"
+  // src/webview/features/select-permission-preset/PermissionPresetSelect.module.scss
+  var PermissionPresetSelect_module_default = {
+    root: "PermissionPresetSelect_module_root",
+    label: "PermissionPresetSelect_module_label",
+    icon: "PermissionPresetSelect_module_icon",
+    select: "PermissionPresetSelect_module_select"
   };
 
-  // src/webview/shared/ui/text-area/TextArea.tsx
-  var import_jsx_runtime25 = __toESM(require_jsx_runtime());
-  var TextArea = (0, import_react13.forwardRef)(
-    ({ label, hint, error, className, id, ...props }, ref) => {
-      const generatedId = (0, import_react13.useId)();
-      const inputId = id || generatedId;
-      return /* @__PURE__ */ (0, import_jsx_runtime25.jsxs)("label", { className: classNames(TextArea_module_default.field, className), htmlFor: inputId, children: [
-        label ? /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: TextArea_module_default.label, children: label }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(
+  // src/webview/features/select-permission-preset/utils.ts
+  function getSelectedDescription(presets, activeId, t) {
+    if (activeId === "custom") {
+      return t("settings.permission.customDescription");
+    }
+    const preset = presets.find((item) => item.id === activeId);
+    return preset ? t(`settings.preset.${preset.id}.description`) : "";
+  }
+
+  // src/webview/features/select-permission-preset/PermissionPresetSelect.tsx
+  var import_jsx_runtime27 = __toESM(require_jsx_runtime());
+  function PermissionPresetSelect({ presets, activeId, disabled, className = "" }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("label", { className: className ? `${PermissionPresetSelect_module_default.root} ${className}` : PermissionPresetSelect_module_default.root, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("span", { className: PermissionPresetSelect_module_default.label, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(ShieldCheck, { size: 14, className: PermissionPresetSelect_module_default.icon }),
+        /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("span", { children: t("settings.permission.access") })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)(
+        "select",
+        {
+          className: PermissionPresetSelect_module_default.select,
+          value: activeId,
+          disabled,
+          title: getSelectedDescription(presets, activeId, t),
+          onChange: (event) => {
+            const presetId = event.target.value;
+            if (presetId !== "custom") {
+              vscode.postMessage({ type: "setToolPermissionPreset", presetId });
+            }
+          },
+          children: [
+            activeId === "custom" ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("option", { value: "custom", children: t("common.custom") }) : null,
+            presets.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("option", { value: preset.id, children: t(`settings.preset.${preset.id}.label`) }, preset.id))
+          ]
+        }
+      )
+    ] });
+  }
+
+  // src/webview/features/send-message/Composer.tsx
+  var import_react17 = __toESM(require_react());
+
+  // src/webview/features/send-message/Composer.module.scss
+  var Composer_module_default = {
+    root: "Composer_module_root",
+    floatingRoot: "Composer_module_floatingRoot",
+    notice: "Composer_module_notice",
+    panel: "Composer_module_panel",
+    settings: "Composer_module_settings",
+    settingsFallback: "Composer_module_settingsFallback",
+    prompt: "Composer_module_prompt",
+    actions: "Composer_module_actions",
+    footer: "Composer_module_footer",
+    sendActions: "Composer_module_sendActions",
+    button: "Composer_module_button",
+    divider: "Composer_module_divider"
+  };
+
+  // src/webview/features/send-message/utils.ts
+  var MAX_TEXTAREA_HEIGHT = 300;
+  var DEFAULT_CONTINUE_PROMPT = "Continue working. Continue with the current task";
+  function resizePromptField(textarea) {
+    if (!textarea) {
+      return;
+    }
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+  }
+  function isMacLikePlatform() {
+    const platform = navigator.platform || "";
+    return /mac|iphone|ipad|ipod/i.test(platform);
+  }
+
+  // src/webview/features/send-message/Composer.tsx
+  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
+  function Composer({ busy, floating = false, settings, footer: footer2, notice }) {
+    const { t } = useI18n();
+    const [prompt, setPrompt] = (0, import_react17.useState)("");
+    const textareaRef = (0, import_react17.useRef)(null);
+    const canSend = !busy;
+    (0, import_react17.useLayoutEffect)(() => {
+      resizePromptField(textareaRef.current);
+    }, [prompt]);
+    function sendPrompt() {
+      if (busy) {
+        return;
+      }
+      const value = prompt.trim() || DEFAULT_CONTINUE_PROMPT;
+      setPrompt("");
+      vscode.postMessage({ type: "ask", prompt: value });
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("footer", { className: floating ? `${Composer_module_default.root} ${Composer_module_default.floatingRoot}` : Composer_module_default.root, children: [
+      notice ? /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("div", { className: Composer_module_default.notice, children: notice }) : null,
+      /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: Composer_module_default.panel, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("div", { className: Composer_module_default.settings, children: settings ? settings : /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: Composer_module_default.settingsFallback, children: t("composer.noSettings") }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(ComposerDivider, {}),
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
           "textarea",
           {
-            ref,
-            id: inputId,
-            className: classNames(TextArea_module_default.textarea, error && TextArea_module_default.invalid),
-            "aria-invalid": Boolean(error),
-            ...props
+            ref: textareaRef,
+            className: Composer_module_default.prompt,
+            placeholder: t("composer.placeholder"),
+            rows: 1,
+            value: prompt,
+            onChange: (event) => setPrompt(event.target.value),
+            onKeyDown: (event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                sendPrompt();
+              }
+            }
           }
         ),
-        error ? /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: TextArea_module_default.error, children: error }) : hint ? /* @__PURE__ */ (0, import_jsx_runtime25.jsx)("span", { className: TextArea_module_default.hint, children: hint }) : null
-      ] });
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(ComposerDivider, {}),
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: Composer_module_default.actions, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("div", { className: Composer_module_default.footer, children: footer2 }),
+          /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: Composer_module_default.sendActions, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(KeyboardShortcut, { label: t("composer.send"), keys: [isMacLikePlatform() ? "\u2318" : "Ctrl", "\u21B5"] }),
+            /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
+              "button",
+              {
+                className: Composer_module_default.button,
+                disabled: !busy && !canSend,
+                title: busy ? t("composer.stop") : t("composer.send"),
+                "aria-label": busy ? t("composer.stopGeneration") : t("composer.sendMessage"),
+                onClick: busy ? () => vscode.postMessage({ type: "stop" }) : sendPrompt,
+                children: busy ? /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(Square, { size: 12 }) : /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SendHorizontal, { size: 15 })
+              }
+            )
+          ] })
+        ] })
+      ] })
+    ] });
+  }
+  function ComposerDivider() {
+    return /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("div", { className: Composer_module_default.divider });
+  }
+
+  // src/webview/storybook/fixtures.ts
+  var storyNow = (/* @__PURE__ */ new Date("2026-05-24T12:30:00Z")).getTime();
+  var storyTools = [
+    "get_workspace_info",
+    "list_files",
+    "read_file",
+    "grep_search",
+    "run_bash_script",
+    "write_file",
+    "replace_in_file",
+    "create_directory",
+    "delete_path"
+  ];
+  var storyAgentModes = [
+    {
+      id: "default",
+      label: "Default",
+      instructions: "Be concise, inspect the repository before editing, and explain important tradeoffs."
+    },
+    {
+      id: "careful",
+      label: "Careful",
+      instructions: "Prefer small, reversible changes. Run verification after each risky edit."
+    },
+    {
+      id: "frontend",
+      label: "Frontend polish",
+      instructions: "Focus on layout, interaction states, responsive behavior, and visual consistency."
     }
-  );
-  TextArea.displayName = "TextArea";
-
-  // src/webview/shared/ui/text-field/TextField.tsx
-  var import_react14 = __toESM(require_react());
-
-  // src/webview/shared/ui/text-field/TextField.module.scss
-  var TextField_module_default = {
-    field: "TextField_module_field",
-    label: "TextField_module_label",
-    control: "TextField_module_control",
-    invalid: "TextField_module_invalid",
-    input: "TextField_module_input",
-    icon: "TextField_module_icon",
-    trailing: "TextField_module_trailing",
-    hint: "TextField_module_hint",
-    error: "TextField_module_error"
+  ];
+  var storyInstructionSources = [
+    {
+      id: "base",
+      title: "AIST base system prompt",
+      content: "Core coding-agent rules, language policy and tool usage rules.",
+      priority: 0,
+      kind: "base"
+    },
+    {
+      id: "AGENTS.md",
+      title: "AGENTS.md",
+      content: "Follow Feature-Sliced Design and keep files small.",
+      priority: 20,
+      kind: "file"
+    },
+    {
+      id: "project-instructions",
+      title: ".aist-agent project instructions",
+      content: "Prefer simple implementations and run typecheck after edits.",
+      priority: 40,
+      kind: "custom"
+    },
+    {
+      id: "mode:frontend",
+      title: "Mode: Frontend polish",
+      content: storyAgentModes[2].instructions,
+      priority: 50,
+      kind: "mode"
+    }
+  ];
+  var storyPromptConfig = {
+    globalInstructions: [
+      {
+        id: "practical-coding",
+        label: "Practical coding",
+        content: "Work briefly and practically. Inspect relevant files before editing.",
+        scope: "global",
+        kind: "instruction"
+      }
+    ],
+    localInstructions: [
+      {
+        id: "project-style",
+        label: "Project style",
+        content: "Follow Feature-Sliced Design and keep files small.",
+        scope: "local",
+        kind: "instruction"
+      }
+    ],
+    globalModes: [
+      {
+        id: "coder",
+        label: "Coder",
+        instructions: "Implement the requested change directly and verify it.",
+        scope: "global",
+        kind: "mode"
+      }
+    ],
+    localModes: [
+      {
+        id: "frontend",
+        label: "Frontend polish",
+        instructions: "Focus on layout, interaction states, responsive behavior, and visual consistency.",
+        scope: "local",
+        kind: "mode"
+      }
+    ],
+    presets: [
+      {
+        id: "coding",
+        label: "Coding",
+        instructionRefs: [
+          { scope: "global", id: "practical-coding" },
+          { scope: "local", id: "project-style" }
+        ],
+        modeRef: { scope: "global", id: "coder" }
+      }
+    ],
+    activeInstructionRefs: [
+      { scope: "global", id: "practical-coding" },
+      { scope: "local", id: "project-style" }
+    ],
+    activeModeRef: { scope: "local", id: "frontend" },
+    activePresetId: "coding"
+  };
+  var storyModels = [
+    {
+      id: "openai/gpt-4o-mini",
+      name: "GPT-4o Mini",
+      provider: "openrouter",
+      contextLength: 128e3,
+      pricing: { prompt: 0.15, completion: 0.6 },
+      supportsTools: true
+    },
+    {
+      id: "anthropic/claude-3.7-sonnet",
+      name: "Claude 3.7 Sonnet",
+      provider: "openrouter",
+      contextLength: 2e5,
+      pricing: { prompt: 3, completion: 15 },
+      supportsTools: true
+    },
+    {
+      id: "codex:gpt-5.1-codex",
+      name: "GPT-5.1 Codex",
+      provider: "codex",
+      contextLength: 256e3,
+      supportsTools: true
+    },
+    {
+      id: "meta-llama/llama-3.1-8b-instruct",
+      name: "Llama 3.1 8B Instruct",
+      provider: "openrouter",
+      contextLength: 131e3,
+      supportsTools: false
+    }
+  ];
+  var storyToolPermissions = [
+    {
+      name: "read_file",
+      description: "Read a workspace file and return a compact preview for the agent.",
+      permission: "auto",
+      defaultPermission: "auto"
+    },
+    {
+      name: "grep_search",
+      description: "Search the repository with ripgrep and show matching files.",
+      permission: "auto",
+      defaultPermission: "auto"
+    },
+    {
+      name: "run_bash_script",
+      description: "Run a shell command in the workspace.",
+      permission: "ask",
+      defaultPermission: "ask"
+    },
+    {
+      name: "replace_in_file",
+      description: "Replace a range or matching text inside an existing file.",
+      permission: "ask",
+      defaultPermission: "ask"
+    }
+  ];
+  var storyToolPermissionPresets = [
+    {
+      id: "confirm-all",
+      label: "Confirm all",
+      description: "Ask before every tool call.",
+      permissions: {
+        get_workspace_info: "ask",
+        list_files: "ask",
+        read_file: "ask",
+        grep_search: "ask",
+        run_bash_script: "ask",
+        write_file: "ask",
+        replace_in_file: "ask",
+        create_directory: "ask",
+        delete_path: "ask"
+      }
+    },
+    {
+      id: "balanced",
+      label: "Balanced",
+      description: "Read and search automatically; ask before shell commands and file changes.",
+      permissions: {
+        get_workspace_info: "auto",
+        list_files: "auto",
+        read_file: "auto",
+        grep_search: "auto",
+        run_bash_script: "ask",
+        write_file: "ask",
+        replace_in_file: "ask",
+        create_directory: "ask",
+        delete_path: "ask"
+      }
+    },
+    {
+      id: "fast-edit",
+      label: "Fast edit",
+      description: "Read, search, create, and edit automatically; ask before shell commands and deletion.",
+      permissions: {
+        get_workspace_info: "auto",
+        list_files: "auto",
+        read_file: "auto",
+        grep_search: "auto",
+        run_bash_script: "ask",
+        write_file: "auto",
+        replace_in_file: "auto",
+        create_directory: "auto",
+        delete_path: "ask"
+      }
+    },
+    {
+      id: "autonomous",
+      label: "Autonomous",
+      description: "Run every available tool automatically.",
+      permissions: {
+        get_workspace_info: "auto",
+        list_files: "auto",
+        read_file: "auto",
+        grep_search: "auto",
+        run_bash_script: "auto",
+        write_file: "auto",
+        replace_in_file: "auto",
+        create_directory: "auto",
+        delete_path: "auto"
+      }
+    }
+  ];
+  var storyMessages = [
+    {
+      id: "msg-user",
+      role: "user",
+      content: "\u0414\u043E\u0431\u0430\u0432\u044C Storybook \u0438 \u043F\u043E\u043A\u0430\u0436\u0438 \u043A\u043B\u044E\u0447\u0435\u0432\u044B\u0435 \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B.",
+      createdAt: storyNow - 1e3 * 60 * 8
+    },
+    {
+      id: "msg-assistant",
+      role: "assistant",
+      content: "\u0413\u043E\u0442\u043E\u0432\u043E. \u042F \u0434\u043E\u0431\u0430\u0432\u0438\u043B \u043A\u043E\u043D\u0444\u0438\u0433, \u043C\u043E\u043A VS Code API \u0438 \u0438\u0441\u0442\u043E\u0440\u0438\u0438 \u0434\u043B\u044F \u043E\u0441\u043D\u043E\u0432\u043D\u044B\u0445 \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u043E\u0432.\n\n- `MessageCard`\n- `ToolMessageCard`\n- `Composer`\n- \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B \u0447\u0430\u0442\u0430 \u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A",
+      usage: {
+        tokens: 2680,
+        promptTokens: 1400,
+        completionTokens: 1280,
+        costUsd: 28e-4
+      },
+      createdAt: storyNow - 1e3 * 60 * 6
+    },
+    {
+      id: "tool-read-file",
+      role: "tool",
+      name: "read_file",
+      status: "done",
+      args: { path: "src/webview/app/App.tsx" },
+      result: {
+        path: "src/webview/app/App.tsx",
+        content: "import { useEffect, useState } from 'react';\n\nexport function App() {\n  return <div />;\n}\n"
+      },
+      usage: { tokens: 420, costUsd: 4e-4 },
+      createdAt: storyNow - 1e3 * 60 * 3
+    },
+    {
+      id: "tool-grep",
+      role: "tool",
+      name: "grep_search",
+      status: "done",
+      args: { query: "MessageCard" },
+      result: {
+        matches: [
+          { path: "src/webview/entities/message/MessageCard.tsx", line: 14, column: 17 },
+          { path: "src/webview/widgets/message-list/message-list/MessageList.tsx", line: 38, column: 12 }
+        ],
+        truncated: false
+      },
+      createdAt: storyNow - 1e3 * 60 * 2
+    },
+    {
+      id: "msg-agent-error",
+      role: "assistant",
+      marker: "aist:internal-error-message:v1",
+      content: "**AIST error (model request attempt 1/3)**\n\nNetwork connection was interrupted. Retrying the request.",
+      createdAt: storyNow - 1e3 * 60
+    },
+    {
+      id: "msg-agent-tools-summary",
+      role: "assistant",
+      content: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u043B \u043C\u0435\u0441\u0442\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F `MessageCard` \u0438 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u0433\u0440\u0443\u043F\u043F\u0438\u0440\u043E\u0432\u043A\u0443 tool calls \u043F\u043E\u0434 \u043E\u0431\u0449\u0438\u0439 cut.",
+      createdAt: storyNow - 1e3 * 45
+    }
+  ];
+  var storyToolMessages = {
+    waitingApproval: {
+      id: "tool-approval",
+      role: "tool",
+      name: "replace_in_file",
+      status: "waiting",
+      approval: "pending",
+      reason: "Need permission before changing source files.",
+      args: { path: "src/webview/app/styles.css", search: ".message-card", replace: ".message-card" },
+      result: { preview: { path: "src/webview/app/styles.css", replacements: 3 } },
+      createdAt: storyNow - 1e3 * 90
+    },
+    runningBash: {
+      id: "tool-bash",
+      role: "tool",
+      name: "run_bash_script",
+      status: "running",
+      args: { script: "npm run typecheck" },
+      reason: "Verifying TypeScript after Storybook setup.",
+      createdAt: storyNow - 1e3 * 70
+    },
+    finishedBash: {
+      id: "tool-bash-done",
+      role: "tool",
+      name: "run_bash_script",
+      status: "done",
+      args: {
+        script: "npm run test -- --run src/webview/entities/message/toolValue.test.ts",
+        cwd: ".",
+        timeoutMs: 12e4
+      },
+      result: {
+        ok: true,
+        cwd: ".",
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        durationMs: 1840,
+        stdout: "\u2713 src/webview/entities/message/toolValue.test.ts (4 tests) 12ms\n\nTest Files  1 passed (1)\nTests  4 passed (4)",
+        stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false
+      },
+      reason: "Checking the parser helpers still behave correctly.",
+      createdAt: storyNow - 1e3 * 55
+    },
+    errored: {
+      id: "tool-error",
+      role: "tool",
+      name: "delete_path",
+      status: "error",
+      args: { path: "dist/old.js" },
+      result: { error: "Permission denied by user." },
+      createdAt: storyNow - 1e3 * 40
+    },
+    listFiles: {
+      id: "tool-list",
+      role: "tool",
+      name: "list_files",
+      status: "done",
+      args: { path: "src/webview" },
+      result: {
+        entries: [
+          { path: "src/webview/app", type: "directory" },
+          { path: "src/webview/entities", type: "directory" },
+          { path: "src/webview/features", type: "directory" },
+          { path: "src/webview/widgets", type: "directory" }
+        ]
+      },
+      createdAt: storyNow - 1e3 * 20
+    }
+  };
+  var storyChatSummaries = [
+    {
+      id: "chat-active",
+      title: "Storybook setup",
+      model: "codex:gpt-5.1-codex",
+      messageCount: storyMessages.length,
+      lastUserMessage: "Can you help wire Storybook into the webview?",
+      busy: false,
+      lastMessageAt: storyNow,
+      updatedAt: storyNow
+    },
+    {
+      id: "chat-review",
+      title: "Review tool cards",
+      model: "openai/gpt-4o-mini",
+      messageCount: 12,
+      lastUserMessage: "Review the tool approval cards and raw JSON view.",
+      busy: false,
+      lastMessageAt: storyNow - 1e3 * 60 * 50,
+      updatedAt: storyNow - 1e3 * 60 * 45
+    },
+    {
+      id: "chat-busy",
+      title: "Running typecheck",
+      model: "anthropic/claude-3.7-sonnet",
+      messageCount: 7,
+      lastUserMessage: "Run typecheck and fix the failing TypeScript errors.",
+      busy: true,
+      lastMessageAt: storyNow - 1e3 * 60 * 120,
+      updatedAt: storyNow - 1e3 * 60 * 10
+    }
+  ];
+  var storyActiveChat = {
+    id: "chat-active",
+    title: "Storybook setup",
+    model: "codex:gpt-5.1-codex",
+    previousChat: void 0,
+    messages: storyMessages,
+    lastAnswer: storyMessages[1]?.content || "",
+    busy: false,
+    context: {
+      tokens: 34800,
+      maxTokens: 128e3,
+      percent: 27,
+      inputCostUsd: 42e-4
+    },
+    usage: {
+      promptTokens: 9200,
+      completionTokens: 4100,
+      totalTokens: 13300,
+      costUsd: 0.0184
+    },
+    createdAt: storyNow - 1e3 * 60 * 60,
+    updatedAt: storyNow
   };
 
-  // src/webview/shared/ui/text-field/TextField.tsx
-  var import_jsx_runtime26 = __toESM(require_jsx_runtime());
-  var TextField = (0, import_react14.forwardRef)(
-    ({ label, hint, error, leadingIcon, trailingSlot, className, id, ...props }, ref) => {
-      const generatedId = (0, import_react14.useId)();
-      const inputId = id || generatedId;
-      return /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("label", { className: classNames(TextField_module_default.field, className), htmlFor: inputId, children: [
-        label ? /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { className: TextField_module_default.label, children: label }) : null,
-        /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("span", { className: classNames(TextField_module_default.control, error && TextField_module_default.invalid), children: [
-          leadingIcon ? /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { className: TextField_module_default.icon, children: leadingIcon }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("input", { ref, id: inputId, className: TextField_module_default.input, "aria-invalid": Boolean(error), ...props }),
-          trailingSlot ? /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { className: TextField_module_default.trailing, children: trailingSlot }) : null
-        ] }),
-        error ? /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { className: TextField_module_default.error, children: error }) : hint ? /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("span", { className: TextField_module_default.hint, children: hint }) : null
-      ] });
+  // src/webview/shared/lib/assets.ts
+  function getWebviewAssetUri(assetKey) {
+    return window.__AIST_ASSETS__?.[assetKey];
+  }
+
+  // src/webview/shared/ui/AistLogo.module.scss
+  var AistLogo_module_default = {
+    logo: "AistLogo_module_logo",
+    small: "AistLogo_module_small",
+    animated: "AistLogo_module_animated",
+    logoPulse: "AistLogo_module_logoPulse",
+    logoBaseFade: "AistLogo_module_logoBaseFade",
+    logoAnimatedFade: "AistLogo_module_logoAnimatedFade",
+    brand: "AistLogo_module_brand",
+    brandText: "AistLogo_module_brandText",
+    brandTitle: "AistLogo_module_brandTitle",
+    brandSubtitle: "AistLogo_module_brandSubtitle"
+  };
+
+  // src/webview/shared/ui/AistLogo.tsx
+  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
+  function AistLogo({ className = "", assetKey = "logo", title = "aist" }) {
+    const logoUri = getWebviewAssetUri(assetKey);
+    if (!logoUri) {
+      return null;
     }
-  );
-  TextField.displayName = "TextField";
+    const style = {
+      "--aist-logo-uri": `url(${logoUri})`
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("span", { className: `${AistLogo_module_default.logo} ${className}`.trim(), style, role: "img", "aria-label": title });
+  }
+  function AistAnimatedLogo({
+    className = "",
+    baseAssetKey = "logo",
+    animatedAssetKey = "logoAnimated",
+    title = "aist"
+  }) {
+    const baseLogoUri = getWebviewAssetUri(baseAssetKey);
+    const animatedLogoUri = getWebviewAssetUri(animatedAssetKey);
+    if (!baseLogoUri || !animatedLogoUri) {
+      return /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(AistLogo, { className, assetKey: baseAssetKey, title });
+    }
+    const style = {
+      "--aist-logo-base-uri": `url(${baseLogoUri})`,
+      "--aist-logo-animated-uri": `url(${animatedLogoUri})`
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(
+      "span",
+      {
+        className: `${AistLogo_module_default.logo} ${AistLogo_module_default.animated} ${className}`.trim(),
+        style,
+        role: "img",
+        "aria-label": title
+      }
+    );
+  }
+  function AistBrand({ animated = false }) {
+    const Logo = animated ? AistAnimatedLogo : AistLogo;
+    return /* @__PURE__ */ (0, import_jsx_runtime29.jsxs)("div", { className: AistLogo_module_default.brand, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Logo, {}),
+      /* @__PURE__ */ (0, import_jsx_runtime29.jsxs)("div", { className: AistLogo_module_default.brandText, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("div", { className: AistLogo_module_default.brandTitle, children: "AIST AGENT" }),
+        /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("div", { className: AistLogo_module_default.brandSubtitle, children: "Above the complexity" })
+      ] })
+    ] });
+  }
+
+  // src/webview/widgets/message-list/agent-activity-status/AgentActivityStatus.module.scss
+  var AgentActivityStatus_module_default = {
+    root: "AgentActivityStatus_module_root",
+    logo: "AgentActivityStatus_module_logo",
+    content: "AgentActivityStatus_module_content",
+    title: "AgentActivityStatus_module_title",
+    detail: "AgentActivityStatus_module_detail"
+  };
+
+  // src/webview/widgets/message-list/agent-activity-status/utils.ts
+  function formatActivity(activity, t) {
+    switch (activity) {
+      case "waitingForApproval":
+        return t("activity.waitingForApproval");
+      case "runningTool":
+        return t("activity.runningTool");
+      case "answering":
+        return t("activity.answering");
+      case "stopping":
+        return t("activity.stopping");
+      default:
+        return t("activity.thinking");
+    }
+  }
+  function getDefaultDetail(activity, t) {
+    switch (activity) {
+      case "waitingForApproval":
+        return t("activity.detail.waitingForApproval");
+      case "runningTool":
+        return t("activity.detail.runningTool");
+      case "answering":
+        return t("activity.detail.answering");
+      case "stopping":
+        return t("activity.detail.stopping");
+      default:
+        return t("activity.thinking");
+    }
+  }
+
+  // src/webview/widgets/message-list/agent-activity-status/AgentActivityStatus.tsx
+  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
+  function AgentActivityStatus({ activity, detail }) {
+    const { t } = useI18n();
+    const secondaryText = detail || getDefaultDetail(activity, t);
+    return /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)("div", { className: AgentActivityStatus_module_default.root, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(AistAnimatedLogo, { className: AgentActivityStatus_module_default.logo }),
+      /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)("div", { className: AgentActivityStatus_module_default.content, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime30.jsx)("div", { className: AgentActivityStatus_module_default.title, children: formatActivity(activity, t) }),
+        /* @__PURE__ */ (0, import_jsx_runtime30.jsx)("div", { className: AgentActivityStatus_module_default.detail, children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(Markdown, { remarkPlugins: [remarkGfm], children: secondaryText }) })
+      ] })
+    ] });
+  }
+
+  // src/webview/widgets/message-list/empty-state/EmptyState.module.scss
+  var EmptyState_module_default = {
+    root: "EmptyState_module_root",
+    sparkles: "EmptyState_module_sparkles",
+    text: "EmptyState_module_text",
+    title: "EmptyState_module_title",
+    description: "EmptyState_module_description"
+  };
+
+  // src/webview/widgets/message-list/empty-state/EmptyState.tsx
+  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
+  function EmptyState(_props) {
+    const { t } = useI18n();
+    const hasLogo = Boolean(getWebviewAssetUri("logo"));
+    return /* @__PURE__ */ (0, import_jsx_runtime31.jsxs)("div", { className: EmptyState_module_default.root, children: [
+      hasLogo ? /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(AistBrand, {}) : /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(Sparkles, { className: EmptyState_module_default.sparkles, size: 100 }),
+      /* @__PURE__ */ (0, import_jsx_runtime31.jsxs)("div", { className: EmptyState_module_default.text, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime31.jsx)("h1", { className: EmptyState_module_default.title, children: t("empty.title") }),
+        /* @__PURE__ */ (0, import_jsx_runtime31.jsx)("p", { className: EmptyState_module_default.description, children: t("empty.description") })
+      ] })
+    ] });
+  }
+
+  // src/webview/widgets/message-list/message-list/MessageList.tsx
+  var import_react29 = __toESM(require_react());
+
+  // src/webview/widgets/message-list/system-instruction-label/SystemInstructionLabel.tsx
+  var import_react27 = __toESM(require_react());
+  var import_react_dom2 = __toESM(require_react_dom());
+
+  // src/webview/pages/permissions/permissions-page/PermissionsPage.tsx
+  var import_react26 = __toESM(require_react());
 
   // src/webview/pages/permissions/PermissionsPage.module.scss
   var PermissionsPage_module_default = {
+    pageRoot: "PermissionsPage_module_pageRoot",
+    main: "PermissionsPage_module_main",
+    mainEmbedded: "PermissionsPage_module_mainEmbedded",
     shell: "PermissionsPage_module_shell",
     embeddedShell: "PermissionsPage_module_embeddedShell",
     sidebar: "PermissionsPage_module_sidebar",
@@ -37664,7 +38678,9 @@
     navButton: "PermissionsPage_module_navButton",
     navButtonActive: "PermissionsPage_module_navButtonActive",
     navIcon: "PermissionsPage_module_navIcon",
+    navMeta: "PermissionsPage_module_navMeta",
     content: "PermissionsPage_module_content",
+    headerRow: "PermissionsPage_module_headerRow",
     pageHeader: "PermissionsPage_module_pageHeader",
     pageTitle: "PermissionsPage_module_pageTitle",
     pageDescription: "PermissionsPage_module_pageDescription",
@@ -37673,49 +38689,314 @@
     twoColumns: "PermissionsPage_module_twoColumns",
     actions: "PermissionsPage_module_actions",
     list: "PermissionsPage_module_list",
-    empty: "PermissionsPage_module_empty"
+    empty: "PermissionsPage_module_empty",
+    preWrapText: "PermissionsPage_module_preWrapText",
+    clampedSourceText: "PermissionsPage_module_clampedSourceText",
+    dialogBody: "PermissionsPage_module_dialogBody",
+    dialogStrong: "PermissionsPage_module_dialogStrong"
   };
 
-  // src/webview/pages/permissions/PermissionsPage.tsx
-  var import_jsx_runtime27 = __toESM(require_jsx_runtime());
+  // src/webview/pages/permissions/permissions-page/compaction-settings-page.tsx
+  var import_react18 = __toESM(require_react());
+
+  // src/webview/pages/permissions/permissions-page/utils.ts
+  function scopeLabel(scope, t) {
+    return scope === "global" ? t("settings.promptManager.scope.global") : t("settings.promptManager.scope.local");
+  }
+  function refKey(ref) {
+    return `${ref.scope}:${ref.id}`;
+  }
+  function parseRefKey(value) {
+    const [scope, ...rest] = value.split(":");
+    const id = rest.join(":");
+    return (scope === "global" || scope === "local") && id ? { scope, id } : void 0;
+  }
+  function getPermissionOptions(t) {
+    return [
+      { value: "ask", label: t("settings.permission.ask") },
+      { value: "auto", label: t("settings.permission.auto") }
+    ];
+  }
+  function clampNumber(value, min, max, fallback, integer = false) {
+    const parsed = Number(value);
+    const normalized = Number.isFinite(parsed) ? parsed : fallback;
+    const clamped = Math.max(min, Math.min(max, normalized));
+    return integer ? Math.floor(clamped) : clamped;
+  }
+
+  // src/webview/pages/permissions/permissions-page/compaction-settings-page.tsx
+  var import_jsx_runtime32 = __toESM(require_jsx_runtime());
+  var CompactionSettingsPage = (0, import_react18.memo)(function CompactionSettingsPage2({ settings }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime32.jsx)("div", { className: PermissionsPage_module_default.sectionStack, children: /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(Card, { title: t("settings.compaction.title"), description: t("settings.compaction.description"), children: /* @__PURE__ */ (0, import_jsx_runtime32.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(
+        Select,
+        {
+          label: t("common.status"),
+          value: settings.enabled ? "enabled" : "disabled",
+          options: [
+            { value: "enabled", label: t("common.enabled") },
+            { value: "disabled", label: t("common.disabled") }
+          ],
+          onChange: (event) => vscode.postMessage({
+            type: "setCompactionSettings",
+            settings: { enabled: event.target.value === "enabled" }
+          })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(
+        TextField,
+        {
+          label: t("settings.compaction.threshold"),
+          type: "number",
+          min: 10,
+          max: 95,
+          value: settings.thresholdPercent,
+          onChange: (event) => vscode.postMessage({
+            type: "setCompactionSettings",
+            settings: { thresholdPercent: clampNumber(event.target.value, 10, 95, 70, true) }
+          })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime32.jsx)(
+        TextField,
+        {
+          label: t("settings.compaction.keepLast"),
+          hint: t("settings.compaction.keepLastHint"),
+          type: "number",
+          min: 0,
+          max: 20,
+          value: settings.keepLastMessages,
+          onChange: (event) => vscode.postMessage({
+            type: "setCompactionSettings",
+            settings: { keepLastMessages: clampNumber(event.target.value, 0, 20, 0, true) }
+          })
+        }
+      )
+    ] }) }) });
+  });
+
+  // src/webview/pages/permissions/permissions-page/notification-settings-page.tsx
+  var import_react19 = __toESM(require_react());
+  var import_jsx_runtime33 = __toESM(require_jsx_runtime());
+  var NotificationSettingsPage = (0, import_react19.memo)(function NotificationSettingsPage2({
+    settings
+  }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime33.jsx)("div", { className: PermissionsPage_module_default.sectionStack, children: /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(Card, { title: t("settings.notifications.title"), description: t("settings.notifications.description"), children: /* @__PURE__ */ (0, import_jsx_runtime33.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
+        Select,
+        {
+          label: t("common.status"),
+          value: settings.enabled ? "enabled" : "disabled",
+          options: [
+            { value: "enabled", label: t("common.enabled") },
+            { value: "disabled", label: t("common.disabled") }
+          ],
+          onChange: (event) => vscode.postMessage({
+            type: "setApprovalNotificationSettings",
+            settings: { enabled: event.target.value === "enabled" }
+          })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
+        Checkbox,
+        {
+          label: t("settings.notifications.system"),
+          description: t("settings.notifications.systemDescription"),
+          checked: settings.systemNotifications,
+          disabled: !settings.enabled,
+          onChange: (event) => vscode.postMessage({
+            type: "setApprovalNotificationSettings",
+            settings: { systemNotifications: event.target.checked }
+          })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
+        Checkbox,
+        {
+          label: t("settings.notifications.sound"),
+          description: t("settings.notifications.soundDescription"),
+          checked: settings.sound,
+          disabled: !settings.enabled,
+          onChange: (event) => vscode.postMessage({
+            type: "setApprovalNotificationSettings",
+            settings: { sound: event.target.checked }
+          })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
+        TextField,
+        {
+          label: t("settings.notifications.volume"),
+          type: "number",
+          min: 0,
+          max: 100,
+          value: Math.round(settings.volume * 100),
+          disabled: !settings.enabled || !settings.sound,
+          onChange: (event) => vscode.postMessage({
+            type: "setApprovalNotificationSettings",
+            settings: { volume: clampNumber(event.target.value, 0, 100, 0) / 100 }
+          })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime33.jsx)(
+        TextField,
+        {
+          label: t("settings.notifications.duration"),
+          type: "number",
+          min: 1,
+          max: 30,
+          value: settings.durationSeconds,
+          disabled: !settings.enabled || !settings.sound,
+          onChange: (event) => vscode.postMessage({
+            type: "setApprovalNotificationSettings",
+            settings: { durationSeconds: clampNumber(event.target.value, 1, 30, 5, true) }
+          })
+        }
+      )
+    ] }) }) });
+  });
+
+  // src/webview/pages/permissions/permissions-page/overview-page.tsx
+  var import_react20 = __toESM(require_react());
+  var import_jsx_runtime34 = __toESM(require_jsx_runtime());
+  var OverviewPage = (0, import_react20.memo)(function OverviewPage2({
+    agentConfigScope,
+    activePermissionPresetId,
+    activeMode,
+    customSkills,
+    instructionSources,
+    codexAuthenticated
+  }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime34.jsxs)("div", { className: PermissionsPage_module_default.sectionStack, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(
+        Card,
+        {
+          tone: "elevated",
+          title: t("settings.overview.profileTitle"),
+          description: t("settings.overview.profileDescription"),
+          children: /* @__PURE__ */ (0, import_jsx_runtime34.jsxs)("div", { className: PermissionsPage_module_default.twoColumns, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Badge, { tone: "accent", children: t("settings.overview.storage", {
+              value: agentConfigScope === "workspace" ? t("settings.overview.storageWorkspace") : t("settings.overview.storageUser")
+            }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Badge, { tone: activePermissionPresetId === "custom" ? "warning" : "success", children: t("settings.overview.permissions", { value: activePermissionPresetId }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Badge, { tone: "neutral", children: t("settings.overview.mode", { value: activeMode?.label || t("settings.overview.defaultMode") }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Badge, { tone: customSkills.length ? "accent" : "neutral", children: t("settings.overview.skills", { count: customSkills.length }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Badge, { tone: "neutral", children: t("settings.overview.instructionSources", { count: instructionSources.length }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Badge, { tone: codexAuthenticated ? "success" : "warning", children: t("settings.overview.codex", {
+              value: codexAuthenticated ? t("settings.overview.codexAuthorized") : t("settings.overview.codexNotConnected")
+            }) })
+          ] })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(Card, { title: t("settings.overview.orderTitle"), description: t("settings.overview.orderDescription"), children: /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(InstructionSourceList, { sources: instructionSources }) })
+    ] });
+  });
+  var InstructionSourceList = (0, import_react20.memo)(function InstructionSourceList2({ sources }) {
+    const { t } = useI18n();
+    if (!sources.length) return /* @__PURE__ */ (0, import_jsx_runtime34.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.instructions.empty") });
+    return /* @__PURE__ */ (0, import_jsx_runtime34.jsx)("div", { className: PermissionsPage_module_default.list, children: sources.map((source) => /* @__PURE__ */ (0, import_jsx_runtime34.jsx)(
+      Card,
+      {
+        title: source.title,
+        description: t("settings.instructions.priority", { priority: source.priority }),
+        children: /* @__PURE__ */ (0, import_jsx_runtime34.jsx)("p", { className: PermissionsPage_module_default.clampedSourceText, children: source.content })
+      },
+      source.id
+    )) });
+  });
+
+  // src/webview/pages/permissions/permissions-page/permissions-settings-page.tsx
+  var import_react21 = __toESM(require_react());
+  var import_jsx_runtime35 = __toESM(require_jsx_runtime());
+  var PermissionsSettingsPage = (0, import_react21.memo)(function PermissionsSettingsPage2({
+    tools,
+    permissionPresets,
+    activePermissionPresetId
+  }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime35.jsxs)("div", { className: PermissionsPage_module_default.sectionStack, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(Card, { title: t("settings.permissions.presetsTitle"), description: t("settings.permissions.presetsDescription"), children: /* @__PURE__ */ (0, import_jsx_runtime35.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(PermissionPresetSelect, { presets: permissionPresets, activeId: activePermissionPresetId }),
+        /* @__PURE__ */ (0, import_jsx_runtime35.jsx)("div", { className: PermissionsPage_module_default.twoColumns, children: permissionPresets.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(
+          PermissionPresetButton,
+          {
+            preset,
+            active: preset.id === activePermissionPresetId
+          },
+          preset.id
+        )) }),
+        activePermissionPresetId === "custom" ? /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(Badge, { tone: "warning", children: t("settings.permissions.customActive") }) : null
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(Card, { title: t("settings.permissions.perToolTitle"), description: t("settings.permissions.perToolDescription"), children: /* @__PURE__ */ (0, import_jsx_runtime35.jsx)("div", { className: PermissionsPage_module_default.list, children: tools.map((tool) => /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(ToolPermissionRow, { item: tool }, tool.name)) }) })
+    ] });
+  });
+  var PermissionPresetButton = (0, import_react21.memo)(function PermissionPresetButton2({
+    preset,
+    active
+  }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(
+      Button,
+      {
+        variant: active ? "primary" : "secondary",
+        onClick: () => vscode.postMessage({ type: "setToolPermissionPreset", presetId: preset.id }),
+        children: t(`settings.preset.${preset.id}.label`)
+      }
+    );
+  });
+  var ToolPermissionRow = (0, import_react21.memo)(function ToolPermissionRow2({ item }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(ToolPermissionSelect, { item });
+  });
+
+  // src/webview/pages/permissions/permissions-page/prompt-manager.tsx
+  var import_react22 = __toESM(require_react());
+  var import_jsx_runtime36 = __toESM(require_jsx_runtime());
   function ModesSettingsPage({ promptConfig }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PromptManager, { promptConfig, defaultTab: "priorities", focus: "modes" });
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PromptManager, { promptConfig, defaultTab: "priorities", focus: "modes" });
   }
   function PromptManager({ promptConfig, defaultTab, focus = "instructions" }) {
     const { t } = useI18n();
-    const [tab2, setTab] = (0, import_react15.useState)(defaultTab);
-    const [helpOpen, setHelpOpen] = (0, import_react15.useState)(false);
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.sectionStack, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+    const [tab2, setTab] = (0, import_react22.useState)(defaultTab);
+    const [helpOpen, setHelpOpen] = (0, import_react22.useState)(false);
+    const tabs = (0, import_react22.useMemo)(() => ["global", "local", "priorities"], []);
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.sectionStack, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
         Card,
         {
           title: t("settings.promptManager.title"),
           description: t("settings.promptManager.description"),
-          actions: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", variant: "ghost", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(CircleQuestionMark, { size: 14 }), onClick: () => setHelpOpen(true), children: t("settings.promptManager.guide") }),
-          children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("div", { className: PermissionsPage_module_default.actions, children: ["global", "local", "priorities"].map((item) => /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", variant: tab2 === item ? "primary" : "secondary", onClick: () => setTab(item), children: t(`settings.promptManager.tab.${item}`) }, item)) })
+          actions: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", variant: "ghost", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(CircleQuestionMark, { size: 14 }), onClick: () => setHelpOpen(true), children: t("settings.promptManager.guide") }),
+          children: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("div", { className: PermissionsPage_module_default.actions, children: tabs.map((item) => /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", variant: tab2 === item ? "primary" : "secondary", onClick: () => setTab(item), children: t(`settings.promptManager.tab.${item}`) }, item)) })
         }
       ),
-      tab2 === "global" ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PromptLibrary, { scope: "global", promptConfig, focus }) : tab2 === "local" ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PromptLibrary, { scope: "local", promptConfig, focus }) : /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PromptPriorityManager, { promptConfig }),
-      helpOpen ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PromptHelpDialog, { onClose: () => setHelpOpen(false) }) : null
+      tab2 === "global" ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PromptLibrary, { scope: "global", promptConfig, focus }) : tab2 === "local" ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PromptLibrary, { scope: "local", promptConfig, focus }) : /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PromptPriorityManager, { promptConfig }),
+      helpOpen ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PromptHelpDialog, { onClose: () => setHelpOpen(false) }) : null
     ] });
   }
-  function PromptLibrary({
+  var PromptLibrary = (0, import_react22.memo)(function PromptLibrary2({
     scope,
     promptConfig,
     focus
   }) {
     const { t } = useI18n();
-    const [addingKind, setAddingKind] = (0, import_react15.useState)(void 0);
+    const [addingKind, setAddingKind] = (0, import_react22.useState)(void 0);
     const instructions = scope === "global" ? promptConfig.globalInstructions : promptConfig.localInstructions;
     const modes = scope === "global" ? promptConfig.globalModes : promptConfig.localModes;
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("div", { className: PermissionsPage_module_default.sectionStack, children: (focus === "instructions" ? ["instruction", "mode"] : ["mode", "instruction"]).map((kind) => /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)(
+    const orderedKinds = (0, import_react22.useMemo)(
+      () => focus === "instructions" ? ["instruction", "mode"] : ["mode", "instruction"],
+      [focus]
+    );
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("div", { className: PermissionsPage_module_default.sectionStack, children: orderedKinds.map((kind) => /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(
       Card,
       {
         title: t(`settings.promptManager.${kind}.${scope}.title`),
         description: kind === "instruction" ? t("settings.promptManager.instruction.description") : t("settings.promptManager.mode.description"),
-        actions: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Plus, { size: 14 }), onClick: () => setAddingKind(kind), children: kind === "instruction" ? t("settings.promptManager.addInstruction") : t("settings.promptManager.addMode") }),
+        actions: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Plus, { size: 14 }), onClick: () => setAddingKind(kind), children: kind === "instruction" ? t("settings.promptManager.addInstruction") : t("settings.promptManager.addMode") }),
         children: [
-          addingKind === kind ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          addingKind === kind ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             PromptItemEditor,
             {
               scope,
@@ -37724,20 +39005,20 @@
               onSaved: () => setAddingKind(void 0)
             }
           ) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.list, children: [
-            (kind === "instruction" ? instructions : modes).map((item) => /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PromptItemCard, { item }, `${item.scope}:${item.id}`)),
-            !(kind === "instruction" ? instructions : modes).length && !addingKind ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.promptManager.empty") }) : null
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.list, children: [
+            (kind === "instruction" ? instructions : modes).map((item) => /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PromptItemCard, { item }, `${item.scope}:${item.id}`)),
+            !(kind === "instruction" ? instructions : modes).length && !addingKind ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.promptManager.empty") }) : null
           ] })
         ]
       },
       kind
     )) });
-  }
-  function PromptItemCard({ item }) {
+  });
+  var PromptItemCard = (0, import_react22.memo)(function PromptItemCard2({ item }) {
     const { t } = useI18n();
-    const [editing, setEditing] = (0, import_react15.useState)(false);
+    const [editing, setEditing] = (0, import_react22.useState)(false);
     if (editing) {
-      return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+      return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
         PromptItemEditor,
         {
           item,
@@ -37748,7 +39029,7 @@
         }
       );
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
       Card,
       {
         title: item.label,
@@ -37757,33 +39038,33 @@
           kind: item.kind === "instruction" ? t("settings.promptManager.kind.instruction") : t("settings.promptManager.kind.mode"),
           id: item.id
         }),
-        actions: /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", variant: "secondary", onClick: () => setEditing(true), children: t("common.edit") }),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+        actions: /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", variant: "secondary", onClick: () => setEditing(true), children: t("common.edit") }),
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             Button,
             {
               size: "sm",
               variant: "secondary",
-              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Copy, { size: 13 }),
+              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Copy, { size: 13 }),
               onClick: () => vscode.postMessage({ type: "duplicatePromptItem", scope: item.scope, kind: item.kind, id: item.id }),
               children: t("common.copy")
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             Button,
             {
               size: "sm",
               variant: "danger",
-              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Trash2, { size: 13 }),
+              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Trash2, { size: 13 }),
               onClick: () => vscode.postMessage({ type: "deletePromptItem", scope: item.scope, kind: item.kind, id: item.id }),
               children: t("common.delete")
             }
           )
         ] }),
-        children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("p", { className: "m-0 whitespace-pre-wrap text-xs leading-5 text-[var(--vscode-descriptionForeground)]", children: item.kind === "instruction" ? item.content : item.instructions })
+        children: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("p", { className: PermissionsPage_module_default.preWrapText, children: item.kind === "instruction" ? item.content : item.instructions })
       }
     );
-  }
+  });
   function PromptItemEditor({
     item,
     scope,
@@ -37792,18 +39073,26 @@
     onSaved
   }) {
     const { t } = useI18n();
-    const [label, setLabel] = (0, import_react15.useState)(item?.label || "");
-    const [content3, setContent] = (0, import_react15.useState)(item ? item.kind === "instruction" ? item.content : item.instructions : "");
+    const [label, setLabel] = (0, import_react22.useState)(item?.label || "");
+    const [content3, setContent] = (0, import_react22.useState)(item ? item.kind === "instruction" ? item.content : item.instructions : "");
     const canSave = Boolean(label.trim());
     const kindLabel = kind === "instruction" ? t("settings.promptManager.kind.instruction") : t("settings.promptManager.kind.mode");
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
       Card,
       {
         title: item ? t("settings.promptManager.editItem", { label: item.label }) : t("settings.promptManager.newItem", { kind: kindLabel }),
         description: t("settings.promptManager.editorDescription", { scope: scopeLabel(scope, t), kind: kindLabel }),
-        children: /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(TextField, { label: t("common.name"), value: label, onChange: (event) => setLabel(event.target.value), autoFocus: true }),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+        children: /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
+            TextField,
+            {
+              label: t("common.name"),
+              value: label,
+              onChange: (event) => setLabel(event.target.value),
+              autoFocus: true
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             TextArea,
             {
               label: t("settings.promptManager.instructionText"),
@@ -37812,14 +39101,14 @@
               onChange: (event) => setContent(event.target.value)
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
               Button,
               {
                 size: "sm",
                 variant: "primary",
                 disabled: !canSave,
-                leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Save, { size: 13 }),
+                leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Save, { size: 13 }),
                 onClick: () => {
                   vscode.postMessage({ type: "upsertPromptItem", scope, kind, id: item?.id, label: label.trim(), content: content3 });
                   onSaved();
@@ -37827,25 +39116,27 @@
                 children: t("common.save")
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", variant: "ghost", onClick: onCancel, children: t("common.cancel") })
+            /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", variant: "ghost", onClick: onCancel, children: t("common.cancel") })
           ] })
         ] })
       }
     );
   }
-  function PromptPriorityManager({ promptConfig }) {
+  var PromptPriorityManager = (0, import_react22.memo)(function PromptPriorityManager2({ promptConfig }) {
     const { t } = useI18n();
-    const [selectedPresetId, setSelectedPresetId] = (0, import_react15.useState)(promptConfig.activePresetId || promptConfig.presets[0]?.id || "new");
+    const [selectedPresetId, setSelectedPresetId] = (0, import_react22.useState)(
+      promptConfig.activePresetId || promptConfig.presets[0]?.id || "new"
+    );
     const selectedPreset = promptConfig.presets.find((preset) => preset.id === selectedPresetId);
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.twoColumns, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.twoColumns, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
         Card,
         {
           title: t("settings.promptManager.presetsTitle"),
           description: t("settings.promptManager.presetsDescription"),
-          actions: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Plus, { size: 14 }), onClick: () => setSelectedPresetId("new"), children: t("settings.promptManager.addPreset") }),
-          children: /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.list, children: [
-            promptConfig.presets.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          actions: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Plus, { size: 14 }), onClick: () => setSelectedPresetId("new"), children: t("settings.promptManager.addPreset") }),
+          children: /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.list, children: [
+            promptConfig.presets.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
               PresetListItem,
               {
                 preset,
@@ -37855,52 +39146,52 @@
               },
               preset.id
             )),
-            !promptConfig.presets.length ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.promptManager.noPresets") }) : null
+            !promptConfig.presets.length ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.promptManager.noPresets") }) : null
           ] })
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(PresetEditor, { preset: selectedPreset, promptConfig }, selectedPreset?.id || "new")
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(PresetEditor, { preset: selectedPreset, promptConfig }, selectedPreset?.id || "new")
     ] });
-  }
-  function PresetListItem({
+  });
+  var PresetListItem = (0, import_react22.memo)(function PresetListItem2({
     preset,
     promptConfig,
     selected,
     onSelect
   }) {
     const { t } = useI18n();
-    const allModes = [...promptConfig.globalModes, ...promptConfig.localModes];
+    const allModes = (0, import_react22.useMemo)(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
     const mode = preset.modeRef ? allModes.find((item) => refKey(item) === refKey(preset.modeRef)) : void 0;
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(
       "button",
       {
         type: "button",
         className: `${PermissionsPage_module_default.navButton} ${selected ? PermissionsPage_module_default.navButtonActive : ""}`,
         onClick: onSelect,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("span", { children: preset.label }),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("span", { className: "ml-auto text-[var(--vscode-descriptionForeground)]", children: t("settings.promptManager.presetDescription", {
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("span", { children: preset.label }),
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("span", { className: PermissionsPage_module_default.navMeta, children: t("settings.promptManager.presetDescription", {
             count: preset.instructionRefs.length,
             mode: mode ? mode.label : t("systemInstructions.noMode")
           }) })
         ]
       }
     );
-  }
+  });
   function PresetEditor({ preset, promptConfig }) {
     const { t } = useI18n();
-    const modes = [...promptConfig.globalModes, ...promptConfig.localModes];
+    const modes = (0, import_react22.useMemo)(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
     const globalInstructions = promptConfig.globalInstructions;
     const localInstructions = promptConfig.localInstructions;
-    const [label, setLabel] = (0, import_react15.useState)(preset?.label || "");
-    const [modeKey, setModeKey] = (0, import_react15.useState)(preset?.modeRef ? refKey(preset.modeRef) : "");
-    const [instructionRefs, setInstructionRefs] = (0, import_react15.useState)(preset?.instructionRefs || []);
+    const [label, setLabel] = (0, import_react22.useState)(preset?.label || "");
+    const [modeKey, setModeKey] = (0, import_react22.useState)(preset?.modeRef ? refKey(preset.modeRef) : "");
+    const [instructionRefs, setInstructionRefs] = (0, import_react22.useState)(preset?.instructionRefs || []);
     const canSave = Boolean(label.trim());
-    function toggleInstruction(ref, checked) {
+    const toggleInstruction = (0, import_react22.useCallback)((ref, checked) => {
       setInstructionRefs(
         (current) => checked ? [...current, ref] : current.filter((item) => refKey(item) !== refKey(ref))
       );
-    }
+    }, []);
     function savePreset() {
       const modeRef = parseRefKey(modeKey);
       vscode.postMessage({
@@ -37912,13 +39203,13 @@
         scope: "local"
       });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
       Card,
       {
         title: preset ? t("settings.promptManager.editPreset") : t("settings.promptManager.newPreset"),
         description: t("settings.promptManager.presetEditorDescription"),
-        actions: preset ? /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+        actions: preset ? /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             Button,
             {
               size: "sm",
@@ -37927,19 +39218,19 @@
               children: t("settings.promptManager.apply")
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             Button,
             {
               size: "sm",
               variant: "danger",
-              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Trash2, { size: 13 }),
+              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Trash2, { size: 13 }),
               onClick: () => vscode.postMessage({ type: "deletePromptPreset", presetId: preset.id }),
               children: t("common.delete")
             }
           )
         ] }) : null,
-        children: /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+        children: /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             TextField,
             {
               label: t("settings.promptManager.presetName"),
@@ -37949,7 +39240,7 @@
               autoFocus: true
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             Select,
             {
               label: t("systemInstructions.modeSelect"),
@@ -37962,7 +39253,7 @@
               onChange: (event) => setModeKey(event.target.value)
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             InstructionPicker,
             {
               title: t("settings.promptManager.globalInstructions"),
@@ -37971,7 +39262,7 @@
               onToggle: toggleInstruction
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             InstructionPicker,
             {
               title: t("settings.promptManager.localInstructions"),
@@ -37980,79 +39271,414 @@
               onToggle: toggleInstruction
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("div", { className: PermissionsPage_module_default.actions, children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Button, { size: "sm", variant: "primary", disabled: !canSave, leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(Save, { size: 13 }), onClick: savePreset, children: t("common.save") }) })
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("div", { className: PermissionsPage_module_default.actions, children: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Button, { size: "sm", variant: "primary", disabled: !canSave, leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(Save, { size: 13 }), onClick: savePreset, children: t("common.save") }) })
         ] })
       }
     );
   }
-  function InstructionPicker({
+  var InstructionPicker = (0, import_react22.memo)(function InstructionPicker2({
     title,
     instructions,
     selectedRefs,
     onToggle
   }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("div", { className: PermissionsPage_module_default.sidebarTitle, children: title }),
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: PermissionsPage_module_default.list, children: [
+    const selectedRefKeys = (0, import_react22.useMemo)(() => new Set(selectedRefs.map(refKey)), [selectedRefs]);
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("div", { className: PermissionsPage_module_default.sidebarTitle, children: title }),
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.list, children: [
         instructions.map((instruction) => {
           const ref = { scope: instruction.scope, id: instruction.id };
-          return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
+          return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(
             Checkbox,
             {
               label: instruction.label,
               description: instruction.content.slice(0, 120),
-              checked: selectedRefs.some((item) => refKey(item) === refKey(ref)),
+              checked: selectedRefKeys.has(refKey(ref)),
               onChange: (event) => onToggle(ref, event.target.checked)
             },
             refKey(ref)
           );
         }),
-        !instructions.length ? /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.promptManager.noInstructions") }) : null
+        !instructions.length ? /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.promptManager.noInstructions") }) : null
       ] })
     ] });
-  }
+  });
   function PromptHelpDialog({ onClose }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("div", { className: "tool-modal-backdrop", role: "presentation", onMouseDown: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("section", { className: "tool-modal", role: "dialog", "aria-modal": "true", onMouseDown: (event) => event.stopPropagation(), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: "tool-modal-header", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("h2", { children: t("settings.promptManager.helpTitle") }),
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("p", { children: t("settings.promptManager.helpDescription") })
+    return /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(ModalBackdrop, { role: "presentation", onMouseDown: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(ModalSurface, { role: "dialog", "aria-modal": "true", onMouseDown: (event) => event.stopPropagation(), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)(ModalHeader, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("h2", { children: t("settings.promptManager.helpTitle") }),
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("p", { children: t("settings.promptManager.helpDescription") })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(IconButton, { title: t("common.close"), onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(X, { size: 15 }) })
+        /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(IconButton, { title: t("common.close"), onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime36.jsx)(X, { size: 15 }) })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("div", { className: "grid gap-3 p-4 text-sm leading-6 text-[var(--vscode-descriptionForeground)]", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("p", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("b", { className: "text-[var(--vscode-foreground)]", children: t("common.instructions") }),
+      /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("div", { className: PermissionsPage_module_default.dialogBody, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("p", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("b", { className: PermissionsPage_module_default.dialogStrong, children: t("common.instructions") }),
           " ",
           t("settings.promptManager.helpInstructions")
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("p", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("b", { className: "text-[var(--vscode-foreground)]", children: t("settings.nav.modes") }),
+        /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("p", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("b", { className: PermissionsPage_module_default.dialogStrong, children: t("settings.nav.modes") }),
           " ",
           t("settings.promptManager.helpModes")
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime27.jsxs)("p", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("b", { className: "text-[var(--vscode-foreground)]", children: t("settings.promptManager.presetsTitle") }),
+        /* @__PURE__ */ (0, import_jsx_runtime36.jsxs)("p", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("b", { className: PermissionsPage_module_default.dialogStrong, children: t("settings.promptManager.presetsTitle") }),
           " ",
           t("settings.promptManager.helpPresets")
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime27.jsx)("p", { children: t("settings.promptManager.helpStorage") })
+        /* @__PURE__ */ (0, import_jsx_runtime36.jsx)("p", { children: t("settings.promptManager.helpStorage") })
       ] })
     ] }) });
   }
-  function scopeLabel(scope, t) {
-    return scope === "global" ? t("settings.promptManager.scope.global") : t("settings.promptManager.scope.local");
+
+  // src/webview/pages/permissions/permissions-page/settings-navigation.tsx
+  var import_react23 = __toESM(require_react());
+
+  // src/webview/pages/permissions/permissions-page/navItems.tsx
+  var import_jsx_runtime37 = __toESM(require_jsx_runtime());
+  var NAV_ITEMS = [
+    {
+      id: "overview",
+      labelKey: "settings.nav.overview",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(SlidersHorizontal, { size: 15 }),
+      descriptionKey: "settings.nav.overviewDescription"
+    },
+    {
+      id: "instructions",
+      labelKey: "settings.nav.instructions",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(FileText, { size: 15 }),
+      descriptionKey: "settings.nav.instructionsDescription"
+    },
+    {
+      id: "modes",
+      labelKey: "settings.nav.modes",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(Bot, { size: 15 }),
+      descriptionKey: "settings.nav.modesDescription"
+    },
+    {
+      id: "skills",
+      labelKey: "settings.nav.skills",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(Wrench, { size: 15 }),
+      descriptionKey: "settings.nav.skillsDescription"
+    },
+    {
+      id: "permissions",
+      labelKey: "settings.nav.permissions",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(ShieldCheck, { size: 15 }),
+      descriptionKey: "settings.nav.permissionsDescription"
+    },
+    {
+      id: "notifications",
+      labelKey: "settings.nav.notifications",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(BellRing, { size: 15 }),
+      descriptionKey: "settings.nav.notificationsDescription"
+    },
+    {
+      id: "compaction",
+      labelKey: "settings.nav.compaction",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(Gauge, { size: 15 }),
+      descriptionKey: "settings.nav.compactionDescription"
+    },
+    {
+      id: "system",
+      labelKey: "settings.nav.system",
+      icon: /* @__PURE__ */ (0, import_jsx_runtime37.jsx)(KeyRound, { size: 15 }),
+      descriptionKey: "settings.nav.systemDescription"
+    }
+  ];
+
+  // src/webview/pages/permissions/permissions-page/settings-navigation.tsx
+  var import_jsx_runtime38 = __toESM(require_jsx_runtime());
+  var SettingsSidebar = (0, import_react23.memo)(function SettingsSidebar2({
+    activePage,
+    onChange
+  }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime38.jsxs)("aside", { className: PermissionsPage_module_default.sidebar, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("div", { className: PermissionsPage_module_default.sidebarTitle, children: t("settings.sidebarTitle") }),
+      /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("nav", { className: PermissionsPage_module_default.nav, children: NAV_ITEMS.map((item) => /* @__PURE__ */ (0, import_jsx_runtime38.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: `${PermissionsPage_module_default.navButton} ${activePage === item.id ? PermissionsPage_module_default.navButtonActive : ""}`,
+          title: t(item.descriptionKey),
+          onClick: () => onChange(item.id),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("span", { className: PermissionsPage_module_default.navIcon, children: item.icon }),
+            /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("span", { children: t(item.labelKey) })
+          ]
+        },
+        item.id
+      )) })
+    ] });
+  });
+  var SettingsHeader = (0, import_react23.memo)(function SettingsHeader2({
+    activePage,
+    onBack,
+    compact = false
+  }) {
+    const { t } = useI18n();
+    const item = NAV_ITEMS.find((navItem) => navItem.id === activePage) || NAV_ITEMS[0];
+    if (compact) {
+      return /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(PageIntro, { activePage });
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime38.jsxs)("div", { className: PermissionsPage_module_default.headerRow, children: [
+      onBack ? /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(IconButton, { title: t("common.backToChat"), onClick: onBack, children: /* @__PURE__ */ (0, import_jsx_runtime38.jsx)(ArrowLeft, { size: 15 }) }) : null,
+      /* @__PURE__ */ (0, import_jsx_runtime38.jsxs)("header", { className: PermissionsPage_module_default.pageHeader, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("h1", { className: PermissionsPage_module_default.pageTitle, children: t(item.labelKey) }),
+        /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("p", { className: PermissionsPage_module_default.pageDescription, children: t(item.descriptionKey) })
+      ] })
+    ] });
+  });
+  function PageIntro({ activePage }) {
+    const { t } = useI18n();
+    const item = NAV_ITEMS.find((navItem) => navItem.id === activePage) || NAV_ITEMS[0];
+    return /* @__PURE__ */ (0, import_jsx_runtime38.jsxs)("header", { className: PermissionsPage_module_default.pageHeader, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("h1", { className: PermissionsPage_module_default.pageTitle, children: t(item.labelKey) }),
+      /* @__PURE__ */ (0, import_jsx_runtime38.jsx)("p", { className: PermissionsPage_module_default.pageDescription, children: t(item.descriptionKey) })
+    ] });
   }
-  function refKey(ref) {
-    return `${ref.scope}:${ref.id}`;
-  }
-  function parseRefKey(value) {
-    const [scope, ...rest] = value.split(":");
-    const id = rest.join(":");
-    return (scope === "global" || scope === "local") && id ? { scope, id } : void 0;
-  }
+
+  // src/webview/pages/permissions/permissions-page/skills-settings-page.tsx
+  var import_react24 = __toESM(require_react());
+  var import_jsx_runtime39 = __toESM(require_jsx_runtime());
+  var SkillsSettingsPage = (0, import_react24.memo)(function SkillsSettingsPage2({ customSkills }) {
+    const { t } = useI18n();
+    const [addingSkill, setAddingSkill] = (0, import_react24.useState)(false);
+    const [newSkill, setNewSkill] = (0, import_react24.useState)({
+      label: "",
+      description: "",
+      command: "",
+      permission: "ask"
+    });
+    const handleAddSkill = (0, import_react24.useCallback)(() => {
+      const label = newSkill.label.trim();
+      const command = newSkill.command.trim();
+      if (!label || !command) return;
+      vscode.postMessage({
+        type: "addSkill",
+        label,
+        description: newSkill.description.trim(),
+        command,
+        permission: newSkill.permission
+      });
+      setNewSkill({ label: "", description: "", command: "", permission: "ask" });
+      setAddingSkill(false);
+    }, [newSkill]);
+    return /* @__PURE__ */ (0, import_jsx_runtime39.jsx)("div", { className: PermissionsPage_module_default.sectionStack, children: /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)(
+      Card,
+      {
+        title: t("settings.skills.title"),
+        description: t("settings.skills.description"),
+        actions: /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(Button, { size: "sm", onClick: () => setAddingSkill(true), children: t("settings.skills.addSkill") }),
+        children: [
+          addingSkill ? /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+              TextField,
+              {
+                label: t("common.name"),
+                placeholder: t("settings.skills.namePlaceholder"),
+                value: newSkill.label,
+                onChange: (event) => setNewSkill((value) => ({ ...value, label: event.target.value })),
+                autoFocus: true
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+              TextField,
+              {
+                label: t("common.description"),
+                placeholder: t("settings.skills.descriptionPlaceholder"),
+                value: newSkill.description,
+                onChange: (event) => setNewSkill((value) => ({ ...value, description: event.target.value }))
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+              TextArea,
+              {
+                label: t("common.command"),
+                rows: 5,
+                value: newSkill.command,
+                onChange: (event) => setNewSkill((value) => ({ ...value, command: event.target.value }))
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+              Select,
+              {
+                label: t("common.permission"),
+                value: newSkill.permission,
+                options: getPermissionOptions(t),
+                onChange: (event) => setNewSkill((value) => ({ ...value, permission: event.target.value }))
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+                Button,
+                {
+                  size: "sm",
+                  variant: "primary",
+                  disabled: !newSkill.label.trim() || !newSkill.command.trim(),
+                  onClick: handleAddSkill,
+                  children: t("common.add")
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(Button, { size: "sm", variant: "ghost", onClick: () => setAddingSkill(false), children: t("common.cancel") })
+            ] })
+          ] }) : null,
+          customSkills.length ? /* @__PURE__ */ (0, import_jsx_runtime39.jsx)("div", { className: PermissionsPage_module_default.list, children: customSkills.map((skill) => /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(SkillSettingsCard, { skill }, skill.id)) }) : !addingSkill ? /* @__PURE__ */ (0, import_jsx_runtime39.jsx)("p", { className: PermissionsPage_module_default.empty, children: t("settings.skills.empty") }) : null
+        ]
+      }
+    ) });
+  });
+  var SkillSettingsCard = (0, import_react24.memo)(function SkillSettingsCard2({ skill }) {
+    const { t } = useI18n();
+    const [draft, setDraft] = (0, import_react24.useState)({
+      label: skill.label,
+      description: skill.description,
+      command: skill.command,
+      permission: skill.permission
+    });
+    const changed = draft.label !== skill.label || draft.description !== skill.description || draft.command !== skill.command || draft.permission !== skill.permission;
+    const canSave = changed && Boolean(draft.label.trim()) && Boolean(draft.command.trim());
+    return /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(Card, { title: skill.label, description: skill.id, children: /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)("div", { className: PermissionsPage_module_default.formGrid, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+        TextField,
+        {
+          label: t("common.name"),
+          value: draft.label,
+          onChange: (event) => setDraft((value) => ({ ...value, label: event.target.value }))
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+        TextField,
+        {
+          label: t("common.description"),
+          value: draft.description,
+          onChange: (event) => setDraft((value) => ({ ...value, description: event.target.value }))
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+        TextArea,
+        {
+          label: t("common.command"),
+          rows: 5,
+          value: draft.command,
+          onChange: (event) => setDraft((value) => ({ ...value, command: event.target.value }))
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+        Select,
+        {
+          label: t("common.permission"),
+          value: draft.permission,
+          options: getPermissionOptions(t),
+          onChange: (event) => setDraft((value) => ({ ...value, permission: event.target.value }))
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime39.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+          Button,
+          {
+            size: "sm",
+            variant: "primary",
+            leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(Save, { size: 13 }),
+            disabled: !canSave,
+            onClick: () => vscode.postMessage({
+              type: "updateSkill",
+              skillId: skill.id,
+              label: draft.label.trim(),
+              description: draft.description.trim(),
+              command: draft.command.trim(),
+              permission: draft.permission
+            }),
+            children: t("common.save")
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(
+          Button,
+          {
+            size: "sm",
+            variant: "danger",
+            leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime39.jsx)(Trash2, { size: 13 }),
+            onClick: () => vscode.postMessage({ type: "deleteSkill", skillId: skill.id }),
+            children: t("common.delete")
+          }
+        )
+      ] })
+    ] }) });
+  });
+
+  // src/webview/pages/permissions/permissions-page/system-settings-page.tsx
+  var import_react25 = __toESM(require_react());
+  var import_jsx_runtime40 = __toESM(require_jsx_runtime());
+  var SystemSettingsPage = (0, import_react25.memo)(function SystemSettingsPage2({
+    agentLanguage,
+    maxToolIterations,
+    codexAuthenticated
+  }) {
+    const { t } = useI18n();
+    return /* @__PURE__ */ (0, import_jsx_runtime40.jsxs)("div", { className: PermissionsPage_module_default.sectionStack, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(Card, { title: t("settings.system.languageTitle"), description: t("settings.system.languageDescription"), children: /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(
+        Select,
+        {
+          label: t("settings.system.responseLanguage"),
+          value: agentLanguage,
+          options: [
+            { value: "ru", label: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439" },
+            { value: "en", label: "English" }
+          ],
+          onChange: (event) => vscode.postMessage({ type: "setAgentLanguage", language: event.target.value })
+        }
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(Card, { title: t("settings.system.iterationTitle"), description: t("settings.system.iterationDescription"), children: /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(
+        TextField,
+        {
+          type: "number",
+          min: 0,
+          step: 1,
+          value: maxToolIterations,
+          leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(Gauge, { size: 15 }),
+          onChange: (event) => vscode.postMessage({
+            type: "setMaxToolIterations",
+            maxToolIterations: clampNumber(event.target.value, 0, Number.MAX_SAFE_INTEGER, 0, true)
+          })
+        }
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(
+        Card,
+        {
+          title: t("settings.system.codexTitle"),
+          description: codexAuthenticated ? t("settings.system.codexDescriptionAuthorized") : t("settings.system.codexDescriptionUnauthorized"),
+          children: codexAuthenticated ? /* @__PURE__ */ (0, import_jsx_runtime40.jsxs)("div", { className: PermissionsPage_module_default.actions, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(Badge, { tone: "success", icon: /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(CircleCheck, { size: 12 }), children: t("common.authorized") }),
+            /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(
+              Button,
+              {
+                variant: "secondary",
+                leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(LogOut, { size: 14 }),
+                onClick: () => vscode.postMessage({ type: "codexLogout" }),
+                children: t("settings.system.logout")
+              }
+            )
+          ] }) : /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(
+            Button,
+            {
+              variant: "primary",
+              leadingIcon: /* @__PURE__ */ (0, import_jsx_runtime40.jsx)(LogIn, { size: 14 }),
+              onClick: () => vscode.postMessage({ type: "codexLogin" }),
+              children: t("common.authorize")
+            }
+          )
+        }
+      )
+    ] });
+  });
+
+  // src/webview/pages/permissions/permissions-page/PermissionsPage.tsx
+  var import_jsx_runtime41 = __toESM(require_jsx_runtime());
 
   // src/webview/widgets/message-list/system-instruction-label/SystemInstructionLabel.module.scss
   var SystemInstructionLabel_module_default = {
@@ -38109,14 +39735,14 @@
   }
 
   // src/webview/widgets/message-list/system-instruction-label/SystemInstructionLabel.tsx
-  var import_jsx_runtime28 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime42 = __toESM(require_jsx_runtime());
   function SystemInstructionLabel({ mode, sources, promptConfig, busy: _busy }) {
     const { t } = useI18n();
-    const [isOpen, setIsOpen] = (0, import_react16.useState)(false);
+    const [isOpen, setIsOpen] = (0, import_react27.useState)(false);
     const visibleSources = sources.length ? sources : getFallbackSources(mode, t);
     const title = t("systemInstructions.title", { count: visibleSources.length });
     const chips = getInstructionChips(promptConfig, visibleSources);
-    (0, import_react16.useEffect)(() => {
+    (0, import_react27.useEffect)(() => {
       if (!isOpen) return;
       function closeOnEscape(event) {
         if (event.key === "Escape") setIsOpen(false);
@@ -38124,21 +39750,30 @@
       document.addEventListener("keydown", closeOnEscape);
       return () => document.removeEventListener("keydown", closeOnEscape);
     }, [isOpen]);
-    return /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: SystemInstructionLabel_module_default.root, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("button", { type: "button", className: SystemInstructionLabel_module_default.button, title: t("systemInstructions.show"), onClick: () => setIsOpen(true), children: [
-        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(FileText, { size: 13, className: SystemInstructionLabel_module_default.icon }),
-        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: SystemInstructionLabel_module_default.title, children: t("systemInstructions.shortTitle") }),
-        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: SystemInstructionLabel_module_default.chips, children: chips.length ? chips.map((chip) => /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: SystemInstructionLabel_module_default.chip, title: chip.label, children: truncateChip(chip.label) }, chip.key)) : /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("span", { className: SystemInstructionLabel_module_default.fallbackTitle, children: title }) })
-      ] }),
+    return /* @__PURE__ */ (0, import_jsx_runtime42.jsxs)("div", { className: SystemInstructionLabel_module_default.root, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime42.jsxs)(
+        "button",
+        {
+          type: "button",
+          className: SystemInstructionLabel_module_default.button,
+          title: t("systemInstructions.show"),
+          onClick: () => setIsOpen(true),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(FileText, { size: 13, className: SystemInstructionLabel_module_default.icon }),
+            /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("span", { className: SystemInstructionLabel_module_default.title, children: t("systemInstructions.shortTitle") }),
+            /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("span", { className: SystemInstructionLabel_module_default.chips, children: chips.length ? chips.map((chip) => /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("span", { className: SystemInstructionLabel_module_default.chip, title: chip.label, children: truncateChip(chip.label) }, chip.key)) : /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("span", { className: SystemInstructionLabel_module_default.fallbackTitle, children: title }) })
+          ]
+        }
+      ),
       isOpen ? (0, import_react_dom2.createPortal)(
-        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(SystemInstructionDialog, { title, promptConfig, onClose: () => setIsOpen(false) }),
+        /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(SystemInstructionDialog, { title, promptConfig, onClose: () => setIsOpen(false) }),
         document.body
       ) : null
     ] });
   }
   function SystemInstructionDialog({ title, promptConfig, onClose }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(
       "div",
       {
         className: SystemInstructionLabel_module_default.backdrop,
@@ -38146,22 +39781,22 @@
         "aria-modal": "true",
         "aria-labelledby": "system-instruction-title",
         onClick: onClose,
-        children: /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("section", { className: SystemInstructionLabel_module_default.dialog, onClick: (event) => event.stopPropagation(), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: SystemInstructionLabel_module_default.dialogHeader, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: SystemInstructionLabel_module_default.dialogTitleWrap, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("h2", { id: "system-instruction-title", className: SystemInstructionLabel_module_default.dialogTitle, children: title }),
-              /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("p", { className: SystemInstructionLabel_module_default.dialogDescription, children: t("systemInstructions.manageDescription") })
+        children: /* @__PURE__ */ (0, import_jsx_runtime42.jsxs)("section", { className: SystemInstructionLabel_module_default.dialog, onClick: (event) => event.stopPropagation(), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime42.jsxs)("div", { className: SystemInstructionLabel_module_default.dialogHeader, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime42.jsxs)("div", { className: SystemInstructionLabel_module_default.dialogTitleWrap, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("h2", { id: "system-instruction-title", className: SystemInstructionLabel_module_default.dialogTitle, children: title }),
+              /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("p", { className: SystemInstructionLabel_module_default.dialogDescription, children: t("systemInstructions.manageDescription") })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("button", { type: "button", className: SystemInstructionLabel_module_default.closeButton, title: t("common.close"), onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(X, { size: 14 }) })
+            /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("button", { type: "button", className: SystemInstructionLabel_module_default.closeButton, title: t("common.close"), onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(X, { size: 14 }) })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("div", { className: SystemInstructionLabel_module_default.dialogBody, children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(ModesSettingsPage, { promptConfig }) })
+          /* @__PURE__ */ (0, import_jsx_runtime42.jsx)("div", { className: SystemInstructionLabel_module_default.dialogBody, children: /* @__PURE__ */ (0, import_jsx_runtime42.jsx)(ModesSettingsPage, { promptConfig }) })
         ] })
       }
     );
   }
 
   // src/webview/widgets/message-list/tool-calls-cut/ToolCallsCut.tsx
-  var import_react17 = __toESM(require_react());
+  var import_react28 = __toESM(require_react());
 
   // src/webview/widgets/message-list/tool-calls-cut/ToolCallsCut.module.scss
   var ToolCallsCut_module_default = {
@@ -38195,18 +39830,18 @@
   }
 
   // src/webview/widgets/message-list/tool-calls-cut/ToolCallsCut.tsx
-  var import_jsx_runtime29 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime43 = __toESM(require_jsx_runtime());
   function ToolCallsCut({ tools, userMessage: userMessage2, assistantMessage: assistantMessage2, active, resolvedApprovalId }) {
     const shouldBeOpen = active || !assistantMessage2;
-    const [open, setOpen] = (0, import_react17.useState)(shouldBeOpen);
-    (0, import_react17.useEffect)(() => {
+    const [open, setOpen] = (0, import_react28.useState)(shouldBeOpen);
+    (0, import_react28.useEffect)(() => {
       setOpen(shouldBeOpen);
     }, [shouldBeOpen]);
     if (!tools.length) {
       return null;
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime29.jsxs)("article", { className: ToolCallsCut_module_default.root, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsxs)("article", { className: ToolCallsCut_module_default.root, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(
         ToolCallsCutHeader,
         {
           open,
@@ -38214,25 +39849,25 @@
           onToggle: () => setOpen((value) => !value)
         }
       ),
-      open ? /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("div", { className: ToolCallsCut_module_default.body, children: tools.map((tool) => /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(MessageCard, { message: tool, collapseToolId: resolvedApprovalId }, tool.id)) }) : null
+      open ? /* @__PURE__ */ (0, import_jsx_runtime43.jsx)("div", { className: ToolCallsCut_module_default.body, children: tools.map((tool) => /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(MessageCard, { message: tool, collapseToolId: resolvedApprovalId }, tool.id)) }) : null
     ] });
   }
   function ToolCallsCutHeader({ open, meta, onToggle }) {
     const { t } = useI18n();
-    return /* @__PURE__ */ (0, import_jsx_runtime29.jsxs)("div", { className: ToolCallsCut_module_default.header, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime43.jsxs)("div", { className: ToolCallsCut_module_default.header, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(
         "button",
         {
           className: ToolCallsCut_module_default.chevronButton,
           title: open ? t("toolCalls.hide") : t("toolCalls.show"),
           "aria-expanded": open,
           onClick: onToggle,
-          children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(ChevronRight, { size: 14 })
+          children: /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(ChevronRight, { size: 14 })
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("span", { className: ToolCallsCut_module_default.icon, children: /* @__PURE__ */ (0, import_jsx_runtime29.jsx)(Wrench, { size: 14 }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("span", { className: ToolCallsCut_module_default.title, children: t("message.tool") }),
-      /* @__PURE__ */ (0, import_jsx_runtime29.jsx)("span", { className: ToolCallsCut_module_default.meta, children: meta })
+      /* @__PURE__ */ (0, import_jsx_runtime43.jsx)("span", { className: ToolCallsCut_module_default.icon, children: /* @__PURE__ */ (0, import_jsx_runtime43.jsx)(Wrench, { size: 14 }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime43.jsx)("span", { className: ToolCallsCut_module_default.title, children: t("message.tool") }),
+      /* @__PURE__ */ (0, import_jsx_runtime43.jsx)("span", { className: ToolCallsCut_module_default.meta, children: meta })
     ] });
   }
 
@@ -38314,7 +39949,7 @@
   }
 
   // src/webview/widgets/message-list/message-list/MessageList.tsx
-  var import_jsx_runtime30 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime44 = __toESM(require_jsx_runtime());
   function MessageList({
     messages,
     previousChat,
@@ -38329,10 +39964,10 @@
     bottomOffset = "none",
     resolvedApprovalId
   }) {
-    const scrollRef = (0, import_react18.useRef)(null);
-    const shouldStickToBottomRef = (0, import_react18.useRef)(true);
+    const scrollRef = (0, import_react29.useRef)(null);
+    const shouldStickToBottomRef = (0, import_react29.useRef)(true);
     const groups = groupMessages(messages, busy);
-    (0, import_react18.useLayoutEffect)(() => {
+    (0, import_react29.useLayoutEffect)(() => {
       if (!shouldStickToBottomRef.current) {
         return;
       }
@@ -38341,14 +39976,14 @@
     function handleScroll() {
       shouldStickToBottomRef.current = isNearBottom(scrollRef.current);
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(
       "main",
       {
         ref: scrollRef,
         className: `${MessageList_module_default.root} ${bottomOffset === "composer" ? MessageList_module_default.withComposerOffset : ""}`,
         onScroll: handleScroll,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime30.jsx)("div", { className: MessageList_module_default.stickyInstructions, children: /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("div", { className: MessageList_module_default.stickyInstructions, children: /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(
             SystemInstructionLabel,
             {
               mode: activeMode,
@@ -38357,11 +39992,11 @@
               busy
             }
           ) }),
-          /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)("div", { className: MessageList_module_default.stack, children: [
-            previousChat ? /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(PreviousChatHistory, { chat: previousChat, compactedAt }) : null,
-            messages.length === 0 && !previousChat ? /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(EmptyState, {}) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)("div", { className: MessageList_module_default.stack, children: [
+            previousChat ? /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(PreviousChatHistory, { chat: previousChat, compactedAt }) : null,
+            messages.length === 0 && !previousChat ? /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(EmptyState, {}) : null,
             groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages), resolvedApprovalId)),
-            busy ? /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(AgentActivityStatus, { activity, detail: activityDetail }) : null
+            busy ? /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(AgentActivityStatus, { activity, detail: activityDetail }) : null
           ] })
         ]
       }
@@ -38369,21 +40004,21 @@
   }
   function PreviousChatHistory({ chat, compactedAt }) {
     const groups = groupMessages(chat.messages, false);
-    return /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)(import_jsx_runtime30.Fragment, { children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)(import_jsx_runtime44.Fragment, { children: [
       groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(chat.messages))),
-      /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)("div", { className: MessageList_module_default.compactionDivider, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime30.jsx)("span", { className: MessageList_module_default.compactionLine }),
-        /* @__PURE__ */ (0, import_jsx_runtime30.jsxs)("span", { className: MessageList_module_default.compactionLabel, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)("div", { className: MessageList_module_default.compactionDivider, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("span", { className: MessageList_module_default.compactionLine }),
+        /* @__PURE__ */ (0, import_jsx_runtime44.jsxs)("span", { className: MessageList_module_default.compactionLabel, children: [
           "Context compacted",
           compactedAt ? ` \xB7 ${new Date(compactedAt).toLocaleString()}` : ""
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime30.jsx)("span", { className: MessageList_module_default.compactionLine })
+        /* @__PURE__ */ (0, import_jsx_runtime44.jsx)("span", { className: MessageList_module_default.compactionLine })
       ] })
     ] });
   }
   function renderMessageGroup(group, lastAssistantMessageId, resolvedApprovalId) {
     if (group.type === "toolCalls") {
-      return /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(
+      return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(
         ToolCallsCut,
         {
           tools: group.tools,
@@ -38395,20 +40030,20 @@
         group.id
       );
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(
       MessageCard,
       {
         message: group.message,
         defaultExpanded: isDefaultExpandedMessage(group.message, lastAssistantMessageId),
         collapseToolId: resolvedApprovalId,
-        actions: group.message.content ? /* @__PURE__ */ (0, import_jsx_runtime30.jsx)(CopyMessageButton, { markdown: group.message.content }) : null
+        actions: group.message.content ? /* @__PURE__ */ (0, import_jsx_runtime44.jsx)(CopyMessageButton, { markdown: group.message.content }) : null
       },
       group.message.id
     );
   }
 
   // tests/component-screenshots/harness.tsx
-  var import_jsx_runtime31 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime45 = __toESM(require_jsx_runtime());
   var storyInstructionSources2 = [
     {
       id: "base",
@@ -38437,14 +40072,14 @@
   var assistantMessage = [...storyMessages].reverse().find((message) => message.role === "assistant");
   function HarnessApp() {
     const scenario = getScenarioId();
-    return /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(I18nProvider, { language: "ru", children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)("main", { className: "component-shot-page", children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)("section", { className: "component-shot-card", "data-testid": "component-shot", children: renderScenario(scenario) }) }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(I18nProvider, { language: "ru", children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("main", { className: "component-shot-page", children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("section", { className: "component-shot-card", "data-testid": "component-shot", children: renderScenario(scenario) }) }) });
   }
   function renderScenario(scenario) {
     switch (scenario) {
       case "agent-activity-status":
-        return /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(AgentActivityStatus, { activity: "runningTool", detail: "\u0412\u044B\u043F\u043E\u043B\u043D\u044F\u044E `npm run typecheck` \u0438 \u0436\u0434\u0443 \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442." });
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(AgentActivityStatus, { activity: "runningTool", detail: "\u0412\u044B\u043F\u043E\u043B\u043D\u044F\u044E `npm run typecheck` \u0438 \u0436\u0434\u0443 \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442." });
       case "system-instruction-label":
-        return /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(
           SystemInstructionLabel,
           {
             mode: storyAgentModes[2],
@@ -38453,7 +40088,7 @@
           }
         );
       case "tool-calls-cut":
-        return /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(
           ToolCallsCut,
           {
             tools: toolMessages,
@@ -38463,7 +40098,7 @@
           }
         );
       case "message-list":
-        return /* @__PURE__ */ (0, import_jsx_runtime31.jsx)("div", { className: "component-shot-message-list", children: /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", { className: "component-shot-message-list", children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(
           MessageList,
           {
             messages: storyMessages,
@@ -38475,9 +40110,46 @@
             activity: void 0
           }
         ) });
+      case "message-card-user":
+        return userMessage ? /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(MessageCard, { message: userMessage }) : null;
+      case "message-card-assistant":
+        return assistantMessage ? /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(MessageCard, { message: assistantMessage }) : null;
+      case "tool-message-card-approval":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ToolMessageCard, { message: storyToolMessages.waitingApproval });
+      case "tool-message-card-bash":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ToolMessageCard, { message: storyToolMessages.finishedBash });
+      case "tool-result-preview-bash":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ToolResultPreview, { message: storyToolMessages.finishedBash });
+      case "tool-approval-actions":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ToolApprovalActions, { messageId: "tool-approval-screenshot", compact: false });
+      case "workspace-file-link":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(
+          WorkspaceFileLink,
+          {
+            file: { path: "src/webview/entities/message/MessageCard.tsx", line: 14, label: "component" }
+          }
+        );
+      case "feature-agent-mode-select":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(AgentModeSelect, { modes: storyAgentModes, activeId: "frontend", className: "component-shot-control-wide" });
+      case "feature-model-select":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ModelSelect, { model: "codex:gpt-5.1-codex", models: storyModels });
+      case "feature-permission-preset-select":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(PermissionPresetSelect, { presets: storyToolPermissionPresets, activeId: "balanced" });
+      case "feature-tool-permission-select":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(ToolPermissionSelect, { item: storyToolPermissions[2] });
+      case "feature-copy-message-button":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(CopyMessageButton, { markdown: "Copied from screenshot harness" });
+      case "feature-composer":
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("div", { className: "component-shot-composer", children: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(
+          Composer,
+          {
+            busy: false,
+            settings: /* @__PURE__ */ (0, import_jsx_runtime45.jsx)("span", { className: "component-shot-composer-settings", children: "Mode: Frontend \xB7 Safe access \xB7 Tokens: 12.4K \xB7 Cost: ~$0.0021" })
+          }
+        ) });
       case "empty-state":
       default:
-        return /* @__PURE__ */ (0, import_jsx_runtime31.jsx)(EmptyState, {});
+        return /* @__PURE__ */ (0, import_jsx_runtime45.jsx)(EmptyState, {});
     }
   }
   function getScenarioId() {
@@ -38485,10 +40157,30 @@
     const scenario = params.get("scenario");
     return isScenarioId(scenario) ? scenario : "empty-state";
   }
+  var ALL_SCENARIOS = [
+    "empty-state",
+    "agent-activity-status",
+    "system-instruction-label",
+    "tool-calls-cut",
+    "message-list",
+    "message-card-user",
+    "message-card-assistant",
+    "tool-message-card-approval",
+    "tool-message-card-bash",
+    "tool-result-preview-bash",
+    "tool-approval-actions",
+    "workspace-file-link",
+    "feature-agent-mode-select",
+    "feature-model-select",
+    "feature-permission-preset-select",
+    "feature-tool-permission-select",
+    "feature-copy-message-button",
+    "feature-composer"
+  ];
   function isScenarioId(value) {
-    return Boolean(value && ["empty-state", "agent-activity-status", "system-instruction-label", "tool-calls-cut", "message-list"].includes(value));
+    return Boolean(value && ALL_SCENARIOS.includes(value));
   }
-  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime31.jsx)(HarnessApp, {}));
+  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime45.jsx)(HarnessApp, {}));
 })();
 /*! Bundled license information:
 
@@ -38556,29 +40248,40 @@ lucide-react/dist/esm/shared/src/utils/hasA11yProp.mjs:
 lucide-react/dist/esm/context.mjs:
 lucide-react/dist/esm/Icon.mjs:
 lucide-react/dist/esm/createLucideIcon.mjs:
+lucide-react/dist/esm/icons/arrow-left.mjs:
+lucide-react/dist/esm/icons/bell-ring.mjs:
 lucide-react/dist/esm/icons/bot.mjs:
 lucide-react/dist/esm/icons/check.mjs:
 lucide-react/dist/esm/icons/chevron-down.mjs:
 lucide-react/dist/esm/icons/chevron-right.mjs:
+lucide-react/dist/esm/icons/circle-check.mjs:
 lucide-react/dist/esm/icons/circle-play.mjs:
 lucide-react/dist/esm/icons/circle-question-mark.mjs:
 lucide-react/dist/esm/icons/code-xml.mjs:
 lucide-react/dist/esm/icons/copy.mjs:
+lucide-react/dist/esm/icons/cpu.mjs:
 lucide-react/dist/esm/icons/file-code-corner.mjs:
 lucide-react/dist/esm/icons/file-pen-line.mjs:
 lucide-react/dist/esm/icons/file-text.mjs:
 lucide-react/dist/esm/icons/folder-plus.mjs:
 lucide-react/dist/esm/icons/folder-tree.mjs:
 lucide-react/dist/esm/icons/folder.mjs:
+lucide-react/dist/esm/icons/gauge.mjs:
 lucide-react/dist/esm/icons/info.mjs:
+lucide-react/dist/esm/icons/key-round.mjs:
 lucide-react/dist/esm/icons/list-tree.mjs:
 lucide-react/dist/esm/icons/loader-circle.mjs:
+lucide-react/dist/esm/icons/log-in.mjs:
+lucide-react/dist/esm/icons/log-out.mjs:
 lucide-react/dist/esm/icons/message-square-text.mjs:
 lucide-react/dist/esm/icons/play.mjs:
 lucide-react/dist/esm/icons/plus.mjs:
 lucide-react/dist/esm/icons/replace.mjs:
 lucide-react/dist/esm/icons/save.mjs:
 lucide-react/dist/esm/icons/search.mjs:
+lucide-react/dist/esm/icons/send-horizontal.mjs:
+lucide-react/dist/esm/icons/shield-check.mjs:
+lucide-react/dist/esm/icons/sliders-horizontal.mjs:
 lucide-react/dist/esm/icons/sparkles.mjs:
 lucide-react/dist/esm/icons/square.mjs:
 lucide-react/dist/esm/icons/terminal.mjs:

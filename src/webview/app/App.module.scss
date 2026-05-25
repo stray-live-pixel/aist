@@ -1,0 +1,31 @@
+.loadingPage {
+  display: flex;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-editor-background);
+}
+
+.loadingContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.errorHeaderMain {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.errorIcon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.errorHeaderText {
+  min-width: 0;
+}

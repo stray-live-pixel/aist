@@ -1,16 +1,13 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { sassPlugin } from 'esbuild-sass-plugin';
 
-const WEBVIEW_CSS_PATH = 'dist/webview.css';
-const MODULES_CSS_PATH = 'dist/webview.modules.css';
+await buildWebview();
 
-if (process.argv[2] === 'merge-css') {
-  await mergeWebviewCss();
-} else {
-  await buildWebview();
-}
-
+/**
+ * Собирает webview без Tailwind: глобальный `styles.css` импортируется из entry,
+ * а `*.module.scss` обрабатываются esbuild-sass-plugin как local-css.
+ * Это важно для полного отказа от Tailwind CLI и одного источника итогового CSS.
+ */
 async function buildWebview() {
   await build({
     entryPoints: ['src/webview/app/index.tsx'],
@@ -26,22 +23,9 @@ async function buildWebview() {
         filter: /\.module\.scss$/,
         type: 'local-css'
       })
-    ]
+    ],
+    loader: {
+      '.css': 'css'
+    }
   });
-
-  await rename(WEBVIEW_CSS_PATH, MODULES_CSS_PATH);
-}
-
-/**
- * Объединяет CSS Modules с глобальным Tailwind CSS.
- *
- * Использование: npm script сначала запускает сборку webview, затем Tailwind CLI,
- * затем повторно запускает этот файл с аргументом `merge-css`.
- * Esbuild пишет CSS modules в `dist/webview.css`, а Tailwind CLI пишет туда же
- * глобальные стили. Без merge второй шаг перетирает CSS modules.
- */
-async function mergeWebviewCss() {
-  const [modulesCss, globalCss] = await Promise.all([readFile(MODULES_CSS_PATH, 'utf8'), readFile(WEBVIEW_CSS_PATH, 'utf8')]);
-
-  await writeFile(WEBVIEW_CSS_PATH, `${globalCss}\n${modulesCss}`);
 }

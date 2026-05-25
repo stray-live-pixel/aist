@@ -1,0 +1,88 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+  padding: 24px;
+}
+
+.approvalBackdrop {
+  z-index: 120;
+  background: color-mix(in srgb, var(--vscode-editor-background) 58%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.modal {
+  display: flex;
+  width: min(760px, 100%);
+  max-height: min(78vh, 720px);
+  flex-direction: column;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 18px 54px rgb(0 0 0 / 0.35);
+}
+
+.settingsModal {
+  width: min(980px, 100%);
+  max-height: min(88vh, 900px);
+}
+
+.approvalModal {
+  width: min(720px, 100%);
+  border-color: color-mix(in srgb, #f59e0b 55%, var(--agent-border));
+  box-shadow: 0 18px 60px color-mix(in srgb, #f59e0b 20%, rgb(0 0 0 / 0.4));
+}
+
+.errorModal {
+  border-color: color-mix(in srgb, var(--vscode-errorForeground) 72%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-errorForeground) 8%, var(--vscode-editor-background));
+  box-shadow: 0 18px 54px color-mix(in srgb, var(--vscode-errorForeground) 26%, rgb(0 0 0 / 0.35));
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--agent-border);
+  padding: 12px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.approvalHeader {
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+}
+
+.errorHeader {
+  border-bottom-color: color-mix(in srgb, var(--vscode-errorForeground) 52%, var(--agent-border));
+  color: var(--vscode-errorForeground);
+}
+
+.code {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+}
+
+.errorCode {
+  color: var(--vscode-errorForeground);
+}

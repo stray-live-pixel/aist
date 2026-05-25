@@ -5,8 +5,8 @@
  */
 import { useLayoutEffect, useRef } from 'react';
 
-import { MessageCard } from '../../../entities/message/MessageCard';
-import { CopyMessageButton } from '../../../features/copy-message/CopyMessageButton';
+import { MessageCard } from '../../../entities/message';
+import { CopyMessageButton } from '../../../features';
 import { AgentActivityStatus } from '../agent-activity-status';
 import { EmptyState } from '../empty-state';
 import { SystemInstructionLabel } from '../system-instruction-label';

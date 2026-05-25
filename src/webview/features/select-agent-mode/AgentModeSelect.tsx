@@ -3,16 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
-import type { AgentMode, AgentModeId } from '../../shared/types';
+import type { AgentModeId } from '../../shared/types';
+import styles from './AgentModeSelect.module.scss';
+import type { AgentModeSelectProps } from './types';
+import { canDeleteAgentMode } from './utils';
 
-const DEFAULT_MODE_IDS = new Set<AgentModeId>(['default', 'careful']);
-
-type AgentModeSelectProps = {
-  modes: AgentMode[];
-  activeId: AgentModeId;
-  className?: string;
-};
-
+/**
+ * Что это: компактный dropdown выбора режима агента с подтверждением удаления пользовательских режимов.
+ * Зачем нужно: режимы влияют на системный prompt, поэтому компонент сразу отправляет IPC-события и держит локально только состояние раскрытия/подтверждения.
+ */
 export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectProps) {
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -66,47 +65,39 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
   }
 
   return (
-    <div ref={rootRef} className={`relative min-w-0 ${className ?? ''}`}>
+    <div ref={rootRef} className={className ? `${styles.root} ${className}` : styles.root}>
       <button
         type="button"
-        className="flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-left text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)]"
+        className={styles.trigger}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="min-w-0 flex-1 truncate">{activeMode?.label ?? activeId}</span>
-        <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className={styles.triggerLabel}>{activeMode?.label ?? activeId}</span>
+        <ChevronDown size={14} className={open ? `${styles.chevron} ${styles.chevronOpen}` : styles.chevron} />
       </button>
 
       {open ? (
-        <div
-          className="absolute left-0 top-full z-30 mt-2 grid max-h-72 w-[min(22rem,calc(100vw-1.5rem))] gap-1 overflow-y-auto rounded-md border border-[var(--agent-border)] bg-[var(--vscode-dropdown-background)] p-1 shadow-lg"
-          role="listbox"
-          aria-label={t('summary.agentMode')}
-        >
+        <div className={styles.menu} role="listbox" aria-label={t('summary.agentMode')}>
           {modes.map((mode) => {
             const active = mode.id === activeId;
-            const deletable = !DEFAULT_MODE_IDS.has(mode.id);
+            const deletable = canDeleteAgentMode(mode.id);
             const confirmingDelete = deleteTargetId === mode.id;
 
             return (
-              <div
-                key={mode.id}
-                className={`flex min-h-9 min-w-0 items-stretch gap-1 rounded ${
-                  active
-                    ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
-                    : ''
-                }`}
-              >
+              <div key={mode.id} className={active ? `${styles.item} ${styles.itemActive}` : styles.item}>
                 <button
                   type="button"
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-xs outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
+                  className={styles.optionButton}
                   role="option"
                   aria-selected={active}
                   onClick={() => selectMode(mode.id)}
                 >
-                  <Check size={14} className={`shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} />
-                  <span className="min-w-0 flex-1 truncate font-medium">{mode.label}</span>
+                  <Check
+                    size={14}
+                    className={active ? styles.checkIcon : `${styles.checkIcon} ${styles.checkHidden}`}
+                  />
+                  <span className={styles.optionLabel}>{mode.label}</span>
                 </button>
 
                 {deletable ? (
@@ -114,7 +105,7 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
                     <>
                       <button
                         type="button"
-                        className="flex w-7 shrink-0 items-center justify-center rounded text-[var(--vscode-errorForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
+                        className={styles.itemActionDanger}
                         title={t('common.confirmDelete')}
                         aria-label={t('common.confirmDelete')}
                         onClick={() => deleteMode(mode.id)}
@@ -123,7 +114,7 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
                       </button>
                       <button
                         type="button"
-                        className="flex w-7 shrink-0 items-center justify-center rounded outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
+                        className={styles.itemAction}
                         title={t('common.cancelDelete')}
                         aria-label={t('common.cancelDelete')}
                         onClick={() => setDeleteTargetId(undefined)}
@@ -134,7 +125,7 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
                   ) : (
                     <button
                       type="button"
-                      className="flex w-7 shrink-0 items-center justify-center rounded text-[var(--vscode-errorForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)]"
+                      className={styles.itemActionDanger}
                       title={t('common.delete')}
                       aria-label={t('common.delete')}
                       onClick={() => setDeleteTargetId(mode.id)}

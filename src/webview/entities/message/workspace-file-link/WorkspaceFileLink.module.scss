@@ -1,0 +1,25 @@
+/* Ссылка на файл workspace из результата tool-call. */
+
+.root {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 999px;
+  color: var(--vscode-textLink-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 18%, transparent);
+  padding: 2px 8px;
+}
+
+.root:hover {
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 32%, transparent);
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

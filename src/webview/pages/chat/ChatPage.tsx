@@ -1,7 +1,7 @@
 import { ExternalLink, MessageSquare } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 
-import { Composer } from '../../features/send-message/Composer';
+import { Composer } from '../../features';
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentState } from '../../shared/types';
@@ -11,11 +11,16 @@ import { AgentSettingsModal } from './AgentSettingsModal';
 import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
 import { ApprovalPromptModal } from './ApprovalPromptModal';
 import { ChatListModal } from './ChatListModal';
+import styles from './ChatPage.module.scss';
 
 type ChatPageProps = {
   state: AgentState;
 };
 
+/**
+ * Что это: корневая страница активного чата.
+ * Зачем нужно: держит только состояние модалок/approval и прокидывает уже подготовленные данные в виджеты чата.
+ */
 export function ChatPage({ state }: ChatPageProps) {
   const [chatsOpen, setChatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -34,7 +39,7 @@ export function ChatPage({ state }: ChatPageProps) {
   }, [pendingApprovalId]);
 
   return (
-    <div className="relative flex h-screen flex-col bg-transparent text-[var(--vscode-foreground)]">
+    <div className={styles.root}>
       <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
       <MessageList
         messages={state.activeChat.messages}
@@ -91,11 +96,17 @@ export function ChatPage({ state }: ChatPageProps) {
   );
 }
 
-function FloatingChatActions({ onOpenChats, activeChatId }: { onOpenChats(): void; activeChatId: string }) {
+const FloatingChatActions = memo(function FloatingChatActions({
+  onOpenChats,
+  activeChatId
+}: {
+  onOpenChats(): void;
+  activeChatId: string;
+}) {
   const { t } = useI18n();
 
   return (
-    <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
+    <div className={styles.floatingActions}>
       <IconButton title={t('chat.openChats')} onClick={onOpenChats}>
         <MessageSquare size={15} />
       </IconButton>
@@ -107,7 +118,7 @@ function FloatingChatActions({ onOpenChats, activeChatId }: { onOpenChats(): voi
       </IconButton>
     </div>
   );
-}
+});
 
 function useSortedChats(state: AgentState) {
   return useMemo(

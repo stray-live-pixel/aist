@@ -1,0 +1,71 @@
+/* Модалка с сырым JSON tool-call для диагностики. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+  padding: 24px;
+}
+
+.modal {
+  display: flex;
+  max-height: min(78vh, 720px);
+  width: min(760px, 100%);
+  flex-direction: column;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 18px 54px rgb(0 0 0 / 0.35);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--agent-border);
+  padding: 12px;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 13px;
+}
+
+.headerSubtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.closeButton {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 6px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+}
+
+.closeButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+}
+
+.code {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+}

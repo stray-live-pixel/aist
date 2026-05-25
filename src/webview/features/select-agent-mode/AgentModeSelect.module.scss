@@ -1,0 +1,140 @@
+.root {
+  position: relative;
+  min-width: 0;
+}
+
+.trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+
+.trigger:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.triggerLabel,
+.optionLabel {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionLabel {
+  font-weight: 600;
+}
+
+.chevron,
+.checkIcon {
+  flex-shrink: 0;
+}
+
+.chevron {
+  transition: transform 160ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-height: 288px;
+  gap: 4px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-dropdown-background);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  padding: 4px;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: stretch;
+  gap: 4px;
+  border-radius: 4px;
+}
+
+.itemActive {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.optionButton {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+
+.optionButton:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.optionButton:focus {
+  background: var(--vscode-list-focusBackground);
+}
+
+.checkHidden {
+  opacity: 0;
+}
+
+.itemAction,
+.itemActionDanger {
+  display: flex;
+  width: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  outline: none;
+}
+
+.itemAction:hover,
+.itemActionDanger:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.itemAction:focus,
+.itemActionDanger:focus {
+  background: var(--vscode-list-focusBackground);
+}
+
+.itemActionDanger {
+  color: var(--vscode-errorForeground);
+}

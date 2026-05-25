@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Brain } from 'lucide-react';
 
 import { Select } from './Select';
+import styles from './Select.stories.module.scss';
 
 const options = [
   { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
@@ -40,7 +41,7 @@ export const WithError: Story = {
 
 export const CompactSearchable: Story = {
   render: () => (
-    <div className="w-40">
+    <div className={styles.compactWrapper}>
       <Select size="sm" leadingIcon={<Brain size={12} />} options={options} defaultValue="gpt-4o-mini" />
     </div>
   )

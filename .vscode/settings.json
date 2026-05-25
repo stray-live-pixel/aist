@@ -1,5 +1,5 @@
 {
-  "openrouterAgent.model": "qwen/qwen3.7-max",
+  "openrouterAgent.model": "codex:gpt-5.5",
   "openrouterAgent.maxToolIterations": 600,
   "openrouterAgent.agentMode": "default",
   "openrouterAgent.reasoningEffort": "high",

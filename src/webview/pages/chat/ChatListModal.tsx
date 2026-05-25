@@ -1,10 +1,12 @@
 import { Check, Copy, MessageSquare, Plus, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 import { pluralKey, translate, useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentLanguage, ChatSummary } from '../../shared/types';
+import { Button, ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
+import styles from './ChatPage.module.scss';
 
 type ChatListModalProps = {
   chats: ChatSummary[];
@@ -13,6 +15,10 @@ type ChatListModalProps = {
   onClose(): void;
 };
 
+/**
+ * Что это: модалка выбора, копирования и удаления чатов.
+ * Зачем нужно: список чатов может быть длинным, поэтому строки списка memo-изированы и получают уже готовые callbacks от модалки.
+ */
 export function ChatListModal({ chats, activeChatId, language, onClose }: ChatListModalProps) {
   const { t } = useI18n();
   const [deleteTargetId, setDeleteTargetId] = useState<string | undefined>();
@@ -42,25 +48,28 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
   }
 
   return (
-    <div className="tool-modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="tool-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="tool-modal-header">
+    <ModalBackdrop role="presentation" onMouseDown={onClose}>
+      <ModalSurface role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <ModalHeader>
           <div>
             <h2>{t('chatList.title')}</h2>
             <p>{t('chatList.description')}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="secondary-button" onClick={() => vscode.postMessage({ type: 'newChat' })}>
-              <Plus size={14} />
+          <div className={styles.modalHeaderActions}>
+            <Button
+              variant="secondary"
+              leadingIcon={<Plus size={14} />}
+              onClick={() => vscode.postMessage({ type: 'newChat' })}
+            >
               {t('chatList.new')}
-            </button>
+            </Button>
             <IconButton title={t('chatList.close')} onClick={onClose}>
               <X size={15} />
             </IconButton>
           </div>
-        </div>
+        </ModalHeader>
 
-        <div className="grid max-h-[65vh] gap-1 overflow-y-auto p-2">
+        <div className={styles.chatList}>
           {chats.map((chat) => (
             <ChatRow
               key={chat.id}
@@ -76,8 +85,8 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
             />
           ))}
         </div>
-      </section>
-    </div>
+      </ModalSurface>
+    </ModalBackdrop>
   );
 }
 
@@ -93,37 +102,28 @@ type ChatRowProps = {
   onDelete(): void;
 };
 
-function ChatRow(props: ChatRowProps) {
+const ChatRow = memo(function ChatRow(props: ChatRowProps) {
   const { chat, active, confirmingDelete, language } = props;
 
   return (
-    <div
-      className={`flex min-h-14 gap-1 rounded ${active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''}`}
-    >
-      <button
-        className="flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-2 text-left text-xs hover:bg-[var(--vscode-list-hoverBackground)]"
-        onClick={props.onSelect}
-      >
-        {active ? (
-          <Check size={14} />
-        ) : (
-          <MessageSquare size={14} className="text-[var(--vscode-descriptionForeground)]" />
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium" title={chat.title}>
+    <div className={active ? `${styles.chatRow} ${styles.chatRowActive}` : styles.chatRow}>
+      <button className={styles.chatRowButton} onClick={props.onSelect}>
+        {active ? <Check size={14} /> : <MessageSquare size={14} className={styles.chatRowIconMuted} />}
+        <span className={styles.chatRowContent}>
+          <span className={styles.chatRowTitle} title={chat.title}>
             {chat.title}
           </span>
           {chat.lastUserMessage ? (
             <span
-              className={`block truncate text-[11px] leading-4 ${active ? 'opacity-75' : 'text-[var(--vscode-descriptionForeground)] opacity-80'}`}
+              className={
+                active ? styles.chatRowMessage : `${styles.chatRowMessage} ${styles.chatRowMuted} ${styles.chatRowDim}`
+              }
               title={chat.lastUserMessage}
             >
               {chat.lastUserMessage}
             </span>
           ) : null}
-          <span
-            className={`block truncate text-[11px] ${active ? 'opacity-80' : 'text-[var(--vscode-descriptionForeground)]'}`}
-          >
+          <span className={active ? styles.chatRowMeta : `${styles.chatRowMeta} ${styles.chatRowMuted}`}>
             {formatChatMeta(chat, language)}
           </span>
         </span>
@@ -135,9 +135,17 @@ function ChatRow(props: ChatRowProps) {
       )}
     </div>
   );
-}
+});
 
-function RowActions({ disabled, onDuplicate, onDelete }: { disabled: boolean; onDuplicate(): void; onDelete(): void }) {
+const RowActions = memo(function RowActions({
+  disabled,
+  onDuplicate,
+  onDelete
+}: {
+  disabled: boolean;
+  onDuplicate(): void;
+  onDelete(): void;
+}) {
   const { t } = useI18n();
 
   return (
@@ -150,9 +158,9 @@ function RowActions({ disabled, onDuplicate, onDelete }: { disabled: boolean; on
       </IconButton>
     </>
   );
-}
+});
 
-function DeleteActions({ onCancel, onDelete }: { onCancel(): void; onDelete(): void }) {
+const DeleteActions = memo(function DeleteActions({ onCancel, onDelete }: { onCancel(): void; onDelete(): void }) {
   const { t } = useI18n();
 
   return (
@@ -165,7 +173,7 @@ function DeleteActions({ onCancel, onDelete }: { onCancel(): void; onDelete(): v
       </IconButton>
     </>
   );
-}
+});
 
 function formatChatMeta(chat: ChatSummary, language: AgentLanguage): string {
   const messageLabel = translateChatMetaMessage(language, chat.messageCount);

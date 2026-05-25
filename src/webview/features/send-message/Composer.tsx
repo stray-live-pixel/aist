@@ -1,23 +1,17 @@
 import { SendHorizontal, Square } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import { KeyboardShortcut } from '../../shared/ui';
 import styles from './Composer.module.scss';
+import type { ComposerProps } from './types';
+import { DEFAULT_CONTINUE_PROMPT, isMacLikePlatform, resizePromptField } from './utils';
 
-const MAX_TEXTAREA_HEIGHT = 300;
-const DEFAULT_CONTINUE_PROMPT = 'Continue working. Continue with the current task';
-
-type ComposerProps = {
-  busy: boolean;
-  floating?: boolean;
-  settings?: ReactNode;
-  footer?: ReactNode;
-  notice?: ReactNode;
-};
-
+/**
+ * Что это: нижний composer для отправки prompt или остановки текущей генерации.
+ * Зачем нужно: компонент инкапсулирует правила пустого prompt, shortcut и autosize textarea, чтобы страницы чата не дублировали IPC-детали.
+ */
 export function Composer({ busy, floating = false, settings, footer, notice }: ComposerProps) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState('');
@@ -80,20 +74,10 @@ export function Composer({ busy, floating = false, settings, footer, notice }: C
   );
 }
 
+/**
+ * Что это: приватный разделитель секций composer.
+ * Зачем нужно: отдельный компонент сохраняет JSX читаемым, но не выносится в файл, потому что не имеет самостоятельного поведения или stories.
+ */
 function ComposerDivider() {
   return <div className={styles.divider} />;
-}
-
-function resizePromptField(textarea: HTMLTextAreaElement | null) {
-  if (!textarea) {
-    return;
-  }
-
-  textarea.style.height = 'auto';
-  textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
-}
-
-function isMacLikePlatform(): boolean {
-  const platform = navigator.platform || '';
-  return /mac|iphone|ipad|ipod/i.test(platform);
 }

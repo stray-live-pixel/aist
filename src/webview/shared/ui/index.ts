@@ -7,6 +7,8 @@ export type { CardProps, CardTone } from './card';
 export { Checkbox } from './checkbox';
 export type { CheckboxProps } from './checkbox';
 export { KeyboardShortcut, Keycap } from './keyboard-shortcut';
+export { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from './modal';
+export type { ModalSize, ModalTone } from './modal';
 export type { KeyboardShortcutProps, KeycapProps } from './keyboard-shortcut';
 export { Select } from './select';
 export type { SelectCategory, SelectOption, SelectProps, SelectSize } from './select';

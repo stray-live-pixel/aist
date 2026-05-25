@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
 import { getWebviewAssetUri } from '../lib/assets';
+import styles from './AistLogo.module.scss';
 
 type AistLogoProps = {
   className?: string;
@@ -25,7 +26,7 @@ type AnimatedLogoStyle = CSSProperties & {
 /**
  * Рисует PNG-логотип как CSS-mask, чтобы он наследовал цвет текста VS Code.
  *
- * Использование: <AistLogo /> или <AistLogo className="text-red-500" />.
+ * Использование: <AistLogo /> или <AistLogo className={styles.mutedLogo} />.
  * Компонент берет URI из общего webview asset manifest, а не импортирует файл
  * напрямую, потому что в VS Code webview нужны URI, созданные host-частью.
  */
@@ -40,7 +41,7 @@ export function AistLogo({ className = '', assetKey = 'logo', title = 'aist' }: 
     '--aist-logo-uri': `url(${logoUri})`
   };
 
-  return <span className={`aist-logo ${className}`.trim()} style={style} role="img" aria-label={title} />;
+  return <span className={`${styles.logo} ${className}`.trim()} style={style} role="img" aria-label={title} />;
 }
 
 /**
@@ -69,7 +70,12 @@ export function AistAnimatedLogo({
   };
 
   return (
-    <span className={`aist-logo aist-logo-animated ${className}`.trim()} style={style} role="img" aria-label={title} />
+    <span
+      className={`${styles.logo} ${styles.animated} ${className}`.trim()}
+      style={style}
+      role="img"
+      aria-label={title}
+    />
   );
 }
 
@@ -84,13 +90,11 @@ export function AistBrand({ animated = false }: { animated?: boolean }) {
   const Logo = animated ? AistAnimatedLogo : AistLogo;
 
   return (
-    <div className="aist-brand">
+    <div className={styles.brand}>
       <Logo />
-      <div className="grid gap-1 text-center">
-        <div className="aist-brand-title text-base font-semibold tracking-[0.22em]">AIST AGENT</div>
-        <div className="aist-brand-subtitle text-sm text-[var(--vscode-descriptionForeground)]">
-          Above the complexity
-        </div>
+      <div className={styles.brandText}>
+        <div className={styles.brandTitle}>AIST AGENT</div>
+        <div className={styles.brandSubtitle}>Above the complexity</div>
       </div>
     </div>
   );

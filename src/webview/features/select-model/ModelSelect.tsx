@@ -3,54 +3,23 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
-import type { ModelOption } from '../../shared/types';
+import styles from './ModelSelect.module.scss';
+import type { ModelSelectProps } from './types';
+import { filterModels, getSelectedModel, groupModelsByProvider } from './utils';
 
-type ModelSelectProps = {
-  model: string;
-  models: ModelOption[];
-  disabled?: boolean;
-};
-
+/**
+ * Что это: searchable dropdown выбора модели между OpenRouter и ChatGPT Codex.
+ * Зачем нужно: список моделей может быть длинным, поэтому компонент строит display model с поиском и группами, но наружу отправляет только выбранный id.
+ */
 export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const selected = useMemo(
-    () =>
-      models.find((item) => item.id === model) || {
-        id: model,
-        name: model,
-        provider: model.startsWith('codex:') ? 'codex' : 'openrouter',
-        supportsTools: true
-      },
-    [model, models]
-  );
-  const options = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return normalizedQuery
-      ? models.filter((item) =>
-          `${item.name} ${item.id} ${getProviderLabel(item.provider)}`.toLowerCase().includes(normalizedQuery)
-        )
-      : models;
-  }, [models, query]);
-  const groups = useMemo(
-    () =>
-      [
-        {
-          provider: 'openrouter' as const,
-          label: 'OpenRouter',
-          options: options.filter((item) => (item.provider || 'openrouter') === 'openrouter')
-        },
-        {
-          provider: 'codex' as const,
-          label: 'ChatGPT Codex',
-          options: options.filter((item) => item.provider === 'codex')
-        }
-      ].filter((group) => group.options.length),
-    [options]
-  );
+  const selected = useMemo(() => getSelectedModel(model, models), [model, models]);
+  const options = useMemo(() => filterModels(models, query), [models, query]);
+  const groups = useMemo(() => groupModelsByProvider(options), [options]);
 
   useEffect(() => {
     if (disabled) {
@@ -96,69 +65,61 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
   }
 
   return (
-    <div
-      ref={rootRef}
-      className="relative grid min-w-56 max-w-full gap-1 text-xs text-[var(--vscode-descriptionForeground)]"
-    >
-      <span className="flex items-center gap-2">
-        <Cpu size={14} className="shrink-0" />
+    <div ref={rootRef} className={styles.root}>
+      <span className={styles.label}>
+        <Cpu size={14} className={styles.labelIcon} />
         <span>{t('summary.model')}</span>
       </span>
       <button
         type="button"
-        className="flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-dropdown-background)] px-2 text-left text-xs text-[var(--vscode-dropdown-foreground)] outline-none focus:border-[var(--vscode-focusBorder)] disabled:cursor-not-allowed disabled:opacity-[0.55]"
+        className={styles.trigger}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="min-w-0 flex-1 truncate">
+        <span className={styles.triggerText}>
           {selected.name} ({selected.id})
         </span>
-        <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={open ? `${styles.chevron} ${styles.chevronOpen}` : styles.chevron} />
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 z-20 mb-2 grid max-h-80 w-[min(32rem,calc(100vw-2rem))] gap-2 rounded-md border border-[var(--agent-border)] bg-[var(--vscode-dropdown-background)] p-2 shadow-lg">
-          <div className="flex h-8 items-center gap-2 rounded border border-[var(--agent-input-border)] bg-[var(--vscode-input-background)] px-2 text-[var(--vscode-input-foreground)] focus-within:border-[var(--vscode-focusBorder)]">
-            <Search size={14} className="shrink-0 text-[var(--vscode-descriptionForeground)]" />
+        <div className={styles.menu}>
+          <div className={styles.searchBox}>
+            <Search size={14} className={styles.searchIcon} />
             <input
               ref={searchRef}
-              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[var(--vscode-input-placeholderForeground)]"
+              className={styles.searchInput}
               placeholder={t('modelSelect.search')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
 
-          <div className="max-h-60 overflow-y-auto" role="listbox" aria-label={t('modelSelect.models')}>
+          <div className={styles.list} role="listbox" aria-label={t('modelSelect.models')}>
             {groups.length ? (
               groups.map((group) => (
-                <div key={group.provider} className="grid gap-1">
-                  <div className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase text-[var(--vscode-descriptionForeground)]">
-                    {group.label}
-                  </div>
+                <div key={group.provider} className={styles.group}>
+                  <div className={styles.groupTitle}>{group.label}</div>
                   {group.options.map((item) => {
                     const active = item.id === model;
                     return (
                       <button
                         key={item.id}
                         type="button"
-                        className={`flex w-full min-w-0 items-start gap-2 rounded px-2 py-2 text-left text-xs outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:bg-[var(--vscode-list-focusBackground)] ${
-                          active
-                            ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]'
-                            : ''
-                        }`}
+                        className={active ? `${styles.optionButton} ${styles.optionActive}` : styles.optionButton}
                         role="option"
                         aria-selected={active}
                         onClick={() => selectModel(item.id)}
                       >
-                        <Check size={14} className={`mt-0.5 shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{item.name}</span>
-                          <span
-                            className={`block truncate ${active ? '' : 'text-[var(--vscode-descriptionForeground)]'}`}
-                          >
+                        <Check
+                          size={14}
+                          className={active ? styles.optionCheck : `${styles.optionCheck} ${styles.optionCheckHidden}`}
+                        />
+                        <span className={styles.optionText}>
+                          <span className={styles.optionName}>{item.name}</span>
+                          <span className={active ? styles.optionId : `${styles.optionId} ${styles.optionIdMuted}`}>
                             {item.id}
                             {item.supportsTools ? '' : ` - ${t('tool.preview.noTools')}`}
                           </span>
@@ -169,17 +130,11 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
                 </div>
               ))
             ) : (
-              <div className="px-2 py-3 text-xs text-[var(--vscode-descriptionForeground)]">
-                {t('tool.preview.noModels')}
-              </div>
+              <div className={styles.empty}>{t('tool.preview.noModels')}</div>
             )}
           </div>
         </div>
       ) : null}
     </div>
   );
-}
-
-function getProviderLabel(provider: ModelOption['provider']): string {
-  return provider === 'codex' ? 'ChatGPT Codex' : 'OpenRouter';
 }

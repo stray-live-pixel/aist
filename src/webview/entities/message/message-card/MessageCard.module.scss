@@ -1,0 +1,190 @@
+/* Карточка сообщения: user, assistant, status, error. */
+
+.root {
+  margin-block-end: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 10px;
+}
+
+.user {
+  margin-block-start: 48px;
+  margin-block-end: 12px;
+  border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 38%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-input-background, transparent));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground) 7%, transparent),
+    0 6px 18px color-mix(in srgb, var(--vscode-textLink-foreground) 8%, transparent);
+}
+
+.assistant {
+  border-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 70%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 46%, transparent);
+}
+
+.status {
+  border-style: dashed;
+  color: var(--vscode-descriptionForeground);
+}
+
+.error {
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+}
+
+/* Collapsible cut. */
+.cutCard {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 180ms ease;
+}
+
+.collapsed {
+  max-height: 150px;
+}
+
+.expanded {
+  max-height: none;
+}
+
+.cutShadow {
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 80px;
+  border-radius: 0 0 24px 24px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--vscode-editor-background) 86%, transparent) 48%,
+    var(--vscode-editor-background)
+  );
+  box-shadow: none;
+}
+
+.cutButton {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
+}
+
+.cutButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 42%, transparent);
+}
+
+.cutButton[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+/* Markdown внутри ReactMarkdown: теги приходят из AST, поэтому стилизуем их scoped-селекторами от корня. */
+.markdownBody {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.markdownBody > :first-child {
+  margin-top: 0;
+}
+
+.markdownBody > :last-child {
+  margin-bottom: 0;
+}
+
+.markdownBody p,
+.markdownBody ul,
+.markdownBody ol,
+.markdownBody blockquote,
+.markdownBody pre,
+.markdownBody table {
+  margin: 0.65rem 0;
+}
+
+.markdownBody ul,
+.markdownBody ol {
+  padding-left: 1.25rem;
+}
+
+.markdownBody ul {
+  list-style: disc;
+}
+
+.markdownBody ol {
+  list-style: decimal;
+}
+
+.markdownBody code {
+  border: 1px solid var(--agent-border);
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 0.08rem 0.28rem;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.markdownBody pre {
+  overflow: auto;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 0.75rem;
+}
+
+.markdownBody pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.markdownBody a {
+  color: var(--vscode-textLink-foreground);
+}
+
+.markdownBody blockquote {
+  border-left: 3px solid var(--agent-border);
+  color: var(--vscode-descriptionForeground);
+  padding-left: 0.75rem;
+}
+
+/* Header. */
+.header {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headerMeta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: normal;
+  color: var(--vscode-descriptionForeground);
+}
+
+.spinIcon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

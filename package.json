@@ -302,7 +302,7 @@
   },
   "scripts": {
     "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
-    "build:webview": "node scripts/build-webview.mjs && tailwindcss -i src/webview/app/styles.css -o dist/webview.css --minify && node scripts/build-webview.mjs merge-css",
+    "build:webview": "node scripts/build-webview.mjs",
     "build:component-screenshots": "esbuild tests/component-screenshots/harness.tsx --bundle --format=iife --outfile=tests/component-screenshots/harness.js --loader:.css=css --loader:.scss=local-css",
     "build:e2e": "npm run build:extension && npm run build:webview",
     "build": "npm run typecheck && npm run build:extension && npm run build:webview",
@@ -329,8 +329,6 @@
     "@playwright/test": "^1.60.0",
     "@storybook/addon-docs": "^10.4.1",
     "@storybook/react-vite": "^10.4.1",
-    "@tailwindcss/cli": "^4.3.0",
-    "@tailwindcss/vite": "^4.3.0",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
@@ -345,7 +343,6 @@
     "prettier": "^3.8.3",
     "sass": "^1.100.0",
     "storybook": "^10.4.1",
-    "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
     "vitest": "^4.1.7"

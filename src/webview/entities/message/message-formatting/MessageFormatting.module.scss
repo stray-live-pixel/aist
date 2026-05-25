@@ -1,0 +1,32 @@
+/* Стили для форматированных меток даты и usage внутри заголовков сообщений. */
+
+.dateLabel {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.dateLabel span {
+  opacity: 0.75;
+}
+
+.usageInline {
+  margin-left: 8px;
+  font-weight: 400;
+  text-transform: none;
+  color: var(--vscode-descriptionForeground);
+}
+
+.usagePill {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  flex-shrink: 0;
+  pointer-events: none;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 74%, var(--tool-tone, transparent));
+}

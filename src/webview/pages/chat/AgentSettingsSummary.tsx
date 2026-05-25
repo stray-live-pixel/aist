@@ -1,28 +1,55 @@
 import { Archive, Brain, Coins, Settings2, ShieldCheck, SlidersHorizontal, Wrench } from 'lucide-react';
+import { memo, useMemo } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentState, ChatContextEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
 import { Button, Select, type SelectCategory, type SelectOption } from '../../shared/ui';
+import styles from './ChatPage.module.scss';
 
 type AgentSettingsSummaryProps = {
   state: AgentState;
   onOpen(): void;
 };
 
-export function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProps) {
+/**
+ * Что это: компактная панель быстрых настроек над composer.
+ * Зачем нужно: позволяет менять режим, preset доступа и reasoning без открытия полной модалки settings.
+ */
+export const AgentSettingsSummary = memo(function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProps) {
   const { t } = useI18n();
+  const agentModeOptions = useMemo(() => getAgentModeOptions(state), [state.agentModes]);
+  const agentModeDisplayLabels = useMemo(() => getAgentModeDisplayLabels(state), [state.agentModes]);
+  const permissionOptions = useMemo(
+    () => [
+      ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
+      ...state.toolPermissionPresets.map((preset) => ({
+        value: preset.id,
+        label: t(`settings.preset.${preset.id}.label` as never)
+      }))
+    ],
+    [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
+  );
+  const reasoningOptions = useMemo(
+    () => [
+      { value: 'auto', label: t('reasoning.autoDetailed') },
+      { value: 'low', label: t('reasoning.lowDetailed') },
+      { value: 'medium', label: t('reasoning.mediumDetailed') },
+      { value: 'high', label: t('reasoning.highDetailed') }
+    ],
+    [t]
+  );
 
   return (
-    <div className="flex min-w-0 items-center gap-1.5 overflow-visible whitespace-nowrap text-[11px] leading-4 text-[var(--vscode-descriptionForeground)]">
+    <div className={styles.summaryRoot}>
       <CompactSelect
         icon={<SlidersHorizontal size={12} />}
         title={t('summary.agentMode')}
         value={state.agentMode}
         disabled={state.activeChat.busy}
         onChange={(modeId) => vscode.postMessage({ type: 'setAgentMode', modeId })}
-        options={getAgentModeOptions(state)}
-        displayLabels={getAgentModeDisplayLabels(state)}
+        options={agentModeOptions}
+        displayLabels={agentModeDisplayLabels}
       />
       <CompactSelect
         icon={<ShieldCheck size={12} />}
@@ -30,13 +57,7 @@ export function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProp
         value={state.activeToolPermissionPresetId}
         disabled={state.activeChat.busy || state.activeToolPermissionPresetId === 'custom'}
         onChange={(presetId) => vscode.postMessage({ type: 'setToolPermissionPreset', presetId })}
-        options={[
-          ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
-          ...state.toolPermissionPresets.map((preset) => ({
-            value: preset.id,
-            label: t(`settings.preset.${preset.id}.label` as never)
-          }))
-        ]}
+        options={permissionOptions}
       />
       <CompactSelect
         icon={<Brain size={12} />}
@@ -46,34 +67,38 @@ export function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProp
         onChange={(reasoningEffort) =>
           vscode.postMessage({ type: 'setReasoningEffort', reasoningEffort: reasoningEffort as ReasoningEffort })
         }
-        options={[
-          { value: 'auto', label: t('reasoning.autoDetailed') },
-          { value: 'low', label: t('reasoning.lowDetailed') },
-          { value: 'medium', label: t('reasoning.mediumDetailed') },
-          { value: 'high', label: t('reasoning.highDetailed') }
-        ]}
+        options={reasoningOptions}
       />
       <Button type="button" variant="secondary" size="sm" leadingIcon={<Wrench size={12} />} onClick={onOpen}>
         {t('summary.toolsCount', { count: state.tools.length })}
       </Button>
     </div>
   );
-}
+});
 
-export function ComposerContextSummary({ state }: { state: AgentState }) {
+/**
+ * Что это: нижняя строка контекста composer.
+ * Зачем нужно: показывает модель, заполнение контекста, стоимость и ручную команду compaction без расширения основного composer.
+ */
+export const ComposerContextSummary = memo(function ComposerContextSummary({ state }: { state: AgentState }) {
   const { t } = useI18n();
+  const modelOptions = useMemo(() => getModelOptions(state), [state.activeChat.model, state.models]);
+  const modelCategories = useMemo(
+    () => (state.models.length ? getModelCategories(state.models) : undefined),
+    [state.models]
+  );
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-4 text-[var(--vscode-descriptionForeground)]">
+    <div className={styles.contextSummaryRoot}>
       <CompactSelect
         icon={<Settings2 size={12} />}
         title={t('summary.model')}
         value={state.activeChat.model}
         disabled={state.activeChat.busy}
-        className="w-[clamp(8.5rem,24vw,13rem)]"
+        className={`${styles.compactSelect} ${styles.modelSelect}`}
         onChange={(model) => vscode.postMessage({ type: 'setModel', model })}
-        options={getModelOptions(state)}
-        categories={state.models.length ? getModelCategories(state.models) : undefined}
+        options={modelOptions}
+        categories={modelCategories}
       />
       <ContextUsagePie context={state.activeChat.context} />
       {state.activeChat.usage.costUsd !== undefined ? (
@@ -95,7 +120,7 @@ export function ComposerContextSummary({ state }: { state: AgentState }) {
       </Button>
     </div>
   );
-}
+});
 
 function getModelOptions(state: AgentState): SelectOption[] {
   return state.models.length
@@ -144,7 +169,7 @@ function compactModeLabel(modeId: string, label: string): string {
   return scope ? `${cleaned} · ${scope}` : cleaned;
 }
 
-function CompactSelect({
+const CompactSelect = memo(function CompactSelect({
   icon,
   title,
   value,
@@ -152,7 +177,7 @@ function CompactSelect({
   categories,
   disabled,
   displayLabels,
-  className = 'w-[clamp(6.8rem,18vw,10.5rem)]',
+  className = styles.compactSelect,
   onChange
 }: {
   icon: React.ReactNode;
@@ -167,7 +192,7 @@ function CompactSelect({
 }) {
   return (
     <Select
-      className={`${className} shrink min-w-0`}
+      className={className}
       size="sm"
       leadingIcon={icon}
       aria-label={title}
@@ -180,40 +205,37 @@ function CompactSelect({
       onChange={(event) => onChange(event.target.value)}
     />
   );
-}
+});
 
-function ContextUsagePie({ context }: { context: ChatContextEstimate | undefined }) {
+const ContextUsagePie = memo(function ContextUsagePie({ context }: { context: ChatContextEstimate | undefined }) {
   const { t } = useI18n();
   const percent = clampPercent(context?.percent ?? 0);
   const title = formatContextFill(context, t('common.notAvailable'));
 
   return (
-    <span className="flex min-w-0 items-center gap-1.5" title={title}>
-      <span
-        className="relative inline-flex h-4 w-4 shrink-0 rounded-full border border-[color-mix(in_srgb,var(--vscode-descriptionForeground)_20%,transparent)] bg-[color-mix(in_srgb,var(--vscode-descriptionForeground)_10%,transparent)]"
-        aria-hidden="true"
-      >
+    <span className={styles.contextUsage} title={title}>
+      <span className={styles.contextPie} aria-hidden="true">
         <span
-          className="absolute inset-0 rounded-full"
+          className={styles.contextPieFill}
           style={{
             background: `conic-gradient(color-mix(in srgb, var(--vscode-textLink-foreground) 72%, var(--vscode-foreground)) ${percent * 3.6}deg, transparent 0deg)`
           }}
         />
-        <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--vscode-input-background)]" />
+        <span className={styles.contextPieHole} />
       </span>
-      <span className="truncate">{formatContextFill(context, t('common.notAvailable'))}</span>
+      <span className={styles.truncate}>{formatContextFill(context, t('common.notAvailable'))}</span>
     </span>
   );
-}
+});
 
-function SummaryItem({ icon, text }: { icon: React.ReactNode; text: string }) {
+const SummaryItem = memo(function SummaryItem({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <span className="shrink-0">{icon}</span>
-      <span className="truncate">{text}</span>
+    <span className={styles.summaryItem}>
+      <span className={styles.summaryIcon}>{icon}</span>
+      <span className={styles.truncate}>{text}</span>
     </span>
   );
-}
+});
 
 function clampPercent(value: number): number {
   if (!Number.isFinite(value)) {

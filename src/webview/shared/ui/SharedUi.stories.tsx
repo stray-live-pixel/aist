@@ -4,6 +4,7 @@ import { Settings } from 'lucide-react';
 import { storyTools } from '../../storybook/fixtures';
 import { AistAnimatedLogo, AistBrand, AistLogo } from './AistLogo';
 import { IconButton } from './IconButton';
+import styles from './SharedUi.stories.module.scss';
 import { ToolIcon, getToolLabel } from './ToolIcon';
 import { KeyboardShortcut } from './keyboard-shortcut';
 
@@ -27,18 +28,18 @@ export const AistAnimatedBrandBlock: Story = {
 
 export const AistLogos: Story = {
   render: () => (
-    <div className="flex items-center gap-6 text-[var(--vscode-foreground)]">
+    <div className={styles.logoRow}>
       <AistLogo />
       <AistAnimatedLogo />
-      <AistLogo className="text-[var(--vscode-descriptionForeground)]" />
-      <AistLogo className="text-[var(--vscode-textLink-foreground)]" />
+      <AistLogo className={styles.mutedLogo} />
+      <AistLogo className={styles.linkLogo} />
     </div>
   )
 };
 
 export const IconButtons: Story = {
   render: () => (
-    <div className="flex items-center gap-2">
+    <div className={styles.iconButtonRow}>
       <IconButton title="Settings" onClick={() => undefined}>
         <Settings size={15} />
       </IconButton>
@@ -51,7 +52,7 @@ export const IconButtons: Story = {
 
 export const KeyboardShortcuts: Story = {
   render: () => (
-    <div className="grid gap-3 text-[var(--vscode-foreground)]">
+    <div className={styles.shortcutGrid}>
       <KeyboardShortcut label="Send" keys={['⌘', '↵']} />
       <KeyboardShortcut label="Send" keys={['Ctrl', '↵']} />
       <KeyboardShortcut keys={['Shift', 'Tab']} />
@@ -61,14 +62,14 @@ export const KeyboardShortcuts: Story = {
 
 export const ToolIcons: Story = {
   render: () => (
-    <div className="grid min-w-72 gap-2">
+    <div className={styles.toolIconGrid}>
       {storyTools.map((tool) => (
-        <div key={tool} className="flex items-center gap-2 text-sm">
-          <span className="tool-icon-pill">
+        <div key={tool} className={styles.toolIconRow}>
+          <span className={styles.toolIconPill}>
             <ToolIcon name={tool} size={14} />
           </span>
           <span>{getToolLabel(tool)}</span>
-          <code className="ml-auto text-xs text-[var(--vscode-descriptionForeground)]">{tool}</code>
+          <code className={styles.toolIconCode}>{tool}</code>
         </div>
       ))}
     </div>

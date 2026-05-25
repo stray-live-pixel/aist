@@ -1,0 +1,333 @@
+.root {
+  position: relative;
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  color: var(--vscode-foreground);
+  background: transparent;
+}
+
+.floatingActions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryRoot {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.contextSummaryRoot {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.compactSelect {
+  width: clamp(6.8rem, 18vw, 10.5rem);
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.modelSelect {
+  width: clamp(8.5rem, 24vw, 13rem);
+}
+
+.summaryItem,
+.contextUsage {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.summaryIcon {
+  flex-shrink: 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextPie {
+  position: relative;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 20%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 10%, transparent);
+}
+
+.contextPieFill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.contextPieHole {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--vscode-input-background);
+  transform: translate(-50%, -50%);
+}
+
+.modalHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approvalIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, #f59e0b 58%, var(--agent-border));
+  border-radius: 999px;
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+}
+
+.approvalBody {
+  display: grid;
+  gap: 12px;
+  overflow: auto;
+  padding: 12px;
+}
+
+.approvalNotice {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, #f59e0b 68%, var(--agent-border));
+  border-radius: 14px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, #f59e0b 14%, var(--vscode-editor-background));
+  box-shadow: 0 8px 24px color-mix(in srgb, #f59e0b 16%, transparent);
+  padding: 9px 12px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.approvalNotice:hover {
+  background: color-mix(in srgb, #f59e0b 22%, var(--vscode-editor-background));
+}
+
+.approvalNotice svg {
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.approvalNoticeMain {
+  font-weight: 700;
+}
+
+.approvalNoticeDetail {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground);
+}
+
+.modalHeaderMain {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modalHeaderText {
+  min-width: 0;
+}
+
+.quickSettingsWrap {
+  border-bottom: 1px solid var(--agent-border);
+  padding: 12px;
+}
+
+.quickSettings {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  padding: 12px;
+}
+
+.quickSettingsTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.quickSettingsDescription {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.quickSettingsGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.reasoningField {
+  display: grid;
+  min-width: 144px;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.reasoningLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reasoningIcon {
+  flex-shrink: 0;
+}
+
+.reasoningSelect {
+  height: 32px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 8px;
+  font-size: 12px;
+  outline: none;
+}
+
+.reasoningSelect:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.reasoningSelect:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.chatList {
+  display: grid;
+  max-height: 65vh;
+  gap: 4px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chatRow {
+  display: flex;
+  min-height: 56px;
+  gap: 4px;
+  border-radius: 4px;
+}
+
+.chatRowActive {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.chatRowButton {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  padding: 8px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.chatRowButton:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.chatRowIconMuted {
+  color: var(--vscode-descriptionForeground);
+}
+
+.chatRowContent {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.chatRowTitle,
+.chatRowMessage,
+.chatRowMeta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatRowTitle {
+  font-weight: 600;
+}
+
+.chatRowMessage,
+.chatRowMeta {
+  font-size: 11px;
+}
+
+.chatRowMessage {
+  line-height: 16px;
+}
+
+.chatRowMuted {
+  color: var(--vscode-descriptionForeground);
+}
+
+.chatRowDim {
+  opacity: 0.8;
+}
+
+.chatRowActive .chatRowMessage {
+  opacity: 0.75;
+}
+
+.chatRowActive .chatRowMeta {
+  opacity: 0.8;
+}
+
+@media (min-width: 768px) {
+  .quickSettingsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

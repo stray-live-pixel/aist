@@ -1,0 +1,55 @@
+.root {
+  margin-block-end: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-input-background);
+  padding: 10px;
+}
+
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.description,
+.defaultPermission {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.description {
+  line-height: 1.65;
+}
+
+.select {
+  width: 192px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+}
+
+.select:focus {
+  border-color: var(--vscode-focusBorder);
+}

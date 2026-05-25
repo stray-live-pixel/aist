@@ -1,0 +1,210 @@
+/* Компактная карточка tool-call с раскрытием деталей. */
+
+.root {
+  --tool-tone: color-mix(in srgb, #9ca3af 32%, transparent);
+  --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
+  position: relative;
+  overflow: hidden;
+  margin-block-end: 12px;
+  border: 1px solid var(--tool-tone);
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 10px;
+  background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
+  transition: background 160ms ease;
+}
+
+.errorBorder {
+  border-color: var(--vscode-errorForeground);
+}
+
+.body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Header row: chevron + icon pill + title + date. */
+.headerRow {
+  display: grid;
+  min-height: 25px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.chevronButton {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+}
+
+.chevronButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+}
+
+.chevronButton[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+.headerMain {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.iconPill {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  max-width: min(220px, 42vw);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--tool-tone);
+  border-radius: 999px;
+  color: var(--tool-tone-strong);
+  background: color-mix(in srgb, var(--tool-tone) 28%, transparent);
+  padding: 0 8px;
+}
+
+.iconPillLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  display: flex;
+  min-width: 0;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.titleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasonRow {
+  grid-column: 2;
+  min-width: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Details header: summary + status badge + raw JSON button. */
+.detailsHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 32px;
+}
+
+.summary {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.iconButton {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 6px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+}
+
+.iconButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+}
+
+/* Status badge. */
+.statusBadge {
+  flex-shrink: 0;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 74%, var(--tool-tone));
+}
+
+.statusNeutral {
+  border-color: var(--agent-border);
+  color: var(--vscode-descriptionForeground);
+}
+
+.statusError {
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+}
+
+/* Tone modifiers. */
+.toneBlue {
+  --tool-tone: color-mix(in srgb, #93c5fd 46%, transparent);
+  --tool-tone-strong: #60a5fa;
+}
+
+.toneGreen {
+  --tool-tone: color-mix(in srgb, #86efac 46%, transparent);
+  --tool-tone-strong: #4ade80;
+}
+
+.tonePurple {
+  --tool-tone: color-mix(in srgb, #c4b5fd 46%, transparent);
+  --tool-tone-strong: #a78bfa;
+}
+
+.toneAmber {
+  --tool-tone: color-mix(in srgb, #fcd34d 46%, transparent);
+  --tool-tone-strong: #f59e0b;
+}
+
+.toneRose {
+  --tool-tone: color-mix(in srgb, #fda4af 46%, transparent);
+  --tool-tone-strong: #fb7185;
+}
+
+.toneCyan {
+  --tool-tone: color-mix(in srgb, #67e8f9 46%, transparent);
+  --tool-tone-strong: #22d3ee;
+}
+
+.toneSlate {
+  --tool-tone: color-mix(in srgb, #cbd5e1 42%, transparent);
+  --tool-tone-strong: #94a3b8;
+}

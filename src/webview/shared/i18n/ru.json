@@ -61,7 +61,7 @@
   "message.agent": "Агент",
   "message.status": "Статус",
   "message.error": "Ошибка",
-  "message.tool": "Инструмент",
+  "message.tool": "Инструменты",
   "message.copyMarkdown": "Копировать Markdown",
   "activity.waitingForApproval": "Ожидает подтверждения",
   "activity.runningTool": "Выполняет инструмент",

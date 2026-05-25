@@ -1,11 +1,12 @@
 import { BellRing, ChevronDown, ShieldAlert } from 'lucide-react';
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 
-import { ToolApprovalActions } from '../../entities/message/ToolApprovalActions';
-import { ToolResultPreview } from '../../entities/message/ToolResultPreview';
+import { ToolApprovalActions, ToolResultPreview } from '../../entities/message';
 import { useI18n } from '../../shared/i18n';
 import type { AgentState, ChatMessage } from '../../shared/types';
+import { ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
+import styles from './ChatPage.module.scss';
 
 export type ApprovalPromptModalProps = {
   message: ChatMessage;
@@ -37,25 +38,25 @@ export function ApprovalPromptModal({
   }
 
   return (
-    <div className="tool-modal-backdrop approval-modal-backdrop" role="presentation">
-      <section className="tool-modal approval-modal" role="dialog" aria-modal="true" aria-label={t('approval.title')}>
-        <header className="tool-modal-header approval-modal-header">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="approval-modal-icon">
+    <ModalBackdrop tone="approval" role="presentation">
+      <ModalSurface tone="approval" role="dialog" aria-modal="true" aria-label={t('approval.title')}>
+        <ModalHeader tone="approval">
+          <div className={styles.modalHeaderMain}>
+            <span className={styles.approvalIcon}>
               <ShieldAlert size={18} />
             </span>
-            <div className="min-w-0">
+            <div className={styles.modalHeaderText}>
               <h2>{t('approval.title')}</h2>
               <p>{message.name ? t('approval.descriptionTool', { tool: message.name }) : t('approval.description')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className={styles.modalHeaderActions}>
             <IconButton title={t('approval.minimize')} onClick={onMinimize}>
               <ChevronDown size={15} />
             </IconButton>
           </div>
-        </header>
-        <div className="approval-modal-body">
+        </ModalHeader>
+        <div className={styles.approvalBody}>
           <ToolResultPreview message={message} />
           <ToolApprovalActions
             messageId={message.id}
@@ -66,8 +67,8 @@ export function ApprovalPromptModal({
             }}
           />
         </div>
-      </section>
-    </div>
+      </ModalSurface>
+    </ModalBackdrop>
   );
 }
 
@@ -75,16 +76,22 @@ export function ApprovalPromptModal({
  * Индикатор появляется над composer, если пользователь свернул модалку.
  * Он оставляет доступ к истории чата, но явно показывает, что дальнейшая работа агента ждёт решения.
  */
-export function ApprovalNotice({ message, onClick }: { message: ChatMessage; onClick(): void }) {
+export const ApprovalNotice = memo(function ApprovalNotice({
+  message,
+  onClick
+}: {
+  message: ChatMessage;
+  onClick(): void;
+}) {
   const { t } = useI18n();
   return (
-    <button className="approval-notice" type="button" onClick={onClick}>
+    <button className={styles.approvalNotice} type="button" onClick={onClick}>
       <BellRing size={16} />
-      <span className="approval-notice-main">{t('approval.noticeTitle')}</span>
-      <span className="approval-notice-detail">{message.name || t('message.tool')}</span>
+      <span className={styles.approvalNoticeMain}>{t('approval.noticeTitle')}</span>
+      <span className={styles.approvalNoticeDetail}>{message.name || t('message.tool')}</span>
     </button>
   );
-}
+});
 
 /**
  * Побочные эффекты уведомлений живут рядом с approval-модалкой.
@@ -147,7 +154,6 @@ function playGentleBell(volume: number, durationSeconds: number) {
   master.gain.value = Math.max(0, Math.min(1, volume));
   master.connect(context.destination);
 
-  const stopAt = context.currentTime + Math.max(1, durationSeconds);
   const interval = window.setInterval(() => ringBell(context, master), 1100);
   ringBell(context, master);
 

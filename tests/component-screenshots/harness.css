@@ -1,252 +1,3 @@
-/* tests/component-screenshots/base.css */
-:root {
-  color-scheme: dark;
-  --agent-border: color-mix(in srgb, var(--vscode-foreground) 18%, transparent);
-  --agent-input-border: var(--vscode-input-border, var(--agent-border));
-}
-body {
-  margin: 0;
-  font-family: var(--vscode-editor-font-family);
-  background: var(--vscode-editor-background);
-}
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-.message-card {
-  margin-block-end: 12px;
-  border: 1px solid var(--agent-border);
-  border-radius: 24px;
-  corner-shape: squircle;
-  padding: 10px;
-}
-.message-card-user {
-  margin-block-start: 48px;
-  margin-block-end: 12px;
-  border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 38%, var(--agent-border));
-  background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-input-background, transparent));
-}
-.message-card-assistant {
-  border-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 70%, var(--agent-border));
-  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 46%, transparent);
-}
-.message-cut-card {
-  position: relative;
-  overflow: hidden;
-  transition: max-height 180ms ease;
-}
-.message-cut-collapsed {
-  max-height: 150px;
-}
-.message-cut-expanded {
-  max-height: none;
-}
-.message-cut-shadow {
-  position: absolute;
-  right: 0;
-  bottom: -10px;
-  left: 0;
-  height: 80px;
-  border-radius: 0 0 24px 24px;
-  pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--vscode-editor-background));
-}
-.message-cut-button,
-.tool-chevron-button,
-.tool-icon-button {
-  display: inline-flex;
-  width: 24px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--agent-border);
-  border-radius: 999px;
-  color: var(--vscode-descriptionForeground);
-  background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
-}
-.message-cut-button[aria-expanded='true'] svg,
-.tool-chevron-button[aria-expanded='true'] svg {
-  transform: rotate(90deg);
-}
-.aist-logo,
-.aist-logo-sm {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  color: var(--vscode-foreground);
-  background: linear-gradient(135deg, currentColor 0%, color-mix(in srgb, currentColor 28%, transparent) 100%);
-}
-.aist-brand {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  color: var(--vscode-foreground);
-  font-family: inherit;
-}
-.activity-detail-text {
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.45;
-}
-.activity-detail-text p {
-  margin: 0;
-}
-.icon-button {
-  display: inline-flex;
-  height: 32px;
-  width: 32px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--agent-border);
-  border-radius: 6px;
-  color: var(--vscode-button-secondaryForeground);
-  background: var(--vscode-button-secondaryBackground);
-}
-.tool-card {
-  --tool-tone: color-mix(in srgb, #9ca3af 32%, transparent);
-  --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
-  position: relative;
-  overflow: hidden;
-  border-color: var(--tool-tone);
-  background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
-}
-.tool-card-body,
-.tool-result-preview,
-.tool-bash-preview,
-.tool-bash-command {
-  display: grid;
-  gap: 8px;
-}
-.tool-header-row {
-  display: grid;
-  min-height: 25px;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-}
-.tool-header-main,
-.tool-details-header,
-.tool-title,
-.tool-file-link,
-.tool-list-preview li {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-.tool-icon-pill,
-.tool-status-badge,
-.tool-usage-pill,
-.tool-file-link {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--tool-tone, var(--agent-border));
-  border-radius: 999px;
-  padding: 2px 8px;
-}
-.tool-icon-pill-label,
-.tool-title-text,
-.tool-list-preview code {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tool-summary,
-.tool-date-label,
-.tool-status-badge,
-.tool-usage-pill,
-.tool-reason-row {
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-}
-.tool-code-preview,
-.tool-bash-command pre {
-  overflow: auto;
-  margin: 0;
-  border: 1px solid var(--agent-border);
-  border-radius: 6px;
-  background: var(--vscode-textCodeBlock-background);
-  padding: 8px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--vscode-editor-font-family);
-}
-.tool-list-preview {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* src/webview/widgets/message-list/agent-activity-status/AgentActivityStatus.module.scss */
-.AgentActivityStatus_module_root {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  border: 1px solid var(--agent-border);
-  border-radius: 24px;
-  corner-shape: squircle;
-  background: var(--vscode-input-background);
-  color: var(--vscode-foreground);
-  padding: 8px 12px;
-}
-.AgentActivityStatus_module_logo {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.AgentActivityStatus_module_content {
-  min-width: 0;
-  flex: 1;
-}
-.AgentActivityStatus_module_title {
-  font-size: 14px;
-  font-weight: 500;
-}
-.AgentActivityStatus_module_detail {
-  color: var(--vscode-descriptionForeground);
-  font-size: 12px;
-  line-height: 1.45;
-  white-space: normal;
-  word-break: break-word;
-}
-.AgentActivityStatus_module_detail p {
-  margin: 0;
-}
-.AgentActivityStatus_module_detail p + p {
-  margin-top: 4px;
-}
-
-/* src/webview/widgets/message-list/empty-state/EmptyState.module.scss */
-.EmptyState_module_root {
-  display: grid;
-  gap: 16px;
-  padding: 20px 0;
-}
-.EmptyState_module_sparkles {
-  margin: 0 auto;
-}
-.EmptyState_module_text {
-  display: grid;
-  gap: 4px;
-  text-align: center;
-}
-.EmptyState_module_title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-.EmptyState_module_description {
-  margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 14px;
-}
-
 /* src/webview/shared/ui/badge/Badge.module.scss */
 .Badge_module_badge {
   display: inline-flex;
@@ -575,6 +326,84 @@ select {
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
+}
+
+/* src/webview/shared/ui/modal/Modal.module.scss */
+.Modal_module_backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+  padding: 24px;
+}
+.Modal_module_approvalBackdrop {
+  z-index: 120;
+  background: color-mix(in srgb, var(--vscode-editor-background) 58%, transparent);
+  backdrop-filter: blur(10px);
+}
+.Modal_module_modal {
+  display: flex;
+  width: min(760px, 100%);
+  max-height: min(78vh, 720px);
+  flex-direction: column;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 18px 54px rgb(0 0 0 / 0.35);
+}
+.Modal_module_settingsModal {
+  width: min(980px, 100%);
+  max-height: min(88vh, 900px);
+}
+.Modal_module_approvalModal {
+  width: min(720px, 100%);
+  border-color: color-mix(in srgb, #f59e0b 55%, var(--agent-border));
+  box-shadow: 0 18px 60px color-mix(in srgb, #f59e0b 20%, rgb(0 0 0 / 0.4));
+}
+.Modal_module_errorModal {
+  border-color: color-mix(in srgb, var(--vscode-errorForeground) 72%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-errorForeground) 8%, var(--vscode-editor-background));
+  box-shadow: 0 18px 54px color-mix(in srgb, var(--vscode-errorForeground) 26%, rgb(0 0 0 / 0.35));
+}
+.Modal_module_header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--agent-border);
+  padding: 12px;
+}
+.Modal_module_header h2 {
+  margin: 0;
+  font-size: 13px;
+}
+.Modal_module_header p {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+.Modal_module_approvalHeader {
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+}
+.Modal_module_errorHeader {
+  border-bottom-color: color-mix(in srgb, var(--vscode-errorForeground) 52%, var(--agent-border));
+  color: var(--vscode-errorForeground);
+}
+.Modal_module_code {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+}
+.Modal_module_errorCode {
+  color: var(--vscode-errorForeground);
 }
 
 /* src/webview/shared/ui/select/Select.module.scss */
@@ -1119,7 +948,1402 @@ select {
   color: var(--vscode-errorForeground);
 }
 
+/* src/webview/entities/message/tool-approval-actions/ToolApprovalActions.module.scss */
+.ToolApprovalActions_module_root {
+  display: grid;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, #f59e0b 42%, var(--agent-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+  padding: 10px;
+}
+.ToolApprovalActions_module_compact {
+  margin-top: 4px;
+  margin-left: 32px;
+}
+.ToolApprovalActions_module_buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ToolApprovalActions_module_buttonRow > button {
+  flex: 1 1 0;
+  min-width: max-content;
+  white-space: nowrap;
+}
+.ToolApprovalActions_module_approveButton {
+  height: 32px;
+  min-width: 0;
+}
+.ToolApprovalActions_module_comment {
+  display: grid;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+.ToolApprovalActions_module_commentLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+}
+.ToolApprovalActions_module_textarea {
+  min-height: 56px;
+  resize: vertical;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 8px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  padding: 8px;
+  font-size: 12px;
+  outline: none;
+}
+.ToolApprovalActions_module_textarea:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* src/webview/entities/message/tool-raw-json-modal/ToolRawJsonModal.module.scss */
+.ToolRawJsonModal_module_backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+  padding: 24px;
+}
+.ToolRawJsonModal_module_modal {
+  display: flex;
+  max-height: min(78vh, 720px);
+  width: min(760px, 100%);
+  flex-direction: column;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 18px 54px rgb(0 0 0 / 0.35);
+}
+.ToolRawJsonModal_module_header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--agent-border);
+  padding: 12px;
+}
+.ToolRawJsonModal_module_headerTitle {
+  margin: 0;
+  font-size: 13px;
+}
+.ToolRawJsonModal_module_headerSubtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+.ToolRawJsonModal_module_closeButton {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 6px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+}
+.ToolRawJsonModal_module_closeButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+}
+.ToolRawJsonModal_module_code {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+}
+
+/* src/webview/entities/message/workspace-file-link/WorkspaceFileLink.module.scss */
+.WorkspaceFileLink_module_root {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 999px;
+  color: var(--vscode-textLink-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 18%, transparent);
+  padding: 2px 8px;
+}
+.WorkspaceFileLink_module_root:hover {
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 32%, transparent);
+}
+.WorkspaceFileLink_module_label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* src/webview/entities/message/tool-result-preview/ToolResultPreview.module.scss */
+.ToolResultPreview_module_root {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+}
+.ToolResultPreview_module_reason {
+  line-height: 1.25;
+  color: var(--vscode-descriptionForeground);
+}
+.ToolResultPreview_module_errorText {
+  color: var(--vscode-errorForeground);
+}
+.ToolResultPreview_module_fileLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ToolResultPreview_module_details > summary {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  gap: 4px;
+  color: var(--vscode-textLink-foreground);
+}
+.ToolResultPreview_module_details[open] > summary svg {
+  transform: rotate(90deg);
+}
+.ToolResultPreview_module_codePreview {
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 88%, var(--tool-tone, transparent));
+  padding: 8px;
+  font-family: var(--vscode-editor-font-family);
+}
+.ToolResultPreview_module_listPreview {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ToolResultPreview_module_listPreview li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+}
+.ToolResultPreview_module_listPreview code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ToolResultPreview_module_listPreview em {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.ToolResultPreview_module_listVertical li {
+  align-items: flex-start;
+}
+.ToolResultPreview_module_truncated {
+  opacity: 0.7;
+}
+.ToolResultPreview_module_bashPreview {
+  display: grid;
+  gap: 9px;
+}
+.ToolResultPreview_module_bashCommand {
+  display: grid;
+  gap: 5px;
+}
+.ToolResultPreview_module_bashCommandLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+}
+.ToolResultPreview_module_bashCommandPre {
+  overflow: auto;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--tool-tone, var(--agent-border)) 58%, var(--agent-border));
+  border-radius: 6px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+}
+.ToolResultPreview_module_bashCommandPre code {
+  font-family: inherit;
+}
+.ToolResultPreview_module_bashFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+.ToolResultPreview_module_bashFacts div {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 76%, var(--tool-tone, transparent));
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.ToolResultPreview_module_bashFacts dt {
+  color: var(--vscode-descriptionForeground);
+}
+.ToolResultPreview_module_bashFacts dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ToolResultPreview_module_factOk {
+  border-color: color-mix(in srgb, #4ade80 64%, var(--agent-border)) !important;
+}
+.ToolResultPreview_module_factError {
+  border-color: var(--vscode-errorForeground) !important;
+  color: var(--vscode-errorForeground);
+}
+.ToolResultPreview_module_factRunning {
+  border-color: var(--tool-tone, var(--agent-border)) !important;
+}
+.ToolResultPreview_module_outputBlock > summary {
+  justify-content: flex-start;
+}
+.ToolResultPreview_module_outputBlock summary em {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  font-style: normal;
+}
+.ToolResultPreview_module_stderr .ToolResultPreview_module_codePreview {
+  border-color: color-mix(in srgb, var(--vscode-errorForeground) 48%, var(--agent-border));
+}
+.ToolResultPreview_module_waitingOutput {
+  color: var(--vscode-descriptionForeground);
+}
+.ToolResultPreview_module_noOutput {
+  color: var(--vscode-descriptionForeground);
+}
+.ToolResultPreview_module_compactFacts {
+  color: var(--vscode-descriptionForeground);
+}
+
+/* src/webview/entities/message/message-formatting/MessageFormatting.module.scss */
+.MessageFormatting_module_dateLabel {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+.MessageFormatting_module_dateLabel span {
+  opacity: 0.75;
+}
+.MessageFormatting_module_usageInline {
+  margin-left: 8px;
+  font-weight: 400;
+  text-transform: none;
+  color: var(--vscode-descriptionForeground);
+}
+.MessageFormatting_module_usagePill {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  flex-shrink: 0;
+  pointer-events: none;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 74%, var(--tool-tone, transparent));
+}
+
+/* src/webview/entities/message/tool-message-card/ToolMessageCard.module.scss */
+.ToolMessageCard_module_root {
+  --tool-tone: color-mix(in srgb, #9ca3af 32%, transparent);
+  --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
+  position: relative;
+  overflow: hidden;
+  margin-block-end: 12px;
+  border: 1px solid var(--tool-tone);
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 10px;
+  background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
+  transition: background 160ms ease;
+}
+.ToolMessageCard_module_errorBorder {
+  border-color: var(--vscode-errorForeground);
+}
+.ToolMessageCard_module_body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.ToolMessageCard_module_headerRow {
+  display: grid;
+  min-height: 25px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+.ToolMessageCard_module_chevronButton {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+}
+.ToolMessageCard_module_chevronButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+}
+.ToolMessageCard_module_chevronButton[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.ToolMessageCard_module_headerMain {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+}
+.ToolMessageCard_module_iconPill {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  max-width: min(220px, 42vw);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--tool-tone);
+  border-radius: 999px;
+  color: var(--tool-tone-strong);
+  background: color-mix(in srgb, var(--tool-tone) 28%, transparent);
+  padding: 0 8px;
+}
+.ToolMessageCard_module_iconPillLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ToolMessageCard_module_title {
+  display: flex;
+  min-width: 0;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+}
+.ToolMessageCard_module_titleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ToolMessageCard_module_reasonRow {
+  grid-column: 2;
+  min-width: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+.ToolMessageCard_module_detailsHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-left: 32px;
+}
+.ToolMessageCard_module_summary {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+.ToolMessageCard_module_iconButton {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 6px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 14%, transparent);
+}
+.ToolMessageCard_module_iconButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--tool-tone, var(--agent-border)) 28%, transparent);
+}
+.ToolMessageCard_module_statusBadge {
+  flex-shrink: 0;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 74%, var(--tool-tone));
+}
+.ToolMessageCard_module_statusNeutral {
+  border-color: var(--agent-border);
+  color: var(--vscode-descriptionForeground);
+}
+.ToolMessageCard_module_statusError {
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+}
+.ToolMessageCard_module_toneBlue {
+  --tool-tone: color-mix(in srgb, #93c5fd 46%, transparent);
+  --tool-tone-strong: #60a5fa;
+}
+.ToolMessageCard_module_toneGreen {
+  --tool-tone: color-mix(in srgb, #86efac 46%, transparent);
+  --tool-tone-strong: #4ade80;
+}
+.ToolMessageCard_module_tonePurple {
+  --tool-tone: color-mix(in srgb, #c4b5fd 46%, transparent);
+  --tool-tone-strong: #a78bfa;
+}
+.ToolMessageCard_module_toneAmber {
+  --tool-tone: color-mix(in srgb, #fcd34d 46%, transparent);
+  --tool-tone-strong: #f59e0b;
+}
+.ToolMessageCard_module_toneRose {
+  --tool-tone: color-mix(in srgb, #fda4af 46%, transparent);
+  --tool-tone-strong: #fb7185;
+}
+.ToolMessageCard_module_toneCyan {
+  --tool-tone: color-mix(in srgb, #67e8f9 46%, transparent);
+  --tool-tone-strong: #22d3ee;
+}
+.ToolMessageCard_module_toneSlate {
+  --tool-tone: color-mix(in srgb, #cbd5e1 42%, transparent);
+  --tool-tone-strong: #94a3b8;
+}
+
+/* src/webview/entities/message/message-card/MessageCard.module.scss */
+.MessageCard_module_root {
+  margin-block-end: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 10px;
+}
+.MessageCard_module_user {
+  margin-block-start: 48px;
+  margin-block-end: 12px;
+  border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 38%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-input-background, transparent));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--vscode-textLink-foreground) 7%, transparent),
+    0 6px 18px color-mix(in srgb, var(--vscode-textLink-foreground) 8%, transparent);
+}
+.MessageCard_module_assistant {
+  border-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 70%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 46%, transparent);
+}
+.MessageCard_module_status {
+  border-style: dashed;
+  color: var(--vscode-descriptionForeground);
+}
+.MessageCard_module_error {
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+}
+.MessageCard_module_cutCard {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 180ms ease;
+}
+.MessageCard_module_collapsed {
+  max-height: 150px;
+}
+.MessageCard_module_expanded {
+  max-height: none;
+}
+.MessageCard_module_cutShadow {
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 80px;
+  border-radius: 0 0 24px 24px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--vscode-editor-background) 86%, transparent) 48%,
+    var(--vscode-editor-background)
+  );
+  box-shadow: none;
+}
+.MessageCard_module_cutButton {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
+}
+.MessageCard_module_cutButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 42%, transparent);
+}
+.MessageCard_module_cutButton[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.MessageCard_module_markdownBody {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.MessageCard_module_markdownBody > :first-child {
+  margin-top: 0;
+}
+.MessageCard_module_markdownBody > :last-child {
+  margin-bottom: 0;
+}
+.MessageCard_module_markdownBody p,
+.MessageCard_module_markdownBody ul,
+.MessageCard_module_markdownBody ol,
+.MessageCard_module_markdownBody blockquote,
+.MessageCard_module_markdownBody pre,
+.MessageCard_module_markdownBody table {
+  margin: 0.65rem 0;
+}
+.MessageCard_module_markdownBody ul,
+.MessageCard_module_markdownBody ol {
+  padding-left: 1.25rem;
+}
+.MessageCard_module_markdownBody ul {
+  list-style: disc;
+}
+.MessageCard_module_markdownBody ol {
+  list-style: decimal;
+}
+.MessageCard_module_markdownBody code {
+  border: 1px solid var(--agent-border);
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 0.08rem 0.28rem;
+  font-family: var(--vscode-editor-font-family);
+}
+.MessageCard_module_markdownBody pre {
+  overflow: auto;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 0.75rem;
+}
+.MessageCard_module_markdownBody pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.MessageCard_module_markdownBody a {
+  color: var(--vscode-textLink-foreground);
+}
+.MessageCard_module_markdownBody blockquote {
+  border-left: 3px solid var(--agent-border);
+  color: var(--vscode-descriptionForeground);
+  padding-left: 0.75rem;
+}
+.MessageCard_module_header {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.MessageCard_module_headerMeta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: normal;
+  color: var(--vscode-descriptionForeground);
+}
+.MessageCard_module_spinIcon {
+  animation: MessageCard_module_spin 1s linear infinite;
+}
+@keyframes MessageCard_module_spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* src/webview/features/configure-tool-permission/ToolPermissionSelect.module.scss */
+.ToolPermissionSelect_module_root {
+  margin-block-end: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-input-background);
+  padding: 10px;
+}
+.ToolPermissionSelect_module_layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ToolPermissionSelect_module_content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ToolPermissionSelect_module_title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.ToolPermissionSelect_module_description,
+.ToolPermissionSelect_module_defaultPermission {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+.ToolPermissionSelect_module_description {
+  line-height: 1.65;
+}
+.ToolPermissionSelect_module_select {
+  width: 192px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+}
+.ToolPermissionSelect_module_select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* src/webview/shared/ui/IconButton.module.scss */
+.IconButton_module_root {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+.IconButton_module_root:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+.IconButton_module_root:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* src/webview/features/copy-message/CopyMessageButton.module.scss */
+.CopyMessageButton_module_root {
+  display: contents;
+}
+
+/* src/webview/features/select-agent-mode/AgentModeSelect.module.scss */
+.AgentModeSelect_module_root {
+  position: relative;
+  min-width: 0;
+}
+.AgentModeSelect_module_trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+.AgentModeSelect_module_trigger:focus {
+  border-color: var(--vscode-focusBorder);
+}
+.AgentModeSelect_module_triggerLabel,
+.AgentModeSelect_module_optionLabel {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.AgentModeSelect_module_optionLabel {
+  font-weight: 600;
+}
+.AgentModeSelect_module_chevron,
+.AgentModeSelect_module_checkIcon {
+  flex-shrink: 0;
+}
+.AgentModeSelect_module_chevron {
+  transition: transform 160ms ease;
+}
+.AgentModeSelect_module_chevronOpen {
+  transform: rotate(180deg);
+}
+.AgentModeSelect_module_menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-height: 288px;
+  gap: 4px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-dropdown-background);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  padding: 4px;
+}
+.AgentModeSelect_module_item {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: stretch;
+  gap: 4px;
+  border-radius: 4px;
+}
+.AgentModeSelect_module_itemActive {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+.AgentModeSelect_module_optionButton {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+.AgentModeSelect_module_optionButton:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.AgentModeSelect_module_optionButton:focus {
+  background: var(--vscode-list-focusBackground);
+}
+.AgentModeSelect_module_checkHidden {
+  opacity: 0;
+}
+.AgentModeSelect_module_itemAction,
+.AgentModeSelect_module_itemActionDanger {
+  display: flex;
+  width: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  outline: none;
+}
+.AgentModeSelect_module_itemAction:hover,
+.AgentModeSelect_module_itemActionDanger:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.AgentModeSelect_module_itemAction:focus,
+.AgentModeSelect_module_itemActionDanger:focus {
+  background: var(--vscode-list-focusBackground);
+}
+.AgentModeSelect_module_itemActionDanger {
+  color: var(--vscode-errorForeground);
+}
+
+/* src/webview/features/select-model/ModelSelect.module.scss */
+.ModelSelect_module_root {
+  position: relative;
+  display: grid;
+  min-width: 224px;
+  max-width: 100%;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+.ModelSelect_module_label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ModelSelect_module_labelIcon,
+.ModelSelect_module_chevron,
+.ModelSelect_module_optionCheck,
+.ModelSelect_module_searchIcon {
+  flex-shrink: 0;
+}
+.ModelSelect_module_trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+.ModelSelect_module_trigger:focus {
+  border-color: var(--vscode-focusBorder);
+}
+.ModelSelect_module_trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.ModelSelect_module_triggerText,
+.ModelSelect_module_optionText,
+.ModelSelect_module_optionName,
+.ModelSelect_module_optionId {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ModelSelect_module_triggerText {
+  flex: 1 1 auto;
+}
+.ModelSelect_module_chevron {
+  transition: transform 160ms ease;
+}
+.ModelSelect_module_chevronOpen {
+  transform: rotate(180deg);
+}
+.ModelSelect_module_menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: 320px;
+  gap: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-dropdown-background);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  padding: 8px;
+}
+.ModelSelect_module_searchBox {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  padding: 0 8px;
+}
+.ModelSelect_module_searchBox:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+.ModelSelect_module_searchIcon {
+  color: var(--vscode-descriptionForeground);
+}
+.ModelSelect_module_searchInput {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 12px;
+  outline: none;
+}
+.ModelSelect_module_searchInput::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+.ModelSelect_module_list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ModelSelect_module_group {
+  display: grid;
+  gap: 4px;
+}
+.ModelSelect_module_groupTitle {
+  padding: 8px 8px 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.ModelSelect_module_optionButton {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  padding: 8px;
+  font-size: 12px;
+  text-align: left;
+  outline: none;
+}
+.ModelSelect_module_optionButton:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.ModelSelect_module_optionButton:focus {
+  background: var(--vscode-list-focusBackground);
+}
+.ModelSelect_module_optionActive {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
+.ModelSelect_module_optionCheck {
+  margin-top: 2px;
+}
+.ModelSelect_module_optionCheckHidden {
+  opacity: 0;
+}
+.ModelSelect_module_optionText {
+  flex: 1 1 auto;
+}
+.ModelSelect_module_optionName {
+  display: block;
+  font-weight: 600;
+}
+.ModelSelect_module_optionId {
+  display: block;
+}
+.ModelSelect_module_optionIdMuted,
+.ModelSelect_module_empty {
+  color: var(--vscode-descriptionForeground);
+}
+.ModelSelect_module_empty {
+  padding: 12px 8px;
+  font-size: 12px;
+}
+
+/* src/webview/features/select-permission-preset/PermissionPresetSelect.module.scss */
+.PermissionPresetSelect_module_root {
+  display: grid;
+  min-width: 160px;
+  max-width: 100%;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+.PermissionPresetSelect_module_label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.PermissionPresetSelect_module_icon {
+  flex-shrink: 0;
+}
+.PermissionPresetSelect_module_select {
+  height: 32px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 4px;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  padding: 0 8px;
+  font-size: 12px;
+  outline: none;
+}
+.PermissionPresetSelect_module_select:focus {
+  border-color: var(--vscode-focusBorder);
+}
+.PermissionPresetSelect_module_select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* src/webview/features/send-message/Composer.module.scss */
+.Composer_module_root {
+  flex-shrink: 0;
+  padding: 24px 12px;
+  background: transparent;
+}
+.Composer_module_floatingRoot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.Composer_module_floatingRoot::before {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 180px;
+  content: '';
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--vscode-editor-background) 70%, transparent) 34%,
+    var(--vscode-editor-background) 100%
+  );
+}
+.Composer_module_notice {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 768px);
+  margin: 0 auto 8px;
+  pointer-events: auto;
+}
+.Composer_module_panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 768px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: color-mix(in srgb, var(--vscode-input-background) 36%, transparent);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 0.2);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  pointer-events: auto;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+.Composer_module_panel:focus-within {
+  border-color: var(--vscode-focusBorder);
+  box-shadow:
+    0 14px 34px rgb(0 0 0 / 0.2),
+    0 0 0 2px color-mix(in srgb, var(--vscode-focusBorder) 16%, transparent),
+    0 4px 14px rgb(0 0 0 / 0.14);
+}
+.Composer_module_settings {
+  min-width: 0;
+  padding: 8px 12px;
+  font-size: 10px;
+}
+.Composer_module_settingsFallback {
+  color: var(--vscode-descriptionForeground);
+}
+.Composer_module_prompt {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  max-height: 300px;
+  padding: 8px 12px;
+  overflow-y: auto;
+  resize: none;
+  border: 0;
+  color: var(--vscode-input-foreground);
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+}
+.Composer_module_prompt::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+.Composer_module_actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.Composer_module_footer {
+  min-width: 0;
+  flex: 1;
+}
+.Composer_module_sendActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+.Composer_module_button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 999px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+.Composer_module_button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+.Composer_module_button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.Composer_module_divider {
+  height: 1px;
+  background: var(--agent-border);
+}
+
+/* src/webview/shared/ui/AistLogo.module.scss */
+.AistLogo_module_logo {
+  display: inline-block;
+  width: 100px;
+  height: 100px;
+  background: currentColor;
+  mask: var(--aist-logo-uri) center / contain no-repeat;
+}
+.AistLogo_module_small {
+  width: 40px;
+  height: 40px;
+}
+.AistLogo_module_animated {
+  position: relative;
+  background: transparent;
+  mask: none;
+}
+.AistLogo_module_animated::before,
+.AistLogo_module_animated::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, currentColor 24%, transparent) 0%,
+    color-mix(in srgb, currentColor 76%, transparent) 34%,
+    currentColor 50%,
+    color-mix(in srgb, currentColor 76%, transparent) 66%,
+    color-mix(in srgb, currentColor 24%, transparent) 100%
+  );
+  background-size: 420% 100%;
+}
+.AistLogo_module_animated::before {
+  animation:
+    AistLogo_module_logoPulse 2400ms ease-in-out infinite,
+    AistLogo_module_logoBaseFade 1800ms ease-in-out infinite;
+  mask: var(--aist-logo-base-uri) center / contain no-repeat;
+}
+.AistLogo_module_animated::after {
+  animation:
+    AistLogo_module_logoPulse 2400ms ease-in-out infinite,
+    AistLogo_module_logoAnimatedFade 1800ms ease-in-out infinite;
+  mask: var(--aist-logo-animated-uri) center / contain no-repeat;
+}
+.AistLogo_module_brand {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--vscode-foreground);
+  font-family: inherit;
+}
+.AistLogo_module_brandText {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+.AistLogo_module_brandTitle {
+  margin-top: -20px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+.AistLogo_module_brandSubtitle {
+  color: var(--vscode-descriptionForeground);
+  font-family: inherit;
+  font-size: 14px;
+}
+@keyframes AistLogo_module_logoPulse {
+  0%,
+  100% {
+    background-position: 46% 50%;
+    filter: brightness(0.88);
+  }
+  50% {
+    background-position: 54% 50%;
+    filter: brightness(1.22);
+  }
+}
+@keyframes AistLogo_module_logoBaseFade {
+  0%,
+  32% {
+    opacity: 1;
+  }
+  50%,
+  82% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes AistLogo_module_logoAnimatedFade {
+  0%,
+  32% {
+    opacity: 0;
+  }
+  50%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* src/webview/widgets/message-list/agent-activity-status/AgentActivityStatus.module.scss */
+.AgentActivityStatus_module_root {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-input-background);
+  color: var(--vscode-foreground);
+  padding: 8px 12px;
+}
+.AgentActivityStatus_module_logo {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.AgentActivityStatus_module_content {
+  min-width: 0;
+  flex: 1;
+}
+.AgentActivityStatus_module_title {
+  font-size: 14px;
+  font-weight: 500;
+}
+.AgentActivityStatus_module_detail {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+}
+.AgentActivityStatus_module_detail p {
+  margin: 0;
+}
+.AgentActivityStatus_module_detail p + p {
+  margin-top: 4px;
+}
+
+/* src/webview/widgets/message-list/empty-state/EmptyState.module.scss */
+.EmptyState_module_root {
+  display: grid;
+  gap: 16px;
+  padding: 20px 0;
+}
+.EmptyState_module_sparkles {
+  margin: 0 auto;
+}
+.EmptyState_module_text {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+.EmptyState_module_title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.EmptyState_module_description {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 14px;
+}
+
 /* src/webview/pages/permissions/PermissionsPage.module.scss */
+.PermissionsPage_module_pageRoot {
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+.PermissionsPage_module_main {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px;
+}
+.PermissionsPage_module_mainEmbedded {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px;
+}
 .PermissionsPage_module_shell {
   display: grid;
   grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
@@ -1182,10 +2406,19 @@ select {
   display: inline-flex;
   flex-shrink: 0;
 }
+.PermissionsPage_module_navMeta {
+  margin-left: auto;
+  color: var(--vscode-descriptionForeground);
+}
 .PermissionsPage_module_content {
   display: grid;
   min-width: 0;
   gap: 14px;
+}
+.PermissionsPage_module_headerRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 .PermissionsPage_module_pageHeader {
   display: grid;
@@ -1232,6 +2465,34 @@ select {
   color: var(--vscode-descriptionForeground);
   padding: 12px;
   font-size: 12px;
+}
+.PermissionsPage_module_preWrapText {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.PermissionsPage_module_clampedSourceText {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.PermissionsPage_module_dialogBody {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.PermissionsPage_module_dialogStrong {
+  color: var(--vscode-foreground);
 }
 @media (max-width: 760px) {
   .PermissionsPage_module_shell {
@@ -1475,4 +2736,188 @@ select {
   border-radius: 999px;
   background: var(--vscode-input-background);
   padding: 4px 12px;
+}
+
+/* tests/component-screenshots/base.css */
+:root {
+  color-scheme: dark;
+  --agent-border: color-mix(in srgb, var(--vscode-foreground) 18%, transparent);
+  --agent-input-border: var(--vscode-input-border, var(--agent-border));
+}
+body {
+  margin: 0;
+  font-family: var(--vscode-editor-font-family);
+  background: var(--vscode-editor-background);
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+.message-card {
+  margin-block-end: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 10px;
+}
+.message-card-user {
+  margin-block-start: 48px;
+  margin-block-end: 12px;
+  border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 38%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-input-background, transparent));
+}
+.message-card-assistant {
+  border-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 70%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 46%, transparent);
+}
+.message-cut-card {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 180ms ease;
+}
+.message-cut-collapsed {
+  max-height: 150px;
+}
+.message-cut-expanded {
+  max-height: none;
+}
+.message-cut-shadow {
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 80px;
+  border-radius: 0 0 24px 24px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--vscode-editor-background));
+}
+.message-cut-button,
+.tool-chevron-button,
+.tool-icon-button {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
+}
+.message-cut-button[aria-expanded='true'] svg,
+.tool-chevron-button[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.aist-logo,
+.aist-logo-sm {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--vscode-foreground);
+  background: linear-gradient(135deg, currentColor 0%, color-mix(in srgb, currentColor 28%, transparent) 100%);
+}
+.aist-brand {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--vscode-foreground);
+  font-family: inherit;
+}
+.activity-detail-text {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
+}
+.activity-detail-text p {
+  margin: 0;
+}
+.icon-button {
+  display: inline-flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+.tool-card {
+  --tool-tone: color-mix(in srgb, #9ca3af 32%, transparent);
+  --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
+  position: relative;
+  overflow: hidden;
+  border-color: var(--tool-tone);
+  background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
+}
+.tool-card-body,
+.tool-result-preview,
+.tool-bash-preview,
+.tool-bash-command {
+  display: grid;
+  gap: 8px;
+}
+.tool-header-row {
+  display: grid;
+  min-height: 25px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+.tool-header-main,
+.tool-details-header,
+.tool-title,
+.tool-file-link,
+.tool-list-preview li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+.tool-icon-pill,
+.tool-status-badge,
+.tool-usage-pill,
+.tool-file-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.tool-icon-pill-label,
+.tool-title-text,
+.tool-list-preview code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-summary,
+.tool-date-label,
+.tool-status-badge,
+.tool-usage-pill,
+.tool-reason-row {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+.tool-code-preview,
+.tool-bash-command pre {
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+}
+.tool-list-preview {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
