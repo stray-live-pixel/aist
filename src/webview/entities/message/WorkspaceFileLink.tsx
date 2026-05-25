@@ -23,7 +23,9 @@ export function WorkspaceFileLink({ file }: { file: FileReference }) {
           type: 'openWorkspaceFile',
           path: file.path,
           line: file.line,
-          column: file.column
+          column: file.column,
+          endLine: file.endLine,
+          endColumn: file.endColumn
         });
       }}
     >

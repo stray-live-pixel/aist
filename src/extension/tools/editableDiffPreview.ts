@@ -84,11 +84,13 @@ function createEditablePreview(params: {
     approve: async () => {
       accepted = true;
       const finalContent = await saveAndReadDocument(params.targetUri);
+      const changedRange = getChangedLineRange(params.originalContent, finalContent);
       await closeDiffEditor(params.diffTitle);
       return {
         ok: true,
         path: params.filePath,
         bytes: Buffer.byteLength(finalContent, 'utf8'),
+        ...changedRange,
         ...(params.generatedReplacements === undefined ? {} : { generatedReplacements: params.generatedReplacements })
       };
     },
@@ -166,6 +168,35 @@ async function saveAndReadDocument(targetUri: vscode.Uri): Promise<string> {
     }
   }
   return document.getText();
+}
+
+function getChangedLineRange(beforeContent: string, afterContent: string): Record<string, number> {
+  if (beforeContent === afterContent) {
+    return {};
+  }
+
+  const beforeLines = beforeContent.split(/\r?\n/);
+  const afterLines = afterContent.split(/\r?\n/);
+  let start = 0;
+  while (start < beforeLines.length && start < afterLines.length && beforeLines[start] === afterLines[start]) {
+    start += 1;
+  }
+
+  let beforeEnd = beforeLines.length - 1;
+  let afterEnd = afterLines.length - 1;
+  while (beforeEnd >= start && afterEnd >= start && beforeLines[beforeEnd] === afterLines[afterEnd]) {
+    beforeEnd -= 1;
+    afterEnd -= 1;
+  }
+
+  const changedStartLine = start + 1;
+  const changedEndLine = Math.max(changedStartLine, afterEnd + 1);
+  return {
+    changedStartLine,
+    changedStartColumn: 1,
+    changedEndLine,
+    changedEndColumn: afterLines[changedEndLine - 1]?.length + 1 || 1
+  };
 }
 
 async function closeDiffEditor(diffTitle: string): Promise<void> {

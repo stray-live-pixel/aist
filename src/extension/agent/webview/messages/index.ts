@@ -50,7 +50,7 @@ export async function handleAgentWebviewMessage(
   }
 
   if (message.type === 'openWorkspaceFile') {
-    await deps.openWorkspaceFile(message.path, message.line, message.column);
+    await deps.openWorkspaceFile(message.path, message.line, message.column, message.endLine, message.endColumn);
     return;
   }
 

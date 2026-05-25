@@ -8,6 +8,8 @@ export type FileReference = {
   path: string;
   line?: number;
   column?: number;
+  endLine?: number;
+  endColumn?: number;
   label?: string;
 };
 
@@ -70,10 +72,26 @@ function getAllFileReferences(message: ChatMessage, primaryFile?: FileReference)
 
 function getPrimaryFileReference(message: ChatMessage): FileReference | undefined {
   const argPath = asString(message.args?.path);
-  if (argPath) return { path: argPath };
+  if (argPath) return withChangedRange({ path: argPath }, message);
 
   const resultPath = asString(getToolResult(message)?.path) || asString(getToolPreview(message)?.path);
-  return resultPath ? { path: resultPath } : undefined;
+  return resultPath ? withChangedRange({ path: resultPath }, message) : undefined;
+}
+
+function withChangedRange(file: FileReference, message: ChatMessage): FileReference {
+  const result = getToolResult(message);
+  const line = typeof result?.changedStartLine === 'number' ? result.changedStartLine : undefined;
+  const endLine = typeof result?.changedEndLine === 'number' ? result.changedEndLine : undefined;
+  if (!line) return file;
+
+  return {
+    ...file,
+    line,
+    column: typeof result?.changedStartColumn === 'number' ? result.changedStartColumn : 1,
+    endLine,
+    endColumn: typeof result?.changedEndColumn === 'number' ? result.changedEndColumn : undefined,
+    label: endLine && endLine !== line ? `changed lines ${line}-${endLine}` : `changed line ${line}`
+  };
 }
 
 function getResultFileReferences(message: ChatMessage): FileReference[] {
@@ -171,7 +189,7 @@ function formatDuration(durationMs: number): string {
 function uniqueFiles(files: FileReference[]): FileReference[] {
   const seen = new Set<string>();
   return files.filter((file) => {
-    const key = `${file.path}:${file.line || 0}:${file.column || 0}`;
+    const key = `${file.path}:${file.line || 0}:${file.column || 0}:${file.endLine || 0}:${file.endColumn || 0}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

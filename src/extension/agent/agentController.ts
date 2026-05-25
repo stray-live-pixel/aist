@@ -230,7 +230,8 @@ export class AgentController {
       loginCodex: () => this.loginCodex(),
       logoutCodex: () => this.logoutCodex(),
       resolveToolCall: (messageId, approved) => this.runService.resolveToolCall(messageId, approved),
-      openWorkspaceFile: (filePath, line, column) => this.openWorkspaceFile(filePath, line, column),
+      openWorkspaceFile: (filePath, line, column, endLine, endColumn) =>
+        this.openWorkspaceFile(filePath, line, column, endLine, endColumn),
       stopCurrentRun: () => this.runService.stop()
     });
   }
@@ -329,8 +330,14 @@ export class AgentController {
     return summary;
   }
 
-  private async openWorkspaceFile(filePath: string, line?: number, column?: number): Promise<void> {
-    await openWorkspaceFileFromWebview({ filePath, line, column, logger: this.logger });
+  private async openWorkspaceFile(
+    filePath: string,
+    line?: number,
+    column?: number,
+    endLine?: number,
+    endColumn?: number
+  ): Promise<void> {
+    await openWorkspaceFileFromWebview({ filePath, line, column, endLine, endColumn, logger: this.logger });
   }
 
   private retargetDeletedChat(deletedChatId: string, nextChatId: string): void {

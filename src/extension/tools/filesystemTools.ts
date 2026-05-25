@@ -462,6 +462,8 @@ async function writeFile(args: Record<string, unknown>): Promise<Record<string, 
   const filePath = requireString(args.path, 'path');
   const content = requireString(args.content, 'content');
   const uri = resolveWorkspacePath(filePath);
+  const previousContent = await readFileIfExists(uri);
+  const changedRange = getChangedLineRange(previousContent || '', content);
 
   await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(uri.fsPath)));
   await vscode.workspace.fs.writeFile(uri, textEncoder.encode(content));
@@ -469,7 +471,8 @@ async function writeFile(args: Record<string, unknown>): Promise<Record<string, 
   return {
     ok: true,
     path: filePath,
-    bytes: Buffer.byteLength(content, 'utf8')
+    bytes: Buffer.byteLength(content, 'utf8'),
+    ...changedRange
   };
 }
 
@@ -487,13 +490,15 @@ async function replaceInFile(args: Record<string, unknown>): Promise<Record<stri
 
   const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
   const count = replaceAll ? content.split(search).length - 1 : 1;
+  const changedRange = getChangedLineRange(content, nextContent);
 
   await vscode.workspace.fs.writeFile(uri, textEncoder.encode(nextContent));
 
   return {
     ok: true,
     path: filePath,
-    replacements: count
+    replacements: count,
+    ...changedRange
   };
 }
 
@@ -599,6 +604,43 @@ function shouldSkipRelativePath(relativePath: string): boolean {
 function toWorkspaceRelativePath(uri: vscode.Uri): string {
   const folder = getWorkspaceFolder();
   return path.relative(folder.uri.fsPath, uri.fsPath).replace(/\\/g, '/');
+}
+
+async function readFileIfExists(uri: vscode.Uri): Promise<string | undefined> {
+  try {
+    return textDecoder.decode(await vscode.workspace.fs.readFile(uri));
+  } catch {
+    return undefined;
+  }
+}
+
+function getChangedLineRange(beforeContent: string, afterContent: string): Record<string, number> {
+  if (beforeContent === afterContent) {
+    return {};
+  }
+
+  const beforeLines = beforeContent.split(/\r?\n/);
+  const afterLines = afterContent.split(/\r?\n/);
+  let start = 0;
+  while (start < beforeLines.length && start < afterLines.length && beforeLines[start] === afterLines[start]) {
+    start += 1;
+  }
+
+  let beforeEnd = beforeLines.length - 1;
+  let afterEnd = afterLines.length - 1;
+  while (beforeEnd >= start && afterEnd >= start && beforeLines[beforeEnd] === afterLines[afterEnd]) {
+    beforeEnd -= 1;
+    afterEnd -= 1;
+  }
+
+  const changedStartLine = start + 1;
+  const changedEndLine = Math.max(changedStartLine, afterEnd + 1);
+  return {
+    changedStartLine,
+    changedStartColumn: 1,
+    changedEndLine,
+    changedEndColumn: afterLines[changedEndLine - 1]?.length + 1 || 1
+  };
 }
 
 async function readTextFileForSearch(uri: vscode.Uri): Promise<string | undefined> {

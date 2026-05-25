@@ -18,6 +18,6 @@ export type AgentWebviewMessageDeps = {
   loginCodex(): Promise<void>;
   logoutCodex(): Promise<void>;
   resolveToolCall(messageId: string, approved: boolean): void;
-  openWorkspaceFile(path: string, line?: number, column?: number): Promise<void>;
+  openWorkspaceFile(path: string, line?: number, column?: number, endLine?: number, endColumn?: number): Promise<void>;
   stopCurrentRun(): void;
 };

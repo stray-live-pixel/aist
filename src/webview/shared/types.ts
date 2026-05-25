@@ -258,7 +258,7 @@ export type WebviewToExtensionMessage =
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | { type: 'resolveToolCall'; messageId: string; approved: boolean }
-  | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number }
+  | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop' }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string };

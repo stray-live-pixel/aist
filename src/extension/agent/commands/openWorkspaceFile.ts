@@ -17,6 +17,8 @@ export async function openWorkspaceFile(params: {
   filePath: string;
   line?: number;
   column?: number;
+  endLine?: number;
+  endColumn?: number;
   logger: AistLogger;
 }): Promise<void> {
   try {
@@ -30,10 +32,12 @@ export async function openWorkspaceFile(params: {
 
     const document = await vscode.workspace.openTextDocument(uri);
     const editor = await vscode.window.showTextDocument(document, { preview: false });
-    const position = getDocumentPosition(document, params.line, params.column);
+    const start = getDocumentPosition(document, params.line, params.column);
+    const end = getDocumentPosition(document, params.endLine || params.line, params.endColumn);
+    const range = new vscode.Range(start, end);
 
-    editor.selection = new vscode.Selection(position, position);
-    editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    editor.selection = new vscode.Selection(range.start, range.end);
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
   } catch (error) {
     params.logger.error('Failed to open workspace file from webview', error);
     vscode.window.showErrorMessage(
