@@ -1,0 +1,44 @@
+.root {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-input-background);
+  color: var(--vscode-foreground);
+  padding: 8px 12px;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.content {
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.detail {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.detail p {
+  margin: 0;
+}
+
+.detail p + p {
+  margin-top: 4px;
+}

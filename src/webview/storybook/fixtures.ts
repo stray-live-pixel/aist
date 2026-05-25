@@ -309,7 +309,7 @@ export const storyMessages: ChatMessage[] = [
     result: {
       matches: [
         { path: 'src/webview/entities/message/MessageCard.tsx', line: 14, column: 17 },
-        { path: 'src/webview/widgets/message-list/MessageList.tsx', line: 38, column: 12 }
+        { path: 'src/webview/widgets/message-list/message-list/MessageList.tsx', line: 38, column: 12 }
       ],
       truncated: false
     },

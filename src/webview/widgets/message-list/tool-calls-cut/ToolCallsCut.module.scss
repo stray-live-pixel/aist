@@ -1,0 +1,49 @@
+.root {
+  display: grid;
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.chevronButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.chevronButton[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.title {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+}
+
+.meta {
+  color: var(--vscode-descriptionForeground);
+}
+
+.body {
+  display: grid;
+  gap: 8px;
+  padding-left: 32px;
+}

@@ -1,0 +1,152 @@
+.root {
+  width: 100%;
+  min-width: 0;
+}
+
+.button {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 18px;
+  corner-shape: squircle;
+  background: var(--vscode-input-background);
+  color: var(--vscode-descriptionForeground);
+  padding: 6px 12px;
+  text-align: left;
+  font-size: 10px;
+  opacity: 0.95;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+  outline: none;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--vscode-list-hoverBackground);
+  opacity: 1;
+}
+
+.button:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.title {
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chips {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.chip {
+  display: inline-flex;
+  max-width: 144px;
+  flex-shrink: 0;
+  align-items: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  padding: 2px 8px;
+  font-weight: 500;
+}
+
+.fallbackTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  background: rgb(0 0 0 / 45%);
+  padding: 24px 16px;
+}
+
+.dialog {
+  display: flex;
+  width: 100%;
+  max-width: 1024px;
+  max-height: calc(100vh - 48px);
+  flex-direction: column;
+  margin: auto 0;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-editor-background);
+  box-shadow: 0 18px 55px rgb(0 0 0 / 28%);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--agent-border);
+  padding: 12px 16px;
+}
+
+.dialogTitleWrap {
+  min-width: 0;
+}
+
+.dialogTitle {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dialogDescription {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.closeButton {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.dialogBody {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}

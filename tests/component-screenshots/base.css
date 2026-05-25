@@ -1,0 +1,207 @@
+:root {
+  color-scheme: dark;
+  --agent-border: color-mix(in srgb, var(--vscode-foreground) 18%, transparent);
+  --agent-input-border: var(--vscode-input-border, var(--agent-border));
+}
+
+body {
+  margin: 0;
+  font-family: var(--vscode-editor-font-family);
+  background: var(--vscode-editor-background);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.message-card {
+  margin-block-end: 12px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 10px;
+}
+
+.message-card-user {
+  margin-block-start: 48px;
+  margin-block-end: 12px;
+  border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 38%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-input-background, transparent));
+}
+
+.message-card-assistant {
+  border-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 70%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 46%, transparent);
+}
+
+.message-cut-card {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 180ms ease;
+}
+
+.message-cut-collapsed {
+  max-height: 150px;
+}
+
+.message-cut-expanded {
+  max-height: none;
+}
+
+.message-cut-shadow {
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 80px;
+  border-radius: 0 0 24px 24px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--vscode-editor-background));
+}
+
+.message-cut-button,
+.tool-chevron-button,
+.tool-icon-button {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 76%, transparent);
+}
+
+.message-cut-button[aria-expanded='true'] svg,
+.tool-chevron-button[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+.aist-logo,
+.aist-logo-sm {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: var(--vscode-foreground);
+  background: linear-gradient(135deg, currentColor 0%, color-mix(in srgb, currentColor 28%, transparent) 100%);
+}
+
+.aist-brand {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--vscode-foreground);
+  font-family: inherit;
+}
+
+.activity-detail-text {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.activity-detail-text p {
+  margin: 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+.tool-card {
+  --tool-tone: color-mix(in srgb, #9ca3af 32%, transparent);
+  --tool-tone-strong: color-mix(in srgb, #9ca3af 72%, var(--vscode-foreground));
+  position: relative;
+  overflow: hidden;
+  border-color: var(--tool-tone);
+  background: color-mix(in srgb, var(--tool-tone) 18%, var(--vscode-editor-background));
+}
+
+.tool-card-body,
+.tool-result-preview,
+.tool-bash-preview,
+.tool-bash-command {
+  display: grid;
+  gap: 8px;
+}
+
+.tool-header-row {
+  display: grid;
+  min-height: 25px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.tool-header-main,
+.tool-details-header,
+.tool-title,
+.tool-file-link,
+.tool-list-preview li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-icon-pill,
+.tool-status-badge,
+.tool-usage-pill,
+.tool-file-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--tool-tone, var(--agent-border));
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.tool-icon-pill-label,
+.tool-title-text,
+.tool-list-preview code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-summary,
+.tool-date-label,
+.tool-status-badge,
+.tool-usage-pill,
+.tool-reason-row {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.tool-code-preview,
+.tool-bash-command pre {
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--agent-border);
+  border-radius: 6px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.tool-list-preview {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

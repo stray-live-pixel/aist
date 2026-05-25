@@ -1,0 +1,48 @@
+:root {
+  --vscode-editor-background: #1f1f1f;
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-input-background: #2a2d2e;
+  --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-editor-inactiveSelectionBackground: #37373d;
+  --vscode-focusBorder: #007fd4;
+  --vscode-textLink-foreground: #4daafc;
+  --vscode-textCodeBlock-background: #151515;
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-secondaryBackground: #313131;
+  --vscode-button-secondaryForeground: #cccccc;
+  --vscode-button-secondaryHoverBackground: #3c3c3c;
+  --vscode-errorForeground: #f48771;
+  --vscode-editor-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body {
+  min-width: 1024px;
+  min-height: 768px;
+  color: var(--vscode-foreground);
+}
+
+.component-shot-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  background: var(--vscode-editor-background);
+  padding: 24px;
+}
+
+.component-shot-card {
+  width: min(920px, calc(100vw - 48px));
+  box-sizing: border-box;
+}
+
+.component-shot-message-list {
+  height: 620px;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 92%, #ffffff);
+}

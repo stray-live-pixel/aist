@@ -6,7 +6,7 @@ import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type { AgentState } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
-import { MessageList } from '../../widgets/message-list/MessageList';
+import { MessageList } from '../../widgets/message-list';
 import { AgentSettingsModal } from './AgentSettingsModal';
 import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
 import { ApprovalPromptModal } from './ApprovalPromptModal';

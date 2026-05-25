@@ -1,0 +1,52 @@
+.root {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  background: transparent;
+  padding: 12px;
+}
+
+.withComposerOffset {
+  padding-bottom: 288px;
+}
+
+.stickyInstructions {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 48px 4px 0;
+}
+
+.stack {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compactionDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.compactionLine {
+  height: 1px;
+  flex: 1;
+  background: var(--agent-border);
+}
+
+.compactionLabel {
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  background: var(--vscode-input-background);
+  padding: 4px 12px;
+}

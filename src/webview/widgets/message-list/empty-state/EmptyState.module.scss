@@ -1,0 +1,27 @@
+.root {
+  display: grid;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.sparkles {
+  margin: 0 auto;
+}
+
+.text {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.description {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 14px;
+}

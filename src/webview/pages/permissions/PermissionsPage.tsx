@@ -331,19 +331,12 @@ function OverviewPage({
 
 function InstructionSettingsPage({
   promptConfig,
-  instructionSources
+  instructionSources: _instructionSources
 }: {
   promptConfig: AgentPromptConfig;
   instructionSources: AgentInstructionSource[];
 }) {
-  return (
-    <div className={styles.sectionStack}>
-      <PromptManager promptConfig={promptConfig} defaultTab="global" />
-      <Card title="Effective instructions" description="These sources are currently applied to new agent requests.">
-        <InstructionSourceList sources={instructionSources} />
-      </Card>
-    </div>
-  );
+  return <PromptManager promptConfig={promptConfig} defaultTab="priorities" />;
 }
 
 export function ModesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
@@ -359,24 +352,25 @@ type PromptManagerProps = {
 };
 
 function PromptManager({ promptConfig, defaultTab, focus = 'instructions' }: PromptManagerProps) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<PromptManagerTab>(defaultTab);
   const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <div className={styles.sectionStack}>
       <Card
-        title="Instructions and modes"
-        description="Global items live in ~/.aist-agent. Project items live in .aist-agent and have higher priority."
+        title={t('settings.promptManager.title')}
+        description={t('settings.promptManager.description')}
         actions={
           <Button size="sm" variant="ghost" leadingIcon={<HelpCircle size={14} />} onClick={() => setHelpOpen(true)}>
-            Guide
+            {t('settings.promptManager.guide')}
           </Button>
         }
       >
         <div className={styles.actions}>
           {(['global', 'local', 'priorities'] as PromptManagerTab[]).map((item) => (
             <Button key={item} size="sm" variant={tab === item ? 'primary' : 'secondary'} onClick={() => setTab(item)}>
-              {item === 'global' ? 'Global' : item === 'local' ? 'Project' : 'Active'}
+              {t(`settings.promptManager.tab.${item}` as never)}
             </Button>
           ))}
         </div>
@@ -402,6 +396,7 @@ function PromptLibrary({
   promptConfig: AgentPromptConfig;
   focus: 'instructions' | 'modes';
 }) {
+  const { t } = useI18n();
   const [addingKind, setAddingKind] = useState<AgentInstructionKind | undefined>(undefined);
   const instructions = scope === 'global' ? promptConfig.globalInstructions : promptConfig.localInstructions;
   const modes = scope === 'global' ? promptConfig.globalModes : promptConfig.localModes;
@@ -414,15 +409,17 @@ function PromptLibrary({
       ).map((kind) => (
         <Card
           key={kind}
-          title={kind === 'instruction' ? `${scopeLabel(scope)} instructions` : `${scopeLabel(scope)} modes`}
+          title={t(`settings.promptManager.${kind}.${scope}.title` as never)}
           description={
             kind === 'instruction'
-              ? 'Reusable system instructions. Enable any subset on the Active tab.'
-              : 'A mode is one standalone instruction used as your current role, such as coder or architect.'
+              ? t('settings.promptManager.instruction.description')
+              : t('settings.promptManager.mode.description')
           }
           actions={
             <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAddingKind(kind)}>
-              Add {kind === 'instruction' ? 'instruction' : 'mode'}
+              {kind === 'instruction'
+                ? t('settings.promptManager.addInstruction')
+                : t('settings.promptManager.addMode')}
             </Button>
           }
         >
@@ -439,7 +436,7 @@ function PromptLibrary({
               <PromptItemCard key={`${item.scope}:${item.id}`} item={item} />
             ))}
             {!(kind === 'instruction' ? instructions : modes).length && !addingKind ? (
-              <p className={styles.empty}>No items yet. Add one or copy an existing item to customize it.</p>
+              <p className={styles.empty}>{t('settings.promptManager.empty')}</p>
             ) : null}
           </div>
         </Card>
@@ -449,6 +446,7 @@ function PromptLibrary({
 }
 
 function PromptItemCard({ item }: { item: AgentInstructionItem | AgentModeItem }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   if (editing) {
     return (
@@ -465,11 +463,18 @@ function PromptItemCard({ item }: { item: AgentInstructionItem | AgentModeItem }
   return (
     <Card
       title={item.label}
-      description={`${scopeLabel(item.scope)} · ${item.kind === 'instruction' ? 'Instruction' : 'Mode'} · ${item.id}`}
+      description={t('settings.promptManager.itemDescription', {
+        scope: scopeLabel(item.scope, t),
+        kind:
+          item.kind === 'instruction'
+            ? t('settings.promptManager.kind.instruction')
+            : t('settings.promptManager.kind.mode'),
+        id: item.id
+      })}
       actions={
         <div className={styles.actions}>
           <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-            Edit
+            {t('common.edit')}
           </Button>
           <Button
             size="sm"
@@ -479,7 +484,7 @@ function PromptItemCard({ item }: { item: AgentInstructionItem | AgentModeItem }
               vscode.postMessage({ type: 'duplicatePromptItem', scope: item.scope, kind: item.kind, id: item.id })
             }
           >
-            Copy
+            {t('common.copy')}
           </Button>
           <Button
             size="sm"
@@ -489,7 +494,7 @@ function PromptItemCard({ item }: { item: AgentInstructionItem | AgentModeItem }
               vscode.postMessage({ type: 'deletePromptItem', scope: item.scope, kind: item.kind, id: item.id })
             }
           >
-            Delete
+            {t('common.delete')}
           </Button>
         </div>
       }
@@ -514,16 +519,31 @@ function PromptItemEditor({
   onCancel(): void;
   onSaved(): void;
 }) {
+  const { t } = useI18n();
   const [label, setLabel] = useState(item?.label || '');
   const [content, setContent] = useState(item ? (item.kind === 'instruction' ? item.content : item.instructions) : '');
   const canSave = Boolean(label.trim());
+  const kindLabel =
+    kind === 'instruction' ? t('settings.promptManager.kind.instruction') : t('settings.promptManager.kind.mode');
 
   return (
-    <Card title={item ? `Edit ${item.label}` : `New ${kind}`} description={`${scopeLabel(scope)} ${kind}`}>
+    <Card
+      title={
+        item
+          ? t('settings.promptManager.editItem', { label: item.label })
+          : t('settings.promptManager.newItem', { kind: kindLabel })
+      }
+      description={t('settings.promptManager.editorDescription', { scope: scopeLabel(scope, t), kind: kindLabel })}
+    >
       <div className={styles.formGrid}>
-        <TextField label="Name" value={label} onChange={(event) => setLabel(event.target.value)} autoFocus />
+        <TextField
+          label={t('common.name')}
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          autoFocus
+        />
         <TextArea
-          label="Instruction text"
+          label={t('settings.promptManager.instructionText')}
           rows={6}
           value={content}
           onChange={(event) => setContent(event.target.value)}
@@ -539,10 +559,10 @@ function PromptItemEditor({
               onSaved();
             }}
           >
-            Save
+            {t('common.save')}
           </Button>
           <Button size="sm" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </div>
@@ -551,206 +571,240 @@ function PromptItemEditor({
 }
 
 function PromptPriorityManager({ promptConfig }: { promptConfig: AgentPromptConfig }) {
-  const instructions = [...promptConfig.globalInstructions, ...promptConfig.localInstructions];
-  const modes = [...promptConfig.globalModes, ...promptConfig.localModes];
-  const [presetName, setPresetName] = useState('');
-  const selectedInstructions = promptConfig.activeInstructionRefs;
-  const selectedModeKey = promptConfig.activeModeRef ? refKey(promptConfig.activeModeRef) : '';
-
-  function toggleInstruction(ref: AgentItemRef, checked: boolean) {
-    const next = checked
-      ? [...selectedInstructions, ref]
-      : selectedInstructions.filter((item) => refKey(item) !== refKey(ref));
-    vscode.postMessage({ type: 'setActivePromptConfig', instructionRefs: next, modeRef: promptConfig.activeModeRef });
-  }
+  const { t } = useI18n();
+  const [selectedPresetId, setSelectedPresetId] = useState(
+    promptConfig.activePresetId || promptConfig.presets[0]?.id || 'new'
+  );
+  const selectedPreset = promptConfig.presets.find((preset) => preset.id === selectedPresetId);
 
   return (
-    <div className={styles.sectionStack}>
+    <div className={styles.twoColumns}>
       <Card
-        title="Active set"
-        description="Choose which instructions and one mode are applied in this project right now."
+        title={t('settings.promptManager.presetsTitle')}
+        description={t('settings.promptManager.presetsDescription')}
+        actions={
+          <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setSelectedPresetId('new')}>
+            {t('settings.promptManager.addPreset')}
+          </Button>
+        }
       >
-        <div className={styles.formGrid}>
-          <Select
-            label="Mode"
-            value={selectedModeKey}
-            placeholder="No mode"
-            options={[
-              { value: '', label: 'No mode' },
-              ...modes.map((mode) => ({ value: refKey(mode), label: `${scopeLabel(mode.scope)} · ${mode.label}` }))
-            ]}
-            onChange={(event) => {
-              const modeRef = parseRefKey(event.target.value);
-              vscode.postMessage({ type: 'setActivePromptConfig', instructionRefs: selectedInstructions, modeRef });
-            }}
-          />
-          <div className={styles.list}>
-            {instructions.map((instruction) => {
-              const ref = { scope: instruction.scope, id: instruction.id };
-              return (
-                <Checkbox
-                  key={refKey(ref)}
-                  label={`${scopeLabel(instruction.scope)} · ${instruction.label}`}
-                  description={instruction.content.slice(0, 120)}
-                  checked={selectedInstructions.some((item) => refKey(item) === refKey(ref))}
-                  onChange={(event) => toggleInstruction(ref, event.target.checked)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </Card>
-      <Card
-        title="Presets"
-        description="Save named combinations of instructions and a mode, then switch between them quickly."
-      >
-        <div className={styles.formGrid}>
-          <Select
-            label="Apply preset"
-            value={promptConfig.activePresetId || ''}
-            placeholder="Choose preset"
-            options={promptConfig.presets.map((preset) => ({ value: preset.id, label: preset.label }))}
-            onChange={(event) => vscode.postMessage({ type: 'applyPromptPreset', presetId: event.target.value })}
-          />
-          <div className={styles.actions}>
-            <TextField
-              label="Preset name"
-              value={presetName}
-              onChange={(event) => setPresetName(event.target.value)}
-              placeholder="My coding setup"
+        <div className={styles.list}>
+          {promptConfig.presets.map((preset) => (
+            <PresetListItem
+              key={preset.id}
+              preset={preset}
+              promptConfig={promptConfig}
+              selected={preset.id === selectedPresetId}
+              onSelect={() => setSelectedPresetId(preset.id)}
             />
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={!presetName.trim()}
-              onClick={() => {
-                vscode.postMessage({
-                  type: 'upsertPromptPreset',
-                  label: presetName.trim(),
-                  instructionRefs: selectedInstructions,
-                  modeRef: promptConfig.activeModeRef,
-                  scope: 'local'
-                });
-                setPresetName('');
-              }}
-            >
-              Save current as preset
-            </Button>
-          </div>
-          <div className={styles.list}>
-            {promptConfig.presets.map((preset) => (
-              <PresetCard key={preset.id} preset={preset} promptConfig={promptConfig} />
-            ))}
-          </div>
+          ))}
+          {!promptConfig.presets.length ? (
+            <p className={styles.empty}>{t('settings.promptManager.noPresets')}</p>
+          ) : null}
         </div>
       </Card>
+      <PresetEditor preset={selectedPreset} promptConfig={promptConfig} key={selectedPreset?.id || 'new'} />
     </div>
   );
 }
 
-function PresetCard({ preset, promptConfig }: { preset: AgentPromptPreset; promptConfig: AgentPromptConfig }) {
-  const [editing, setEditing] = useState(false);
-  const [label, setLabel] = useState(preset.label);
-  const allInstructions = [...promptConfig.globalInstructions, ...promptConfig.localInstructions];
+function PresetListItem({
+  preset,
+  promptConfig,
+  selected,
+  onSelect
+}: {
+  preset: AgentPromptPreset;
+  promptConfig: AgentPromptConfig;
+  selected: boolean;
+  onSelect(): void;
+}) {
+  const { t } = useI18n();
   const allModes = [...promptConfig.globalModes, ...promptConfig.localModes];
   const mode = preset.modeRef ? allModes.find((item) => refKey(item) === refKey(preset.modeRef!)) : undefined;
-  const instructionLabels = preset.instructionRefs
-    .map((ref) => allInstructions.find((item) => refKey(item) === refKey(ref))?.label)
-    .filter(Boolean)
-    .join(', ');
+
+  return (
+    <button
+      type="button"
+      className={`${styles.navButton} ${selected ? styles.navButtonActive : ''}`}
+      onClick={onSelect}
+    >
+      <span>{preset.label}</span>
+      <span className="ml-auto text-[var(--vscode-descriptionForeground)]">
+        {t('settings.promptManager.presetDescription', {
+          count: preset.instructionRefs.length,
+          mode: mode ? mode.label : t('systemInstructions.noMode')
+        })}
+      </span>
+    </button>
+  );
+}
+
+function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; promptConfig: AgentPromptConfig }) {
+  const { t } = useI18n();
+  const modes = [...promptConfig.globalModes, ...promptConfig.localModes];
+  const globalInstructions = promptConfig.globalInstructions;
+  const localInstructions = promptConfig.localInstructions;
+  const [label, setLabel] = useState(preset?.label || '');
+  const [modeKey, setModeKey] = useState(preset?.modeRef ? refKey(preset.modeRef) : '');
+  const [instructionRefs, setInstructionRefs] = useState<AgentItemRef[]>(preset?.instructionRefs || []);
+  const canSave = Boolean(label.trim());
+
+  function toggleInstruction(ref: AgentItemRef, checked: boolean) {
+    setInstructionRefs((current) =>
+      checked ? [...current, ref] : current.filter((item) => refKey(item) !== refKey(ref))
+    );
+  }
+
+  function savePreset() {
+    const modeRef = parseRefKey(modeKey);
+    vscode.postMessage({
+      type: 'upsertPromptPreset',
+      id: preset?.id,
+      label: label.trim(),
+      instructionRefs,
+      modeRef,
+      scope: 'local'
+    });
+  }
 
   return (
     <Card
-      title={preset.label}
-      description={`${preset.instructionRefs.length} instruction(s) · ${mode ? mode.label : 'No mode'}`}
+      title={preset ? t('settings.promptManager.editPreset') : t('settings.promptManager.newPreset')}
+      description={t('settings.promptManager.presetEditorDescription')}
       actions={
-        <div className={styles.actions}>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => vscode.postMessage({ type: 'applyPromptPreset', presetId: preset.id })}
-          >
-            Apply
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setEditing((value) => !value)}>
-            Rename
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => vscode.postMessage({ type: 'deletePromptPreset', presetId: preset.id })}
-          >
-            Delete
-          </Button>
-        </div>
+        preset ? (
+          <div className={styles.actions}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => vscode.postMessage({ type: 'applyPromptPreset', presetId: preset.id })}
+            >
+              {t('settings.promptManager.apply')}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              leadingIcon={<Trash2 size={13} />}
+              onClick={() => vscode.postMessage({ type: 'deletePromptPreset', presetId: preset.id })}
+            >
+              {t('common.delete')}
+            </Button>
+          </div>
+        ) : null
       }
     >
-      {editing ? (
+      <div className={styles.formGrid}>
+        <TextField
+          label={t('settings.promptManager.presetName')}
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          placeholder={t('settings.promptManager.presetNamePlaceholder')}
+          autoFocus
+        />
+        <Select
+          label={t('systemInstructions.modeSelect')}
+          value={modeKey}
+          placeholder={t('systemInstructions.noMode')}
+          options={[
+            { value: '', label: t('systemInstructions.noMode') },
+            ...modes.map((mode) => ({ value: refKey(mode), label: `${scopeLabel(mode.scope, t)} · ${mode.label}` }))
+          ]}
+          onChange={(event) => setModeKey(event.target.value)}
+        />
+        <InstructionPicker
+          title={t('settings.promptManager.globalInstructions')}
+          instructions={globalInstructions}
+          selectedRefs={instructionRefs}
+          onToggle={toggleInstruction}
+        />
+        <InstructionPicker
+          title={t('settings.promptManager.localInstructions')}
+          instructions={localInstructions}
+          selectedRefs={instructionRefs}
+          onToggle={toggleInstruction}
+        />
         <div className={styles.actions}>
-          <TextField label="Preset name" value={label} onChange={(event) => setLabel(event.target.value)} />
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => {
-              vscode.postMessage({
-                ...preset,
-                type: 'upsertPromptPreset',
-                label: label.trim() || preset.label,
-                scope: 'local'
-              });
-              setEditing(false);
-            }}
-          >
-            Save
+          <Button size="sm" variant="primary" disabled={!canSave} leadingIcon={<Save size={13} />} onClick={savePreset}>
+            {t('common.save')}
           </Button>
         </div>
-      ) : (
-        <p className="m-0 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
-          {instructionLabels || 'No instructions'}
-        </p>
-      )}
+      </div>
     </Card>
   );
 }
 
+function InstructionPicker({
+  title,
+  instructions,
+  selectedRefs,
+  onToggle
+}: {
+  title: string;
+  instructions: AgentInstructionItem[];
+  selectedRefs: AgentItemRef[];
+  onToggle(ref: AgentItemRef, checked: boolean): void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className={styles.formGrid}>
+      <div className={styles.sidebarTitle}>{title}</div>
+      <div className={styles.list}>
+        {instructions.map((instruction) => {
+          const ref = { scope: instruction.scope, id: instruction.id };
+          return (
+            <Checkbox
+              key={refKey(ref)}
+              label={instruction.label}
+              description={instruction.content.slice(0, 120)}
+              checked={selectedRefs.some((item) => refKey(item) === refKey(ref))}
+              onChange={(event) => onToggle(ref, event.target.checked)}
+            />
+          );
+        })}
+        {!instructions.length ? <p className={styles.empty}>{t('settings.promptManager.noInstructions')}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function PromptHelpDialog({ onClose }: { onClose(): void }) {
+  const { t } = useI18n();
   return (
     <div className="tool-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="tool-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <div className="tool-modal-header">
           <div>
-            <h2>How instructions work</h2>
-            <p>Small guide for modes, instructions, and presets.</p>
+            <h2>{t('settings.promptManager.helpTitle')}</h2>
+            <p>{t('settings.promptManager.helpDescription')}</p>
           </div>
-          <IconButton title="Close" onClick={onClose}>
+          <IconButton title={t('common.close')} onClick={onClose}>
             <X size={15} />
           </IconButton>
         </div>
         <div className="grid gap-3 p-4 text-sm leading-6 text-[var(--vscode-descriptionForeground)]">
           <p>
-            <b className="text-[var(--vscode-foreground)]">Instructions</b> are reusable rules. Add as many as you want,
-            then enable only the ones needed for the current project.
+            <b className="text-[var(--vscode-foreground)]">{t('common.instructions')}</b>{' '}
+            {t('settings.promptManager.helpInstructions')}
           </p>
           <p>
-            <b className="text-[var(--vscode-foreground)]">Modes</b> are one standalone role instruction, for example
-            Coder or Architect. You can work with a mode even when no instructions are enabled.
+            <b className="text-[var(--vscode-foreground)]">{t('settings.nav.modes')}</b>{' '}
+            {t('settings.promptManager.helpModes')}
           </p>
           <p>
-            <b className="text-[var(--vscode-foreground)]">Presets</b> save a selected set of instructions plus one
-            mode. Use them to switch quickly between setups like Coding, Design, Review, or Testing.
+            <b className="text-[var(--vscode-foreground)]">{t('settings.promptManager.presetsTitle')}</b>{' '}
+            {t('settings.promptManager.helpPresets')}
           </p>
-          <p>
-            Global items are stored in your home folder. Project items are stored in .aist-agent and override global
-            priorities.
-          </p>
+          <p>{t('settings.promptManager.helpStorage')}</p>
         </div>
       </section>
     </div>
   );
 }
 
-function scopeLabel(scope: AgentItemScope): string {
-  return scope === 'global' ? 'Global' : 'Project';
+function scopeLabel(scope: AgentItemScope, t: ReturnType<typeof useI18n>['t']): string {
+  return scope === 'global' ? t('settings.promptManager.scope.global') : t('settings.promptManager.scope.local');
 }
 
 function refKey(ref: AgentItemRef | { scope: AgentItemScope; id: string }): string {
