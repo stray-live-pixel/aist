@@ -8,7 +8,7 @@ import {
   getToolPermissionItems,
   getToolPermissionPresets
 } from '../../tools/permissions';
-import { getAgentConfigScope, getProjectInstructions } from '../config/agentConfigStore';
+import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '../config/agentConfigStore';
 import { getCompactionSettings } from '../config/compaction';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
@@ -49,6 +49,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const agentConfigScope = getAgentConfigScope();
   const projectInstructions = getProjectInstructions();
   const instructionSources = getAgentInstructionSources();
+  const promptConfig = getPromptConfig();
   const compactionSettings = getCompactionSettings();
 
   for (const surface of params.surfaces) {
@@ -64,6 +65,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       tools,
       agentConfigScope,
       projectInstructions,
+      promptConfig,
       instructionSources,
       compactionSettings
     });
@@ -81,6 +83,7 @@ type StateContext = SendAgentStateParams & {
   tools: ReturnType<typeof getAgentTools>;
   agentConfigScope: string;
   projectInstructions: string;
+  promptConfig: unknown;
   instructionSources: unknown;
   compactionSettings: unknown;
 };
@@ -121,6 +124,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     agentModes: context.agentModes,
     agentConfigScope: context.agentConfigScope,
     projectInstructions: context.projectInstructions,
+    promptConfig: context.promptConfig,
     instructionSources: context.instructionSources,
     customSkills: context.customSkills,
     codexAuthenticated: context.codexAuthenticated,

@@ -33,6 +33,7 @@ export function ChatPage({ state }: ChatPageProps) {
         instructionSources={state.instructionSources}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
+        activityDetail={state.activeChat.activityDetail}
         bottomOffset="composer"
       />
       <Composer

@@ -46,7 +46,8 @@ export type Chat = {
   messages: ChatMessage[];
   history: OpenRouterMessage[];
   lastAnswer: string;
-  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
+  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'answering' | 'stopping';
+  activityDetail?: string;
   busy: boolean;
   context?: ChatContextEstimate;
   contextLength?: number;
@@ -62,6 +63,7 @@ export type ChatSummary = {
   previousChatId?: string;
   compactedAt?: number;
   messageCount: number;
+  lastUserMessage: string;
   busy: boolean;
   lastMessageAt: number;
   updatedAt: number;

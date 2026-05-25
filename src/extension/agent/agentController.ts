@@ -270,7 +270,7 @@ export class AgentController {
       args
     });
     this.chats.setBusy(source.id, true);
-    this.chats.setActivity(source.id, 'runningTool');
+    this.chats.setActivity(source.id, 'runningTool', 'Summarizing chat history for context compaction.');
     this.sendState();
 
     try {

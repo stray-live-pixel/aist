@@ -2,7 +2,17 @@ import * as vscode from 'vscode';
 
 import { getErrorMessage } from '../../../shared/errors';
 import { t } from '../../../shared/i18n';
-import { setAgentConfigScope, setProjectInstructions } from '../../config/agentConfigStore';
+import {
+  applyPromptPreset,
+  deletePromptItem,
+  deletePromptPreset,
+  duplicatePromptItem,
+  setActivePromptConfig,
+  setAgentConfigScope,
+  setProjectInstructions,
+  upsertPromptItem,
+  upsertPromptPreset
+} from '../../config/agentConfigStore';
 import { setCompactionSettings } from '../../config/compaction';
 import { normalizeReasoningEffort } from '../../config/config';
 import {
@@ -27,6 +37,13 @@ type SettingsMessage = Extract<
   | { type: 'setProjectInstructions' }
   | { type: 'addAgentMode' }
   | { type: 'deleteAgentMode' }
+  | { type: 'upsertPromptItem' }
+  | { type: 'duplicatePromptItem' }
+  | { type: 'deletePromptItem' }
+  | { type: 'setActivePromptConfig' }
+  | { type: 'applyPromptPreset' }
+  | { type: 'upsertPromptPreset' }
+  | { type: 'deletePromptPreset' }
 >;
 
 export function isSettingsMessage(message: WebviewMessage): message is SettingsMessage {
@@ -40,7 +57,14 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setAgentConfigScope',
     'setProjectInstructions',
     'addAgentMode',
-    'deleteAgentMode'
+    'deleteAgentMode',
+    'upsertPromptItem',
+    'duplicatePromptItem',
+    'deletePromptItem',
+    'setActivePromptConfig',
+    'applyPromptPreset',
+    'upsertPromptPreset',
+    'deletePromptPreset'
   ].includes(message.type);
 }
 
@@ -97,6 +121,34 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'deleteAgentMode':
       await removeAgentMode(message.modeId, deps);
+      deps.sendState();
+      return;
+    case 'upsertPromptItem':
+      await upsertPromptItem(message);
+      deps.sendState();
+      return;
+    case 'duplicatePromptItem':
+      await duplicatePromptItem(message.scope, message.kind, message.id);
+      deps.sendState();
+      return;
+    case 'deletePromptItem':
+      await deletePromptItem(message.scope, message.kind, message.id);
+      deps.sendState();
+      return;
+    case 'setActivePromptConfig':
+      await setActivePromptConfig(message);
+      deps.sendState();
+      return;
+    case 'applyPromptPreset':
+      await applyPromptPreset(message.presetId);
+      deps.sendState();
+      return;
+    case 'upsertPromptPreset':
+      await upsertPromptPreset(message);
+      deps.sendState();
+      return;
+    case 'deletePromptPreset':
+      await deletePromptPreset(message.presetId);
       deps.sendState();
       return;
   }

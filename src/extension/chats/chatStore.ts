@@ -34,6 +34,7 @@ export class ChatStore {
           // Reset transient runtime states
           chat.busy = false;
           chat.activity = undefined;
+          chat.activityDetail = undefined;
           chat.usage = normalizeUsage(chat.usage);
 
           // Reset any stuck tool calls to error state
@@ -230,11 +231,12 @@ export class ChatStore {
   getSummaries(): ChatSummary[] {
     return this.getSortedChats().map((chat) => ({
       id: chat.id,
-      title: chat.title,
+      title: getChatTitle(chat),
       model: chat.model,
       previousChatId: chat.previousChatId,
       compactedAt: chat.compactedAt,
       messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
+      lastUserMessage: getLastUserMessage(chat),
       busy: chat.busy,
       lastMessageAt: getLastMessageAt(chat),
       updatedAt: chat.updatedAt
@@ -252,7 +254,7 @@ export class ChatStore {
     chat.messages.push(nextMessage);
 
     if (message.role === 'user' && message.content && chat.title === 'New chat') {
-      chat.title = message.content.trim().slice(0, 48) || chat.title;
+      chat.title = toSingleLinePreview(message.content, 50) || chat.title;
     }
 
     this.touch(chat);
@@ -278,6 +280,7 @@ export class ChatStore {
     chat.history = [];
     chat.lastAnswer = '';
     chat.activity = undefined;
+    chat.activityDetail = undefined;
     chat.busy = false;
     chat.context = undefined;
     chat.contextLength = undefined;
@@ -329,9 +332,16 @@ export class ChatStore {
     return next;
   }
 
-  setActivity(chatId: string, activity: Chat['activity']): void {
+  setActivity(chatId: string, activity: Chat['activity'], detail?: string): void {
     const chat = this.requireChat(chatId);
     chat.activity = activity;
+    chat.activityDetail = detail;
+    this.touch(chat);
+  }
+
+  setActivityDetail(chatId: string, detail: string | undefined): void {
+    const chat = this.requireChat(chatId);
+    chat.activityDetail = detail;
     this.touch(chat);
   }
 
@@ -360,6 +370,27 @@ export class ChatStore {
 
 function getLastMessageAt(chat: Chat): number {
   return chat.messages.at(-1)?.createdAt || chat.createdAt;
+}
+
+function getChatTitle(chat: Chat): string {
+  const firstUserMessage = chat.messages.find((message) => message.role === 'user' && message.content?.trim());
+  return firstUserMessage ? toSingleLinePreview(firstUserMessage.content || '', 50) || chat.title : chat.title;
+}
+
+function getLastUserMessage(chat: Chat): string {
+  const lastUserMessage = [...chat.messages]
+    .reverse()
+    .find((message) => message.role === 'user' && message.content?.trim());
+  return lastUserMessage ? toSingleLinePreview(lastUserMessage.content || '', 50) : '';
+}
+
+function toSingleLinePreview(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
 }
 
 function cloneMessage(message: ChatMessage): ChatMessage {

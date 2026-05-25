@@ -98,7 +98,7 @@ function ChatRow(props: ChatRowProps) {
 
   return (
     <div
-      className={`flex min-h-11 gap-1 rounded ${active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''}`}
+      className={`flex min-h-14 gap-1 rounded ${active ? 'bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]' : ''}`}
     >
       <button
         className="flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-2 text-left text-xs hover:bg-[var(--vscode-list-hoverBackground)]"
@@ -110,7 +110,17 @@ function ChatRow(props: ChatRowProps) {
           <MessageSquare size={14} className="text-[var(--vscode-descriptionForeground)]" />
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{chat.title}</span>
+          <span className="block truncate font-medium" title={chat.title}>
+            {chat.title}
+          </span>
+          {chat.lastUserMessage ? (
+            <span
+              className={`block truncate text-[11px] leading-4 ${active ? 'opacity-75' : 'text-[var(--vscode-descriptionForeground)] opacity-80'}`}
+              title={chat.lastUserMessage}
+            >
+              {chat.lastUserMessage}
+            </span>
+          ) : null}
           <span
             className={`block truncate text-[11px] ${active ? 'opacity-80' : 'text-[var(--vscode-descriptionForeground)]'}`}
           >

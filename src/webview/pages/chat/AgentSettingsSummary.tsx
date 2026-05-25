@@ -21,7 +21,7 @@ export function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProp
         value={state.agentMode}
         disabled={state.activeChat.busy}
         onChange={(modeId) => vscode.postMessage({ type: 'setAgentMode', modeId })}
-        options={state.agentModes.map((mode) => ({ value: mode.id, label: mode.label }))}
+        options={getAgentModeOptions(state)}
       />
       <CompactSelect
         icon={<ShieldCheck size={12} />}
@@ -97,6 +97,15 @@ export function ComposerContextSummary({ state }: { state: AgentState }) {
       </Button>
     </div>
   );
+}
+
+function getAgentModeOptions(state: AgentState): SelectOption[] {
+  const modes = state.agentModes.filter((mode) => !mode.id.startsWith('preset:'));
+  const presets = state.agentModes.filter((mode) => mode.id.startsWith('preset:'));
+  return [
+    ...modes.map((mode) => ({ value: mode.id, label: mode.label })),
+    ...presets.map((mode) => ({ value: mode.id, label: mode.label }))
+  ];
 }
 
 function CompactSelect({

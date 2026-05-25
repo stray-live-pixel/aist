@@ -28,6 +28,7 @@ export type ChatSummary = {
   previousChatId?: string;
   compactedAt?: number;
   messageCount: number;
+  lastUserMessage: string;
   busy: boolean;
   lastMessageAt: number;
   updatedAt: number;
@@ -58,7 +59,8 @@ export type Chat = {
   previousChat?: CompactPreviousChat;
   messages: ChatMessage[];
   lastAnswer: string;
-  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'stopping';
+  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'answering' | 'stopping';
+  activityDetail?: string;
   busy: boolean;
   context?: ChatContextEstimate;
   contextLength?: number;
@@ -100,6 +102,47 @@ export type AgentSkill = {
 };
 
 export type AgentConfigScope = 'workspace' | 'user';
+export type AgentItemScope = 'global' | 'local';
+export type AgentInstructionKind = 'instruction' | 'mode';
+
+export type AgentItemRef = {
+  scope: AgentItemScope;
+  id: string;
+};
+
+export type AgentInstructionItem = {
+  id: string;
+  label: string;
+  content: string;
+  scope: AgentItemScope;
+  kind: 'instruction';
+};
+
+export type AgentModeItem = {
+  id: string;
+  label: string;
+  instructions: string;
+  scope: AgentItemScope;
+  kind: 'mode';
+};
+
+export type AgentPromptPreset = {
+  id: string;
+  label: string;
+  instructionRefs: AgentItemRef[];
+  modeRef?: AgentItemRef;
+};
+
+export type AgentPromptConfig = {
+  globalInstructions: AgentInstructionItem[];
+  localInstructions: AgentInstructionItem[];
+  globalModes: AgentModeItem[];
+  localModes: AgentModeItem[];
+  presets: AgentPromptPreset[];
+  activeInstructionRefs: AgentItemRef[];
+  activeModeRef?: AgentItemRef;
+  activePresetId?: string;
+};
 
 export type AgentInstructionSource = {
   id: string;
@@ -144,6 +187,7 @@ export type AgentState = {
   agentModes: AgentMode[];
   agentConfigScope: AgentConfigScope;
   projectInstructions: string;
+  promptConfig: AgentPromptConfig;
   instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];
   codexAuthenticated: boolean;
@@ -180,6 +224,27 @@ export type WebviewToExtensionMessage =
   | { type: 'setProjectInstructions'; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
+  | {
+      type: 'upsertPromptItem';
+      scope: AgentItemScope;
+      kind: AgentInstructionKind;
+      id?: string;
+      label: string;
+      content: string;
+    }
+  | { type: 'duplicatePromptItem'; scope: AgentItemScope; kind: AgentInstructionKind; id: string }
+  | { type: 'deletePromptItem'; scope: AgentItemScope; kind: AgentInstructionKind; id: string }
+  | { type: 'setActivePromptConfig'; instructionRefs: AgentItemRef[]; modeRef?: AgentItemRef; presetId?: string }
+  | { type: 'applyPromptPreset'; presetId: string }
+  | {
+      type: 'upsertPromptPreset';
+      id?: string;
+      label: string;
+      instructionRefs: AgentItemRef[];
+      modeRef?: AgentItemRef;
+      scope?: AgentItemScope;
+    }
+  | { type: 'deletePromptPreset'; presetId: string }
   | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
   | {
       type: 'updateSkill';

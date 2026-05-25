@@ -3,6 +3,7 @@ import type * as vscode from 'vscode';
 import type { ChatUsageEstimate } from '../chats/types';
 import type { OpenRouterMessage } from '../openrouter/types';
 import type { ToolPermissionMode } from '../tools/permissions';
+import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
 
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
@@ -77,6 +78,27 @@ export type WebviewMessage =
   | { type: 'setProjectInstructions'; instructions: string }
   | { type: 'addAgentMode'; label: string; instructions: string }
   | { type: 'deleteAgentMode'; modeId: string }
+  | {
+      type: 'upsertPromptItem';
+      scope: AgentItemScope;
+      kind: AgentInstructionKind;
+      id?: string;
+      label: string;
+      content: string;
+    }
+  | { type: 'duplicatePromptItem'; scope: AgentItemScope; kind: AgentInstructionKind; id: string }
+  | { type: 'deletePromptItem'; scope: AgentItemScope; kind: AgentInstructionKind; id: string }
+  | { type: 'setActivePromptConfig'; instructionRefs: AgentItemRef[]; modeRef?: AgentItemRef; presetId?: string }
+  | { type: 'applyPromptPreset'; presetId: string }
+  | {
+      type: 'upsertPromptPreset';
+      id?: string;
+      label: string;
+      instructionRefs: AgentItemRef[];
+      modeRef?: AgentItemRef;
+      scope?: AgentItemScope;
+    }
+  | { type: 'deletePromptPreset'; presetId: string }
   | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
   | {
       type: 'updateSkill';

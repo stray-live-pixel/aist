@@ -38,6 +38,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     reason,
     args
   });
+  params.chats.setActivity(params.chat.id, 'thinking', `Preparing tool ${toolName}${reason ? `: ${reason}` : '.'}`);
   params.sendState();
 
   let previewHandle: FilesystemToolPreview | undefined;
@@ -54,7 +55,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     }
 
     params.throwIfStopped(params.run);
-    params.chats.setActivity(params.chat.id, 'runningTool');
+    params.chats.setActivity(params.chat.id, 'runningTool', `Running ${toolName}${reason ? `: ${reason}` : '.'}`);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: 'running',
       approval: permission === 'ask' ? 'approved' : undefined,
@@ -113,7 +114,11 @@ async function waitForToolApproval(params: ApprovalParams): Promise<void> {
     params.sendState();
   }
 
-  params.chats.setActivity(params.chat.id, 'waitingForApproval');
+  params.chats.setActivity(
+    params.chat.id,
+    'waitingForApproval',
+    `Waiting for approval to run ${params.toolCall.function.name}${params.reason ? `: ${params.reason}` : '.'}`
+  );
   params.chats.updateMessage(params.chat.id, params.toolMessageId, {
     status: 'waiting',
     approval: 'pending',

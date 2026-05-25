@@ -44,6 +44,7 @@ export const Settings: Story = {
       agentModes={storyAgentState.agentModes}
       agentConfigScope={storyAgentState.agentConfigScope}
       projectInstructions={storyAgentState.projectInstructions}
+      promptConfig={storyAgentState.promptConfig}
       instructionSources={storyAgentState.instructionSources}
       customSkills={storyAgentState.customSkills}
       codexAuthenticated={storyAgentState.codexAuthenticated}

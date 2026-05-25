@@ -2,8 +2,10 @@ import {
   ArrowLeft,
   Bot,
   CheckCircle2,
+  Copy,
   FileText,
   Gauge,
+  HelpCircle,
   KeyRound,
   LogIn,
   LogOut,
@@ -12,21 +14,28 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
-  Wrench
+  Wrench,
+  X
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 
 import { ToolPermissionSelect } from '../../features/configure-tool-permission/ToolPermissionSelect';
-import { AgentModeSelect } from '../../features/select-agent-mode/AgentModeSelect';
 import { PermissionPresetSelect } from '../../features/select-permission-preset/PermissionPresetSelect';
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
 import type {
   AgentConfigScope,
+  AgentInstructionItem,
+  AgentInstructionKind,
   AgentInstructionSource,
+  AgentItemRef,
+  AgentItemScope,
   AgentLanguage,
   AgentMode,
   AgentModeId,
+  AgentModeItem,
+  AgentPromptConfig,
+  AgentPromptPreset,
   AgentSkill,
   CompactionSettings,
   ToolPermissionItem,
@@ -34,7 +43,7 @@ import type {
   ToolPermissionPreset,
   ToolPermissionPresetId
 } from '../../shared/types';
-import { Badge, Button, Card, Select, TextArea, TextField } from '../../shared/ui';
+import { Badge, Button, Card, Checkbox, Select, TextArea, TextField } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
 import styles from './PermissionsPage.module.scss';
 
@@ -49,6 +58,7 @@ type PermissionsPageProps = {
   agentModes: AgentMode[];
   agentConfigScope: AgentConfigScope;
   projectInstructions: string;
+  promptConfig: AgentPromptConfig;
   instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];
   codexAuthenticated: boolean;
@@ -116,7 +126,8 @@ export function PermissionsPage({
   agentMode,
   agentModes,
   agentConfigScope,
-  projectInstructions,
+  projectInstructions: _projectInstructions,
+  promptConfig,
   instructionSources,
   customSkills,
   codexAuthenticated,
@@ -152,15 +163,9 @@ export function PermissionsPage({
             />
           ) : null}
           {activePage === 'instructions' ? (
-            <InstructionSettingsPage
-              scope={agentConfigScope}
-              projectInstructions={projectInstructions}
-              instructionSources={instructionSources}
-            />
+            <InstructionSettingsPage promptConfig={promptConfig} instructionSources={instructionSources} />
           ) : null}
-          {activePage === 'modes' ? (
-            <ModesSettingsPage agentMode={agentMode} agentModes={agentModes} activeMode={activeMode} />
-          ) : null}
+          {activePage === 'modes' ? <ModesSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage
@@ -306,136 +311,437 @@ function OverviewPage({
 }
 
 function InstructionSettingsPage({
-  scope,
-  projectInstructions,
+  promptConfig,
   instructionSources
 }: {
-  scope: AgentConfigScope;
-  projectInstructions: string;
+  promptConfig: AgentPromptConfig;
   instructionSources: AgentInstructionSource[];
 }) {
-  const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <Card title={t('settings.instructions.storageTitle')} description={t('settings.instructions.storageDescription')}>
-        <Select
-          label={t('settings.instructions.saveTo')}
-          value={scope}
-          options={[
-            { value: 'workspace', label: t('settings.instructions.workspace') },
-            { value: 'user', label: t('settings.instructions.user') }
-          ]}
-          onChange={(event) =>
-            vscode.postMessage({ type: 'setAgentConfigScope', scope: event.target.value as AgentConfigScope })
-          }
-        />
-      </Card>
-      <Card title={t('settings.instructions.projectTitle')} description={t('settings.instructions.projectDescription')}>
-        <TextArea
-          rows={8}
-          value={projectInstructions}
-          placeholder={t('settings.instructions.projectPlaceholder')}
-          onChange={(event) => vscode.postMessage({ type: 'setProjectInstructions', instructions: event.target.value })}
-        />
-      </Card>
-      <Card
-        title={t('settings.instructions.effectiveTitle')}
-        description={t('settings.instructions.effectiveDescription')}
-      >
+      <PromptManager promptConfig={promptConfig} defaultTab="global" />
+      <Card title="Effective instructions" description="These sources are currently applied to new agent requests.">
         <InstructionSourceList sources={instructionSources} />
       </Card>
     </div>
   );
 }
 
-function ModesSettingsPage({
-  agentMode,
-  agentModes,
-  activeMode
-}: {
-  agentMode: AgentModeId;
-  agentModes: AgentMode[];
-  activeMode: AgentMode | undefined;
-}) {
-  const { t } = useI18n();
-  const [addingMode, setAddingMode] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const [newInstructions, setNewInstructions] = useState('');
+function ModesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  return <PromptManager promptConfig={promptConfig} defaultTab="priorities" focus="modes" />;
+}
 
-  const handleAddMode = () => {
-    const label = newLabel.trim();
-    if (!label) return;
-    vscode.postMessage({ type: 'addAgentMode', label, instructions: newInstructions.trim() });
-    setNewLabel('');
-    setNewInstructions('');
-    setAddingMode(false);
-  };
+type PromptManagerTab = 'global' | 'local' | 'priorities';
+
+type PromptManagerProps = {
+  promptConfig: AgentPromptConfig;
+  defaultTab: PromptManagerTab;
+  focus?: 'instructions' | 'modes';
+};
+
+function PromptManager({ promptConfig, defaultTab, focus = 'instructions' }: PromptManagerProps) {
+  const [tab, setTab] = useState<PromptManagerTab>(defaultTab);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <div className={styles.sectionStack}>
-      <Card title={t('settings.modes.activeTitle')} description={t('settings.modes.activeDescription')}>
-        <div className={styles.formGrid}>
-          <AgentModeSelect modes={agentModes} activeId={agentMode} />
-          {activeMode ? (
-            <TextArea
-              rows={8}
-              value={activeMode.instructions}
-              onChange={(event) =>
-                vscode.postMessage({
-                  type: 'setAgentModeInstructions',
-                  modeId: activeMode.id,
-                  instructions: event.target.value
-                })
-              }
-            />
-          ) : null}
-        </div>
-      </Card>
       <Card
-        title={t('settings.modes.customTitle')}
-        description={t('settings.modes.customDescription')}
+        title="Instructions and modes"
+        description="Global items live in ~/.aist-agent. Project items live in .aist-agent and have higher priority."
         actions={
-          <Button size="sm" variant="secondary" leadingIcon={<Plus size={14} />} onClick={() => setAddingMode(true)}>
-            {t('settings.modes.addMode')}
+          <Button size="sm" variant="ghost" leadingIcon={<HelpCircle size={14} />} onClick={() => setHelpOpen(true)}>
+            Guide
           </Button>
         }
       >
-        {addingMode ? (
-          <div className={styles.formGrid}>
-            <TextField
-              label={t('settings.modes.modeName')}
-              placeholder={t('settings.modes.modePlaceholder')}
-              value={newLabel}
-              onChange={(event) => setNewLabel(event.target.value)}
-              autoFocus
+        <div className={styles.actions}>
+          {(['global', 'local', 'priorities'] as PromptManagerTab[]).map((item) => (
+            <Button key={item} size="sm" variant={tab === item ? 'primary' : 'secondary'} onClick={() => setTab(item)}>
+              {item === 'global' ? 'Global' : item === 'local' ? 'Project' : 'Active'}
+            </Button>
+          ))}
+        </div>
+      </Card>
+      {tab === 'global' ? (
+        <PromptLibrary scope="global" promptConfig={promptConfig} focus={focus} />
+      ) : tab === 'local' ? (
+        <PromptLibrary scope="local" promptConfig={promptConfig} focus={focus} />
+      ) : (
+        <PromptPriorityManager promptConfig={promptConfig} />
+      )}
+      {helpOpen ? <PromptHelpDialog onClose={() => setHelpOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function PromptLibrary({
+  scope,
+  promptConfig,
+  focus
+}: {
+  scope: AgentItemScope;
+  promptConfig: AgentPromptConfig;
+  focus: 'instructions' | 'modes';
+}) {
+  const [addingKind, setAddingKind] = useState<AgentInstructionKind | undefined>(undefined);
+  const instructions = scope === 'global' ? promptConfig.globalInstructions : promptConfig.localInstructions;
+  const modes = scope === 'global' ? promptConfig.globalModes : promptConfig.localModes;
+
+  return (
+    <div className={styles.sectionStack}>
+      {(focus === 'instructions'
+        ? (['instruction', 'mode'] as AgentInstructionKind[])
+        : (['mode', 'instruction'] as AgentInstructionKind[])
+      ).map((kind) => (
+        <Card
+          key={kind}
+          title={kind === 'instruction' ? `${scopeLabel(scope)} instructions` : `${scopeLabel(scope)} modes`}
+          description={
+            kind === 'instruction'
+              ? 'Reusable system instructions. Enable any subset on the Active tab.'
+              : 'A mode is one standalone instruction used as your current role, such as coder or architect.'
+          }
+          actions={
+            <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAddingKind(kind)}>
+              Add {kind === 'instruction' ? 'instruction' : 'mode'}
+            </Button>
+          }
+        >
+          {addingKind === kind ? (
+            <PromptItemEditor
+              scope={scope}
+              kind={kind}
+              onCancel={() => setAddingKind(undefined)}
+              onSaved={() => setAddingKind(undefined)}
             />
-            <TextArea
-              label={t('common.instructions')}
-              rows={5}
-              value={newInstructions}
-              onChange={(event) => setNewInstructions(event.target.value)}
-            />
-            <div className={styles.actions}>
-              <Button size="sm" variant="primary" disabled={!newLabel.trim()} onClick={handleAddMode}>
-                {t('common.add')}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setAddingMode(false)}>
-                {t('common.cancel')}
-              </Button>
-            </div>
-          </div>
-        ) : (
+          ) : null}
           <div className={styles.list}>
-            {agentModes.map((mode) => (
-              <Badge key={mode.id} tone={mode.id === agentMode ? 'accent' : 'neutral'}>
-                {mode.label}
-              </Badge>
+            {(kind === 'instruction' ? instructions : modes).map((item) => (
+              <PromptItemCard key={`${item.scope}:${item.id}`} item={item} />
+            ))}
+            {!(kind === 'instruction' ? instructions : modes).length && !addingKind ? (
+              <p className={styles.empty}>No items yet. Add one or copy an existing item to customize it.</p>
+            ) : null}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function PromptItemCard({ item }: { item: AgentInstructionItem | AgentModeItem }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <PromptItemEditor
+        item={item}
+        scope={item.scope}
+        kind={item.kind}
+        onCancel={() => setEditing(false)}
+        onSaved={() => setEditing(false)}
+      />
+    );
+  }
+
+  return (
+    <Card
+      title={item.label}
+      description={`${scopeLabel(item.scope)} · ${item.kind === 'instruction' ? 'Instruction' : 'Mode'} · ${item.id}`}
+      actions={
+        <div className={styles.actions}>
+          <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Copy size={13} />}
+            onClick={() =>
+              vscode.postMessage({ type: 'duplicatePromptItem', scope: item.scope, kind: item.kind, id: item.id })
+            }
+          >
+            Copy
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            leadingIcon={<Trash2 size={13} />}
+            onClick={() =>
+              vscode.postMessage({ type: 'deletePromptItem', scope: item.scope, kind: item.kind, id: item.id })
+            }
+          >
+            Delete
+          </Button>
+        </div>
+      }
+    >
+      <p className="m-0 whitespace-pre-wrap text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
+        {item.kind === 'instruction' ? item.content : item.instructions}
+      </p>
+    </Card>
+  );
+}
+
+function PromptItemEditor({
+  item,
+  scope,
+  kind,
+  onCancel,
+  onSaved
+}: {
+  item?: AgentInstructionItem | AgentModeItem;
+  scope: AgentItemScope;
+  kind: AgentInstructionKind;
+  onCancel(): void;
+  onSaved(): void;
+}) {
+  const [label, setLabel] = useState(item?.label || '');
+  const [content, setContent] = useState(item ? (item.kind === 'instruction' ? item.content : item.instructions) : '');
+  const canSave = Boolean(label.trim());
+
+  return (
+    <Card title={item ? `Edit ${item.label}` : `New ${kind}`} description={`${scopeLabel(scope)} ${kind}`}>
+      <div className={styles.formGrid}>
+        <TextField label="Name" value={label} onChange={(event) => setLabel(event.target.value)} autoFocus />
+        <TextArea
+          label="Instruction text"
+          rows={6}
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+        />
+        <div className={styles.actions}>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!canSave}
+            leadingIcon={<Save size={13} />}
+            onClick={() => {
+              vscode.postMessage({ type: 'upsertPromptItem', scope, kind, id: item?.id, label: label.trim(), content });
+              onSaved();
+            }}
+          >
+            Save
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function PromptPriorityManager({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  const instructions = [...promptConfig.globalInstructions, ...promptConfig.localInstructions];
+  const modes = [...promptConfig.globalModes, ...promptConfig.localModes];
+  const [presetName, setPresetName] = useState('');
+  const selectedInstructions = promptConfig.activeInstructionRefs;
+  const selectedModeKey = promptConfig.activeModeRef ? refKey(promptConfig.activeModeRef) : '';
+
+  function toggleInstruction(ref: AgentItemRef, checked: boolean) {
+    const next = checked
+      ? [...selectedInstructions, ref]
+      : selectedInstructions.filter((item) => refKey(item) !== refKey(ref));
+    vscode.postMessage({ type: 'setActivePromptConfig', instructionRefs: next, modeRef: promptConfig.activeModeRef });
+  }
+
+  return (
+    <div className={styles.sectionStack}>
+      <Card
+        title="Active set"
+        description="Choose which instructions and one mode are applied in this project right now."
+      >
+        <div className={styles.formGrid}>
+          <Select
+            label="Mode"
+            value={selectedModeKey}
+            placeholder="No mode"
+            options={[
+              { value: '', label: 'No mode' },
+              ...modes.map((mode) => ({ value: refKey(mode), label: `${scopeLabel(mode.scope)} · ${mode.label}` }))
+            ]}
+            onChange={(event) => {
+              const modeRef = parseRefKey(event.target.value);
+              vscode.postMessage({ type: 'setActivePromptConfig', instructionRefs: selectedInstructions, modeRef });
+            }}
+          />
+          <div className={styles.list}>
+            {instructions.map((instruction) => {
+              const ref = { scope: instruction.scope, id: instruction.id };
+              return (
+                <Checkbox
+                  key={refKey(ref)}
+                  label={`${scopeLabel(instruction.scope)} · ${instruction.label}`}
+                  description={instruction.content.slice(0, 120)}
+                  checked={selectedInstructions.some((item) => refKey(item) === refKey(ref))}
+                  onChange={(event) => toggleInstruction(ref, event.target.checked)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+      <Card
+        title="Presets"
+        description="Save named combinations of instructions and a mode, then switch between them quickly."
+      >
+        <div className={styles.formGrid}>
+          <Select
+            label="Apply preset"
+            value={promptConfig.activePresetId || ''}
+            placeholder="Choose preset"
+            options={promptConfig.presets.map((preset) => ({ value: preset.id, label: preset.label }))}
+            onChange={(event) => vscode.postMessage({ type: 'applyPromptPreset', presetId: event.target.value })}
+          />
+          <div className={styles.actions}>
+            <TextField
+              label="Preset name"
+              value={presetName}
+              onChange={(event) => setPresetName(event.target.value)}
+              placeholder="My coding setup"
+            />
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={!presetName.trim()}
+              onClick={() => {
+                vscode.postMessage({
+                  type: 'upsertPromptPreset',
+                  label: presetName.trim(),
+                  instructionRefs: selectedInstructions,
+                  modeRef: promptConfig.activeModeRef,
+                  scope: 'local'
+                });
+                setPresetName('');
+              }}
+            >
+              Save current as preset
+            </Button>
+          </div>
+          <div className={styles.list}>
+            {promptConfig.presets.map((preset) => (
+              <PresetCard key={preset.id} preset={preset} promptConfig={promptConfig} />
             ))}
           </div>
-        )}
+        </div>
       </Card>
     </div>
   );
+}
+
+function PresetCard({ preset, promptConfig }: { preset: AgentPromptPreset; promptConfig: AgentPromptConfig }) {
+  const [editing, setEditing] = useState(false);
+  const [label, setLabel] = useState(preset.label);
+  const allInstructions = [...promptConfig.globalInstructions, ...promptConfig.localInstructions];
+  const allModes = [...promptConfig.globalModes, ...promptConfig.localModes];
+  const mode = preset.modeRef ? allModes.find((item) => refKey(item) === refKey(preset.modeRef!)) : undefined;
+  const instructionLabels = preset.instructionRefs
+    .map((ref) => allInstructions.find((item) => refKey(item) === refKey(ref))?.label)
+    .filter(Boolean)
+    .join(', ');
+
+  return (
+    <Card
+      title={preset.label}
+      description={`${preset.instructionRefs.length} instruction(s) · ${mode ? mode.label : 'No mode'}`}
+      actions={
+        <div className={styles.actions}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => vscode.postMessage({ type: 'applyPromptPreset', presetId: preset.id })}
+          >
+            Apply
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setEditing((value) => !value)}>
+            Rename
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => vscode.postMessage({ type: 'deletePromptPreset', presetId: preset.id })}
+          >
+            Delete
+          </Button>
+        </div>
+      }
+    >
+      {editing ? (
+        <div className={styles.actions}>
+          <TextField label="Preset name" value={label} onChange={(event) => setLabel(event.target.value)} />
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              vscode.postMessage({
+                ...preset,
+                type: 'upsertPromptPreset',
+                label: label.trim() || preset.label,
+                scope: 'local'
+              });
+              setEditing(false);
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      ) : (
+        <p className="m-0 text-xs leading-5 text-[var(--vscode-descriptionForeground)]">
+          {instructionLabels || 'No instructions'}
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function PromptHelpDialog({ onClose }: { onClose(): void }) {
+  return (
+    <div className="tool-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="tool-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="tool-modal-header">
+          <div>
+            <h2>How instructions work</h2>
+            <p>Small guide for modes, instructions, and presets.</p>
+          </div>
+          <IconButton title="Close" onClick={onClose}>
+            <X size={15} />
+          </IconButton>
+        </div>
+        <div className="grid gap-3 p-4 text-sm leading-6 text-[var(--vscode-descriptionForeground)]">
+          <p>
+            <b className="text-[var(--vscode-foreground)]">Instructions</b> are reusable rules. Add as many as you want,
+            then enable only the ones needed for the current project.
+          </p>
+          <p>
+            <b className="text-[var(--vscode-foreground)]">Modes</b> are one standalone role instruction, for example
+            Coder or Architect. You can work with a mode even when no instructions are enabled.
+          </p>
+          <p>
+            <b className="text-[var(--vscode-foreground)]">Presets</b> save a selected set of instructions plus one
+            mode. Use them to switch quickly between setups like Coding, Design, Review, or Testing.
+          </p>
+          <p>
+            Global items are stored in your home folder. Project items are stored in .aist-agent and override global
+            priorities.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function scopeLabel(scope: AgentItemScope): string {
+  return scope === 'global' ? 'Global' : 'Project';
+}
+
+function refKey(ref: AgentItemRef | { scope: AgentItemScope; id: string }): string {
+  return `${ref.scope}:${ref.id}`;
+}
+
+function parseRefKey(value: string): AgentItemRef | undefined {
+  const [scope, ...rest] = value.split(':');
+  const id = rest.join(':');
+  return (scope === 'global' || scope === 'local') && id ? { scope, id } : undefined;
 }
 
 function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {

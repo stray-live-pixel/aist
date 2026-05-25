@@ -24,6 +24,7 @@ type MessageListProps = {
   instructionSources: AgentInstructionSource[];
   busy: boolean;
   activity: Chat['activity'];
+  activityDetail?: string;
   bottomOffset?: 'none' | 'composer';
 };
 
@@ -47,6 +48,7 @@ export function MessageList({
   instructionSources,
   busy,
   activity,
+  activityDetail,
   bottomOffset = 'none'
 }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
@@ -72,12 +74,14 @@ export function MessageList({
       className={`min-h-0 flex-1 overflow-y-auto bg-transparent px-3 py-3 [scrollbar-gutter:stable] ${bottomOffsetClass}`}
       onScroll={handleScroll}
     >
-      <div className="flex w-full min-w-0 flex-col gap-2">
+      <div className="sticky top-0 z-10 mb-1 flex justify-start bg-gradient-to-b from-[var(--vscode-editor-background)] via-[var(--vscode-editor-background)] to-transparent py-1">
         <SystemInstructionLabel mode={activeMode} sources={instructionSources} />
+      </div>
+      <div className="flex w-full min-w-0 flex-col gap-2">
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
         {messages.length === 0 && !previousChat ? <EmptyState tools={tools} /> : null}
         {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages)))}
-        {busy ? <AgentActivityStatus activity={activity} /> : null}
+        {busy ? <AgentActivityStatus activity={activity} detail={activityDetail} /> : null}
       </div>
     </main>
   );

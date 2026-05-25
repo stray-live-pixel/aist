@@ -59,13 +59,23 @@ export async function runAgentLoop(
 
   for (let iteration = 0; maxToolIterations === 0 || iteration < maxToolIterations; iteration += 1) {
     deps.throwIfStopped(run);
-    deps.chats.setActivity(chat.id, 'thinking');
+    deps.chats.setActivity(
+      chat.id,
+      'thinking',
+      `Requesting model response${iteration > 0 ? ` after tool round ${iteration}` : ''}. Waiting for reasoning, text, or tool calls.`
+    );
     deps.sendState();
 
     const responseMessage = await requestModel(chat, workingMessages, tools, run, deps, usage, model);
     const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
 
     if (!toolCalls.length) {
+      deps.chats.setActivity(
+        chat.id,
+        'answering',
+        getResponseDetail(responseMessage, 'Model returned a final answer. Preparing the chat message.')
+      );
+      deps.sendState();
       return finishWithAnswer(workingMessages, responseMessage.content || '', responseMessage.reasoning, usage);
     }
 
@@ -80,6 +90,13 @@ export async function runAgentLoop(
       });
       return finishWithAnswer(workingMessages, answer, undefined, usage);
     }
+
+    deps.chats.setActivity(
+      chat.id,
+      'thinking',
+      getResponseDetail(responseMessage, `Model requested ${toolCalls.length} tool call(s). Preparing tool execution.`)
+    );
+    deps.sendState();
 
     workingMessages.push({
       role: 'assistant',
@@ -125,6 +142,28 @@ async function requestModel(
   deps.chats.addUsage(chat.id, callUsage);
 
   return responseMessage;
+}
+
+function getResponseDetail(message: OpenRouterMessage, fallback: string): string {
+  const reasoning = normalizeText(message.reasoning);
+  if (reasoning) {
+    return `Reasoning: ${truncateDetail(reasoning)}`;
+  }
+
+  const content = normalizeText(message.content);
+  if (content) {
+    return `Answer draft: ${truncateDetail(content)}`;
+  }
+
+  return fallback;
+}
+
+function normalizeText(value: unknown): string {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+}
+
+function truncateDetail(value: string): string {
+  return value.length > 220 ? `${value.slice(0, 217).trimEnd()}...` : value;
 }
 
 function finishWithAnswer(

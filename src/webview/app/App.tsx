@@ -49,6 +49,7 @@ export function App() {
           agentModes={state.agentModes}
           agentConfigScope={state.agentConfigScope}
           projectInstructions={state.projectInstructions}
+          promptConfig={state.promptConfig}
           instructionSources={state.instructionSources}
           customSkills={state.customSkills}
           codexAuthenticated={state.codexAuthenticated}

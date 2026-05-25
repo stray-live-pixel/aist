@@ -1,5 +1,6 @@
 import type {
   AgentMode,
+  AgentPromptConfig,
   AgentSkill,
   AgentState,
   Chat,
@@ -72,6 +73,62 @@ export const storyInstructionSources = [
     kind: 'mode' as const
   }
 ];
+
+export const storyPromptConfig: AgentPromptConfig = {
+  globalInstructions: [
+    {
+      id: 'practical-coding',
+      label: 'Practical coding',
+      content: 'Work briefly and practically. Inspect relevant files before editing.',
+      scope: 'global',
+      kind: 'instruction'
+    }
+  ],
+  localInstructions: [
+    {
+      id: 'project-style',
+      label: 'Project style',
+      content: 'Follow Feature-Sliced Design and keep files small.',
+      scope: 'local',
+      kind: 'instruction'
+    }
+  ],
+  globalModes: [
+    {
+      id: 'coder',
+      label: 'Coder',
+      instructions: 'Implement the requested change directly and verify it.',
+      scope: 'global',
+      kind: 'mode'
+    }
+  ],
+  localModes: [
+    {
+      id: 'frontend',
+      label: 'Frontend polish',
+      instructions: 'Focus on layout, interaction states, responsive behavior, and visual consistency.',
+      scope: 'local',
+      kind: 'mode'
+    }
+  ],
+  presets: [
+    {
+      id: 'coding',
+      label: 'Coding',
+      instructionRefs: [
+        { scope: 'global', id: 'practical-coding' },
+        { scope: 'local', id: 'project-style' }
+      ],
+      modeRef: { scope: 'global', id: 'coder' }
+    }
+  ],
+  activeInstructionRefs: [
+    { scope: 'global', id: 'practical-coding' },
+    { scope: 'local', id: 'project-style' }
+  ],
+  activeModeRef: { scope: 'local', id: 'frontend' },
+  activePresetId: 'coding'
+};
 
 export const storyCustomSkills: AgentSkill[] = [
   {
@@ -346,6 +403,7 @@ export const storyChatSummaries: ChatSummary[] = [
     title: 'Storybook setup',
     model: 'codex:gpt-5.1-codex',
     messageCount: storyMessages.length,
+    lastUserMessage: 'Can you help wire Storybook into the webview?',
     busy: false,
     lastMessageAt: storyNow,
     updatedAt: storyNow
@@ -355,6 +413,7 @@ export const storyChatSummaries: ChatSummary[] = [
     title: 'Review tool cards',
     model: 'openai/gpt-4o-mini',
     messageCount: 12,
+    lastUserMessage: 'Review the tool approval cards and raw JSON view.',
     busy: false,
     lastMessageAt: storyNow - 1000 * 60 * 50,
     updatedAt: storyNow - 1000 * 60 * 45
@@ -364,6 +423,7 @@ export const storyChatSummaries: ChatSummary[] = [
     title: 'Running typecheck',
     model: 'anthropic/claude-3.7-sonnet',
     messageCount: 7,
+    lastUserMessage: 'Run typecheck and fix the failing TypeScript errors.',
     busy: true,
     lastMessageAt: storyNow - 1000 * 60 * 120,
     updatedAt: storyNow - 1000 * 60 * 10
@@ -409,6 +469,7 @@ export const storyAgentState: AgentState = {
   agentModes: storyAgentModes,
   agentConfigScope: 'workspace',
   projectInstructions: 'Prefer simple implementations and run typecheck after edits.',
+  promptConfig: storyPromptConfig,
   instructionSources: storyInstructionSources,
   customSkills: storyCustomSkills,
   codexAuthenticated: true,

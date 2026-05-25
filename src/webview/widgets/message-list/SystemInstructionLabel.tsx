@@ -37,11 +37,11 @@ export function SystemInstructionLabel({ mode, sources }: SystemInstructionLabel
     <div className="flex justify-start">
       <button
         type="button"
-        className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-1.5 text-xs text-[var(--vscode-descriptionForeground)] outline-none hover:bg-[var(--vscode-list-hoverBackground)] focus:border-[var(--vscode-focusBorder)]"
+        className="inline-flex max-w-[220px] items-center gap-1.5 rounded-full border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-2 py-1 text-[10px] text-[var(--vscode-descriptionForeground)] opacity-90 shadow-sm outline-none hover:bg-[var(--vscode-list-hoverBackground)] hover:opacity-100 focus:border-[var(--vscode-focusBorder)]"
         title={t('systemInstructions.show')}
         onClick={() => setIsOpen(true)}
       >
-        <FileText size={14} className="shrink-0" />
+        <FileText size={12} className="shrink-0" />
         <span className="truncate">{title}</span>
       </button>
 

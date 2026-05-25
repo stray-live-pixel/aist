@@ -8,6 +8,7 @@ import { KeyboardShortcut } from '../../shared/ui';
 import styles from './Composer.module.scss';
 
 const MAX_TEXTAREA_HEIGHT = 300;
+const DEFAULT_CONTINUE_PROMPT = 'Continue working. Continue with the current task';
 
 type ComposerProps = {
   busy: boolean;
@@ -20,18 +21,18 @@ export function Composer({ busy, floating = false, settings, footer }: ComposerP
   const { t } = useI18n();
   const [prompt, setPrompt] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const canSend = Boolean(prompt.trim()) && !busy;
+  const canSend = !busy;
 
   useLayoutEffect(() => {
     resizePromptField(textareaRef.current);
   }, [prompt]);
 
   function sendPrompt() {
-    const value = prompt.trim();
-    if (!value || busy) {
+    if (busy) {
       return;
     }
 
+    const value = prompt.trim() || DEFAULT_CONTINUE_PROMPT;
     setPrompt('');
     vscode.postMessage({ type: 'ask', prompt: value });
   }

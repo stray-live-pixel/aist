@@ -1,18 +1,36 @@
 import { getAgentSkills } from '../../skills/skills';
-import { type AgentInstructionSource, getExternalInstructionSources, getProjectInstructions } from './agentConfigStore';
+import { type AgentInstructionSource, getExternalInstructionSources, getPromptConfig } from './agentConfigStore';
 import { getSystemPrompt } from './prompts';
-import { getActiveAgentMode, getAgentLanguage } from './settings';
+import { getAgentLanguage } from './settings';
 
 /**
  * Собирает источники инструкций в том же порядке, в котором они попадают в prompt.
- *
- * Использование: getAgentInstructionSources().map(source => source.title) можно
- * показать в начале чата, чтобы пользователь видел активные правила.
+ * Локальные инструкции проекта имеют больший priority, чем глобальные.
  */
 export function getAgentInstructionSources(): AgentInstructionSource[] {
-  const mode = getActiveAgentMode();
-  const projectInstructions = getProjectInstructions();
+  const config = getPromptConfig();
   const skills = getAgentSkills();
+  const activeInstructions = config.activeInstructionRefs
+    .map((ref, index) => {
+      const item = [...config.globalInstructions, ...config.localInstructions].find(
+        (instruction) => instruction.scope === ref.scope && instruction.id === ref.id
+      );
+      if (!item) return undefined;
+      return {
+        id: `${item.scope}:instruction:${item.id}`,
+        title: `${item.scope === 'global' ? 'Global' : 'Project'} instruction: ${item.label}`,
+        content: item.content,
+        priority: item.scope === 'global' ? 40 + index : 70 + index,
+        kind: 'custom' as const
+      };
+    })
+    .filter(Boolean) as AgentInstructionSource[];
+  const activeMode = config.activeModeRef
+    ? [...config.globalModes, ...config.localModes].find(
+        (mode) => mode.scope === config.activeModeRef?.scope && mode.id === config.activeModeRef.id
+      )
+    : undefined;
+
   const sources: AgentInstructionSource[] = [
     {
       id: 'base',
@@ -22,24 +40,18 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
       kind: 'base'
     },
     ...getExternalInstructionSources(),
-    ...(projectInstructions
+    ...activeInstructions,
+    ...(activeMode
       ? [
           {
-            id: 'project-instructions',
-            title: '.aist-agent project instructions',
-            content: projectInstructions,
-            priority: 40,
-            kind: 'custom' as const
+            id: `${activeMode.scope}:mode:${activeMode.id}`,
+            title: `${activeMode.scope === 'global' ? 'Global' : 'Project'} mode: ${activeMode.label}`,
+            content: activeMode.instructions,
+            priority: activeMode.scope === 'global' ? 100 : 120,
+            kind: 'mode' as const
           }
         ]
       : []),
-    {
-      id: `mode:${mode.id}`,
-      title: `Mode: ${mode.label}`,
-      content: mode.instructions,
-      priority: 50,
-      kind: 'mode'
-    },
     ...(skills.length
       ? [
           {
@@ -48,7 +60,7 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
             content: skills
               .map((skill) => `${skill.id}: ${skill.label} — ${skill.description || skill.command}`)
               .join('\n'),
-            priority: 60,
+            priority: 140,
             kind: 'skills' as const
           }
         ]
@@ -59,13 +71,10 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
 }
 
 /**
- * Собирает актуальный system prompt агента из языка, файлов инструкций, режима и skills.
- *
- * Prompt нельзя кешировать: пользователь может сменить scope, режим или список
- * skills между запросами. Поэтому функция каждый раз читает текущие настройки.
+ * Собирает актуальный system prompt агента из языка, выбранных инструкций,
+ * режима и skills. Prompt нельзя кешировать.
  */
 export function buildAgentSystemPrompt(): string {
-  const mode = getActiveAgentMode();
   const instructions = getAgentInstructionSources()
     .filter((source) => source.kind !== 'base' && source.kind !== 'skills')
     .map((source) => `## ${source.title}\n${source.content}`)
@@ -73,7 +82,7 @@ export function buildAgentSystemPrompt(): string {
 
   return getSystemPrompt({
     language: getAgentLanguage(),
-    instructions: instructions || mode.instructions,
+    instructions,
     skills: getAgentSkills().map(({ id, label, description }) => ({ id, label, description }))
   });
 }

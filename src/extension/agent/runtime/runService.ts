@@ -70,7 +70,11 @@ export class AgentRunService {
 
     run.stopRequested = true;
     run.abortController.abort();
-    this.deps.chats.setActivity(run.chatId, 'stopping');
+    this.deps.chats.setActivity(
+      run.chatId,
+      'stopping',
+      'Stop requested. Aborting the model request and denying pending approvals.'
+    );
     for (const resolver of run.permissionResolvers.values()) {
       resolver(false);
     }
@@ -86,7 +90,7 @@ export class AgentRunService {
     this.deps.logger.info('Agent run started', { chatId: chat.id, promptLength: prompt.length });
     this.deps.chats.appendMessage(chat.id, { role: 'user', content: prompt, usage: getMessageUsageEstimate(prompt) });
     this.deps.chats.setBusy(chat.id, true);
-    this.deps.chats.setActivity(chat.id, 'thinking');
+    this.deps.chats.setActivity(chat.id, 'thinking', 'Preparing request context and sending the prompt to the model.');
     const run = {
       chatId: chat.id,
       abortController: new AbortController(),
