@@ -1,20 +1,6 @@
 import type { ReactNode } from 'react';
 
 import type { useI18n } from '../../../shared/i18n';
-import type {
-  AgentConfigScope,
-  AgentInstructionSource,
-  AgentLanguage,
-  AgentMode,
-  AgentModeId,
-  AgentPromptConfig,
-  AgentSkill,
-  ApprovalNotificationSettings,
-  CompactionSettings,
-  ToolPermissionItem,
-  ToolPermissionPreset,
-  ToolPermissionPresetId
-} from '../../../shared/types';
 
 /**
  * Что это: идентификатор раздела настроек в левой навигации.
@@ -32,24 +18,9 @@ export type SettingsPageId =
 
 /**
  * Что это: props верхнего контейнера страницы настроек.
- * Зачем нужно: страница используется и как отдельный page, и как embedded modal-содержимое в чате.
+ * Зачем нужно: данные настроек берутся из AgentStateContext, а props оставляют только layout-сценарий и навигацию назад.
  */
 export type PermissionsPageProps = {
-  tools: ToolPermissionItem[];
-  maxToolIterations: number;
-  compactionSettings: CompactionSettings;
-  approvalNotificationSettings: ApprovalNotificationSettings;
-  agentLanguage: AgentLanguage;
-  agentMode: AgentModeId;
-  agentModes: AgentMode[];
-  agentConfigScope: AgentConfigScope;
-  projectInstructions: string;
-  promptConfig: AgentPromptConfig;
-  instructionSources: AgentInstructionSource[];
-  customSkills: AgentSkill[];
-  codexAuthenticated: boolean;
-  permissionPresets: ToolPermissionPreset[];
-  activePermissionPresetId: ToolPermissionPresetId | 'custom';
   onBack?(): void;
   variant?: 'page' | 'embedded';
 };

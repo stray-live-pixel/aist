@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { useAgentState } from '../../../shared/lib/agentState';
 import styles from '../PermissionsPage.module.scss';
 import { CompactionSettingsPage } from './compaction-settings-page';
 import { NotificationSettingsPage } from './notification-settings-page';
@@ -15,26 +16,25 @@ import type { PermissionsPageProps, SettingsPageId } from './types';
  * Что это: страница настроек агента с sidebar-навигацией.
  * Зачем нужно: компонент оставляет на верхнем уровне только выбор раздела и прокидывание данных, а тяжелые разделы живут отдельно и могут оптимизироваться независимо.
  */
-export function PermissionsPage({
-  tools,
-  maxToolIterations,
-  compactionSettings,
-  approvalNotificationSettings,
-  agentLanguage,
-  agentMode,
-  agentModes,
-  agentConfigScope,
-  projectInstructions: _projectInstructions,
-  promptConfig,
-  instructionSources,
-  customSkills,
-  codexAuthenticated,
-  permissionPresets,
-  activePermissionPresetId,
-  onBack,
-  variant = 'page'
-}: PermissionsPageProps) {
+export function PermissionsPage({ onBack, variant = 'page' }: PermissionsPageProps) {
+  const state = useAgentState();
   const [activePage, setActivePage] = useState<SettingsPageId>('overview');
+  const {
+    toolPermissions,
+    maxToolIterations,
+    compactionSettings,
+    approvalNotificationSettings,
+    agentLanguage,
+    agentMode,
+    agentModes,
+    agentConfigScope,
+    promptConfig,
+    instructionSources,
+    customSkills,
+    codexAuthenticated,
+    toolPermissionPresets,
+    activeToolPermissionPresetId
+  } = state;
   const activeMode = useMemo(
     () => agentModes.find((mode) => mode.id === agentMode) || agentModes[0],
     [agentMode, agentModes]
@@ -52,7 +52,7 @@ export function PermissionsPage({
           {activePage === 'overview' ? (
             <OverviewPage
               agentConfigScope={agentConfigScope}
-              activePermissionPresetId={activePermissionPresetId}
+              activePermissionPresetId={activeToolPermissionPresetId}
               activeMode={activeMode}
               customSkills={customSkills}
               instructionSources={instructionSources}
@@ -66,9 +66,9 @@ export function PermissionsPage({
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage
-              tools={tools}
-              permissionPresets={permissionPresets}
-              activePermissionPresetId={activePermissionPresetId}
+              tools={toolPermissions}
+              permissionPresets={toolPermissionPresets}
+              activePermissionPresetId={activeToolPermissionPresetId}
             />
           ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}

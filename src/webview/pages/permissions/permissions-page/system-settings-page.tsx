@@ -2,7 +2,7 @@ import { CheckCircle2, Gauge, LogIn, LogOut } from 'lucide-react';
 import { memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import type { AgentLanguage } from '../../../shared/types';
 import { Badge, Button, Card, Select, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
@@ -32,9 +32,7 @@ export const SystemSettingsPage = memo(function SystemSettingsPage({
             { value: 'ru', label: 'Русский' },
             { value: 'en', label: 'English' }
           ]}
-          onChange={(event) =>
-            vscode.postMessage({ type: 'setAgentLanguage', language: event.target.value as AgentLanguage })
-          }
+          onChange={(event) => agentActions.setAgentLanguage(event.target.value as AgentLanguage)}
         />
       </Card>
       <Card title={t('settings.system.iterationTitle')} description={t('settings.system.iterationDescription')}>
@@ -45,10 +43,7 @@ export const SystemSettingsPage = memo(function SystemSettingsPage({
           value={maxToolIterations}
           leadingIcon={<Gauge size={15} />}
           onChange={(event) =>
-            vscode.postMessage({
-              type: 'setMaxToolIterations',
-              maxToolIterations: clampNumber(event.target.value, 0, Number.MAX_SAFE_INTEGER, 0, true)
-            })
+            agentActions.setMaxToolIterations(clampNumber(event.target.value, 0, Number.MAX_SAFE_INTEGER, 0, true))
           }
         />
       </Card>
@@ -65,20 +60,12 @@ export const SystemSettingsPage = memo(function SystemSettingsPage({
             <Badge tone="success" icon={<CheckCircle2 size={12} />}>
               {t('common.authorized')}
             </Badge>
-            <Button
-              variant="secondary"
-              leadingIcon={<LogOut size={14} />}
-              onClick={() => vscode.postMessage({ type: 'codexLogout' })}
-            >
+            <Button variant="secondary" leadingIcon={<LogOut size={14} />} onClick={agentActions.codexLogout}>
               {t('settings.system.logout')}
             </Button>
           </div>
         ) : (
-          <Button
-            variant="primary"
-            leadingIcon={<LogIn size={14} />}
-            onClick={() => vscode.postMessage({ type: 'codexLogin' })}
-          >
+          <Button variant="primary" leadingIcon={<LogIn size={14} />} onClick={agentActions.codexLogin}>
             {t('common.authorize')}
           </Button>
         )}

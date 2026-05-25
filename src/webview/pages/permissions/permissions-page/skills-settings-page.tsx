@@ -2,7 +2,7 @@ import { Save, Trash2 } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import type { AgentSkill, ToolPermissionMode } from '../../../shared/types';
 import { Button, Card, Select, TextArea, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
@@ -26,13 +26,7 @@ export const SkillsSettingsPage = memo(function SkillsSettingsPage({ customSkill
     const label = newSkill.label.trim();
     const command = newSkill.command.trim();
     if (!label || !command) return;
-    vscode.postMessage({
-      type: 'addSkill',
-      label,
-      description: newSkill.description.trim(),
-      command,
-      permission: newSkill.permission
-    });
+    agentActions.addSkill(label, newSkill.description.trim(), command, newSkill.permission);
     setNewSkill({ label: '', description: '', command: '', permission: 'ask' });
     setAddingSkill(false);
   }, [newSkill]);
@@ -155,8 +149,7 @@ const SkillSettingsCard = memo(function SkillSettingsCard({ skill }: { skill: Ag
             leadingIcon={<Save size={13} />}
             disabled={!canSave}
             onClick={() =>
-              vscode.postMessage({
-                type: 'updateSkill',
+              agentActions.updateSkill({
                 skillId: skill.id,
                 label: draft.label.trim(),
                 description: draft.description.trim(),
@@ -171,7 +164,7 @@ const SkillSettingsCard = memo(function SkillSettingsCard({ skill }: { skill: Ag
             size="sm"
             variant="danger"
             leadingIcon={<Trash2 size={13} />}
-            onClick={() => vscode.postMessage({ type: 'deleteSkill', skillId: skill.id })}
+            onClick={() => agentActions.deleteSkill(skill.id)}
           >
             {t('common.delete')}
           </Button>

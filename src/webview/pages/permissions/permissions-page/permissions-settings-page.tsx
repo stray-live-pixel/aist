@@ -2,7 +2,7 @@ import { memo } from 'react';
 
 import { PermissionPresetSelect, ToolPermissionSelect } from '../../../features';
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import type { ToolPermissionItem, ToolPermissionPreset, ToolPermissionPresetId } from '../../../shared/types';
 import { Badge, Button, Card } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
@@ -56,10 +56,7 @@ const PermissionPresetButton = memo(function PermissionPresetButton({
 }) {
   const { t } = useI18n();
   return (
-    <Button
-      variant={active ? 'primary' : 'secondary'}
-      onClick={() => vscode.postMessage({ type: 'setToolPermissionPreset', presetId: preset.id })}
-    >
+    <Button variant={active ? 'primary' : 'secondary'} onClick={() => agentActions.setToolPermissionPreset(preset.id)}>
       {t(`settings.preset.${preset.id}.label` as never)}
     </Button>
   );

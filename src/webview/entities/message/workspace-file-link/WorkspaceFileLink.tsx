@@ -1,7 +1,7 @@
 import { FileCode2 } from 'lucide-react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import styles from './WorkspaceFileLink.module.scss';
 import type { WorkspaceFileLinkProps } from './types';
 
@@ -20,8 +20,7 @@ export function WorkspaceFileLink({ file }: WorkspaceFileLinkProps) {
       title={t('tool.openFile')}
       onClick={(event) => {
         event.stopPropagation();
-        vscode.postMessage({
-          type: 'openWorkspaceFile',
+        agentActions.openWorkspaceFile({
           path: file.path,
           line: file.line,
           column: file.column,

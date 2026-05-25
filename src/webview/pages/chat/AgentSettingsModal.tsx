@@ -3,7 +3,8 @@ import { memo, useEffect } from 'react';
 
 import { ModelSelect, PermissionPresetSelect } from '../../features';
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
+import { useAgentState } from '../../shared/lib/agentState';
 import type { AgentState, ReasoningEffort } from '../../shared/types';
 import { ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
@@ -11,7 +12,6 @@ import { PermissionsPage } from '../permissions/PermissionsPage';
 import styles from './ChatPage.module.scss';
 
 type AgentSettingsModalProps = {
-  state: AgentState;
   onClose(): void;
 };
 
@@ -19,8 +19,9 @@ type AgentSettingsModalProps = {
  * Что это: модалка полной настройки агента поверх чата.
  * Зачем нужно: быстрые настройки остаются в header, а глубокие разделы открываются embedded-версией PermissionsPage.
  */
-export function AgentSettingsModal({ state, onClose }: AgentSettingsModalProps) {
+export function AgentSettingsModal({ onClose }: AgentSettingsModalProps) {
   const { t } = useI18n();
+  const state = useAgentState();
   useEffect(() => {
     const closeByEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -45,24 +46,7 @@ export function AgentSettingsModal({ state, onClose }: AgentSettingsModalProps) 
         <div className={styles.quickSettingsWrap}>
           <QuickSettings state={state} />
         </div>
-        <PermissionsPage
-          tools={state.toolPermissions}
-          maxToolIterations={state.maxToolIterations}
-          compactionSettings={state.compactionSettings}
-          approvalNotificationSettings={state.approvalNotificationSettings}
-          agentLanguage={state.agentLanguage}
-          agentMode={state.agentMode}
-          agentModes={state.agentModes}
-          agentConfigScope={state.agentConfigScope}
-          projectInstructions={state.projectInstructions}
-          promptConfig={state.promptConfig}
-          instructionSources={state.instructionSources}
-          customSkills={state.customSkills}
-          codexAuthenticated={state.codexAuthenticated}
-          permissionPresets={state.toolPermissionPresets}
-          activePermissionPresetId={state.activeToolPermissionPresetId}
-          variant="embedded"
-        />
+        <PermissionsPage variant="embedded" />
       </ModalSurface>
     </ModalBackdrop>
   );
@@ -109,12 +93,7 @@ const ReasoningSelect = memo(function ReasoningSelect({
         className={styles.reasoningSelect}
         value={value}
         disabled={disabled}
-        onChange={(event) =>
-          vscode.postMessage({
-            type: 'setReasoningEffort',
-            reasoningEffort: event.target.value as ReasoningEffort
-          })
-        }
+        onChange={(event) => agentActions.setReasoningEffort(event.target.value as ReasoningEffort)}
       >
         <option value="auto">{t('reasoning.auto')}</option>
         <option value="low">{t('reasoning.low')}</option>

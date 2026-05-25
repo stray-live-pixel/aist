@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { AgentStateProvider } from '../shared/lib/agentState';
 import { storyAgentState } from '../storybook/fixtures';
 import { ChatPage } from './chat/ChatPage';
 import { PermissionsPage } from './permissions/PermissionsPage';
@@ -15,12 +16,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Chat: Story = {
-  render: () => <ChatPage state={storyAgentState} />
+  render: () => (
+    <AgentStateProvider state={storyAgentState}>
+      <ChatPage />
+    </AgentStateProvider>
+  )
 };
 
 export const ChatBusy: Story = {
   render: () => (
-    <ChatPage
+    <AgentStateProvider
       state={{
         ...storyAgentState,
         activeChat: {
@@ -29,29 +34,16 @@ export const ChatBusy: Story = {
           activity: 'waitingForApproval'
         }
       }}
-    />
+    >
+      <ChatPage />
+    </AgentStateProvider>
   )
 };
 
 export const Settings: Story = {
   render: () => (
-    <PermissionsPage
-      tools={storyAgentState.toolPermissions}
-      maxToolIterations={storyAgentState.maxToolIterations}
-      compactionSettings={storyAgentState.compactionSettings}
-      approvalNotificationSettings={storyAgentState.approvalNotificationSettings}
-      agentLanguage={storyAgentState.agentLanguage}
-      agentMode={storyAgentState.agentMode}
-      agentModes={storyAgentState.agentModes}
-      agentConfigScope={storyAgentState.agentConfigScope}
-      projectInstructions={storyAgentState.projectInstructions}
-      promptConfig={storyAgentState.promptConfig}
-      instructionSources={storyAgentState.instructionSources}
-      customSkills={storyAgentState.customSkills}
-      codexAuthenticated={storyAgentState.codexAuthenticated}
-      permissionPresets={storyAgentState.toolPermissionPresets}
-      activePermissionPresetId={storyAgentState.activeToolPermissionPresetId}
-      onBack={() => undefined}
-    />
+    <AgentStateProvider state={storyAgentState}>
+      <PermissionsPage onBack={() => undefined} />
+    </AgentStateProvider>
   )
 };

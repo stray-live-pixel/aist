@@ -2,7 +2,7 @@ import { Archive, Brain, Coins, Settings2, ShieldCheck, SlidersHorizontal, Wrenc
 import { memo, useMemo } from 'react';
 
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import type { AgentState, ChatContextEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
 import { Button, Select, type SelectCategory, type SelectOption } from '../../shared/ui';
 import styles from './ChatPage.module.scss';
@@ -47,7 +47,7 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({ state, 
         title={t('summary.agentMode')}
         value={state.agentMode}
         disabled={state.activeChat.busy}
-        onChange={(modeId) => vscode.postMessage({ type: 'setAgentMode', modeId })}
+        onChange={agentActions.setAgentMode}
         options={agentModeOptions}
         displayLabels={agentModeDisplayLabels}
       />
@@ -56,7 +56,7 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({ state, 
         title={t('summary.toolPermissionPreset')}
         value={state.activeToolPermissionPresetId}
         disabled={state.activeChat.busy || state.activeToolPermissionPresetId === 'custom'}
-        onChange={(presetId) => vscode.postMessage({ type: 'setToolPermissionPreset', presetId })}
+        onChange={agentActions.setToolPermissionPreset}
         options={permissionOptions}
       />
       <CompactSelect
@@ -64,9 +64,7 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({ state, 
         title={t('summary.reasoningEffort')}
         value={state.reasoningEffort}
         disabled={state.activeChat.busy}
-        onChange={(reasoningEffort) =>
-          vscode.postMessage({ type: 'setReasoningEffort', reasoningEffort: reasoningEffort as ReasoningEffort })
-        }
+        onChange={(reasoningEffort) => agentActions.setReasoningEffort(reasoningEffort as ReasoningEffort)}
         options={reasoningOptions}
       />
       <Button type="button" variant="secondary" size="sm" leadingIcon={<Wrench size={12} />} onClick={onOpen}>
@@ -96,7 +94,7 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         value={state.activeChat.model}
         disabled={state.activeChat.busy}
         className={`${styles.compactSelect} ${styles.modelSelect}`}
-        onChange={(model) => vscode.postMessage({ type: 'setModel', model })}
+        onChange={agentActions.setModel}
         options={modelOptions}
         categories={modelCategories}
       />
@@ -114,7 +112,7 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         leadingIcon={<Archive size={12} />}
         disabled={state.activeChat.busy}
         title={t('summary.compactTitle')}
-        onClick={() => vscode.postMessage({ type: 'compactChat', chatId: state.activeChat.id })}
+        onClick={() => agentActions.compactChat(state.activeChat.id)}
       >
         {t('summary.compact')}
       </Button>

@@ -2,7 +2,7 @@ import { Check, ChevronDown, Cpu, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import styles from './ModelSelect.module.scss';
 import type { ModelSelectProps } from './types';
 import { filterModels, getSelectedModel, groupModelsByProvider } from './utils';
@@ -59,7 +59,7 @@ export function ModelSelect({ model, models, disabled }: ModelSelectProps) {
   }, [open]);
 
   function selectModel(nextModel: string) {
-    vscode.postMessage({ type: 'setModel', model: nextModel });
+    agentActions.setModel(nextModel);
     setOpen(false);
     setQuery('');
   }

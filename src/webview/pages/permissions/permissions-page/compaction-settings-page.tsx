@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import type { CompactionSettings } from '../../../shared/types';
 import { Card, Select, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
@@ -28,12 +28,7 @@ export const CompactionSettingsPage = memo(function CompactionSettingsPage({
               { value: 'enabled', label: t('common.enabled') },
               { value: 'disabled', label: t('common.disabled') }
             ]}
-            onChange={(event) =>
-              vscode.postMessage({
-                type: 'setCompactionSettings',
-                settings: { enabled: event.target.value === 'enabled' }
-              })
-            }
+            onChange={(event) => agentActions.setCompactionSettings({ enabled: event.target.value === 'enabled' })}
           />
           <TextField
             label={t('settings.compaction.threshold')}
@@ -42,9 +37,8 @@ export const CompactionSettingsPage = memo(function CompactionSettingsPage({
             max={95}
             value={settings.thresholdPercent}
             onChange={(event) =>
-              vscode.postMessage({
-                type: 'setCompactionSettings',
-                settings: { thresholdPercent: clampNumber(event.target.value, 10, 95, 70, true) }
+              agentActions.setCompactionSettings({
+                thresholdPercent: clampNumber(event.target.value, 10, 95, 70, true)
               })
             }
           />
@@ -56,10 +50,7 @@ export const CompactionSettingsPage = memo(function CompactionSettingsPage({
             max={20}
             value={settings.keepLastMessages}
             onChange={(event) =>
-              vscode.postMessage({
-                type: 'setCompactionSettings',
-                settings: { keepLastMessages: clampNumber(event.target.value, 0, 20, 0, true) }
-              })
+              agentActions.setCompactionSettings({ keepLastMessages: clampNumber(event.target.value, 0, 20, 0, true) })
             }
           />
         </div>

@@ -1,7 +1,7 @@
 import { ShieldCheck } from 'lucide-react';
 
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import styles from './PermissionPresetSelect.module.scss';
 import type { PermissionPresetSelectProps } from './types';
 import { getSelectedDescription } from './utils';
@@ -27,7 +27,7 @@ export function PermissionPresetSelect({ presets, activeId, disabled, className 
         onChange={(event) => {
           const presetId = event.target.value;
           if (presetId !== 'custom') {
-            vscode.postMessage({ type: 'setToolPermissionPreset', presetId });
+            agentActions.setToolPermissionPreset(presetId);
           }
         }}
       >

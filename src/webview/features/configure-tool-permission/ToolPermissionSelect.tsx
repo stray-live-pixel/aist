@@ -1,5 +1,5 @@
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import type { ToolPermissionMode } from '../../shared/types';
 import { ToolIcon } from '../../shared/ui/ToolIcon';
 import styles from './ToolPermissionSelect.module.scss';
@@ -29,13 +29,7 @@ export function ToolPermissionSelect({ item }: ToolPermissionSelectProps) {
         <select
           className={styles.select}
           value={item.permission}
-          onChange={(event) =>
-            vscode.postMessage({
-              type: 'setToolPermission',
-              toolName: item.name,
-              permission: event.target.value as ToolPermissionMode
-            })
-          }
+          onChange={(event) => agentActions.setToolPermission(item.name, event.target.value as ToolPermissionMode)}
         >
           <option value="ask">{t('settings.permission.ask')}</option>
           <option value="auto">{t('settings.permission.auto')}</option>

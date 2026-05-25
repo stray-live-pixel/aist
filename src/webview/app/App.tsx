@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 import { I18nProvider, translate } from '../shared/i18n';
-import { vscode } from '../shared/lib/vscode';
+import { agentActions } from '../shared/lib/agentActions';
+import { AgentStateProvider } from '../shared/lib/agentState';
 import type { AgentState, ExtensionToWebviewMessage } from '../shared/types';
 import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../shared/ui';
 import { IconButton } from '../shared/ui/IconButton';
@@ -31,7 +32,7 @@ export function App() {
     };
 
     window.addEventListener('message', listener);
-    vscode.postMessage({ type: 'webviewReady' });
+    agentActions.webviewReady();
 
     return () => window.removeEventListener('message', listener);
   }, []);
@@ -55,33 +56,20 @@ export function App() {
   if (page === 'settings') {
     return (
       <I18nProvider language={state.agentLanguage}>
-        <PermissionsPage
-          tools={state.toolPermissions}
-          maxToolIterations={state.maxToolIterations}
-          compactionSettings={state.compactionSettings}
-          approvalNotificationSettings={state.approvalNotificationSettings}
-          agentLanguage={state.agentLanguage}
-          agentMode={state.agentMode}
-          agentModes={state.agentModes}
-          agentConfigScope={state.agentConfigScope}
-          projectInstructions={state.projectInstructions}
-          promptConfig={state.promptConfig}
-          instructionSources={state.instructionSources}
-          customSkills={state.customSkills}
-          codexAuthenticated={state.codexAuthenticated}
-          permissionPresets={state.toolPermissionPresets}
-          activePermissionPresetId={state.activeToolPermissionPresetId}
-          onBack={() => setPage('chat')}
-        />
-        {modal}
+        <AgentStateProvider state={state}>
+          <PermissionsPage onBack={() => setPage('chat')} />
+          {modal}
+        </AgentStateProvider>
       </I18nProvider>
     );
   }
 
   return (
     <I18nProvider language={state.agentLanguage}>
-      <ChatPage state={state} />
-      {modal}
+      <AgentStateProvider state={state}>
+        <ChatPage />
+        {modal}
+      </AgentStateProvider>
     </I18nProvider>
   );
 }

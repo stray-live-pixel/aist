@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import type { ApprovalNotificationSettings } from '../../../shared/types';
 import { Card, Checkbox, Select, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
@@ -30,10 +30,7 @@ export const NotificationSettingsPage = memo(function NotificationSettingsPage({
               { value: 'disabled', label: t('common.disabled') }
             ]}
             onChange={(event) =>
-              vscode.postMessage({
-                type: 'setApprovalNotificationSettings',
-                settings: { enabled: event.target.value === 'enabled' }
-              })
+              agentActions.setApprovalNotificationSettings({ enabled: event.target.value === 'enabled' })
             }
           />
           <Checkbox
@@ -42,10 +39,7 @@ export const NotificationSettingsPage = memo(function NotificationSettingsPage({
             checked={settings.systemNotifications}
             disabled={!settings.enabled}
             onChange={(event) =>
-              vscode.postMessage({
-                type: 'setApprovalNotificationSettings',
-                settings: { systemNotifications: event.target.checked }
-              })
+              agentActions.setApprovalNotificationSettings({ systemNotifications: event.target.checked })
             }
           />
           <Checkbox
@@ -53,12 +47,7 @@ export const NotificationSettingsPage = memo(function NotificationSettingsPage({
             description={t('settings.notifications.soundDescription')}
             checked={settings.sound}
             disabled={!settings.enabled}
-            onChange={(event) =>
-              vscode.postMessage({
-                type: 'setApprovalNotificationSettings',
-                settings: { sound: event.target.checked }
-              })
-            }
+            onChange={(event) => agentActions.setApprovalNotificationSettings({ sound: event.target.checked })}
           />
           <TextField
             label={t('settings.notifications.volume')}
@@ -68,10 +57,7 @@ export const NotificationSettingsPage = memo(function NotificationSettingsPage({
             value={Math.round(settings.volume * 100)}
             disabled={!settings.enabled || !settings.sound}
             onChange={(event) =>
-              vscode.postMessage({
-                type: 'setApprovalNotificationSettings',
-                settings: { volume: clampNumber(event.target.value, 0, 100, 0) / 100 }
-              })
+              agentActions.setApprovalNotificationSettings({ volume: clampNumber(event.target.value, 0, 100, 0) / 100 })
             }
           />
           <TextField
@@ -82,9 +68,8 @@ export const NotificationSettingsPage = memo(function NotificationSettingsPage({
             value={settings.durationSeconds}
             disabled={!settings.enabled || !settings.sound}
             onChange={(event) =>
-              vscode.postMessage({
-                type: 'setApprovalNotificationSettings',
-                settings: { durationSeconds: clampNumber(event.target.value, 1, 30, 5, true) }
+              agentActions.setApprovalNotificationSettings({
+                durationSeconds: clampNumber(event.target.value, 1, 30, 5, true)
               })
             }
           />

@@ -2,7 +2,7 @@ import { Copy, HelpCircle, Plus, Save, Trash2, X } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import type {
   AgentInstructionItem,
   AgentInstructionKind,
@@ -177,9 +177,7 @@ const PromptItemCard = memo(function PromptItemCard({ item }: { item: AgentInstr
             size="sm"
             variant="secondary"
             leadingIcon={<Copy size={13} />}
-            onClick={() =>
-              vscode.postMessage({ type: 'duplicatePromptItem', scope: item.scope, kind: item.kind, id: item.id })
-            }
+            onClick={() => agentActions.duplicatePromptItem(item.scope, item.kind, item.id)}
           >
             {t('common.copy')}
           </Button>
@@ -187,9 +185,7 @@ const PromptItemCard = memo(function PromptItemCard({ item }: { item: AgentInstr
             size="sm"
             variant="danger"
             leadingIcon={<Trash2 size={13} />}
-            onClick={() =>
-              vscode.postMessage({ type: 'deletePromptItem', scope: item.scope, kind: item.kind, id: item.id })
-            }
+            onClick={() => agentActions.deletePromptItem(item.scope, item.kind, item.id)}
           >
             {t('common.delete')}
           </Button>
@@ -250,7 +246,7 @@ function PromptItemEditor({
             disabled={!canSave}
             leadingIcon={<Save size={13} />}
             onClick={() => {
-              vscode.postMessage({ type: 'upsertPromptItem', scope, kind, id: item?.id, label: label.trim(), content });
+              agentActions.upsertPromptItem({ scope, kind, id: item?.id, label: label.trim(), content });
               onSaved();
             }}
           >
@@ -357,8 +353,7 @@ function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; pr
 
   function savePreset() {
     const modeRef = parseRefKey(modeKey);
-    vscode.postMessage({
-      type: 'upsertPromptPreset',
+    agentActions.upsertPromptPreset({
       id: preset?.id,
       label: label.trim(),
       instructionRefs,
@@ -374,18 +369,14 @@ function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; pr
       actions={
         preset ? (
           <div className={styles.actions}>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => vscode.postMessage({ type: 'applyPromptPreset', presetId: preset.id })}
-            >
+            <Button size="sm" variant="secondary" onClick={() => agentActions.applyPromptPreset(preset.id)}>
               {t('settings.promptManager.apply')}
             </Button>
             <Button
               size="sm"
               variant="danger"
               leadingIcon={<Trash2 size={13} />}
-              onClick={() => vscode.postMessage({ type: 'deletePromptPreset', presetId: preset.id })}
+              onClick={() => agentActions.deletePromptPreset(preset.id)}
             >
               {t('common.delete')}
             </Button>

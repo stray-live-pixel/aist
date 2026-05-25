@@ -2,7 +2,7 @@ import { Check, ChevronDown, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import type { AgentModeId } from '../../shared/types';
 import styles from './AgentModeSelect.module.scss';
 import type { AgentModeSelectProps } from './types';
@@ -54,13 +54,13 @@ export function AgentModeSelect({ modes, activeId, className }: AgentModeSelectP
   }, [modes, deleteTargetId]);
 
   function selectMode(modeId: AgentModeId) {
-    vscode.postMessage({ type: 'setAgentMode', modeId });
+    agentActions.setAgentMode(modeId);
     setOpen(false);
     setDeleteTargetId(undefined);
   }
 
   function deleteMode(modeId: AgentModeId) {
-    vscode.postMessage({ type: 'deleteAgentMode', modeId });
+    agentActions.deleteAgentMode(modeId);
     setDeleteTargetId(undefined);
   }
 

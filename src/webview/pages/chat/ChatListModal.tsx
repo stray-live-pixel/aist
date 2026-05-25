@@ -2,7 +2,7 @@ import { Check, Copy, MessageSquare, Plus, Trash2, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
 import { pluralKey, translate, useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import type { AgentLanguage, ChatSummary } from '../../shared/types';
 import { Button, ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
@@ -33,17 +33,17 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
   }, [onClose]);
 
   function selectChat(chatId: string) {
-    vscode.postMessage({ type: 'setActiveChat', chatId });
+    agentActions.setActiveChat(chatId);
     onClose();
   }
 
   function duplicateChat(chatId: string) {
-    vscode.postMessage({ type: 'duplicateChat', chatId });
+    agentActions.duplicateChat(chatId);
     onClose();
   }
 
   function deleteChat(chatId: string) {
-    vscode.postMessage({ type: 'deleteChat', chatId });
+    agentActions.deleteChat(chatId);
     onClose();
   }
 
@@ -56,11 +56,7 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
             <p>{t('chatList.description')}</p>
           </div>
           <div className={styles.modalHeaderActions}>
-            <Button
-              variant="secondary"
-              leadingIcon={<Plus size={14} />}
-              onClick={() => vscode.postMessage({ type: 'newChat' })}
-            >
+            <Button variant="secondary" leadingIcon={<Plus size={14} />} onClick={agentActions.newChat}>
               {t('chatList.new')}
             </Button>
             <IconButton title={t('chatList.close')} onClick={onClose}>

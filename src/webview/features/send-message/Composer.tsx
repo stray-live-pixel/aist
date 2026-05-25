@@ -2,7 +2,7 @@ import { SendHorizontal, Square } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
 import { KeyboardShortcut } from '../../shared/ui';
 import styles from './Composer.module.scss';
 import type { ComposerProps } from './types';
@@ -29,7 +29,7 @@ export function Composer({ busy, floating = false, settings, footer, notice }: C
 
     const value = prompt.trim() || DEFAULT_CONTINUE_PROMPT;
     setPrompt('');
-    vscode.postMessage({ type: 'ask', prompt: value });
+    agentActions.ask(value);
   }
 
   return (
@@ -63,7 +63,7 @@ export function Composer({ busy, floating = false, settings, footer, notice }: C
               disabled={!busy && !canSend}
               title={busy ? t('composer.stop') : t('composer.send')}
               aria-label={busy ? t('composer.stopGeneration') : t('composer.sendMessage')}
-              onClick={busy ? () => vscode.postMessage({ type: 'stop' }) : sendPrompt}
+              onClick={busy ? agentActions.stop : sendPrompt}
             >
               {busy ? <Square size={12} /> : <SendHorizontal size={15} />}
             </button>

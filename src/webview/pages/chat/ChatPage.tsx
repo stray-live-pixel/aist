@@ -3,7 +3,8 @@ import { memo, useEffect, useMemo, useState } from 'react';
 
 import { Composer } from '../../features';
 import { useI18n } from '../../shared/i18n';
-import { vscode } from '../../shared/lib/vscode';
+import { agentActions } from '../../shared/lib/agentActions';
+import { useAgentState } from '../../shared/lib/agentState';
 import type { AgentState } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
 import { MessageList } from '../../widgets/message-list';
@@ -13,15 +14,12 @@ import { ApprovalPromptModal } from './ApprovalPromptModal';
 import { ChatListModal } from './ChatListModal';
 import styles from './ChatPage.module.scss';
 
-type ChatPageProps = {
-  state: AgentState;
-};
-
 /**
  * Что это: корневая страница активного чата.
  * Зачем нужно: держит только состояние модалок/approval и прокидывает уже подготовленные данные в виджеты чата.
  */
-export function ChatPage({ state }: ChatPageProps) {
+export function ChatPage() {
+  const state = useAgentState();
   const [chatsOpen, setChatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [approvalMinimized, setApprovalMinimized] = useState(false);
@@ -81,7 +79,7 @@ export function ChatPage({ state }: ChatPageProps) {
           onClose={() => setChatsOpen(false)}
         />
       ) : null}
-      {settingsOpen ? <AgentSettingsModal state={state} onClose={() => setSettingsOpen(false)} /> : null}
+      {settingsOpen ? <AgentSettingsModal onClose={() => setSettingsOpen(false)} /> : null}
       {pendingApproval && !approvalMinimized ? (
         <ApprovalPromptModal
           message={pendingApproval}
@@ -110,10 +108,7 @@ const FloatingChatActions = memo(function FloatingChatActions({
       <IconButton title={t('chat.openChats')} onClick={onOpenChats}>
         <MessageSquare size={15} />
       </IconButton>
-      <IconButton
-        title={t('chat.openInEditor')}
-        onClick={() => vscode.postMessage({ type: 'openChatInEditor', chatId: activeChatId })}
-      >
+      <IconButton title={t('chat.openInEditor')} onClick={() => agentActions.openChatInEditor(activeChatId)}>
         <ExternalLink size={15} />
       </IconButton>
     </div>

@@ -2,7 +2,7 @@ import { Check, MessageSquareText, Play, Square } from 'lucide-react';
 import { useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { vscode } from '../../../shared/lib/vscode';
+import { agentActions } from '../../../shared/lib/agentActions';
 import { Button } from '../../../shared/ui';
 import styles from './ToolApprovalActions.module.scss';
 import type { ToolApprovalActionsProps } from './types';
@@ -23,7 +23,7 @@ export function ToolApprovalActions({
   const cleanComment = comment.trim();
 
   function resolve(decision: 'approve' | 'deny-stop' | 'deny-continue') {
-    vscode.postMessage({ type: 'resolveToolCall', messageId, decision, comment: cleanComment || undefined });
+    agentActions.resolveToolCall(messageId, decision, cleanComment || undefined);
     onResolved?.();
   }
 
