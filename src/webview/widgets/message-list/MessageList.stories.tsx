@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { storyAgentModes, storyMessages, storyTools } from '../../storybook/fixtures';
+import { storyAgentModes, storyMessages, storyPromptConfig, storyTools } from '../../storybook/fixtures';
 import { EmptyState } from './EmptyState';
 import { MessageList } from './MessageList';
 import { SystemInstructionLabel } from './SystemInstructionLabel';
@@ -47,6 +47,7 @@ export const Empty: Story = {
         tools={storyTools}
         activeMode={storyAgentModes[0]}
         instructionSources={storyInstructionSources}
+        promptConfig={storyPromptConfig}
         busy={false}
         activity={undefined}
       />
@@ -62,6 +63,7 @@ export const WithMessages: Story = {
         tools={storyTools}
         activeMode={storyAgentModes[2]}
         instructionSources={storyInstructionSources}
+        promptConfig={storyPromptConfig}
         busy={false}
         activity={undefined}
       />
@@ -77,6 +79,7 @@ export const AgentThinking: Story = {
         tools={storyTools}
         activeMode={storyAgentModes[2]}
         instructionSources={storyInstructionSources}
+        promptConfig={storyPromptConfig}
         busy
         activity="thinking"
       />
@@ -95,5 +98,11 @@ export const SystemInstruction: Story = {
   parameters: {
     layout: 'centered'
   },
-  render: () => <SystemInstructionLabel mode={storyAgentModes[2]} sources={storyInstructionSources} />
+  render: () => (
+    <SystemInstructionLabel
+      mode={storyAgentModes[2]}
+      sources={storyInstructionSources}
+      promptConfig={storyPromptConfig}
+    />
+  )
 };

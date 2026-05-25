@@ -31,6 +31,7 @@ export function ChatPage({ state }: ChatPageProps) {
         tools={state.tools}
         activeMode={activeMode}
         instructionSources={state.instructionSources}
+        promptConfig={state.promptConfig}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
         activityDetail={state.activeChat.activityDetail}

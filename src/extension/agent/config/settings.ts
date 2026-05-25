@@ -50,13 +50,13 @@ export function getAgentModes(): AgentMode[] {
   const config = getPromptConfig();
   const modes = [...config.globalModes, ...config.localModes].map((mode) => ({
     id: refToModeId({ scope: mode.scope, id: mode.id }),
-    label: `Mode · ${mode.scope === 'global' ? 'Global' : 'Project'} · ${mode.label}`,
+    label: `${mode.label} (${mode.scope === 'global' ? 'G' : 'P'})`,
     instructions: mode.instructions
   }));
 
   const presetModes = config.presets.map((preset) => ({
     id: `preset:${preset.id}`,
-    label: `Preset with instructions · ${preset.label}`,
+    label: `${preset.label} preset`,
     instructions: preset.instructionRefs.length
       ? `Preset with ${preset.instructionRefs.length} instruction(s).`
       : 'Preset without additional instructions.'

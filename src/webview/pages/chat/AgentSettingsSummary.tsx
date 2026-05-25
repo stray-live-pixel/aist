@@ -22,6 +22,7 @@ export function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProp
         disabled={state.activeChat.busy}
         onChange={(modeId) => vscode.postMessage({ type: 'setAgentMode', modeId })}
         options={getAgentModeOptions(state)}
+        displayLabels={getAgentModeDisplayLabels(state)}
       />
       <CompactSelect
         icon={<ShieldCheck size={12} />}
@@ -108,12 +109,32 @@ function getAgentModeOptions(state: AgentState): SelectOption[] {
   ];
 }
 
+function getAgentModeDisplayLabels(state: AgentState): Record<string, string> {
+  return Object.fromEntries(state.agentModes.map((mode) => [mode.id, compactModeLabel(mode.id, mode.label)]));
+}
+
+function compactModeLabel(modeId: string, label: string): string {
+  const cleaned = label
+    .replace(/^Mode\s*·\s*(Global|Project)\s*·\s*/i, '')
+    .replace(/^Preset with instructions\s*·\s*/i, '')
+    .replace(/\s+preset$/i, '');
+  const scope = modeId.startsWith('global:')
+    ? 'G'
+    : modeId.startsWith('local:')
+      ? 'P'
+      : modeId.startsWith('preset:')
+        ? 'Preset'
+        : '';
+  return scope ? `${cleaned} · ${scope}` : cleaned;
+}
+
 function CompactSelect({
   icon,
   title,
   value,
   options,
   disabled,
+  displayLabels,
   className = 'w-[clamp(6.8rem,18vw,10.5rem)]',
   onChange
 }: {
@@ -122,6 +143,7 @@ function CompactSelect({
   value: string;
   options: SelectOption[];
   disabled?: boolean;
+  displayLabels?: Record<string, string>;
   className?: string;
   onChange(value: string): void;
 }) {
@@ -134,6 +156,7 @@ function CompactSelect({
       title={title}
       value={value}
       disabled={disabled}
+      displayLabels={displayLabels}
       options={options}
       onChange={(event) => onChange(event.target.value)}
     />

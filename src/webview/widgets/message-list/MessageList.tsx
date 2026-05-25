@@ -7,7 +7,14 @@ import { useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../entities/message/MessageCard';
 import { CopyMessageButton } from '../../features/copy-message/CopyMessageButton';
-import type { AgentInstructionSource, AgentMode, Chat, ChatMessage, CompactPreviousChat } from '../../shared/types';
+import type {
+  AgentInstructionSource,
+  AgentMode,
+  AgentPromptConfig,
+  Chat,
+  ChatMessage,
+  CompactPreviousChat
+} from '../../shared/types';
 import { AgentActivityStatus } from './AgentActivityStatus';
 import { EmptyState } from './EmptyState';
 import { SystemInstructionLabel } from './SystemInstructionLabel';
@@ -22,6 +29,7 @@ type MessageListProps = {
   tools: string[];
   activeMode: AgentMode | undefined;
   instructionSources: AgentInstructionSource[];
+  promptConfig: AgentPromptConfig;
   busy: boolean;
   activity: Chat['activity'];
   activityDetail?: string;
@@ -46,6 +54,7 @@ export function MessageList({
   tools,
   activeMode,
   instructionSources,
+  promptConfig,
   busy,
   activity,
   activityDetail,
@@ -74,8 +83,13 @@ export function MessageList({
       className={`min-h-0 flex-1 overflow-y-auto bg-transparent px-3 py-3 [scrollbar-gutter:stable] ${bottomOffsetClass}`}
       onScroll={handleScroll}
     >
-      <div className="sticky top-0 z-10 mb-1 flex justify-start bg-gradient-to-b from-[var(--vscode-editor-background)] via-[var(--vscode-editor-background)] to-transparent py-1">
-        <SystemInstructionLabel mode={activeMode} sources={instructionSources} />
+      <div className="sticky top-0 z-10 mb-1 flex w-full bg-gradient-to-b from-[var(--vscode-editor-background)] via-[var(--vscode-editor-background)] to-transparent py-1 pr-12">
+        <SystemInstructionLabel
+          mode={activeMode}
+          sources={instructionSources}
+          promptConfig={promptConfig}
+          busy={busy}
+        />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-2">
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}

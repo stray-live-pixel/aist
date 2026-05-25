@@ -57,6 +57,7 @@ export type SelectProps = Omit<
   placeholder?: string;
   size?: SelectSize;
   leadingIcon?: ReactNode;
+  displayLabels?: Record<string, string>;
   value?: string;
   defaultValue?: string;
   searchable?: boolean;
@@ -79,6 +80,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       placeholder,
       size = 'md',
       leadingIcon,
+      displayLabels,
       className,
       id,
       value,
@@ -105,7 +107,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const currentValue = controlled ? value : internalValue;
     const selected = options.find((option) => option.value === currentValue);
     const selectFallback = t('summary.model');
-    const displayLabel = selected?.label || placeholder || selectFallback;
+    const displayLabel =
+      (selected ? displayLabels?.[selected.value] || selected.label : undefined) || placeholder || selectFallback;
     const filteredOptions = useMemo(() => {
       const normalizedQuery = query.trim().toLowerCase();
       if (!normalizedQuery) {
