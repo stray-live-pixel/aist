@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
+import type { AistLogger } from '../shared/logger';
 import type {
   ModelStreamCallbacks,
   OpenRouterMessage,
@@ -65,6 +66,8 @@ type OpenRouterModelsResponse = {
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 
 export class OpenRouterClient {
+  constructor(private readonly logger?: AistLogger) {}
+
   async chat(
     messages: OpenRouterMessage[],
     tools?: OpenRouterTool[],
@@ -108,10 +111,11 @@ export class OpenRouterClient {
     }
 
     if (stream && response.body) {
-      return parseOpenRouterStream(response.body, stream);
+      return parseOpenRouterStream(response.body, stream, model, this.logger);
     }
 
     const data = (await response.json()) as OpenRouterResponse;
+    logUsageDiagnostics(this.logger, 'OpenRouter response received', model, data.usage, false);
     const answer = data.choices?.[0]?.message;
 
     if (!answer) {
@@ -154,7 +158,9 @@ export class OpenRouterClient {
 
 async function parseOpenRouterStream(
   body: ReadableStream<Uint8Array>,
-  callbacks: ModelStreamCallbacks
+  callbacks: ModelStreamCallbacks,
+  model: string,
+  logger: AistLogger | undefined
 ): Promise<OpenRouterMessage> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -196,6 +202,7 @@ async function parseOpenRouterStream(
   }
 
   callbacks.onComplete?.();
+  logUsageDiagnostics(logger, 'OpenRouter stream completed', model, usage, true);
 
   return withUsage(
     {
@@ -273,6 +280,24 @@ function withUsage(message: OpenRouterMessage, usage: OpenRouterUsage | undefine
       totalTokens: usage.total_tokens
     }
   };
+}
+
+function logUsageDiagnostics(
+  logger: AistLogger | undefined,
+  message: string,
+  model: string,
+  usage: OpenRouterUsage | undefined,
+  stream: boolean
+): void {
+  logger?.info(message, {
+    model,
+    stream,
+    hasUsage: Boolean(usage),
+    promptTokens: usage?.prompt_tokens,
+    completionTokens: usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+    usageKeys: usage ? Object.keys(usage) : []
+  });
 }
 
 function getReasoningDelta(delta: OpenRouterStreamDelta): string {

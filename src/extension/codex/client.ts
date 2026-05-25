@@ -186,10 +186,12 @@ export class CodexClient {
     }
 
     if (response.body) {
-      return parseCodexStream(response.body, stream);
+      return parseCodexStream(response.body, stream, model, this.logger);
     }
 
-    return parseCodexResponse((await response.json()) as CodexResponse);
+    const data = (await response.json()) as CodexResponse;
+    logCodexUsageDiagnostics(this.logger, 'ChatGPT Codex response received', model, data.usage, false);
+    return parseCodexResponse(data);
   }
 
   listModels(): OpenRouterModelOption[] {
@@ -542,9 +544,29 @@ function withCodexUsage(message: OpenRouterMessage, usage: CodexUsage | undefine
   };
 }
 
+function logCodexUsageDiagnostics(
+  logger: AistLogger,
+  message: string,
+  model: string,
+  usage: CodexUsage | undefined,
+  stream: boolean
+): void {
+  logger.info(message, {
+    model,
+    stream,
+    hasUsage: Boolean(usage),
+    promptTokens: usage?.input_tokens ?? usage?.prompt_tokens,
+    completionTokens: usage?.output_tokens ?? usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+    usageKeys: usage ? Object.keys(usage) : []
+  });
+}
+
 async function parseCodexStream(
   body: ReadableStream<Uint8Array>,
-  callbacks?: ModelStreamCallbacks
+  callbacks: ModelStreamCallbacks | undefined,
+  model: string,
+  logger: AistLogger
 ): Promise<OpenRouterMessage> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -621,6 +643,7 @@ async function parseCodexStream(
       output_text: completedResponse.output_text || outputText,
       output: completedResponse.output?.length ? completedResponse.output : outputItems
     };
+    logCodexUsageDiagnostics(logger, 'ChatGPT Codex stream completed', model, enrichedResponse.usage, true);
 
     try {
       return parseCodexResponse(enrichedResponse);
@@ -637,6 +660,7 @@ async function parseCodexStream(
     }
   }
 
+  logCodexUsageDiagnostics(logger, 'ChatGPT Codex stream completed', model, undefined, true);
   return parseCodexResponse({
     output_text: outputText,
     output: outputItems

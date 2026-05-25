@@ -162,18 +162,18 @@ select {
     font-family: inherit;
   }
 
-  .activity-detail-marquee {
-    position: relative;
-    overflow: hidden;
-    white-space: nowrap;
-    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 16px), transparent 100%);
+  .activity-detail-text {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.45;
   }
 
-  .activity-detail-marquee span {
-    display: inline-block;
-    min-width: max-content;
-    padding-right: 32px;
-    animation: activity-detail-marquee 9s linear infinite;
+  .activity-detail-text p {
+    margin: 0;
+  }
+
+  .activity-detail-text p + p {
+    margin-top: 4px;
   }
 
   .icon-button {

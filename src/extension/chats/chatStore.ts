@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 
 import { DEFAULT_MODEL } from '../shared/constants';
-import type { Chat, ChatMessage, ChatSummary, ChatUsageEstimate } from './types';
+import type { Chat, ChatContextEstimate, ChatMessage, ChatSummary, ChatUsageEstimate } from './types';
 
 const EMPTY_USAGE: ChatUsageEstimate = {
   promptTokens: 0,
@@ -330,6 +330,13 @@ export class ChatStore {
     chat.usage = next;
     this.touch(chat);
     return next;
+  }
+
+  setContext(chatId: string, context: ChatContextEstimate | undefined): void {
+    const chat = this.requireChat(chatId);
+    chat.context = context;
+    chat.contextLength = context?.tokens;
+    this.touch(chat);
   }
 
   setActivity(chatId: string, activity: Chat['activity'], detail?: string): void {

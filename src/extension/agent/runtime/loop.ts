@@ -14,7 +14,12 @@ import type { AgentLoopResult, AgentRun } from '../types';
 import { getPersistableHistory } from './runtime';
 import { findRepeatedToolCall, getRepeatedToolCallAnswer, redactLargeArgs } from './toolCalls';
 import { getAgentTools } from './tools';
-import { createEmptyUsage, getCallUsageFromModelUsage, mergeUsage } from './usage';
+import {
+  createEmptyUsage,
+  getCallUsageFromModelUsage,
+  getChatContextEstimateFromModelUsage,
+  mergeUsage
+} from './usage';
 
 export type RunAgentLoopDeps = {
   chats: ChatStore;
@@ -146,9 +151,13 @@ async function requestModel(
     run.activityStream
   );
   const callUsage = getCallUsageFromModelUsage(responseMessage.usage, model?.pricing);
+  const callContext = getChatContextEstimateFromModelUsage(responseMessage.usage, model);
   mergeUsage(usage, callUsage);
   if (callUsage) {
     deps.chats.addUsage(chat.id, callUsage);
+  }
+  if (callContext) {
+    deps.chats.setContext(chat.id, callContext);
   }
 
   return responseMessage;

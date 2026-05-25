@@ -15,10 +15,34 @@ import type {
 export function getChatContextEstimate(
   _history: OpenRouterMessage[],
   _systemPrompt: string,
-  model: OpenRouterModelOption | undefined
+  model: OpenRouterModelOption | undefined,
+  usage?: ChatUsageEstimate
 ): ChatContextEstimate {
+  return createChatContextEstimate(usage?.promptTokens, model) || {};
+}
+
+export function getChatContextEstimateFromModelUsage(
+  usage: ModelUsage | undefined,
+  model: OpenRouterModelOption | undefined
+): ChatContextEstimate | undefined {
+  return createChatContextEstimate(usage?.promptTokens, model, false);
+}
+
+function createChatContextEstimate(
+  tokens: number | undefined,
+  model: OpenRouterModelOption | undefined,
+  includeEmpty = true
+): ChatContextEstimate | undefined {
+  const maxTokens = model?.contextLength;
+  if (!tokens) {
+    return includeEmpty ? { maxTokens } : undefined;
+  }
+
   return {
-    maxTokens: model?.contextLength
+    tokens,
+    maxTokens,
+    percent: maxTokens ? (tokens / maxTokens) * 100 : undefined,
+    inputCostUsd: getCostUsd(tokens, 0, model?.pricing)
   };
 }
 

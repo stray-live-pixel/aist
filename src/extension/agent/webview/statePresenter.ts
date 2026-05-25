@@ -101,7 +101,9 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
   const activeChat = context.chats.getChat(surface.getChatId()) || context.chats.getActiveChat();
   const models = mergeModels(context.modelOptions, context.configuredModel, activeChat.model);
   const activeModel = models.find((model) => model.id === activeChat.model);
-  const chatContext = getChatContextEstimate(activeChat.history, context.getSystemPrompt(), activeModel);
+  const chatContext =
+    activeChat.context ||
+    getChatContextEstimate(activeChat.history, context.getSystemPrompt(), activeModel, activeChat.usage);
   const previousChat = activeChat.previousChatId ? context.chats.getChat(activeChat.previousChatId) : undefined;
   const { history: _history, ...webviewChat } = activeChat;
   const webviewActiveChat = {

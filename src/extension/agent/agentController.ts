@@ -62,7 +62,7 @@ export class AgentController {
   private sidebarChatId: string | undefined;
   private sidebarPage: 'chat' | 'settings' = 'chat';
   private readonly editorSurfaces = new Map<string, WebviewSurface>();
-  private readonly openRouterClient = new OpenRouterClient();
+  private readonly openRouterClient: OpenRouterClient;
   private readonly codexClient: CodexClient;
   private readonly modelCatalog: AgentModelCatalog;
   private readonly runService: AgentRunService;
@@ -74,6 +74,7 @@ export class AgentController {
     private readonly logger: AistLogger
   ) {
     initializeAgentConfigStore(context);
+    this.openRouterClient = new OpenRouterClient(logger);
     this.codexClient = new CodexClient(context, logger);
     this.modelCatalog = new AgentModelCatalog(this.openRouterClient, this.codexClient, logger, () => this.sendState());
     this.runService = new AgentRunService({

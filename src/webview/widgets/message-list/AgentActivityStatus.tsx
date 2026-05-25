@@ -4,6 +4,9 @@
  * операции, чтобы пользователь видел, что агент продолжает работу.
  * Пример использования: <AgentActivityStatus activity="thinking" detail="Calling OpenRouter..." />.
  */
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 import { useI18n } from '../../shared/i18n';
 import type { Chat } from '../../shared/types';
 import { AistAnimatedLogo } from '../../shared/ui/AistLogo';
@@ -18,15 +21,12 @@ export function AgentActivityStatus({ activity, detail }: AgentActivityStatusPro
   const secondaryText = detail || getDefaultDetail(activity, t);
 
   return (
-    <div className="flex items-center gap-3 rounded-[24px] [corner-shape:squircle] border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-[var(--vscode-foreground)]">
-      <AistAnimatedLogo className="aist-logo-sm shrink-0" />
+    <div className="flex items-start gap-3 rounded-[24px] [corner-shape:squircle] border border-[var(--agent-border)] bg-[var(--vscode-input-background)] px-3 py-2 text-[var(--vscode-foreground)]">
+      <AistAnimatedLogo className="aist-logo-sm shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{formatActivity(activity, t)}</div>
-        <div
-          className="activity-detail-marquee text-xs text-[var(--vscode-descriptionForeground)]"
-          title={secondaryText}
-        >
-          <span>{secondaryText}</span>
+        <div className="activity-detail-text text-xs text-[var(--vscode-descriptionForeground)]">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{secondaryText}</ReactMarkdown>
         </div>
       </div>
     </div>
