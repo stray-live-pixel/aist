@@ -14,13 +14,7 @@ import type { AgentLoopResult, AgentRun } from '../types';
 import { getPersistableHistory } from './runtime';
 import { findRepeatedToolCall, getRepeatedToolCallAnswer, redactLargeArgs } from './toolCalls';
 import { getAgentTools } from './tools';
-import {
-  createEmptyUsage,
-  estimateMessageTokens,
-  estimateMessagesTokens,
-  getCallUsageEstimate,
-  mergeUsage
-} from './usage';
+import { createEmptyUsage, getCallUsageFromModelUsage, mergeUsage } from './usage';
 
 export type RunAgentLoopDeps = {
   chats: ChatStore;
@@ -78,12 +72,14 @@ export async function runAgentLoop(
     const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
 
     if (!toolCalls.length) {
-      deps.chats.setActivity(
-        chat.id,
-        'answering',
-        getResponseDetail(responseMessage, t('activity.detail.finalAnswer'))
-      );
-      deps.sendState();
+      if (!run.activityStream?.hasContent()) {
+        deps.chats.setActivity(
+          chat.id,
+          'answering',
+          getResponseDetail(responseMessage, t('activity.detail.finalAnswer'))
+        );
+        deps.sendState();
+      }
       return finishWithAnswer(workingMessages, responseMessage.content || '', responseMessage.reasoning, usage);
     }
 
@@ -142,7 +138,6 @@ async function requestModel(
   usage: ChatUsageEstimate,
   model: OpenRouterModelOption | undefined
 ): Promise<OpenRouterMessage> {
-  const promptTokens = estimateMessagesTokens(workingMessages);
   const responseMessage = await deps.chat(
     workingMessages,
     tools,
@@ -150,10 +145,11 @@ async function requestModel(
     run.abortController.signal,
     run.activityStream
   );
-  const completionTokens = estimateMessageTokens(responseMessage);
-  const callUsage = getCallUsageEstimate(promptTokens, completionTokens, model?.pricing);
+  const callUsage = getCallUsageFromModelUsage(responseMessage.usage, model?.pricing);
   mergeUsage(usage, callUsage);
-  deps.chats.addUsage(chat.id, callUsage);
+  if (callUsage) {
+    deps.chats.addUsage(chat.id, callUsage);
+  }
 
   return responseMessage;
 }

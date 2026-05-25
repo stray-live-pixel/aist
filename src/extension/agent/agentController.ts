@@ -17,7 +17,7 @@ import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
 import { formatChatErrorMessage } from './runtime/errors';
 import { AgentRunService } from './runtime/runService';
-import { getChatContextEstimate, getMessageUsageEstimate } from './runtime/usage';
+import { getChatContextEstimate } from './runtime/usage';
 import type { WebviewMessage, WebviewSurface } from './types';
 import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from './webview/host';
 import { handleAgentWebviewMessage } from './webview/messages';
@@ -315,8 +315,7 @@ export class AgentController {
       };
       this.chats.updateMessage(source.id, toolMessage.id, {
         status: 'done',
-        result,
-        usage: getMessageUsageEstimate(result)
+        result
       });
       this.logger.info('Chat compacted', {
         sourceChatId: source.id,
@@ -330,8 +329,7 @@ export class AgentController {
       const result = { ok: false, error: error instanceof Error ? error.message : String(error), trigger };
       this.chats.updateMessage(source.id, toolMessage.id, {
         status: 'error',
-        result,
-        usage: getMessageUsageEstimate(result)
+        result
       });
       this.logger.error('Failed to compact chat', error);
       this.sendState();

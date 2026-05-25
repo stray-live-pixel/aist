@@ -1,54 +1,48 @@
-import type { ChatContextEstimate, ChatMessageUsageEstimate, ChatUsageEstimate } from '../../chats/types';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing } from '../../openrouter/types';
+import type { ChatContextEstimate, ChatUsageEstimate } from '../../chats/types';
+import type {
+  ModelUsage,
+  OpenRouterMessage,
+  OpenRouterModelOption,
+  OpenRouterModelPricing
+} from '../../openrouter/types';
 
 /**
- * Оценивает заполненность контекста для отображения в webview.
+ * Returns only real context data that is known without estimation.
  *
- * Используется при отправке state: UI получает текущие токены, максимум модели
- * и примерную стоимость входного контекста. Это приблизительная оценка по длине
- * текста, потому что точный tokenizer зависит от провайдера и модели.
+ * We intentionally do not estimate tokens from text length. If a provider does
+ * not return usage for a request, token counts stay undefined in the UI.
  */
 export function getChatContextEstimate(
-  history: OpenRouterMessage[],
-  systemPrompt: string,
+  _history: OpenRouterMessage[],
+  _systemPrompt: string,
   model: OpenRouterModelOption | undefined
 ): ChatContextEstimate {
-  const tokens = estimateMessagesTokens([{ role: 'system', content: systemPrompt }, ...history]);
-  const maxTokens = model?.contextLength;
-  const percent = maxTokens ? Math.min(100, Math.round((tokens / maxTokens) * 100)) : undefined;
-  const inputCostUsd = getCostUsd(tokens, 0, model?.pricing);
-
   return {
-    tokens,
-    maxTokens,
-    percent,
-    inputCostUsd
+    maxTokens: model?.contextLength
   };
 }
 
-/**
- * Собирает usage одного вызова модели.
- *
- * Agent loop вызывает функцию после каждого ответа модели и затем накапливает
- * результат в usage чата. Стоимость остается undefined, если у модели нет
- * pricing: так UI не показывает ложную цену.
- */
-export function getCallUsageEstimate(
-  promptTokens: number,
-  completionTokens: number,
+export function getCallUsageFromModelUsage(
+  usage: ModelUsage | undefined,
   pricing: OpenRouterModelPricing | undefined
-): ChatUsageEstimate {
+): ChatUsageEstimate | undefined {
+  if (!usage) {
+    return undefined;
+  }
+
+  const promptTokens = usage.promptTokens || 0;
+  const completionTokens = usage.completionTokens || 0;
+  const totalTokens = usage.totalTokens || promptTokens + completionTokens;
+
+  if (!promptTokens && !completionTokens && !totalTokens) {
+    return undefined;
+  }
+
   return {
     promptTokens,
     completionTokens,
-    totalTokens: promptTokens + completionTokens,
+    totalTokens,
     costUsd: getCostUsd(promptTokens, completionTokens, pricing)
-  };
-}
-
-export function getMessageUsageEstimate(value: unknown): ChatMessageUsageEstimate {
-  return {
-    tokens: estimateValueTokens(value)
   };
 }
 
@@ -60,7 +54,11 @@ export function createEmptyUsage(): ChatUsageEstimate {
   };
 }
 
-export function mergeUsage(target: ChatUsageEstimate, usage: ChatUsageEstimate): void {
+export function mergeUsage(target: ChatUsageEstimate, usage: ChatUsageEstimate | undefined): void {
+  if (!usage) {
+    return;
+  }
+
   target.promptTokens += usage.promptTokens;
   target.completionTokens += usage.completionTokens;
   target.totalTokens += usage.totalTokens;
@@ -68,25 +66,6 @@ export function mergeUsage(target: ChatUsageEstimate, usage: ChatUsageEstimate):
     target.costUsd === undefined && usage.costUsd === undefined
       ? undefined
       : (target.costUsd || 0) + (usage.costUsd || 0);
-}
-
-export function estimateMessagesTokens(messages: OpenRouterMessage[]): number {
-  return messages.reduce((sum, message) => sum + estimateMessageTokens(message), 0);
-}
-
-export function estimateMessageTokens(message: OpenRouterMessage): number {
-  return estimateValueTokens({
-    role: message.role,
-    content: message.content,
-    reasoning: message.reasoning,
-    tool_calls: message.tool_calls,
-    tool_call_id: message.tool_call_id
-  });
-}
-
-function estimateValueTokens(value: unknown): number {
-  const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
-  return Math.max(1, Math.ceil(text.length / 4));
 }
 
 function getCostUsd(

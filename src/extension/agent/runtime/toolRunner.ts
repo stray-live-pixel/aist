@@ -8,7 +8,6 @@ import { type FilesystemToolPreview, previewFilesystemTool, runFilesystemTool } 
 import { getToolPermission } from '../../tools/permissions';
 import type { AgentRun } from '../types';
 import { getToolReason, parseToolArguments } from './toolCalls';
-import { getMessageUsageEstimate } from './usage';
 
 export type HandleAgentToolCallParams = {
   chat: Chat;
@@ -75,8 +74,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
       status: result.ok === false ? 'error' : 'done',
       reason,
       args,
-      result: preview ? { preview, result } : result,
-      usage: getMessageUsageEstimate(result)
+      result: preview ? { preview, result } : result
     });
     params.workingMessages.push({
       role: 'tool',
@@ -89,8 +87,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
       status: 'error',
       reason,
       args,
-      result,
-      usage: getMessageUsageEstimate(result)
+      result
     });
     params.workingMessages.push({
       role: 'tool',
@@ -145,8 +142,7 @@ function denyToolCall(params: ApprovalParams): void {
     approval: 'denied',
     reason: params.reason,
     args: params.args,
-    result: params.preview ? { preview: params.preview, result } : result,
-    usage: getMessageUsageEstimate(result)
+    result: params.preview ? { preview: params.preview, result } : result
   });
   params.workingMessages.push({
     role: 'tool',

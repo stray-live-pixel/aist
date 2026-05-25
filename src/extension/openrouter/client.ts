@@ -14,12 +14,20 @@ type OpenRouterResponse = {
   choices?: Array<{
     message?: OpenRouterMessage;
   }>;
+  usage?: OpenRouterUsage;
+};
+
+type OpenRouterUsage = {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
 };
 
 type OpenRouterStreamChunk = {
   choices?: Array<{
     delta?: OpenRouterStreamDelta;
   }>;
+  usage?: OpenRouterUsage;
 };
 
 type OpenRouterStreamDelta = {
@@ -89,7 +97,7 @@ export class OpenRouterClient {
         messages,
         ...(tools ? { tools, tool_choice: 'auto' } : {}),
         ...(reasoningEffort === 'auto' ? {} : { reasoning: { effort: reasoningEffort } }),
-        ...(stream ? { stream: true } : {}),
+        ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
         temperature: 0.2
       })
     });
@@ -110,7 +118,7 @@ export class OpenRouterClient {
       throw new Error('OpenRouter returned an empty response.');
     }
 
-    return answer;
+    return withUsage(answer, data.usage);
   }
 
   async listModels(): Promise<OpenRouterModelOption[]> {
@@ -153,6 +161,7 @@ async function parseOpenRouterStream(
   const contentParts: string[] = [];
   const reasoningParts: string[] = [];
   const toolCalls = new Map<number, ToolCall>();
+  let usage: OpenRouterUsage | undefined;
   let buffer = '';
 
   while (true) {
@@ -166,13 +175,13 @@ async function parseOpenRouterStream(
     buffer = parts.pop() || '';
 
     for (const part of parts) {
-      handleOpenRouterStreamChunk(part, contentParts, reasoningParts, toolCalls, callbacks);
+      usage = handleOpenRouterStreamChunk(part, contentParts, reasoningParts, toolCalls, callbacks) || usage;
     }
   }
 
   buffer += decoder.decode();
   if (buffer.trim()) {
-    handleOpenRouterStreamChunk(buffer, contentParts, reasoningParts, toolCalls, callbacks);
+    usage = handleOpenRouterStreamChunk(buffer, contentParts, reasoningParts, toolCalls, callbacks) || usage;
   }
 
   const content = contentParts.join('');
@@ -186,12 +195,17 @@ async function parseOpenRouterStream(
     throw new Error('OpenRouter returned an empty streamed response.');
   }
 
-  return {
-    role: 'assistant',
-    content,
-    ...(reasoning ? { reasoning } : {}),
-    ...(normalizedToolCalls.length ? { tool_calls: normalizedToolCalls } : {})
-  };
+  callbacks.onComplete?.();
+
+  return withUsage(
+    {
+      role: 'assistant',
+      content,
+      ...(reasoning ? { reasoning } : {}),
+      ...(normalizedToolCalls.length ? { tool_calls: normalizedToolCalls } : {})
+    },
+    usage
+  );
 }
 
 function handleOpenRouterStreamChunk(
@@ -200,7 +214,8 @@ function handleOpenRouterStreamChunk(
   reasoningParts: string[],
   toolCalls: Map<number, ToolCall>,
   callbacks: ModelStreamCallbacks
-): void {
+): OpenRouterUsage | undefined {
+  let usage: OpenRouterUsage | undefined;
   for (const line of chunk.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed.startsWith('data:')) {
@@ -218,6 +233,8 @@ function handleOpenRouterStreamChunk(
     } catch {
       continue;
     }
+
+    usage = parsed.usage || usage;
 
     const delta = parsed.choices?.[0]?.delta;
     if (!delta) {
@@ -239,6 +256,23 @@ function handleOpenRouterStreamChunk(
       mergeToolCallDelta(toolCalls, toolDelta);
     }
   }
+
+  return usage;
+}
+
+function withUsage(message: OpenRouterMessage, usage: OpenRouterUsage | undefined): OpenRouterMessage {
+  if (!usage) {
+    return message;
+  }
+
+  return {
+    ...message,
+    usage: {
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens
+    }
+  };
 }
 
 function getReasoningDelta(delta: OpenRouterStreamDelta): string {

@@ -45,6 +45,15 @@ type CodexResponse = {
   choices?: Array<{
     message?: OpenRouterMessage;
   }>;
+  usage?: CodexUsage;
+};
+
+type CodexUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
 };
 
 type CodexStreamEvent = {
@@ -465,7 +474,7 @@ function toCodexTool(tool: OpenRouterTool): Record<string, unknown> {
 function parseCodexResponse(data: CodexResponse): OpenRouterMessage {
   const chatMessage = data.choices?.[0]?.message;
   if (chatMessage) {
-    return chatMessage;
+    return withCodexUsage(chatMessage, data.usage);
   }
 
   const textParts: string[] = [];
@@ -507,11 +516,29 @@ function parseCodexResponse(data: CodexResponse): OpenRouterMessage {
     throw new Error('ChatGPT Codex returned an empty response.');
   }
 
+  return withCodexUsage(
+    {
+      role: 'assistant',
+      content,
+      ...(reasoningParts.length ? { reasoning: reasoningParts.join('\n') } : {}),
+      ...(toolCalls.length ? { tool_calls: toolCalls } : {})
+    },
+    data.usage
+  );
+}
+
+function withCodexUsage(message: OpenRouterMessage, usage: CodexUsage | undefined): OpenRouterMessage {
+  if (!usage) {
+    return message;
+  }
+
   return {
-    role: 'assistant',
-    content,
-    ...(reasoningParts.length ? { reasoning: reasoningParts.join('\n') } : {}),
-    ...(toolCalls.length ? { tool_calls: toolCalls } : {})
+    ...message,
+    usage: {
+      promptTokens: usage.input_tokens ?? usage.prompt_tokens,
+      completionTokens: usage.output_tokens ?? usage.completion_tokens,
+      totalTokens: usage.total_tokens
+    }
   };
 }
 
@@ -585,6 +612,8 @@ async function parseCodexStream(
       completedResponse = event.response;
     }
   }
+
+  callbacks?.onComplete?.();
 
   if (completedResponse) {
     const enrichedResponse: CodexResponse = {

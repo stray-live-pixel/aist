@@ -32,7 +32,7 @@ export type ChatUsageEstimate = {
 };
 
 export type ChatContextEstimate = {
-  tokens: number;
+  tokens?: number;
   maxTokens?: number;
   percent?: number;
   inputCostUsd?: number;

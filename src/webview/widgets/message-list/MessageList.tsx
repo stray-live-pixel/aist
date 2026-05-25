@@ -83,7 +83,7 @@ export function MessageList({
       className={`min-h-0 flex-1 overflow-y-auto bg-transparent px-3 py-3 [scrollbar-gutter:stable] ${bottomOffsetClass}`}
       onScroll={handleScroll}
     >
-      <div className="sticky top-0 z-10 mb-1 flex w-full bg-gradient-to-b from-[var(--vscode-editor-background)] via-[var(--vscode-editor-background)] to-transparent py-1 pr-12">
+      <div className="sticky top-0 z-10 mb-1 flex w-full py-1 pr-12">
         <SystemInstructionLabel
           mode={activeMode}
           sources={instructionSources}

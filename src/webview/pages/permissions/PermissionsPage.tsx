@@ -327,7 +327,7 @@ function InstructionSettingsPage({
   );
 }
 
-function ModesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+export function ModesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
   return <PromptManager promptConfig={promptConfig} defaultTab="priorities" focus="modes" />;
 }
 

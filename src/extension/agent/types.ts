@@ -25,6 +25,7 @@ export type AgentRun = {
 
 export type AgentActivityStream = ModelStreamCallbacks & {
   reset(): void;
+  hasContent(): boolean;
 };
 
 /**

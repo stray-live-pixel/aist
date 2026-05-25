@@ -165,9 +165,7 @@ function CompactSelect({
 
 function ContextUsagePie({ context }: { context: ChatContextEstimate | undefined }) {
   const { t } = useI18n();
-  const percent = clampPercent(
-    context?.percent ?? (context?.maxTokens ? (context.tokens / context.maxTokens) * 100 : 0)
-  );
+  const percent = clampPercent(context?.percent ?? 0);
   const title = formatContextFill(context, t('common.notAvailable'));
 
   return (
@@ -207,7 +205,7 @@ function clampPercent(value: number): number {
 }
 
 function formatContextFill(context: ChatContextEstimate | undefined, fallback: string): string {
-  if (!context) {
+  if (!context?.tokens) {
     return fallback;
   }
 

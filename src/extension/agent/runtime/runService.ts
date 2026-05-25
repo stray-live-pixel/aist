@@ -16,7 +16,6 @@ import { MAX_MODEL_REQUEST_ATTEMPTS, formatChatErrorMessage, isRetryableModelReq
 import { runAgentLoop } from './loop';
 import { isAbortError } from './runtime';
 import { handleAgentToolCall } from './toolRunner';
-import { getMessageUsageEstimate } from './usage';
 
 export type AgentRunServiceDeps = {
   chats: ChatStore;
@@ -64,7 +63,11 @@ export class AgentRunService {
       const result = await this.runLoopWithRetries(chat, initialHistory, run);
       this.deps.chats.setHistory(chat.id, result.history);
       this.deps.chats.setLastAnswer(chat.id, result.answer);
-      this.deps.chats.appendMessage(chat.id, { role: 'assistant', content: result.answer, usage: result.usage });
+      this.deps.chats.appendMessage(chat.id, {
+        role: 'assistant',
+        content: result.answer,
+        usage: result.usage.totalTokens ? result.usage : undefined
+      });
     } catch (error) {
       this.handleRunError(chat, run, error);
     } finally {
@@ -94,7 +97,7 @@ export class AgentRunService {
 
   private startRun(chat: Chat, prompt: string): AgentRun {
     this.deps.logger.info('Agent run started', { chatId: chat.id, promptLength: prompt.length });
-    this.deps.chats.appendMessage(chat.id, { role: 'user', content: prompt, usage: getMessageUsageEstimate(prompt) });
+    this.deps.chats.appendMessage(chat.id, { role: 'user', content: prompt });
     this.deps.chats.setBusy(chat.id, true);
     this.deps.chats.setActivity(chat.id, 'thinking', t('activity.detail.prepareRequest'));
     const run = {
@@ -200,6 +203,8 @@ export class AgentRunService {
         content = '';
         lastUpdateAt = 0;
       },
+      hasContent: () => Boolean(normalizeActivityPreview(reasoning) || normalizeActivityPreview(content)),
+      onComplete: () => flush(true),
       onReasoningDelta: (delta) => {
         reasoning += delta;
         flush();

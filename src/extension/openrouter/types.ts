@@ -6,6 +6,13 @@ export type OpenRouterMessage = {
   reasoning?: string;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
+  usage?: ModelUsage;
+};
+
+export type ModelUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 };
 
 export type ToolCall = {
@@ -20,6 +27,7 @@ export type ToolCall = {
 export type ModelStreamCallbacks = {
   onReasoningDelta?(delta: string): void;
   onContentDelta?(delta: string): void;
+  onComplete?(): void;
 };
 
 export type OpenRouterTool = {
