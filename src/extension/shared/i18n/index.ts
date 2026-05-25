@@ -23,5 +23,12 @@ function interpolate(template: string, values?: TranslationValues): string {
     return template;
   }
 
-  return template.replace(/{{(\w+)}}/g, (match, name) => String(values[name] ?? match));
+  return template.replace(/{{(\w+)}}/g, (match, name) => {
+    const value = values[name];
+    if (name === 'reason') {
+      const reason = String(value || '').trim();
+      return reason ? `: ${reason}` : '.';
+    }
+    return String(value ?? match);
+  });
 }

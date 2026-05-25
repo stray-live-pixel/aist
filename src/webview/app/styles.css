@@ -671,6 +671,21 @@ select {
     width: min(980px, 100%);
   }
 
+  .global-error-modal {
+    border-color: color-mix(in srgb, var(--vscode-errorForeground) 72%, var(--agent-border));
+    background: color-mix(in srgb, var(--vscode-errorForeground) 8%, var(--vscode-editor-background));
+    box-shadow: 0 18px 54px color-mix(in srgb, var(--vscode-errorForeground) 26%, rgb(0 0 0 / 0.35));
+  }
+
+  .global-error-modal-header {
+    border-bottom-color: color-mix(in srgb, var(--vscode-errorForeground) 52%, var(--agent-border));
+    color: var(--vscode-errorForeground);
+  }
+
+  .global-error-modal-code {
+    color: var(--vscode-errorForeground);
+  }
+
   .tool-modal-header {
     display: flex;
     align-items: flex-start;

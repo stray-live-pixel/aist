@@ -11,6 +11,7 @@ export type ChatMessage = {
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
   usage?: ChatMessageUsageEstimate;
+  marker?: string;
   createdAt: number;
 };
 
@@ -200,7 +201,8 @@ export type ExtensionToWebviewMessage =
   | ({
       type: 'state';
     } & AgentState)
-  | { type: 'page'; page: 'chat' | 'settings' };
+  | { type: 'page'; page: 'chat' | 'settings' }
+  | { type: 'errorModal'; message: string };
 
 export type WebviewToExtensionMessage =
   | { type: 'webviewReady' }

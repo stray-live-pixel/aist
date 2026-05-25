@@ -13,6 +13,7 @@ export type ChatMessage = {
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
   usage?: ChatMessageUsageEstimate;
+  marker?: string;
   createdAt: number;
 };
 

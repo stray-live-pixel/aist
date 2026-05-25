@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
 import { ChatStore } from '../chats/chatStore';
+import { createChatErrorMessage } from '../chats/errorMessages';
 import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
-import type { OpenRouterMessage, OpenRouterTool } from '../openrouter/types';
+import type { ModelStreamCallbacks, OpenRouterMessage, OpenRouterTool } from '../openrouter/types';
 import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
 import { editSelection as runEditSelectionCommand } from './commands/editSelection';
@@ -14,6 +15,7 @@ import { getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
+import { formatChatErrorMessage } from './runtime/errors';
 import { AgentRunService } from './runtime/runService';
 import { getChatContextEstimate, getMessageUsageEstimate } from './runtime/usage';
 import type { WebviewMessage, WebviewSurface } from './types';
@@ -78,9 +80,11 @@ export class AgentController {
       chats: this.chats,
       logger: this.logger,
       sendState: () => this.sendState(),
+      reportError: (error, options) => this.reportError(error, options),
       getSystemPrompt: () => this.getSystemPrompt(),
       getModelOption: (modelId) => this.modelCatalog.getOption(modelId),
-      chat: (messages, tools, modelOverride, signal) => this.chat(messages, tools, modelOverride, signal)
+      chat: (messages, tools, modelOverride, signal, stream) =>
+        this.chat(messages, tools, modelOverride, signal, stream)
     });
     void this.refreshCodexAuthState();
     this.logger.info('AgentController initialized', {
@@ -195,19 +199,41 @@ export class AgentController {
   }
 
   async editSelection(): Promise<void> {
-    await runEditSelectionCommand({
-      chats: this.chats,
-      getSystemPrompt: () => this.getSystemPrompt(),
-      chat: (messages, tools, modelOverride, signal) => this.chat(messages, tools, modelOverride, signal)
-    });
+    try {
+      await runEditSelectionCommand({
+        chats: this.chats,
+        getSystemPrompt: () => this.getSystemPrompt(),
+        chat: (messages, tools, modelOverride, signal) => this.chat(messages, tools, modelOverride, signal)
+      });
+    } catch (error) {
+      this.runService.stop();
+      this.reportError(error, { context: 'edit selection command' });
+      this.logger.error('Failed to edit selection', error);
+    }
   }
 
   private async ask(chatId: string, prompt: string): Promise<void> {
-    await this.runService.ask(chatId, prompt);
-    await this.compactChatIfNeeded(chatId);
+    try {
+      await this.runService.ask(chatId, prompt);
+      await this.compactChatIfNeeded(chatId);
+    } catch (error) {
+      this.runService.stop();
+      throw error;
+    }
   }
 
   private async handleWebviewMessage(surface: WebviewSurface, message: WebviewMessage): Promise<void> {
+    try {
+      await this.handleWebviewMessageUnsafe(surface, message);
+    } catch (error) {
+      this.runService.stop();
+      this.reportError(error, { chatId: surface.getChatId(), context: `webview command: ${message.type}` });
+      this.logger.error('Unhandled webview message error', error);
+      this.sendState(surface);
+    }
+  }
+
+  private async handleWebviewMessageUnsafe(surface: WebviewSurface, message: WebviewMessage): Promise<void> {
     await handleAgentWebviewMessage(surface, message, {
       chats: this.chats,
       logger: this.logger,
@@ -271,7 +297,7 @@ export class AgentController {
       args
     });
     this.chats.setBusy(source.id, true);
-    this.chats.setActivity(source.id, 'runningTool', 'Summarizing chat history for context compaction.');
+    this.chats.setActivity(source.id, 'runningTool', t('activity.detail.compactingChat'));
     this.sendState();
 
     try {
@@ -340,6 +366,35 @@ export class AgentController {
     await openWorkspaceFileFromWebview({ filePath, line, column, endLine, endColumn, logger: this.logger });
   }
 
+  reportError(error: unknown, options: { chatId?: string; context?: string; appendToChat?: boolean } = {}): void {
+    const content = formatChatErrorMessage(error, options.context);
+    const chat = options.chatId ? this.chats.getChat(options.chatId) : this.chats.getActiveChat();
+
+    if (options.appendToChat !== false && chat) {
+      this.chats.appendMessage(chat.id, createChatErrorMessage(content));
+    }
+
+    this.postErrorModal(content);
+    this.sendState();
+  }
+
+  private postErrorModal(message: string): void {
+    for (const surface of this.getSurfaces()) {
+      void surface.webview.postMessage({ type: 'errorModal', message }).then(
+        (delivered) => {
+          this.logger.info('Error modal posted to webview', {
+            surfaceId: surface.id,
+            kind: surface.kind,
+            delivered
+          });
+        },
+        (error) => {
+          this.logger.error('Failed to post error modal to webview', error);
+        }
+      );
+    }
+  }
+
   private retargetDeletedChat(deletedChatId: string, nextChatId: string): void {
     if (this.sidebarChatId === deletedChatId) {
       this.sidebarChatId = nextChatId;
@@ -395,13 +450,14 @@ export class AgentController {
     messages: OpenRouterMessage[],
     tools?: OpenRouterTool[],
     modelOverride?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    stream?: ModelStreamCallbacks
   ): Promise<OpenRouterMessage> {
     if (isCodexModel(modelOverride)) {
-      return this.codexClient.chat(messages, tools, modelOverride, signal);
+      return this.codexClient.chat(messages, tools, modelOverride, signal, stream);
     }
 
-    return this.openRouterClient.chat(messages, tools, modelOverride, signal);
+    return this.openRouterClient.chat(messages, tools, modelOverride, signal, stream);
   }
 
   private sendState(targetSurface?: WebviewSurface): void {

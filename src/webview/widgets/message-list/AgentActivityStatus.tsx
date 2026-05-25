@@ -40,7 +40,7 @@ function formatActivity(activity: Chat['activity'], t: ReturnType<typeof useI18n
     case 'runningTool':
       return t('activity.runningTool');
     case 'answering':
-      return 'Model is answering';
+      return t('activity.answering');
     case 'stopping':
       return t('activity.stopping');
     default:
@@ -51,13 +51,13 @@ function formatActivity(activity: Chat['activity'], t: ReturnType<typeof useI18n
 function getDefaultDetail(activity: Chat['activity'], t: ReturnType<typeof useI18n>['t']): string {
   switch (activity) {
     case 'waitingForApproval':
-      return 'A tool is ready, but AIST is waiting for your approval.';
+      return t('activity.detail.waitingForApproval');
     case 'runningTool':
-      return 'A tool is currently running in the workspace.';
+      return t('activity.detail.runningTool');
     case 'answering':
-      return 'The model returned text and AIST is preparing the answer.';
+      return t('activity.detail.answering');
     case 'stopping':
-      return 'Abort requested. AIST is cancelling the current operation.';
+      return t('activity.detail.stopping');
     default:
       return t('activity.thinking');
   }

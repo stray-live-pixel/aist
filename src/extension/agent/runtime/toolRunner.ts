@@ -2,6 +2,7 @@ import type { ChatStore } from '../../chats/chatStore';
 import type { Chat } from '../../chats/types';
 import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
 import { getErrorMessage } from '../../shared/errors';
+import { t } from '../../shared/i18n';
 import { getSkillPermission, runAgentSkill } from '../../skills/skills';
 import { type FilesystemToolPreview, previewFilesystemTool, runFilesystemTool } from '../../tools/filesystemTools';
 import { getToolPermission } from '../../tools/permissions';
@@ -38,7 +39,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     reason,
     args
   });
-  params.chats.setActivity(params.chat.id, 'thinking', `Preparing tool ${toolName}${reason ? `: ${reason}` : '.'}`);
+  params.chats.setActivity(params.chat.id, 'thinking', t('activity.detail.prepareTool', { tool: toolName, reason }));
   params.sendState();
 
   let previewHandle: FilesystemToolPreview | undefined;
@@ -55,7 +56,11 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     }
 
     params.throwIfStopped(params.run);
-    params.chats.setActivity(params.chat.id, 'runningTool', `Running ${toolName}${reason ? `: ${reason}` : '.'}`);
+    params.chats.setActivity(
+      params.chat.id,
+      'runningTool',
+      t('activity.detail.runningTool', { tool: toolName, reason })
+    );
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: 'running',
       approval: permission === 'ask' ? 'approved' : undefined,
@@ -117,7 +122,7 @@ async function waitForToolApproval(params: ApprovalParams): Promise<void> {
   params.chats.setActivity(
     params.chat.id,
     'waitingForApproval',
-    `Waiting for approval to run ${params.toolCall.function.name}${params.reason ? `: ${params.reason}` : '.'}`
+    t('activity.detail.waitingApproval', { tool: params.toolCall.function.name, reason: params.reason })
   );
   params.chats.updateMessage(params.chat.id, params.toolMessageId, {
     status: 'waiting',

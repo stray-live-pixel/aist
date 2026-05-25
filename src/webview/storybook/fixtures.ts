@@ -316,10 +316,17 @@ export const storyMessages: ChatMessage[] = [
     createdAt: storyNow - 1000 * 60 * 2
   },
   {
+    id: 'msg-agent-error',
+    role: 'assistant',
+    marker: 'aist:internal-error-message:v1',
+    content: '**AIST error (model request attempt 1/3)**\n\nNetwork connection was interrupted. Retrying the request.',
+    createdAt: storyNow - 1000 * 60
+  },
+  {
     id: 'msg-agent-tools-summary',
     role: 'assistant',
     content: 'Проверил места использования `MessageCard` и подготовил группировку tool calls под общий cut.',
-    createdAt: storyNow - 1000 * 60
+    createdAt: storyNow - 1000 * 45
   }
 ];
 

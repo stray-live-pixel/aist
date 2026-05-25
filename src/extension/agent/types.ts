@@ -1,7 +1,7 @@
 import type * as vscode from 'vscode';
 
 import type { ChatUsageEstimate } from '../chats/types';
-import type { OpenRouterMessage } from '../openrouter/types';
+import type { ModelStreamCallbacks, OpenRouterMessage } from '../openrouter/types';
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
@@ -19,7 +19,12 @@ export type AgentRun = {
   chatId: string;
   abortController: AbortController;
   stopRequested: boolean;
+  activityStream?: AgentActivityStream;
   permissionResolvers: Map<string, (approved: boolean) => void>;
+};
+
+export type AgentActivityStream = ModelStreamCallbacks & {
+  reset(): void;
 };
 
 /**

@@ -1,12 +1,42 @@
 import * as vscode from 'vscode';
 
 import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterModelPricing, OpenRouterTool } from './types';
+import type {
+  ModelStreamCallbacks,
+  OpenRouterMessage,
+  OpenRouterModelOption,
+  OpenRouterModelPricing,
+  OpenRouterTool,
+  ToolCall
+} from './types';
 
 type OpenRouterResponse = {
   choices?: Array<{
     message?: OpenRouterMessage;
   }>;
+};
+
+type OpenRouterStreamChunk = {
+  choices?: Array<{
+    delta?: OpenRouterStreamDelta;
+  }>;
+};
+
+type OpenRouterStreamDelta = {
+  content?: string;
+  reasoning?: string;
+  reasoning_content?: string;
+  reasoning_details?: Array<{ text?: string }>;
+  tool_calls?: OpenRouterToolCallDelta[];
+};
+
+type OpenRouterToolCallDelta = {
+  index?: number;
+  id?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
 };
 
 type OpenRouterModelApiItem = {
@@ -31,7 +61,8 @@ export class OpenRouterClient {
     messages: OpenRouterMessage[],
     tools?: OpenRouterTool[],
     modelOverride?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    stream?: ModelStreamCallbacks
   ): Promise<OpenRouterMessage> {
     const config = vscode.workspace.getConfiguration('openrouterAgent');
     const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
@@ -58,6 +89,7 @@ export class OpenRouterClient {
         messages,
         ...(tools ? { tools, tool_choice: 'auto' } : {}),
         ...(reasoningEffort === 'auto' ? {} : { reasoning: { effort: reasoningEffort } }),
+        ...(stream ? { stream: true } : {}),
         temperature: 0.2
       })
     });
@@ -65,6 +97,10 @@ export class OpenRouterClient {
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`OpenRouter request failed: ${response.status} ${response.statusText}\n${text}`);
+    }
+
+    if (stream && response.body) {
+      return parseOpenRouterStream(response.body, stream);
     }
 
     const data = (await response.json()) as OpenRouterResponse;
@@ -106,6 +142,126 @@ export class OpenRouterClient {
 
     return models.sort((a, b) => a.name.localeCompare(b.name));
   }
+}
+
+async function parseOpenRouterStream(
+  body: ReadableStream<Uint8Array>,
+  callbacks: ModelStreamCallbacks
+): Promise<OpenRouterMessage> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const contentParts: string[] = [];
+  const reasoningParts: string[] = [];
+  const toolCalls = new Map<number, ToolCall>();
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split(/\r?\n\r?\n/);
+    buffer = parts.pop() || '';
+
+    for (const part of parts) {
+      handleOpenRouterStreamChunk(part, contentParts, reasoningParts, toolCalls, callbacks);
+    }
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    handleOpenRouterStreamChunk(buffer, contentParts, reasoningParts, toolCalls, callbacks);
+  }
+
+  const content = contentParts.join('');
+  const reasoning = reasoningParts.join('');
+  const normalizedToolCalls = [...toolCalls.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, toolCall]) => toolCall)
+    .filter((toolCall) => toolCall.id && toolCall.function.name);
+
+  if (!content && !reasoning && !normalizedToolCalls.length) {
+    throw new Error('OpenRouter returned an empty streamed response.');
+  }
+
+  return {
+    role: 'assistant',
+    content,
+    ...(reasoning ? { reasoning } : {}),
+    ...(normalizedToolCalls.length ? { tool_calls: normalizedToolCalls } : {})
+  };
+}
+
+function handleOpenRouterStreamChunk(
+  chunk: string,
+  contentParts: string[],
+  reasoningParts: string[],
+  toolCalls: Map<number, ToolCall>,
+  callbacks: ModelStreamCallbacks
+): void {
+  for (const line of chunk.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('data:')) {
+      continue;
+    }
+
+    const data = trimmed.slice('data:'.length).trim();
+    if (!data || data === '[DONE]') {
+      continue;
+    }
+
+    let parsed: OpenRouterStreamChunk;
+    try {
+      parsed = JSON.parse(data) as OpenRouterStreamChunk;
+    } catch {
+      continue;
+    }
+
+    const delta = parsed.choices?.[0]?.delta;
+    if (!delta) {
+      continue;
+    }
+
+    const reasoningDelta = getReasoningDelta(delta);
+    if (reasoningDelta) {
+      reasoningParts.push(reasoningDelta);
+      callbacks.onReasoningDelta?.(reasoningDelta);
+    }
+
+    if (delta.content) {
+      contentParts.push(delta.content);
+      callbacks.onContentDelta?.(delta.content);
+    }
+
+    for (const toolDelta of delta.tool_calls || []) {
+      mergeToolCallDelta(toolCalls, toolDelta);
+    }
+  }
+}
+
+function getReasoningDelta(delta: OpenRouterStreamDelta): string {
+  return (
+    delta.reasoning || delta.reasoning_content || delta.reasoning_details?.map((item) => item.text || '').join('') || ''
+  );
+}
+
+function mergeToolCallDelta(toolCalls: Map<number, ToolCall>, delta: OpenRouterToolCallDelta): void {
+  const index = delta.index ?? toolCalls.size;
+  const current =
+    toolCalls.get(index) ||
+    ({
+      id: '',
+      type: 'function',
+      function: { name: '', arguments: '' }
+    } satisfies ToolCall);
+
+  current.id = delta.id || current.id;
+  current.type = 'function';
+  current.function.name = delta.function?.name || current.function.name;
+  current.function.arguments = `${current.function.arguments || ''}${delta.function?.arguments || ''}`;
+  toolCalls.set(index, current);
 }
 
 function normalizeReasoningEffort(value: unknown): ReasoningEffort {

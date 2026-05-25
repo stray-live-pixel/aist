@@ -17,6 +17,11 @@ export type ToolCall = {
   };
 };
 
+export type ModelStreamCallbacks = {
+  onReasoningDelta?(delta: string): void;
+  onContentDelta?(delta: string): void;
+};
+
 export type OpenRouterTool = {
   type: 'function';
   function: {

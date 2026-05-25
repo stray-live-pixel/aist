@@ -3,7 +3,13 @@ import { type Server, createServer } from 'node:http';
 import * as os from 'node:os';
 import * as vscode from 'vscode';
 
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool, ToolCall } from '../openrouter/types';
+import type {
+  ModelStreamCallbacks,
+  OpenRouterMessage,
+  OpenRouterModelOption,
+  OpenRouterTool,
+  ToolCall
+} from '../openrouter/types';
 import { CODEX_RESPONSES_URL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
@@ -138,7 +144,8 @@ export class CodexClient {
     messages: OpenRouterMessage[],
     tools?: OpenRouterTool[],
     modelOverride?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    stream?: ModelStreamCallbacks
   ): Promise<OpenRouterMessage> {
     const auth = await this.getValidAuth();
     const model = stripCodexPrefix(modelOverride || 'codex:gpt-5.1-codex');
@@ -170,7 +177,7 @@ export class CodexClient {
     }
 
     if (response.body) {
-      return parseCodexStream(response.body);
+      return parseCodexStream(response.body, stream);
     }
 
     return parseCodexResponse((await response.json()) as CodexResponse);
@@ -508,7 +515,10 @@ function parseCodexResponse(data: CodexResponse): OpenRouterMessage {
   };
 }
 
-async function parseCodexStream(body: ReadableStream<Uint8Array>): Promise<OpenRouterMessage> {
+async function parseCodexStream(
+  body: ReadableStream<Uint8Array>,
+  callbacks?: ModelStreamCallbacks
+): Promise<OpenRouterMessage> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   const outputItems: CodexOutputItem[] = [];
@@ -546,14 +556,17 @@ async function parseCodexStream(body: ReadableStream<Uint8Array>): Promise<OpenR
 
       if (event.type === 'response.output_text.delta' && event.delta) {
         outputText += event.delta;
+        callbacks?.onContentDelta?.(event.delta);
       }
 
       if (!outputText && event.type === 'response.output_text.done' && event.text) {
         outputText = event.text;
+        callbacks?.onContentDelta?.(event.text);
       }
 
       if (event.type === 'response.content_part.done' && event.part?.text) {
         outputText += event.part.text;
+        callbacks?.onContentDelta?.(event.part.text);
       }
 
       if (event.type === 'response.output_item.done' && event.item) {

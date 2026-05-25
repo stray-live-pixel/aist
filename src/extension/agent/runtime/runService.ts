@@ -1,10 +1,18 @@
 import type { ChatStore } from '../../chats/chatStore';
+import { createChatErrorMessage } from '../../chats/errorMessages';
 import type { Chat } from '../../chats/types';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool, ToolCall } from '../../openrouter/types';
-import { getErrorMessage } from '../../shared/errors';
+import type {
+  ModelStreamCallbacks,
+  OpenRouterMessage,
+  OpenRouterModelOption,
+  OpenRouterTool,
+  ToolCall
+} from '../../openrouter/types';
+import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getEditorContext } from '../context/editorContext';
 import type { AgentRun } from '../types';
+import { MAX_MODEL_REQUEST_ATTEMPTS, formatChatErrorMessage, isRetryableModelRequestError } from './errors';
 import { runAgentLoop } from './loop';
 import { isAbortError } from './runtime';
 import { handleAgentToolCall } from './toolRunner';
@@ -14,13 +22,15 @@ export type AgentRunServiceDeps = {
   chats: ChatStore;
   logger: AistLogger;
   sendState(): void;
+  reportError(error: unknown, options?: { chatId?: string; context?: string; appendToChat?: boolean }): void;
   getSystemPrompt(): string;
   getModelOption(modelId: string): OpenRouterModelOption | undefined;
   chat(
     messages: OpenRouterMessage[],
     tools?: OpenRouterTool[],
     modelOverride?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    stream?: ModelStreamCallbacks
   ): Promise<OpenRouterMessage>;
 };
 
@@ -51,7 +61,7 @@ export class AgentRunService {
     const run = this.startRun(chat, cleanPrompt);
     try {
       const initialHistory = this.createInitialHistory(chat, cleanPrompt);
-      const result = await this.runLoop(chat, initialHistory, run);
+      const result = await this.runLoopWithRetries(chat, initialHistory, run);
       this.deps.chats.setHistory(chat.id, result.history);
       this.deps.chats.setLastAnswer(chat.id, result.answer);
       this.deps.chats.appendMessage(chat.id, { role: 'assistant', content: result.answer, usage: result.usage });
@@ -70,11 +80,7 @@ export class AgentRunService {
 
     run.stopRequested = true;
     run.abortController.abort();
-    this.deps.chats.setActivity(
-      run.chatId,
-      'stopping',
-      'Stop requested. Aborting the model request and denying pending approvals.'
-    );
+    this.deps.chats.setActivity(run.chatId, 'stopping', t('activity.detail.stopRequested'));
     for (const resolver of run.permissionResolvers.values()) {
       resolver(false);
     }
@@ -90,11 +96,12 @@ export class AgentRunService {
     this.deps.logger.info('Agent run started', { chatId: chat.id, promptLength: prompt.length });
     this.deps.chats.appendMessage(chat.id, { role: 'user', content: prompt, usage: getMessageUsageEstimate(prompt) });
     this.deps.chats.setBusy(chat.id, true);
-    this.deps.chats.setActivity(chat.id, 'thinking', 'Preparing request context and sending the prompt to the model.');
+    this.deps.chats.setActivity(chat.id, 'thinking', t('activity.detail.prepareRequest'));
     const run = {
       chatId: chat.id,
       abortController: new AbortController(),
       stopRequested: false,
+      activityStream: this.createActivityStream(chat.id),
       permissionResolvers: new Map()
     };
     this.currentRun = run;
@@ -113,6 +120,42 @@ export class AgentRunService {
     return initialHistory;
   }
 
+  private async runLoopWithRetries(chat: Chat, initialHistory: OpenRouterMessage[], run: AgentRun) {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_MODEL_REQUEST_ATTEMPTS; attempt += 1) {
+      this.throwIfStopped(run);
+      try {
+        if (attempt > 1) {
+          this.deps.chats.setActivity(
+            chat.id,
+            'thinking',
+            t('activity.detail.retryModelRequest', { attempt, max: MAX_MODEL_REQUEST_ATTEMPTS })
+          );
+          this.deps.sendState();
+        }
+        return await this.runLoop(chat, initialHistory, run);
+      } catch (error) {
+        lastError = error;
+        if (run.stopRequested || isAbortError(error) || !isRetryableModelRequestError(error)) {
+          throw error;
+        }
+
+        this.deps.logger.error('Retryable model request failed', error);
+        this.deps.reportError(error, {
+          chatId: chat.id,
+          context: `model request attempt ${attempt}/${MAX_MODEL_REQUEST_ATTEMPTS}`
+        });
+
+        if (attempt >= MAX_MODEL_REQUEST_ATTEMPTS) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
   private runLoop(chat: Chat, initialHistory: OpenRouterMessage[], run: AgentRun) {
     return runAgentLoop(chat, initialHistory, run, {
       chats: this.deps.chats,
@@ -125,6 +168,47 @@ export class AgentRunService {
       sendState: this.deps.sendState,
       throwIfStopped: (targetRun) => this.throwIfStopped(targetRun)
     });
+  }
+
+  private createActivityStream(chatId: string): NonNullable<AgentRun['activityStream']> {
+    let reasoning = '';
+    let content = '';
+    let lastUpdateAt = 0;
+
+    const flush = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastUpdateAt < 120) {
+        return;
+      }
+
+      lastUpdateAt = now;
+      const reasoningPreview = normalizeActivityPreview(reasoning);
+      const contentPreview = normalizeActivityPreview(content);
+      if (reasoningPreview) {
+        this.deps.chats.setActivityDetail(chatId, t('activity.detail.reasoning', { text: reasoningPreview }));
+      } else if (contentPreview) {
+        this.deps.chats.setActivity(chatId, 'answering', t('activity.detail.answerDraft', { text: contentPreview }));
+      } else {
+        return;
+      }
+      this.deps.sendState();
+    };
+
+    return {
+      reset: () => {
+        reasoning = '';
+        content = '';
+        lastUpdateAt = 0;
+      },
+      onReasoningDelta: (delta) => {
+        reasoning += delta;
+        flush();
+      },
+      onContentDelta: (delta) => {
+        content += delta;
+        flush();
+      }
+    };
   }
 
   private handleToolCall(
@@ -160,7 +244,8 @@ export class AgentRunService {
       this.deps.logger.info('Agent run stopped', { chatId: chat.id });
       return;
     }
-    this.deps.chats.appendMessage(chat.id, { role: 'error', content: getErrorMessage(error) });
+    this.deps.chats.appendMessage(chat.id, createChatErrorMessage(formatChatErrorMessage(error, 'agent run failed')));
+    this.deps.reportError(error, { chatId: chat.id, context: 'agent run failed', appendToChat: false });
     this.deps.logger.error('Agent run failed', error);
   }
 
@@ -179,4 +264,13 @@ export class AgentRunService {
       throw new Error('Stopped by user.');
     }
   }
+}
+
+function normalizeActivityPreview(value: string): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= 260) {
+    return normalized;
+  }
+
+  return `${normalized.slice(-260).trimStart()}`;
 }

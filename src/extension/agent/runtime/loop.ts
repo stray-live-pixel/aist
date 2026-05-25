@@ -1,6 +1,12 @@
 import type { ChatStore } from '../../chats/chatStore';
 import type { Chat, ChatUsageEstimate } from '../../chats/types';
-import type { OpenRouterMessage, OpenRouterModelOption, OpenRouterTool } from '../../openrouter/types';
+import type {
+  ModelStreamCallbacks,
+  OpenRouterMessage,
+  OpenRouterModelOption,
+  OpenRouterTool
+} from '../../openrouter/types';
+import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getAgentSkills } from '../../skills/skills';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
@@ -25,7 +31,8 @@ export type RunAgentLoopDeps = {
     messages: OpenRouterMessage[],
     tools?: OpenRouterTool[],
     modelOverride?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    stream?: ModelStreamCallbacks
   ): Promise<OpenRouterMessage>;
   handleToolCall(
     chat: Chat,
@@ -59,10 +66,11 @@ export async function runAgentLoop(
 
   for (let iteration = 0; maxToolIterations === 0 || iteration < maxToolIterations; iteration += 1) {
     deps.throwIfStopped(run);
+    run.activityStream?.reset();
     deps.chats.setActivity(
       chat.id,
       'thinking',
-      `Requesting model response${iteration > 0 ? ` after tool round ${iteration}` : ''}. Waiting for reasoning, text, or tool calls.`
+      iteration > 0 ? t('activity.detail.requestModelAfterTools', { iteration }) : t('activity.detail.requestModel')
     );
     deps.sendState();
 
@@ -73,7 +81,7 @@ export async function runAgentLoop(
       deps.chats.setActivity(
         chat.id,
         'answering',
-        getResponseDetail(responseMessage, 'Model returned a final answer. Preparing the chat message.')
+        getResponseDetail(responseMessage, t('activity.detail.finalAnswer'))
       );
       deps.sendState();
       return finishWithAnswer(workingMessages, responseMessage.content || '', responseMessage.reasoning, usage);
@@ -94,7 +102,7 @@ export async function runAgentLoop(
     deps.chats.setActivity(
       chat.id,
       'thinking',
-      getResponseDetail(responseMessage, `Model requested ${toolCalls.length} tool call(s). Preparing tool execution.`)
+      getResponseDetail(responseMessage, t('activity.detail.modelRequestedTools', { count: toolCalls.length }))
     );
     deps.sendState();
 
@@ -135,7 +143,13 @@ async function requestModel(
   model: OpenRouterModelOption | undefined
 ): Promise<OpenRouterMessage> {
   const promptTokens = estimateMessagesTokens(workingMessages);
-  const responseMessage = await deps.chat(workingMessages, tools, chat.model, run.abortController.signal);
+  const responseMessage = await deps.chat(
+    workingMessages,
+    tools,
+    chat.model,
+    run.abortController.signal,
+    run.activityStream
+  );
   const completionTokens = estimateMessageTokens(responseMessage);
   const callUsage = getCallUsageEstimate(promptTokens, completionTokens, model?.pricing);
   mergeUsage(usage, callUsage);
@@ -147,12 +161,12 @@ async function requestModel(
 function getResponseDetail(message: OpenRouterMessage, fallback: string): string {
   const reasoning = normalizeText(message.reasoning);
   if (reasoning) {
-    return `Reasoning: ${truncateDetail(reasoning)}`;
+    return t('activity.detail.reasoning', { text: truncateDetail(reasoning) });
   }
 
   const content = normalizeText(message.content);
   if (content) {
-    return `Answer draft: ${truncateDetail(content)}`;
+    return t('activity.detail.answerDraft', { text: truncateDetail(content) });
   }
 
   return fallback;
