@@ -43,12 +43,12 @@ export async function handleWebviewPermissionMessage(
 
 /**
  * UI отправляет продуктовые действия кнопок, а runtime нужен компактный объект решения.
- * Здесь сохраняем семантику: комментарий всегда означает «не запускать инструмент, но продолжить с учётом текста».
+ * Комментарий прикладывается к любому решению: approve запускает инструмент, deny-continue возвращает отказ модели, deny-stop останавливает цикл.
  */
 function toApprovalDecision(message: Extract<PermissionMessage, { type: 'resolveToolCall' }>) {
   return {
     approved: message.decision === 'approve',
-    continueAfterDeny: message.decision === 'deny-continue' || message.decision === 'deny-comment',
+    continueAfterDeny: message.decision === 'deny-continue',
     comment: message.comment?.trim() || undefined
   };
 }

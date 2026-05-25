@@ -170,9 +170,9 @@
 
 .options {
   grid-row: 2;
-  display: grid;
+  display: flex;
   min-height: 0;
-  align-content: start;
+  flex-direction: column;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--vscode-descriptionForeground) 30%, transparent) transparent;
@@ -211,10 +211,74 @@
   background: transparent;
 }
 
+
+.optionGroup {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 1px;
+}
+
+.categoryButton {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-dropdown-background) 94%, var(--vscode-editor-background));
+  padding: 5px 7px 4px;
+  text-align: left;
+  outline: none;
+}
+
+.categoryButton:hover,
+.categoryButton:focus-visible {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.categoryChevron {
+  flex-shrink: 0;
+  transition: transform 140ms ease;
+}
+
+.categoryButton[aria-expanded='false'] .categoryChevron {
+  transform: rotate(-90deg);
+}
+
+.categoryLabel {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.categoryCount {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 14%, transparent);
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .option {
   display: flex;
   min-width: 0;
-  min-height: 26px;
+  flex-shrink: 0;
   align-items: flex-start;
   gap: 7px;
   border: 0;
@@ -257,6 +321,7 @@
   font-weight: 600;
   line-height: 1.35;
   white-space: normal;
+  flex: 1;
 }
 
 .empty {

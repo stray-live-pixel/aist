@@ -14,5 +14,12 @@
     "create_directory": "ask",
     "delete_path": "ask"
   },
-  "openrouterAgent.language": "ru"
+  "openrouterAgent.language": "ru",
+  "openrouterAgent.approvalNotifications": {
+    "enabled": true,
+    "systemNotifications": false,
+    "sound": true,
+    "volume": 0.35,
+    "durationSeconds": 3
+  }
 }

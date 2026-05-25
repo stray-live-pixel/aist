@@ -9,7 +9,7 @@ export type { CheckboxProps } from './checkbox';
 export { KeyboardShortcut, Keycap } from './keyboard-shortcut';
 export type { KeyboardShortcutProps, KeycapProps } from './keyboard-shortcut';
 export { Select } from './select';
-export type { SelectOption, SelectProps, SelectSize } from './select';
+export type { SelectCategory, SelectOption, SelectProps, SelectSize } from './select';
 export { Switch } from './switch';
 export type { SwitchProps } from './switch';
 export { TextArea } from './text-area';

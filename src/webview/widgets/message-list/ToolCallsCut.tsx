@@ -10,6 +10,7 @@ type ToolCallsCutProps = {
   userMessage?: ChatMessage;
   assistantMessage?: ChatMessage;
   active: boolean;
+  resolvedApprovalId?: string;
 };
 
 /**
@@ -18,7 +19,7 @@ type ToolCallsCutProps = {
  * а после итогового ответа агента сворачиваются в компактный блок.
  * Пример: шеврон раскрывает список tool-call карточек, пока закрытый cut их не рендерит.
  */
-export function ToolCallsCut({ tools, userMessage, assistantMessage, active }: ToolCallsCutProps) {
+export function ToolCallsCut({ tools, userMessage, assistantMessage, active, resolvedApprovalId }: ToolCallsCutProps) {
   const shouldBeOpen = active || !assistantMessage;
   const [open, setOpen] = useState(shouldBeOpen);
 
@@ -40,7 +41,7 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active }: T
       {open ? (
         <div className="tool-calls-cut-body">
           {tools.map((tool) => (
-            <MessageCard key={tool.id} message={tool} />
+            <MessageCard key={tool.id} message={tool} collapseToolId={resolvedApprovalId} />
           ))}
         </div>
       ) : null}

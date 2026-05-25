@@ -20,6 +20,13 @@ export type SelectOption = {
   value: string;
   label: string;
   disabled?: boolean;
+  category?: string;
+};
+
+export type SelectCategory = {
+  id: string;
+  label: string;
+  defaultCollapsed?: boolean;
 };
 
 export type SelectSize = 'sm' | 'md';
@@ -37,13 +44,25 @@ type DropdownPosition = {
   placement: DropdownPlacement;
 };
 
-function getEstimatedDropdownHeight(optionCount: number, searchable: boolean, size: SelectSize): number {
+function getEstimatedDropdownHeight(
+  optionCount: number,
+  searchable: boolean,
+  size: SelectSize,
+  categoryCount = 0
+): number {
   const padding = 8;
   const searchHeight = searchable ? (size === 'sm' ? 32 : 34) : 0;
   const optionsGap = searchable ? 4 : 0;
   const optionHeight = 27;
+  const categoryHeight = 26;
   const emptyHeight = 32;
-  return padding + searchHeight + optionsGap + Math.max(optionCount, 1) * (optionCount ? optionHeight : emptyHeight);
+  return (
+    padding +
+    searchHeight +
+    optionsGap +
+    categoryCount * categoryHeight +
+    Math.max(optionCount, 1) * (optionCount ? optionHeight : emptyHeight)
+  );
 }
 
 export type SelectProps = Omit<
@@ -54,6 +73,7 @@ export type SelectProps = Omit<
   hint?: string;
   error?: string;
   options: SelectOption[];
+  categories?: SelectCategory[];
   placeholder?: string;
   size?: SelectSize;
   leadingIcon?: ReactNode;
@@ -64,6 +84,39 @@ export type SelectProps = Omit<
   onChange?: (event: SelectChangeEvent) => void;
   onValueChange?: (value: string) => void;
 };
+
+type OptionGroup = {
+  key: string;
+  category?: SelectCategory;
+  options: SelectOption[];
+};
+
+function buildOptionGroups(options: SelectOption[], categories: SelectCategory[] | undefined): OptionGroup[] {
+  if (!categories?.length) {
+    return [{ key: 'default', options }];
+  }
+
+  const groups = new Map<string, OptionGroup>();
+  const uncategorized: SelectOption[] = [];
+
+  for (const category of categories) {
+    groups.set(category.id, { key: category.id, category, options: [] });
+  }
+
+  for (const option of options) {
+    const group = option.category ? groups.get(option.category) : undefined;
+    if (group) {
+      group.options.push(option);
+    } else {
+      uncategorized.push(option);
+    }
+  }
+
+  return [
+    ...Array.from(groups.values()).filter((group) => group.options.length),
+    ...(uncategorized.length ? [{ key: 'default', options: uncategorized }] : [])
+  ];
+}
 
 /**
  * Что это: кастомный searchable select дизайн-системы.
@@ -77,6 +130,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       hint,
       error,
       options,
+      categories,
       placeholder,
       size = 'md',
       leadingIcon,
@@ -104,19 +158,38 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition | undefined>();
+    const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+      () => new Set((categories || []).filter((category) => category.defaultCollapsed).map((category) => category.id))
+    );
     const currentValue = controlled ? value : internalValue;
     const selected = options.find((option) => option.value === currentValue);
     const selectFallback = t('summary.model');
     const displayLabel =
       (selected ? displayLabels?.[selected.value] || selected.label : undefined) || placeholder || selectFallback;
+    const categoryById = useMemo(
+      () => new Map((categories || []).map((category) => [category.id, category])),
+      [categories]
+    );
+    const normalizedQuery = query.trim().toLowerCase();
     const filteredOptions = useMemo(() => {
-      const normalizedQuery = query.trim().toLowerCase();
       if (!normalizedQuery) {
         return options;
       }
 
-      return options.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(normalizedQuery));
-    }, [options, query]);
+      return options.filter((option) => {
+        const categoryLabel = option.category ? categoryById.get(option.category)?.label || option.category : '';
+        return `${option.label} ${option.value} ${categoryLabel}`.toLowerCase().includes(normalizedQuery);
+      });
+    }, [categoryById, normalizedQuery, options]);
+    const optionGroups = useMemo(() => buildOptionGroups(filteredOptions, categories), [categories, filteredOptions]);
+    const visibleOptionCount = useMemo(
+      () =>
+        optionGroups.reduce((count, group) => {
+          const collapsed = group.category && !normalizedQuery && collapsedCategories.has(group.category.id);
+          return count + (collapsed ? 0 : group.options.length);
+        }, 0),
+      [collapsedCategories, normalizedQuery, optionGroups]
+    );
 
     useEffect(() => {
       if (disabled) {
@@ -125,6 +198,27 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       }
     }, [disabled]);
 
+    useEffect(() => {
+      setCollapsedCategories((current) => {
+        const categoryIds = new Set((categories || []).map((category) => category.id));
+        const next = new Set<string>();
+
+        for (const category of categories || []) {
+          if (current.has(category.id) || category.defaultCollapsed) {
+            next.add(category.id);
+          }
+        }
+
+        for (const categoryId of current) {
+          if (categoryIds.has(categoryId)) {
+            next.add(categoryId);
+          }
+        }
+
+        return next;
+      });
+    }, [categories]);
+
     useLayoutEffect(() => {
       if (!open) {
         setDropdownPosition(undefined);
@@ -132,7 +226,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       }
 
       updateDropdownPosition();
-    }, [open, size, filteredOptions.length, searchable, query]);
+    }, [open, size, visibleOptionCount, optionGroups.length, searchable, query]);
 
     useEffect(() => {
       if (!open) {
@@ -178,7 +272,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       const viewportPadding = 12;
       const preferredHeight = Math.min(
         size === 'sm' ? 292 : 320,
-        getEstimatedDropdownHeight(filteredOptions.length, searchable, size)
+        getEstimatedDropdownHeight(visibleOptionCount, searchable, size, optionGroups.length)
       );
       const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
       const spaceAbove = rect.top - viewportPadding;
@@ -195,6 +289,18 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     function closeDropdown() {
       setOpen(false);
       setQuery('');
+    }
+
+    function toggleCategory(categoryId: string) {
+      setCollapsedCategories((current) => {
+        const next = new Set(current);
+        if (next.has(categoryId)) {
+          next.delete(categoryId);
+        } else {
+          next.add(categoryId);
+        }
+        return next;
+      });
     }
 
     function selectValue(nextValue: string) {
@@ -256,21 +362,43 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ) : null}
             <span className={styles.options} role="listbox" aria-label={label || placeholder || selectFallback}>
               {filteredOptions.length ? (
-                filteredOptions.map((option) => {
-                  const active = option.value === currentValue;
+                optionGroups.map((group) => {
+                  const collapsed = group.category && !normalizedQuery && collapsedCategories.has(group.category.id);
+
                   return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={classNames(styles.option, active && styles.optionActive)}
-                      disabled={option.disabled}
-                      role="option"
-                      aria-selected={active}
-                      onClick={() => selectValue(option.value)}
-                    >
-                      <Check size={14} className={classNames(styles.check, active && styles.checkVisible)} />
-                      <span className={styles.optionLabel}>{option.label}</span>
-                    </button>
+                    <span key={group.key} className={styles.optionGroup}>
+                      {group.category ? (
+                        <button
+                          type="button"
+                          className={styles.categoryButton}
+                          aria-expanded={!collapsed}
+                          onClick={() => toggleCategory(group.category!.id)}
+                        >
+                          <ChevronDown className={styles.categoryChevron} size={12} />
+                          <span className={styles.categoryLabel}>{group.category.label}</span>
+                          <span className={styles.categoryCount}>{group.options.length}</span>
+                        </button>
+                      ) : null}
+                      {!collapsed
+                        ? group.options.map((option) => {
+                            const active = option.value === currentValue;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                className={classNames(styles.option, active && styles.optionActive)}
+                                disabled={option.disabled}
+                                role="option"
+                                aria-selected={active}
+                                onClick={() => selectValue(option.value)}
+                              >
+                                <Check size={14} className={classNames(styles.check, active && styles.checkVisible)} />
+                                <span className={styles.optionLabel}>{option.label}</span>
+                              </button>
+                            );
+                          })
+                        : null}
+                    </span>
                   );
                 })
               ) : (
@@ -298,11 +426,29 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {...props}
         >
           {placeholder ? <option value="">{placeholder}</option> : null}
-          {options.map((option) => (
-            <option key={option.value} value={option.value} disabled={option.disabled}>
-              {option.label}
-            </option>
-          ))}
+          {categories?.length
+            ? buildOptionGroups(options, categories).map((group) =>
+                group.category ? (
+                  <optgroup key={group.key} label={group.category.label}>
+                    {group.options.map((option) => (
+                      <option key={option.value} value={option.value} disabled={option.disabled}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : (
+                  group.options.map((option) => (
+                    <option key={option.value} value={option.value} disabled={option.disabled}>
+                      {option.label}
+                    </option>
+                  ))
+                )
+              )
+            : options.map((option) => (
+                <option key={option.value} value={option.value} disabled={option.disabled}>
+                  {option.label}
+                </option>
+              ))}
         </select>
         <span className={classNames(styles.control, error && styles.invalid, open && styles.open)}>
           <button

@@ -91,7 +91,7 @@ export const EmptyStateOnly: Story = {
   parameters: {
     layout: 'padded'
   },
-  render: () => <EmptyState tools={storyTools} />
+  render: () => <EmptyState />
 };
 
 export const SystemInstruction: Story = {

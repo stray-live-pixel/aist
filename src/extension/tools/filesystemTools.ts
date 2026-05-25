@@ -102,7 +102,7 @@ export const filesystemTools: OpenRouterTool[] = [
     function: {
       name: 'run_bash_script',
       description:
-        'Run a Bash script from inside the workspace. Use for tests, builds, git-safe inspections, and shell-based diagnostics.',
+        'Run a Bash script from inside the workspace. Use for tests, builds, git-safe inspections, and shell-based diagnostics. Prefer write_file or replace_in_file for editing files; if using Bash for mass editing, explain why standard file-editing tools are not suitable.',
       parameters: {
         type: 'object',
         properties: {

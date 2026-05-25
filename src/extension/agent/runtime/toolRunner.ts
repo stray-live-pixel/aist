@@ -54,7 +54,13 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     if (permission === 'ask') {
       previewHandle = toolName === 'run_skill' ? undefined : await previewFilesystemTool(toolName, args);
       preview = previewHandle?.preview;
-      await waitForToolApproval({ ...params, toolMessageId: toolMessage.id, reason, args, preview });
+      const approval = await waitForToolApproval({ ...params, toolMessageId: toolMessage.id, reason, args, preview });
+      if (!approval.approved) {
+        return;
+      }
+      if (approval.comment) {
+        toolMessage.userComment = approval.comment;
+      }
     }
 
     params.throwIfStopped(params.run);
@@ -72,7 +78,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     });
     params.sendState();
 
-    const result = await runApprovedTool(toolName, args, previewHandle);
+    const result = withApprovalComment(await runApprovedTool(toolName, args, previewHandle), toolMessage.userComment);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: result.ok === false ? 'error' : 'done',
       reason,
@@ -85,6 +91,10 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
       content: JSON.stringify(result, null, 2)
     });
   } catch (error) {
+    if (error instanceof ToolCallDeniedError) {
+      return;
+    }
+
     const result = { ok: false, error: getErrorMessage(error) };
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: 'error',
@@ -111,7 +121,7 @@ type ApprovalParams = HandleAgentToolCallParams & {
   preview: Record<string, unknown> | undefined;
 };
 
-async function waitForToolApproval(params: ApprovalParams): Promise<void> {
+async function waitForToolApproval(params: ApprovalParams): Promise<{ approved: boolean; comment?: string }> {
   if (params.preview) {
     params.chats.updateMessage(params.chat.id, params.toolMessageId, {
       result: { preview: params.preview }
@@ -138,7 +148,10 @@ async function waitForToolApproval(params: ApprovalParams): Promise<void> {
     if (!decision.continueAfterDeny) {
       throw new ToolCallDeniedError();
     }
+    return { approved: false };
   }
+
+  return { approved: true, comment: decision.comment };
 }
 
 /**
@@ -182,6 +195,10 @@ function denyToolCall(params: ApprovalParams, decision: ToolApprovalDecision): v
     content: JSON.stringify(result)
   });
   params.sendState();
+}
+
+function withApprovalComment(result: Record<string, unknown>, comment: string | undefined): Record<string, unknown> {
+  return comment ? { ...result, userComment: comment } : result;
 }
 
 async function runApprovedTool(

@@ -25,8 +25,8 @@ export type AgentRun = {
 
 /**
  * Решение пользователя по tool approval.
- * approved запускает инструмент; отказ может либо остановить текущий агентский цикл,
- * либо вернуться в модель как результат tool-call, чтобы агент продолжил с учётом запрета/комментария.
+ * approved запускает инструмент и может передать комментарий модели после результата;
+ * отказ может либо остановить текущий агентский цикл, либо вернуться в модель как результат tool-call.
  */
 export type ToolApprovalDecision = {
   approved: boolean;
@@ -141,7 +141,7 @@ export type WebviewMessage =
   | {
       type: 'resolveToolCall';
       messageId: string;
-      decision: 'approve' | 'deny-stop' | 'deny-continue' | 'deny-comment';
+      decision: 'approve' | 'deny-stop' | 'deny-continue';
       comment?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }

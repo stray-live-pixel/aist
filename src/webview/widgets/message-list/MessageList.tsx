@@ -34,6 +34,7 @@ type MessageListProps = {
   activity: Chat['activity'];
   activityDetail?: string;
   bottomOffset?: 'none' | 'composer';
+  resolvedApprovalId?: string;
 };
 
 type MessageGroup =
@@ -58,7 +59,8 @@ export function MessageList({
   busy,
   activity,
   activityDetail,
-  bottomOffset = 'none'
+  bottomOffset = 'none',
+  resolvedApprovalId
 }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -93,8 +95,8 @@ export function MessageList({
       </div>
       <div className="flex w-full min-w-0 flex-col gap-2">
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
-        {messages.length === 0 && !previousChat ? <EmptyState tools={tools} /> : null}
-        {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages)))}
+        {messages.length === 0 && !previousChat ? <EmptyState /> : null}
+        {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages), resolvedApprovalId))}
         {busy ? <AgentActivityStatus activity={activity} detail={activityDetail} /> : null}
       </div>
     </main>
@@ -118,7 +120,7 @@ function PreviousChatHistory({ chat, compactedAt }: { chat: CompactPreviousChat;
   );
 }
 
-function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string) {
+function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string, resolvedApprovalId?: string) {
   if (group.type === 'toolCalls') {
     return (
       <ToolCallsCut
@@ -127,6 +129,7 @@ function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string
         userMessage={group.userMessage}
         assistantMessage={group.assistantMessage}
         active={group.active}
+        resolvedApprovalId={resolvedApprovalId}
       />
     );
   }
@@ -136,6 +139,7 @@ function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string
       key={group.message.id}
       message={group.message}
       defaultExpanded={isDefaultExpandedMessage(group.message, lastAssistantMessageId)}
+      collapseToolId={resolvedApprovalId}
       actions={group.message.content ? <CopyMessageButton markdown={group.message.content} /> : null}
     />
   );

@@ -273,7 +273,7 @@ export type WebviewToExtensionMessage =
   | {
       type: 'resolveToolCall';
       messageId: string;
-      decision: 'approve' | 'deny-stop' | 'deny-continue' | 'deny-comment';
+      decision: 'approve' | 'deny-stop' | 'deny-continue';
       comment?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }

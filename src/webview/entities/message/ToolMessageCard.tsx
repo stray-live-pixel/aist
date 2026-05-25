@@ -21,7 +21,7 @@ import { type ToolDisplayModel, buildToolDisplayModel } from './toolMessageModel
  * Зачем нужно: первая строка остаётся компактной, а тяжёлые детали рендерятся только после раскрытия.
  * Пример: шеврон раскрывает preview результата, READ FILE открывает файл, а </> показывает сырой JSON.
  */
-export function ToolMessageCard({ message }: { message: ChatMessage }) {
+export function ToolMessageCard({ message, collapseToolId }: { message: ChatMessage; collapseToolId?: string }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(message.approval === 'pending');
   const [rawOpen, setRawOpen] = useState(false);
@@ -34,6 +34,12 @@ export function ToolMessageCard({ message }: { message: ChatMessage }) {
       setExpanded(true);
     }
   }, [needsApproval]);
+
+  useEffect(() => {
+    if (collapseToolId === message.id && !needsApproval) {
+      setExpanded(false);
+    }
+  }, [collapseToolId, message.id, needsApproval]);
 
   return (
     <article className={getCardClassName(message, model)}>
@@ -79,10 +85,12 @@ function ToolHeaderContent({ message, model, expanded, isRunning, onToggle }: To
       <div className="tool-header-main">
         <span className="tool-icon-pill">
           <ToolIcon name={message.name} size={14} className={isRunning ? 'animate-pulse' : ''} />
+          <span className="tool-icon-pill-label">{model.action}</span>
         </span>
         {formatMessageDate(message.createdAt)}
         <ToolTitle model={model} />
       </div>
+      {!expanded && message.reason ? <div className="tool-reason-row">{message.reason}</div> : null}
     </div>
   );
 }
@@ -105,7 +113,7 @@ function ToolTitle({ model }: { model: ToolDisplayModel }) {
   return (
     <div className="tool-title">
       {model.primaryFile ? (
-        <WorkspaceFileLink file={{ ...model.primaryFile, label: model.action }} />
+        <WorkspaceFileLink file={model.primaryFile} />
       ) : (
         <span className="tool-title-text">{model.title}</span>
       )}

@@ -1,5 +1,5 @@
 import { ExternalLink, MessageSquare } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Composer } from '../../features/send-message/Composer';
 import { useI18n } from '../../shared/i18n';
@@ -20,9 +20,18 @@ export function ChatPage({ state }: ChatPageProps) {
   const [chatsOpen, setChatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [approvalMinimized, setApprovalMinimized] = useState(false);
+  const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
   const activeMode = state.agentModes.find((mode) => mode.id === state.agentMode);
   const chats = useSortedChats(state);
   const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
+  const pendingApprovalId = pendingApproval?.id;
+
+  useEffect(() => {
+    if (pendingApprovalId) {
+      setApprovalMinimized(false);
+      setResolvedApprovalId(undefined);
+    }
+  }, [pendingApprovalId]);
 
   return (
     <div className="relative flex h-screen flex-col bg-transparent text-[var(--vscode-foreground)]">
@@ -39,6 +48,7 @@ export function ChatPage({ state }: ChatPageProps) {
         activity={state.activeChat.activity}
         activityDetail={state.activeChat.activityDetail}
         bottomOffset="composer"
+        resolvedApprovalId={resolvedApprovalId}
       />
       <Composer
         busy={state.activeChat.busy}
@@ -53,6 +63,7 @@ export function ChatPage({ state }: ChatPageProps) {
               minimized
               onMinimize={() => setApprovalMinimized(true)}
               onRestore={() => setApprovalMinimized(false)}
+              onResolved={() => setResolvedApprovalId(pendingApproval.id)}
             />
           ) : undefined
         }
@@ -73,6 +84,7 @@ export function ChatPage({ state }: ChatPageProps) {
           minimized={false}
           onMinimize={() => setApprovalMinimized(true)}
           onRestore={() => setApprovalMinimized(false)}
+          onResolved={() => setResolvedApprovalId(pendingApproval.id)}
         />
       ) : null}
     </div>

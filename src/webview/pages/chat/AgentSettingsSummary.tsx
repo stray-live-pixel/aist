@@ -2,8 +2,8 @@ import { Archive, Brain, Coins, Settings2, ShieldCheck, SlidersHorizontal, Wrenc
 
 import { useI18n } from '../../shared/i18n';
 import { vscode } from '../../shared/lib/vscode';
-import type { AgentState, ChatContextEstimate, ReasoningEffort } from '../../shared/types';
-import { Button, Select, type SelectOption } from '../../shared/ui';
+import type { AgentState, ChatContextEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
+import { Button, Select, type SelectCategory, type SelectOption } from '../../shared/ui';
 
 type AgentSettingsSummaryProps = {
   state: AgentState;
@@ -72,11 +72,8 @@ export function ComposerContextSummary({ state }: { state: AgentState }) {
         disabled={state.activeChat.busy}
         className="w-[clamp(8.5rem,24vw,13rem)]"
         onChange={(model) => vscode.postMessage({ type: 'setModel', model })}
-        options={
-          state.models.length
-            ? state.models.map((model) => ({ value: model.id, label: model.name }))
-            : [{ value: state.activeChat.model, label: state.activeChat.model }]
-        }
+        options={getModelOptions(state)}
+        categories={state.models.length ? getModelCategories(state.models) : undefined}
       />
       <ContextUsagePie context={state.activeChat.context} />
       {state.activeChat.usage.costUsd !== undefined ? (
@@ -98,6 +95,25 @@ export function ComposerContextSummary({ state }: { state: AgentState }) {
       </Button>
     </div>
   );
+}
+
+function getModelOptions(state: AgentState): SelectOption[] {
+  return state.models.length
+    ? state.models.map((model) => ({
+        value: model.id,
+        label: model.name,
+        category: model.provider || 'openrouter'
+      }))
+    : [{ value: state.activeChat.model, label: state.activeChat.model }];
+}
+
+function getModelCategories(models: ModelOption[]): SelectCategory[] {
+  const providers = new Set(models.map((model) => model.provider || 'openrouter'));
+  const categories: SelectCategory[] = [
+    { id: 'openrouter', label: 'OpenRouter' },
+    { id: 'codex', label: 'ChatGPT Codex' }
+  ];
+  return categories.filter((category) => providers.has(category.id as NonNullable<ModelOption['provider']>));
 }
 
 function getAgentModeOptions(state: AgentState): SelectOption[] {
@@ -133,6 +149,7 @@ function CompactSelect({
   title,
   value,
   options,
+  categories,
   disabled,
   displayLabels,
   className = 'w-[clamp(6.8rem,18vw,10.5rem)]',
@@ -142,6 +159,7 @@ function CompactSelect({
   title: string;
   value: string;
   options: SelectOption[];
+  categories?: SelectCategory[];
   disabled?: boolean;
   displayLabels?: Record<string, string>;
   className?: string;
@@ -158,6 +176,7 @@ function CompactSelect({
       disabled={disabled}
       displayLabels={displayLabels}
       options={options}
+      categories={categories}
       onChange={(event) => onChange(event.target.value)}
     />
   );

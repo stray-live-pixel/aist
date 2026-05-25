@@ -1,7 +1,7 @@
 /**
  * Что это: пустое состояние истории сообщений.
- * Зачем нужно: объясняет пользователю, что агент готов работать, и показывает доступные инструменты.
- * Пример использования: <EmptyState tools={tools} />.
+ * Зачем нужно: объясняет пользователю, что агент готов работать.
+ * Пример использования: <EmptyState />.
  */
 import { Sparkles } from 'lucide-react';
 
@@ -9,11 +9,7 @@ import { useI18n } from '../../shared/i18n';
 import { getWebviewAssetUri } from '../../shared/lib/assets';
 import { AistBrand } from '../../shared/ui/AistLogo';
 
-type EmptyStateProps = {
-  tools: string[];
-};
-
-export function EmptyState({ tools }: EmptyStateProps) {
+export function EmptyState() {
   const { t } = useI18n();
   const hasLogo = Boolean(getWebviewAssetUri('logo'));
 
@@ -22,19 +18,7 @@ export function EmptyState({ tools }: EmptyStateProps) {
       {hasLogo ? <AistBrand /> : <Sparkles className="mx-auto" size={100} />}
       <div className="grid gap-1 text-center">
         <h1 className="text-base font-semibold">{t('empty.title')}</h1>
-        <p className="text-sm text-[var(--vscode-descriptionForeground)]">
-          Ask for a change, and the agent can inspect and modify files in this workspace.
-        </p>
-      </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        {tools.map((tool) => (
-          <span
-            key={tool}
-            className="rounded border border-[var(--agent-border)] px-2 py-1 text-xs text-[var(--vscode-descriptionForeground)]"
-          >
-            {tool}
-          </span>
-        ))}
+        <p className="text-sm text-[var(--vscode-descriptionForeground)]">{t('empty.description')}</p>
       </div>
     </div>
   );

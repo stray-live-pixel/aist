@@ -13,6 +13,7 @@ export type ApprovalPromptModalProps = {
   minimized: boolean;
   onMinimize(): void;
   onRestore(): void;
+  onResolved?(): void;
 };
 
 /**
@@ -20,7 +21,14 @@ export type ApprovalPromptModalProps = {
  * Модалка намеренно перекрывает чат и composer: без решения пользователя агент стоит на паузе,
  * поэтому продуктово это более важное действие, чем ввод нового сообщения.
  */
-export function ApprovalPromptModal({ message, settings, minimized, onMinimize, onRestore }: ApprovalPromptModalProps) {
+export function ApprovalPromptModal({
+  message,
+  settings,
+  minimized,
+  onMinimize,
+  onRestore,
+  onResolved
+}: ApprovalPromptModalProps) {
   const { t } = useI18n();
   useApprovalNotifications(message, settings);
 
@@ -48,9 +56,15 @@ export function ApprovalPromptModal({ message, settings, minimized, onMinimize, 
           </div>
         </header>
         <div className="approval-modal-body">
-          {message.reason ? <p className="approval-reason">{message.reason}</p> : null}
           <ToolResultPreview message={message} />
-          <ToolApprovalActions messageId={message.id} onResolved={onMinimize} />
+          <ToolApprovalActions
+            messageId={message.id}
+            autoFocusApprove
+            onResolved={() => {
+              onResolved?.();
+              onMinimize();
+            }}
+          />
         </div>
       </section>
     </div>

@@ -12,13 +12,14 @@ type MessageCardProps = {
   message: ChatMessage;
   actions?: ReactNode;
   defaultExpanded?: boolean;
+  collapseToolId?: string;
 };
 
-export function MessageCard({ message, actions, defaultExpanded = true }: MessageCardProps) {
+export function MessageCard({ message, actions, defaultExpanded = true, collapseToolId }: MessageCardProps) {
   const { t } = useI18n();
 
   if (message.role === 'tool') {
-    return <ToolMessageCard message={message} />;
+    return <ToolMessageCard message={message} collapseToolId={collapseToolId} />;
   }
 
   const variant = getMessageVariant(message.role, t);
