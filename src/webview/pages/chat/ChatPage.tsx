@@ -1,4 +1,4 @@
-import { ExternalLink, MessageSquare } from 'lucide-react';
+import { Braces, ExternalLink, MessageSquare } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 
 import { Composer } from '../../features';
@@ -131,6 +131,11 @@ const FloatingChatActions = memo(function FloatingChatActions({
         icon={<ExternalLink size={12} />}
         title={t('chat.openInEditor')}
         onClick={() => agentActions.openChatInEditor(activeChatId)}
+      />
+      <CompactNavigationButton
+        icon={<Braces size={12} />}
+        title={t('chat.openJson')}
+        onClick={() => agentActions.openChatJson(activeChatId)}
       />
     </div>
   );

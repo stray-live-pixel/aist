@@ -1,7 +1,11 @@
 import * as vscode from 'vscode';
 
 import { t } from '../../../shared/i18n';
-import { getConfiguredModel } from '../../config/settingsSnapshot';
+import { getPromptConfig } from '../../config/agentConfigStore';
+import { getAgentLanguage } from '../../config/settings';
+import { getAgentSettingsSnapshot, getConfiguredModel } from '../../config/settingsSnapshot';
+import { buildAgentSystemPrompt, getAgentInstructionSources } from '../../config/systemPrompt';
+import { getEditorContext } from '../../context/editorContext';
 import type { WebviewMessage, WebviewSurface } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -13,6 +17,7 @@ type ChatMessage = Extract<
   | { type: 'deleteChat' }
   | { type: 'setActiveChat' }
   | { type: 'openChatInEditor' }
+  | { type: 'openChatJson' }
   | { type: 'compactChat' }
   | { type: 'setModel' }
   | { type: 'clear' }
@@ -27,6 +32,7 @@ export function isChatMessage(message: WebviewMessage): message is ChatMessage {
     'deleteChat',
     'setActiveChat',
     'openChatInEditor',
+    'openChatJson',
     'compactChat',
     'setModel',
     'clear',
@@ -65,6 +71,9 @@ export async function handleWebviewChatMessage(
     case 'openChatInEditor':
       deps.openChatInEditor(message.chatId || surface.getChatId());
       return;
+    case 'openChatJson':
+      await openChatJson(surface, message.chatId || surface.getChatId(), deps);
+      return;
     case 'compactChat':
       await compactChat(surface, message.chatId || surface.getChatId(), deps);
       return;
@@ -79,6 +88,88 @@ export async function handleWebviewChatMessage(
       vscode.window.setStatusBarMessage(t('status.copiedMarkdown'), 1800);
       return;
   }
+}
+
+/**
+ * Открывает snapshot чата как untitled JSON-документ VS Code.
+ *
+ * История сейчас живёт в workspaceState, поэтому не даём пользователю псевдо-файл из storage, который нельзя безопасно
+ * редактировать. Untitled JSON лучше отражает сценарий «посмотреть/сохранить при необходимости» и всегда открывается
+ * штатным редактором VS Code без привязки к внутренней БД Memento.
+ */
+async function openChatJson(surface: WebviewSurface, chatId: string, deps: AgentWebviewMessageDeps): Promise<void> {
+  const chat = deps.chats.getChat(chatId);
+  if (!chat) {
+    deps.logger.info('Ignoring openChatJson for missing chat', { chatId });
+    deps.sendState(surface);
+    return;
+  }
+
+  const exportPayload = buildChatJsonExport(chat, surface);
+  const document = await vscode.workspace.openTextDocument({
+    language: 'json',
+    content: `${JSON.stringify(exportPayload, null, 2)}\n`
+  });
+  await vscode.window.showTextDocument(document, { preview: false });
+  deps.logger.info('Chat JSON opened in editor', {
+    chatId,
+    messageCount: chat.messages.length,
+    nextRequestMessageCount: exportPayload.nextPromptContext.messagesSentToModel.length
+  });
+}
+
+/**
+ * Формирует диагностический экспорт, который показывает не только сохранённый chat, но и то, как AIST соберёт
+ * следующий запрос к модели. Placeholder user-сообщение нужен явно: без текста будущего prompt невозможно показать
+ * финальный user content, но можно показать все системные инструкции, предыдущую history и active editor context.
+ */
+function buildChatJsonExport(
+  chat: NonNullable<ReturnType<AgentWebviewMessageDeps['chats']['getChat']>>,
+  surface: WebviewSurface
+) {
+  const systemPrompt = buildAgentSystemPrompt();
+  const editorContext = getEditorContext();
+  const settings = getAgentSettingsSnapshot();
+  const promptConfig = getPromptConfig();
+  const nextUserPromptPlaceholder = '<next user prompt will be inserted here>';
+  const nextUserContent = [
+    nextUserPromptPlaceholder,
+    editorContext ? `\n\nActive editor context:\n${editorContext}` : ''
+  ].join('');
+  const messagesSentToModel = [
+    { role: 'system' as const, content: systemPrompt },
+    ...chat.history.filter((message) => message.role !== 'system'),
+    { role: 'user' as const, content: nextUserContent }
+  ];
+
+  return {
+    exportedAt: new Date().toISOString(),
+    exportKind: 'aist.chat-json.v1',
+    note: 'nextPromptContext mirrors the next model request shape. The final user prompt is represented by a placeholder because it is not known until you press Send.',
+    surface: {
+      id: surface.id,
+      kind: surface.kind,
+      chatId: surface.getChatId()
+    },
+    chat,
+    nextPromptContext: {
+      model: chat.model,
+      language: getAgentLanguage(),
+      reasoningEffort: settings.reasoningEffort,
+      maxToolIterations: settings.maxToolIterations,
+      systemPrompt,
+      instructionSources: getAgentInstructionSources(),
+      promptConfig: {
+        activeInstructionRefs: promptConfig.activeInstructionRefs,
+        activeModeRef: promptConfig.activeModeRef,
+        activePresetId: promptConfig.activePresetId
+      },
+      activeEditorContext: editorContext || null,
+      persistedHistorySentToModel: chat.history.filter((message) => message.role !== 'system'),
+      nextUserPromptPlaceholder,
+      messagesSentToModel
+    }
+  };
 }
 
 function createChatFromWebview(surface: WebviewSurface, deps: AgentWebviewMessageDeps): void {

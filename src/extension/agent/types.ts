@@ -78,6 +78,7 @@ export type WebviewMessage =
   | { type: 'deleteChat'; chatId: string }
   | { type: 'setActiveChat'; chatId: string }
   | { type: 'openChatInEditor'; chatId?: string }
+  | { type: 'openChatJson'; chatId?: string }
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: string }

@@ -47,6 +47,7 @@
   "reasoning.highDetailed": "Высокое рассуждение",
   "chat.openChats": "Открыть чаты",
   "chat.openInEditor": "Открыть этот чат в редакторе",
+  "chat.openJson": "Открыть JSON этого чата",
   "chatList.title": "Чаты",
   "chatList.description": "История скрыта по умолчанию, чтобы редактор оставался сфокусирован на сообщениях.",
   "chatList.new": "Новый",

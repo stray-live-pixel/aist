@@ -64,6 +64,10 @@ export const agentActions = {
     post({ type: 'openChatInEditor', chatId });
   },
 
+  openChatJson(chatId?: string): void {
+    post({ type: 'openChatJson', chatId });
+  },
+
   setModel(model: string): void {
     post({ type: 'setModel', model });
   },

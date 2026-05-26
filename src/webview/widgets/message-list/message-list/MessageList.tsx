@@ -3,7 +3,7 @@
  * Зачем нужно: держит прокрутку истории и добавляет служебные элементы в начало чата.
  * Пример использования: <MessageList messages={messages} tools={tools} activeMode={mode} busy={busy} />.
  */
-import { useLayoutEffect, useRef } from 'react';
+import { type ReactNode, useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../../entities/message';
 import { CopyMessageButton } from '../../../features';
@@ -32,10 +32,23 @@ export function MessageList({
   resolvedApprovalId
 }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
+  const previousGroupIdsRef = useRef<Set<string>>(new Set());
+  const previousStackBottomRef = useRef<number | undefined>(undefined);
   const groups = groupMessages(messages, busy);
+  const groupIds = groups.map(getMessageGroupId);
+  const previousGroupIds = previousGroupIdsRef.current;
+  const isInitialRender = previousStackBottomRef.current === undefined;
+  const newGroupIds = isInitialRender
+    ? new Set<string>()
+    : new Set(groupIds.filter((groupId) => !previousGroupIds.has(groupId)));
 
   useLayoutEffect(() => {
+    animateStackShift(stackRef.current, previousStackBottomRef.current);
+    previousStackBottomRef.current = stackRef.current?.getBoundingClientRect().bottom;
+    previousGroupIdsRef.current = new Set(groupIds);
+
     if (!shouldStickToBottomRef.current) {
       return;
     }
@@ -53,14 +66,54 @@ export function MessageList({
       className={`${styles.root} ${bottomOffset === 'composer' ? styles.withComposerOffset : ''}`}
       onScroll={handleScroll}
     >
-      <div className={styles.stack}>
+      <div ref={stackRef} className={styles.stack}>
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
         {messages.length === 0 && !previousChat ? <EmptyState /> : null}
-        {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(messages), resolvedApprovalId))}
+        {groups.map((group) => (
+          <AnimatedMessageGroup key={getMessageGroupId(group)} animate={newGroupIds.has(getMessageGroupId(group))}>
+            {renderMessageGroup(group, getLastAssistantMessageId(messages), resolvedApprovalId)}
+          </AnimatedMessageGroup>
+        ))}
         {busy ? <AgentActivityStatus activity={activity} detail={activityDetail} /> : null}
       </div>
     </main>
   );
+}
+
+function AnimatedMessageGroup({ children, animate }: { children: ReactNode; animate: boolean }) {
+  return <div className={animate ? styles.messageEnter : styles.messageItem}>{children}</div>;
+}
+
+function getMessageGroupId(group: MessageGroup): string {
+  return group.type === 'toolCalls' ? group.id : group.message.id;
+}
+
+/**
+ * Делает FLIP-анимацию смещения всей колонки сообщений: layout уже изменился, а мы возвращаем слой transform'ом
+ * в старую позицию и отпускаем его transition'ом. Так браузер анимирует compositor-свойство, не height/top.
+ */
+function animateStackShift(element: HTMLElement | null, previousBottom: number | undefined): void {
+  if (!element || previousBottom === undefined || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+
+  const nextBottom = element.getBoundingClientRect().bottom;
+  const delta = previousBottom - nextBottom;
+  if (Math.abs(delta) < 1) {
+    return;
+  }
+
+  element.style.transition = 'none';
+  element.style.transform = `translate3d(0, ${delta}px, 0)`;
+  element.style.willChange = 'transform';
+  void element.offsetHeight;
+  element.style.transition = 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)';
+  element.style.transform = 'translate3d(0, 0, 0)';
+  window.setTimeout(() => {
+    element.style.transition = '';
+    element.style.transform = '';
+    element.style.willChange = '';
+  }, 500);
 }
 
 function PreviousChatHistory({ chat, compactedAt }: PreviousChatHistoryProps) {
@@ -96,7 +149,6 @@ function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string
 
   return (
     <MessageCard
-      key={group.message.id}
       message={group.message}
       defaultExpanded={isDefaultExpandedMessage(group.message, lastAssistantMessageId)}
       collapseToolId={resolvedApprovalId}

@@ -47,6 +47,7 @@
   "reasoning.highDetailed": "High reasoning",
   "chat.openChats": "Open chats",
   "chat.openInEditor": "Open this chat in editor",
+  "chat.openJson": "Open this chat as JSON",
   "chatList.title": "Chats",
   "chatList.description": "History is hidden by default to keep the editor focused on messages.",
   "chatList.new": "New",
