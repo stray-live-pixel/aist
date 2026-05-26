@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Auto Monitor</title>
+    <link rel="stylesheet" href="/src/shared/ui/styles.css" />
+  </head>
+  <body>
+    <div class="grid compact">
+      <div class="system-column">{{HEADER}} {{CTX}} {{PIPELINE}}</div>
+      <div class="log-column">{{LOG}}</div>
+    </div>
+    <dialog id="context-modal" class="ctx-modal">
+      <div class="ctx-modal-content-wrap">
+        <div class="ctx-modal-head">
+          <strong id="context-modal-title">Детали контекста</strong>
+          <button type="button" id="context-modal-close" class="ctx-modal-close">Закрыть</button>
+        </div>
+        <pre id="context-modal-content" class="ctx-modal-content" aria-live="polite"></pre>
+      </div>
+    </dialog>
+    <script src="/src/shared/ui/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+.agent-auto-logs
+.claude-auto-logs
+.claude/settings.local.json
+game.html
+.DS_Store
