@@ -2,6 +2,8 @@
 
 Minimal VS Code coding agent powered by OpenRouter or ChatGPT Codex.
 
+![AIST screenshot](assets/readme.png)
+
 [Русская документация](docs/ru/README.md) · [Full English documentation](docs/README.md)
 
 ## Install from GitHub

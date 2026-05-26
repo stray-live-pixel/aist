@@ -1,5 +1,5 @@
 import { BellRing, ChevronDown, ShieldAlert } from 'lucide-react';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 import { ToolApprovalActions, ToolResultPreview } from '../../entities/message';
 import { useI18n } from '../../shared/i18n';
@@ -7,6 +7,12 @@ import type { AgentState, ChatMessage } from '../../shared/types';
 import { ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
 import styles from './ChatPage.module.scss';
+
+/**
+ * Длительность синхронизирована с CSS-анимациями ниже: React держит модалку в DOM,
+ * пока backdrop и surface плавно исчезают, но не создаёт ощутимой задержки после клика.
+ */
+const APPROVAL_MODAL_ANIMATION_MS = 180;
 
 export type ApprovalPromptModalProps = {
   message: ChatMessage;
@@ -31,15 +37,46 @@ export function ApprovalPromptModal({
   onResolved
 }: ApprovalPromptModalProps) {
   const { t } = useI18n();
+  const [closing, setClosing] = useState(false);
+  const closeTimeoutRef = useRef<number | undefined>(undefined);
   useApprovalNotifications(message, settings);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current !== undefined) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function closeWithAnimation() {
+    if (closing) {
+      return;
+    }
+
+    setClosing(true);
+    closeTimeoutRef.current = window.setTimeout(() => {
+      onMinimize();
+    }, APPROVAL_MODAL_ANIMATION_MS);
+  }
 
   if (minimized) {
     return <ApprovalNotice message={message} onClick={onRestore} />;
   }
 
   return (
-    <ModalBackdrop tone="approval" role="presentation">
-      <ModalSurface tone="approval" role="dialog" aria-modal="true" aria-label={t('approval.title')}>
+    <ModalBackdrop
+      className={closing ? styles.approvalModalBackdropClosing : styles.approvalModalBackdrop}
+      tone="approval"
+      role="presentation"
+    >
+      <ModalSurface
+        className={closing ? styles.approvalModalSurfaceClosing : styles.approvalModalSurface}
+        tone="approval"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('approval.title')}
+      >
         <ModalHeader tone="approval">
           <div className={styles.modalHeaderMain}>
             <span className={styles.approvalIcon}>
@@ -51,7 +88,7 @@ export function ApprovalPromptModal({
             </div>
           </div>
           <div className={styles.modalHeaderActions}>
-            <IconButton title={t('approval.minimize')} onClick={onMinimize}>
+            <IconButton title={t('approval.minimize')} onClick={closeWithAnimation}>
               <ChevronDown size={15} />
             </IconButton>
           </div>
@@ -63,7 +100,7 @@ export function ApprovalPromptModal({
             autoFocusApprove
             onResolved={() => {
               onResolved?.();
-              onMinimize();
+              closeWithAnimation();
             }}
           />
         </div>

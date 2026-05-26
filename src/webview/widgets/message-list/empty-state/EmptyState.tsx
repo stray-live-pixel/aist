@@ -8,6 +8,7 @@ import { Sparkles } from 'lucide-react';
 import { useI18n } from '../../../shared/i18n';
 import { getWebviewAssetUri } from '../../../shared/lib/assets';
 import { AistBrand } from '../../../shared/ui/AistLogo';
+import { Text } from '../../../shared/ui/text';
 import styles from './EmptyState.module.scss';
 import type { EmptyStateProps } from './types';
 
@@ -20,7 +21,9 @@ export function EmptyState(_props: EmptyStateProps) {
       {hasLogo ? <AistBrand /> : <Sparkles className={styles.sparkles} size={100} />}
       <div className={styles.text}>
         <h1 className={styles.title}>{t('empty.title')}</h1>
-        <p className={styles.description}>{t('empty.description')}</p>
+        <Text align="center" as="p" className={styles.description}>
+          {t('empty.description')}
+        </Text>
       </div>
     </div>
   );

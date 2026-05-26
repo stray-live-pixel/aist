@@ -57,6 +57,29 @@
   gap: 8px;
 }
 
+/*
+ * Approval-модалка живёт поверх всей страницы, поэтому анимация разведена на backdrop и surface:
+ * фон мягко проявляет блокировку интерфейса, а карточка чуть поднимается без резкого layout-сдвига.
+ */
+.approvalModalBackdrop {
+  animation: approvalBackdropIn 180ms ease-out both;
+}
+
+.approvalModalBackdropClosing {
+  pointer-events: none;
+  animation: approvalBackdropOut 180ms ease-in both;
+}
+
+.approvalModalSurface {
+  transform-origin: center;
+  animation: approvalSurfaceIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.approvalModalSurfaceClosing {
+  transform-origin: center;
+  animation: approvalSurfaceOut 180ms ease-in both;
+}
+
 .approvalIcon {
   display: inline-flex;
   width: 34px;
@@ -79,6 +102,7 @@
 
 .approvalNotice {
   display: flex;
+  animation: approvalNoticeIn 160ms ease-out both;
   width: 100%;
   align-items: center;
   gap: 8px;
@@ -278,6 +302,76 @@
 
 .chatRowActive .chatRowMeta {
   opacity: 0.8;
+}
+
+@keyframes approvalBackdropIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+
+  to {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
+}
+
+@keyframes approvalBackdropOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
+
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes approvalSurfaceIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes approvalSurfaceOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@keyframes approvalNoticeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .approvalModalBackdrop,
+  .approvalModalBackdropClosing,
+  .approvalModalSurface,
+  .approvalModalSurfaceClosing,
+  .approvalNotice {
+    animation-duration: 1ms;
+  }
 }
 
 @media (min-width: 768px) {
