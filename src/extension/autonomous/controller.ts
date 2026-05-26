@@ -9,6 +9,11 @@ import { runAutonomousBatch } from './batch/runBatch';
 import { discoverAutonomousDefinitions, importLegacyDefinitions } from './discovery';
 import { createAutonomousEngineRegistry } from './engines/registry';
 import { createSessionId, runAutonomousFlow } from './flow/orchestrator';
+import {
+  createAutonomousFlowDefinition,
+  deleteAutonomousFlowDefinition,
+  saveAutonomousFlowDefinition
+} from './flowDefinitionWriter';
 import type { AutonomousWebviewToExtensionMessage } from './messages';
 import { buildAutonomousState } from './presenter';
 import { AutonomousSessionStore } from './storage/sessionStore';
@@ -80,6 +85,14 @@ export class AutonomousController implements vscode.Disposable {
         await this.sendState();
       } else if (message.type === 'autonomous.importLegacy') {
         await importLegacyDefinitions(getWorkspaceFolder().uri.fsPath);
+        await this.sendState();
+      } else if (message.type === 'autonomous.createFlow') {
+        await createAutonomousFlowDefinition(getWorkspaceFolder().uri.fsPath, message.flow);
+        await this.sendState();
+      } else if (message.type === 'autonomous.deleteFlow') {
+        await this.deleteFlow(message.flowId);
+      } else if (message.type === 'autonomous.saveFlow') {
+        await saveAutonomousFlowDefinition(getWorkspaceFolder().uri.fsPath, message.flow);
         await this.sendState();
       } else if (message.type === 'autonomous.startFlow') {
         await this.startFlow(message.flowId, message.launch);
@@ -166,6 +179,23 @@ export class AutonomousController implements vscode.Disposable {
 
   private createEngineRegistry() {
     return createAutonomousEngineRegistry({ openRouterClient: this.openRouterClient, codexClient: this.codexClient });
+  }
+
+  private async deleteFlow(flowId: string): Promise<void> {
+    const confirmation = 'Удалить flow';
+    // Подтверждение держим на стороне extension, потому что это действие меняет
+    // workspace-файлы, а browser confirm внутри webview может быть отключён/не показан.
+    const selected = await vscode.window.showWarningMessage(
+      `Удалить flow ${flowId}? Это удалит каталог definition из .aist-agent/autonomous/flows.`,
+      { modal: true },
+      confirmation
+    );
+    if (selected !== confirmation) {
+      return;
+    }
+
+    await deleteAutonomousFlowDefinition(getWorkspaceFolder().uri.fsPath, flowId);
+    await this.sendState();
   }
 
   private async revealSession(sessionId: string): Promise<void> {

@@ -1,4 +1,4 @@
-import type { AutonomousEngineId } from '../types';
+import type { AutonomousEngineId, CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from '../types';
 import { vscode } from './vscode';
 
 export type AutonomousLaunchDraft = {
@@ -19,6 +19,15 @@ export const autonomousActions = {
   },
   importLegacy() {
     vscode.postMessage({ type: 'autonomous.importLegacy' });
+  },
+  createFlow(flow: CreateAutonomousFlowInput) {
+    vscode.postMessage({ type: 'autonomous.createFlow', flow });
+  },
+  deleteFlow(flowId: string) {
+    vscode.postMessage({ type: 'autonomous.deleteFlow', flowId });
+  },
+  saveFlow(flow: EditableAutonomousFlowDefinition) {
+    vscode.postMessage({ type: 'autonomous.saveFlow', flow });
   },
   startFlow(flowId: string, launch: AutonomousLaunchDraft) {
     vscode.postMessage({ type: 'autonomous.startFlow', flowId, launch });

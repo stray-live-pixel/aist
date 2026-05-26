@@ -41,16 +41,21 @@
   gap: 14px;
 }
 
+.singleColumn,
 .options,
 .list,
-.sessions {
+.sessions,
+.flowList,
+.stageList,
+.createFlowForm {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .definition,
-.sessionCard {
+.sessionCard,
+.stageCard {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -60,10 +65,46 @@
   background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
 }
 
-.row {
+.flowItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+  border-radius: 12px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-foreground);
+}
+
+.flowItemHeader,
+.flowMeta,
+.stageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.flowItemHeader {
   justify-content: space-between;
 }
 
+.flowItemActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flowMeta,
+.stageMeta {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.row {
+  justify-content: space-between;
+}
 
 @media (max-width: 860px) {
   .hero,

@@ -267,6 +267,32 @@ export type AutonomousSessionView = {
   events: AutonomousEvent[];
 };
 
+export type CreateAutonomousFlowInput = {
+  id: string;
+  title?: string;
+};
+
+export type EditableAutonomousStageDefinition = {
+  file: string;
+  title: string;
+  body: string;
+  model?: string;
+  codexModel?: string;
+  contexts: { mode: 'continue' | 'continue-from' | 'summary-from'; from?: number; summaryRules?: string }[];
+  summaryRules?: string;
+};
+
+export type EditableAutonomousFlowDefinition = {
+  id: string;
+  title: string;
+  description: string;
+  body: string;
+  defaultModel?: string;
+  defaultCodexModel?: string;
+  defaultSummaryRules?: string;
+  stages: EditableAutonomousStageDefinition[];
+};
+
 export type AutonomousState = {
   workspaceName: string;
   storageRoot: string;
@@ -397,6 +423,9 @@ export type WebviewToExtensionMessage =
   | { type: 'copyMessage'; markdown: string }
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
+  | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
+  | { type: 'autonomous.deleteFlow'; flowId: string }
+  | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
   | {
       type: 'autonomous.startFlow';
       flowId: string;

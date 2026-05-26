@@ -1,3 +1,4 @@
+import type { CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from './flowDefinitionWriter';
 import type { AutonomousEngineId, AutonomousLaunchOptions, AutonomousState } from './types';
 
 export type AutonomousExtensionToWebviewMessage =
@@ -8,6 +9,9 @@ export type AutonomousWebviewToExtensionMessage =
   | { type: 'webviewReady' }
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
+  | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
+  | { type: 'autonomous.deleteFlow'; flowId: string }
+  | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
   | { type: 'autonomous.startFlow'; flowId: string; launch: AutonomousLaunchOptions }
   | { type: 'autonomous.startRun'; runId: string; launch: AutonomousLaunchOptions }
   | { type: 'autonomous.stopSession'; sessionId: string }
