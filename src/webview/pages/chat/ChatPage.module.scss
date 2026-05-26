@@ -26,27 +26,11 @@
 }
 
 .summaryRoot {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
   overflow: visible;
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  line-height: 16px;
-  white-space: nowrap;
 }
 
 .contextSummaryRoot {
-  display: flex;
   min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 8px;
-  row-gap: 4px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 10px;
-  line-height: 16px;
 }
 
 .compactSelect {
@@ -65,83 +49,6 @@
 
 .permissionsCompactSelect {
   width: clamp(7.5rem, 18vw, 10rem);
-}
-
-.contextControls {
-  display: inline-flex;
-  min-width: 0;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.summaryNavButton {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 10rem;
-  height: 26px;
-  flex-shrink: 1;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--agent-input-border);
-  border-radius: 999px;
-  color: var(--vscode-descriptionForeground);
-  background: color-mix(in srgb, var(--vscode-input-background) 70%, transparent);
-  padding: 0 9px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.summaryNavButton:hover {
-  color: var(--vscode-foreground);
-  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
-}
-
-.summaryItem,
-.contextUsage {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.summaryIcon {
-  flex-shrink: 0;
-}
-
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.contextPie {
-  position: relative;
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 20%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--vscode-descriptionForeground) 10%, transparent);
-}
-
-.contextPieFill {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-}
-
-.contextPieHole {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--vscode-input-background);
-  transform: translate(-50%, -50%);
 }
 
 .modalHeaderActions {

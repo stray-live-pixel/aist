@@ -186,6 +186,8 @@ export type ApprovalNotificationSettings = {
 
 export type AgentState = {
   viewKind: 'sidebar' | 'editor';
+  /** Версия установленного VS Code extension; приходит из packageJSON, чтобы UI не хардкодил номер релиза. */
+  extensionVersion: string;
   workspaceName: string;
   tools: string[];
   chats: ChatSummary[];

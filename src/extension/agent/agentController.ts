@@ -461,6 +461,7 @@ export class AgentController {
 
   private sendState(targetSurface?: WebviewSurface): void {
     sendAgentState({
+      extensionVersion: String(this.context.extension.packageJSON?.version || '0.0.0'),
       surfaces: targetSurface ? [targetSurface] : this.getSurfaces(),
       chats: this.chats,
       logger: this.logger,

@@ -6,7 +6,7 @@ import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
 import { useAgentState } from '../../shared/lib/agentState';
 import type { AgentState } from '../../shared/types';
-import { IconButton } from '../../shared/ui/IconButton';
+import { CompactNavigationButton } from '../../shared/ui';
 import { MessageList } from '../../widgets/message-list';
 import type { SettingsPageId } from '../permissions/permissions-page/types';
 import { AgentSettingsModal } from './AgentSettingsModal';
@@ -62,7 +62,13 @@ export function ChatPage() {
           <AgentSettingsSummary
             state={state}
             onOpen={openSettings}
-            actions={<FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />}
+            actions={
+              <FloatingChatActions
+                extensionVersion={state.extensionVersion}
+                onOpenChats={() => setChatsOpen(true)}
+                activeChatId={state.activeChat.id}
+              />
+            }
           />
         }
         footer={<ComposerContextSummary state={state} />}
@@ -105,22 +111,27 @@ export function ChatPage() {
 }
 
 const FloatingChatActions = memo(function FloatingChatActions({
+  extensionVersion,
   onOpenChats,
   activeChatId
 }: {
+  /** Версия остаётся рядом с навигацией: это metadata composer, но выглядит как control для единообразия панели. */
+  extensionVersion: string;
   onOpenChats(): void;
   activeChatId: string;
 }) {
   const { t } = useI18n();
+  const versionLabel = `v${extensionVersion}`;
 
   return (
     <div className={styles.floatingActions}>
-      <IconButton title={t('chat.openChats')} onClick={onOpenChats}>
-        <MessageSquare size={15} />
-      </IconButton>
-      <IconButton title={t('chat.openInEditor')} onClick={() => agentActions.openChatInEditor(activeChatId)}>
-        <ExternalLink size={15} />
-      </IconButton>
+      <CompactNavigationButton label={versionLabel} title={versionLabel} disabled onClick={() => undefined} />
+      <CompactNavigationButton icon={<MessageSquare size={12} />} title={t('chat.openChats')} onClick={onOpenChats} />
+      <CompactNavigationButton
+        icon={<ExternalLink size={12} />}
+        title={t('chat.openInEditor')}
+        onClick={() => agentActions.openChatInEditor(activeChatId)}
+      />
     </div>
   );
 });

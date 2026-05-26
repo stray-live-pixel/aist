@@ -1,0 +1,114 @@
+.group {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.groupInline {
+  display: inline-flex;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.navigationButton {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 10rem;
+  height: 26px;
+  flex-shrink: 1;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-input-background) 70%, transparent);
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.navigationButton:hover:not(:disabled) {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
+}
+
+.navigationButton:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.navigationButton:focus-visible {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent);
+}
+
+.navigationButton:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.navigationButtonIconOnly {
+  width: 26px;
+  justify-content: center;
+  padding: 0;
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextPie {
+  position: relative;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 20%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 10%, transparent);
+}
+
+.contextPieFill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.contextPieHole {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--vscode-input-background);
+  transform: translate(-50%, -50%);
+}

@@ -4,7 +4,15 @@ import { memo, useMemo } from 'react';
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
 import type { AgentState, ChatContextEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
-import { Button, Select, type SelectCategory, type SelectOption } from '../../shared/ui';
+import {
+  CompactControlGroup,
+  CompactControlItem,
+  CompactNavigationButton,
+  ContextUsageIndicator,
+  Select,
+  type SelectCategory,
+  type SelectOption
+} from '../../shared/ui';
 import type { SettingsPageId } from '../permissions/permissions-page/types';
 import styles from './ChatPage.module.scss';
 
@@ -27,14 +35,14 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
   const activeRoleLabel = getActiveRoleLabel(state, t('systemInstructions.noRole'));
   const activePresetLabel = getActivePresetLabel(state, t('settings.promptManager.noActivePreset'));
   return (
-    <div className={styles.summaryRoot}>
-      <SummaryNavigationButton
+    <CompactControlGroup className={styles.summaryRoot}>
+      <CompactNavigationButton
         icon={<UserRound size={12} />}
         title={t('summary.agentMode')}
         label={activeRoleLabel}
         onClick={() => onOpen('presets')}
       />
-      <SummaryNavigationButton
+      <CompactNavigationButton
         icon={<FileText size={12} />}
         title={t('settings.promptManager.activePresetTitle')}
         label={activePresetLabel}
@@ -42,13 +50,13 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
       />
       <ComposerContextControls state={state} />
       {actions ? <div className={styles.summaryActions}>{actions}</div> : null}
-    </div>
+    </CompactControlGroup>
   );
 });
 
 /**
- * Что это: нижняя строка контекста composer.
- * Зачем нужно: показывает модель, заполнение контекста, стоимость и ручную команду compaction без расширения основного composer.
+ * Что это: нижняя строка быстрых controls composer.
+ * Зачем нужно: показывает модель, reasoning, preset доступов и стоимость без расширения основного composer.
  */
 export const ComposerContextSummary = memo(function ComposerContextSummary({ state }: { state: AgentState }) {
   const { t } = useI18n();
@@ -69,42 +77,48 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
   );
 
   return (
-    <div className={styles.contextSummaryRoot}>
-      <CompactSelect
-        icon={<Settings2 size={12} />}
+    <CompactControlGroup className={styles.contextSummaryRoot}>
+      <Select
+        className={`${styles.compactSelect} ${styles.modelSelect}`}
+        size="sm"
+        leadingIcon={<Settings2 size={12} />}
+        aria-label={t('summary.model')}
         title={t('summary.model')}
         value={state.activeChat.model}
         disabled={state.activeChat.busy}
-        className={`${styles.compactSelect} ${styles.modelSelect}`}
-        onChange={agentActions.setModel}
+        onChange={(event) => agentActions.setModel(event.target.value)}
         options={modelOptions}
         categories={modelCategories}
       />
-      <CompactSelect
-        icon={<Brain size={12} />}
+      <Select
+        className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
+        size="sm"
+        leadingIcon={<Brain size={12} />}
+        aria-label={t('summary.reasoningEffort')}
         title={t('summary.reasoningEffort')}
         value={state.reasoningEffort}
         disabled={state.activeChat.busy}
-        className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
-        onChange={(reasoningEffort) => agentActions.setReasoningEffort(reasoningEffort as ReasoningEffort)}
+        onChange={(event) => agentActions.setReasoningEffort(event.target.value as ReasoningEffort)}
         options={getReasoningOptions()}
       />
-      <CompactSelect
-        icon={<ShieldCheck size={12} />}
+      <Select
+        className={`${styles.compactSelect} ${styles.permissionsCompactSelect}`}
+        size="sm"
+        leadingIcon={<ShieldCheck size={12} />}
+        aria-label={t('summary.toolPermissionPreset')}
         title={t('summary.toolPermissionPreset')}
         value={state.activeToolPermissionPresetId}
         disabled={state.activeChat.busy || state.activeToolPermissionPresetId === 'custom'}
-        className={`${styles.compactSelect} ${styles.permissionsCompactSelect}`}
-        onChange={agentActions.setToolPermissionPreset}
+        onChange={(event) => agentActions.setToolPermissionPreset(event.target.value)}
         options={permissionOptions}
       />
       {state.activeChat.usage.costUsd !== undefined ? (
-        <SummaryItem
+        <CompactControlItem
           icon={<Coins size={12} />}
           text={t('summary.cost', { cost: formatCost(state.activeChat.usage.costUsd) })}
         />
       ) : null}
-    </div>
+    </CompactControlGroup>
   );
 });
 
@@ -112,39 +126,16 @@ const ComposerContextControls = memo(function ComposerContextControls({ state }:
   const { t } = useI18n();
 
   return (
-    <div className={styles.contextControls}>
-      <ContextUsagePie context={state.activeChat.context} />
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        leadingIcon={<Archive size={12} />}
-        disabled={state.activeChat.busy}
+    <CompactControlGroup inline>
+      <ContextUsage context={state.activeChat.context} />
+      <CompactNavigationButton
+        icon={<Archive size={12} />}
+        label={t('summary.compact')}
         title={t('summary.compactTitle')}
+        disabled={state.activeChat.busy}
         onClick={() => agentActions.compactChat(state.activeChat.id)}
-      >
-        {t('summary.compact')}
-      </Button>
-    </div>
-  );
-});
-
-const SummaryNavigationButton = memo(function SummaryNavigationButton({
-  icon,
-  title,
-  label,
-  onClick
-}: {
-  icon: React.ReactNode;
-  title: string;
-  label: string;
-  onClick(): void;
-}) {
-  return (
-    <button type="button" className={styles.summaryNavButton} title={title} onClick={onClick}>
-      <span className={styles.summaryIcon}>{icon}</span>
-      <span className={styles.truncate}>{label}</span>
-    </button>
+      />
+    </CompactControlGroup>
   );
 });
 
@@ -192,72 +183,11 @@ function getActivePresetLabel(state: AgentState, fallback: string): string {
   );
 }
 
-const CompactSelect = memo(function CompactSelect({
-  icon,
-  title,
-  value,
-  options,
-  categories,
-  disabled,
-  displayLabels,
-  className = styles.compactSelect,
-  onChange
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-  options: SelectOption[];
-  categories?: SelectCategory[];
-  disabled?: boolean;
-  displayLabels?: Record<string, string>;
-  className?: string;
-  onChange(value: string): void;
-}) {
-  return (
-    <Select
-      className={className}
-      size="sm"
-      leadingIcon={icon}
-      aria-label={title}
-      title={title}
-      value={value}
-      disabled={disabled}
-      displayLabels={displayLabels}
-      options={options}
-      categories={categories}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  );
-});
-
-const ContextUsagePie = memo(function ContextUsagePie({ context }: { context: ChatContextEstimate | undefined }) {
+const ContextUsage = memo(function ContextUsage({ context }: { context: ChatContextEstimate | undefined }) {
   const { t } = useI18n();
-  const percent = clampPercent(context?.percent ?? 0);
-  const title = formatContextFill(context, t('common.notAvailable'));
+  const text = formatContextFill(context, t('common.notAvailable'));
 
-  return (
-    <span className={styles.contextUsage} title={title}>
-      <span className={styles.contextPie} aria-hidden="true">
-        <span
-          className={styles.contextPieFill}
-          style={{
-            background: `conic-gradient(color-mix(in srgb, var(--vscode-textLink-foreground) 72%, var(--vscode-foreground)) ${percent * 3.6}deg, transparent 0deg)`
-          }}
-        />
-        <span className={styles.contextPieHole} />
-      </span>
-      <span className={styles.truncate}>{formatContextFill(context, t('common.notAvailable'))}</span>
-    </span>
-  );
-});
-
-const SummaryItem = memo(function SummaryItem({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <span className={styles.summaryItem}>
-      <span className={styles.summaryIcon}>{icon}</span>
-      <span className={styles.truncate}>{text}</span>
-    </span>
-  );
+  return <ContextUsageIndicator title={text} text={text} percent={clampPercent(context?.percent ?? 0)} />;
 });
 
 function clampPercent(value: number): number {

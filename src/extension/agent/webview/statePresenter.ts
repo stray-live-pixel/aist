@@ -20,6 +20,8 @@ import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
 import type { WebviewSurface } from '../types';
 
 export type SendAgentStateParams = {
+  /** Версия берётся из ExtensionContext.packageJSON: это установленный VSIX, а не исходный package.json в workspace. */
+  extensionVersion: string;
   surfaces: WebviewSurface[];
   chats: ChatStore;
   logger: AistLogger;
@@ -117,6 +119,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
   const stateMessage = {
     type: 'state',
     viewKind: surface.kind,
+    extensionVersion: context.extensionVersion,
     workspaceName: getWorkspaceName(),
     tools: context.tools.map((tool) => tool.function.name),
     chats: context.chats.getSummaries(),

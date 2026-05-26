@@ -4,7 +4,7 @@
   background: transparent;
 }
 
-.floatingRoot {
+.floating {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -13,7 +13,7 @@
   pointer-events: none;
 }
 
-.floatingRoot::before {
+.floating::before {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -63,39 +63,20 @@
     0 4px 14px rgb(0 0 0 / 0.14);
 }
 
-.settings {
+.header {
   min-width: 0;
   padding: 8px 12px;
+  color: var(--vscode-descriptionForeground);
   font-size: 10px;
 }
 
-.settingsFallback {
+.fallback {
   color: var(--vscode-descriptionForeground);
 }
 
-.prompt {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  min-height: 48px;
-  max-height: 300px;
-  padding: 8px 12px;
-  // Длинные prompt часто содержат пути, URL или base64-подобные токены; textarea должна переносить
-  // такие слова внутри composer, иначе браузер показывает внутренний горизонтальный scrollbar.
-  overflow-x: hidden;
-  overflow-y: auto;
-  overflow-wrap: anywhere;
-  resize: none;
-  border: 0;
-  color: var(--vscode-input-foreground);
-  background: transparent;
-  font-size: 12px;
-  line-height: 1.5;
-  outline: none;
-}
-
-.prompt::placeholder {
-  color: var(--vscode-input-placeholderForeground);
+.divider {
+  height: 1px;
+  background: var(--agent-border);
 }
 
 .actions {
@@ -117,32 +98,4 @@
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
-}
-
-
-.button {
-  display: inline-flex;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: 999px;
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
-}
-
-.button:hover {
-  background: var(--vscode-button-hoverBackground);
-}
-
-.button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.divider {
-  height: 1px;
-  background: var(--agent-border);
 }

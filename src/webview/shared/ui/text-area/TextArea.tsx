@@ -3,10 +3,13 @@ import { type TextareaHTMLAttributes, forwardRef, useId } from 'react';
 import { classNames } from '../lib/classNames';
 import styles from './TextArea.module.scss';
 
+export type TextAreaVariant = 'default' | 'composer';
+
 export type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   label?: string;
   hint?: string;
   error?: string;
+  variant?: TextAreaVariant;
 };
 
 /**
@@ -15,17 +18,24 @@ export type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
  * Пример: <TextArea label="Instructions" rows={6} />.
  */
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
-  ({ label, hint, error, className, id, ...props }, ref) => {
+  ({ label, hint, error, variant = 'default', className, id, ...props }, ref) => {
     const generatedId = useId();
     const inputId = id || generatedId;
 
     return (
-      <label className={classNames(styles.field, className)} htmlFor={inputId}>
+      <label
+        className={classNames(styles.field, variant === 'composer' && styles.composerField, className)}
+        htmlFor={inputId}
+      >
         {label ? <span className={styles.label}>{label}</span> : null}
         <textarea
           ref={ref}
           id={inputId}
-          className={classNames(styles.textarea, error && styles.invalid)}
+          className={classNames(
+            styles.textarea,
+            variant === 'composer' && styles.composerTextarea,
+            error && styles.invalid
+          )}
           aria-invalid={Boolean(error)}
           {...props}
         />

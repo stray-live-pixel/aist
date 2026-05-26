@@ -465,6 +465,7 @@ export const storyActiveChat: Chat = {
 
 export const storyAgentState: AgentState = {
   viewKind: 'editor',
+  extensionVersion: '0.0.8',
   workspaceName: 'ai-agent',
   tools: storyTools,
   chats: storyChatSummaries,
