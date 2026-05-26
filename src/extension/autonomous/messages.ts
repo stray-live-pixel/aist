@@ -5,6 +5,7 @@ export type AutonomousExtensionToWebviewMessage =
   | { type: 'autonomous.error'; message: string };
 
 export type AutonomousWebviewToExtensionMessage =
+  | { type: 'webviewReady' }
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
   | { type: 'autonomous.startFlow'; flowId: string; launch: AutonomousLaunchOptions }

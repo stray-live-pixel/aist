@@ -61,7 +61,7 @@ export class AutonomousController implements vscode.Disposable {
     this.panel.webview.onDidReceiveMessage((message: AutonomousWebviewToExtensionMessage) => {
       void this.handleMessage(message);
     });
-    void this.panel.webview.postMessage({ type: 'page', page: 'autonomous' });
+    void this.postPage();
     void this.sendState();
   }
 
@@ -73,7 +73,10 @@ export class AutonomousController implements vscode.Disposable {
 
   private async handleMessage(message: AutonomousWebviewToExtensionMessage): Promise<void> {
     try {
-      if (message.type === 'autonomous.refresh') {
+      if (message.type === 'webviewReady') {
+        await this.postPage();
+        await this.sendState();
+      } else if (message.type === 'autonomous.refresh') {
         await this.sendState();
       } else if (message.type === 'autonomous.importLegacy') {
         await importLegacyDefinitions(getWorkspaceFolder().uri.fsPath);
@@ -182,6 +185,10 @@ export class AutonomousController implements vscode.Disposable {
           : JSON.stringify(await store.readSession(sessionId), null, 2)
     });
     await vscode.window.showTextDocument(document);
+  }
+
+  private async postPage(): Promise<void> {
+    await this.panel?.webview.postMessage({ type: 'page', page: 'autonomous' });
   }
 
   private async sendState(): Promise<void> {
