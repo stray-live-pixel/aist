@@ -17,6 +17,14 @@
   gap: 6px;
 }
 
+.summaryActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .summaryRoot {
   display: flex;
   min-width: 0;
@@ -49,6 +57,45 @@
 
 .modelSelect {
   width: clamp(8.5rem, 24vw, 13rem);
+}
+
+.reasoningCompactSelect {
+  width: clamp(5.5rem, 13vw, 7.5rem);
+}
+
+.permissionsCompactSelect {
+  width: clamp(7.5rem, 18vw, 10rem);
+}
+
+.contextControls {
+  display: inline-flex;
+  min-width: 0;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.summaryNavButton {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 10rem;
+  height: 26px;
+  flex-shrink: 1;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-input-background) 70%, transparent);
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.summaryNavButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
 }
 
 .summaryItem,

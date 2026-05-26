@@ -9,7 +9,6 @@ import { MessageCard } from '../../../entities/message';
 import { CopyMessageButton } from '../../../features';
 import { AgentActivityStatus } from '../agent-activity-status';
 import { EmptyState } from '../empty-state';
-import { SystemInstructionLabel } from '../system-instruction-label';
 import { ToolCallsCut } from '../tool-calls-cut';
 import styles from './MessageList.module.scss';
 import type { MessageGroup, MessageListProps, PreviousChatHistoryProps } from './types';
@@ -26,15 +25,11 @@ export function MessageList({
   previousChat,
   compactedAt,
   tools: _tools,
-  activeMode,
-  instructionSources,
-  promptConfig,
   busy,
   activity,
   activityDetail,
   bottomOffset = 'none',
-  resolvedApprovalId,
-  headerActions
+  resolvedApprovalId
 }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -58,15 +53,6 @@ export function MessageList({
       className={`${styles.root} ${bottomOffset === 'composer' ? styles.withComposerOffset : ''}`}
       onScroll={handleScroll}
     >
-      <div className={styles.stickyInstructions}>
-        <SystemInstructionLabel
-          mode={activeMode}
-          sources={instructionSources}
-          promptConfig={promptConfig}
-          busy={busy}
-        />
-        {headerActions ? <div className={styles.stickyActions}>{headerActions}</div> : null}
-      </div>
       <div className={styles.stack}>
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
         {messages.length === 0 && !previousChat ? <EmptyState /> : null}

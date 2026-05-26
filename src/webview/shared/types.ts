@@ -101,6 +101,7 @@ export type AgentSkill = {
   description: string;
   command: string;
   permission: ToolPermissionMode;
+  scope: AgentItemScope;
 };
 
 export type AgentConfigScope = 'workspace' | 'user';
@@ -133,6 +134,7 @@ export type AgentPromptPreset = {
   label: string;
   instructionRefs: AgentItemRef[];
   modeRef?: AgentItemRef;
+  scope: AgentItemScope;
 };
 
 export type AgentPromptConfig = {
@@ -258,16 +260,24 @@ export type WebviewToExtensionMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
-  | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
+  | {
+      type: 'addSkill';
+      scope?: AgentItemScope;
+      label: string;
+      description: string;
+      command: string;
+      permission: ToolPermissionMode;
+    }
   | {
       type: 'updateSkill';
+      scope?: AgentItemScope;
       skillId: string;
       label: string;
       description: string;
       command: string;
       permission: ToolPermissionMode;
     }
-  | { type: 'deleteSkill'; skillId: string }
+  | { type: 'deleteSkill'; scope?: AgentItemScope; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | {

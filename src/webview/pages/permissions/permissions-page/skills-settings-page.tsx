@@ -3,9 +3,10 @@ import { memo, useCallback, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentSkill, ToolPermissionMode } from '../../../shared/types';
+import type { AgentItemScope, AgentSkill, ToolPermissionMode } from '../../../shared/types';
 import { Button, Card, Select, TextArea, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
+import { BehaviorScopeTabs, type BehaviorTab } from './behavior-scope-tabs';
 import { getPermissionOptions } from './utils';
 
 /**
@@ -14,6 +15,7 @@ import { getPermissionOptions } from './utils';
  */
 export const SkillsSettingsPage = memo(function SkillsSettingsPage({ customSkills }: { customSkills: AgentSkill[] }) {
   const { t } = useI18n();
+  const [tab, setTab] = useState<BehaviorTab>('active');
   const [addingSkill, setAddingSkill] = useState(false);
   const [newSkill, setNewSkill] = useState({
     label: '',
@@ -21,28 +23,33 @@ export const SkillsSettingsPage = memo(function SkillsSettingsPage({ customSkill
     command: '',
     permission: 'ask' as ToolPermissionMode
   });
+  const scope = tab === 'active' ? undefined : tab;
+  const scopedSkills = scope ? customSkills.filter((skill) => skill.scope === scope) : customSkills;
 
   const handleAddSkill = useCallback(() => {
     const label = newSkill.label.trim();
     const command = newSkill.command.trim();
-    if (!label || !command) return;
-    agentActions.addSkill(label, newSkill.description.trim(), command, newSkill.permission);
+    if (!label || !command || !scope) return;
+    agentActions.addSkill(scope, label, newSkill.description.trim(), command, newSkill.permission);
     setNewSkill({ label: '', description: '', command: '', permission: 'ask' });
     setAddingSkill(false);
-  }, [newSkill]);
+  }, [newSkill, scope]);
 
   return (
     <div className={styles.sectionStack}>
+      <BehaviorScopeTabs activeTab={tab} includeActive subject="skills" onChange={setTab} />
       <Card
         title={t('settings.skills.title')}
         description={t('settings.skills.description')}
         actions={
-          <Button size="sm" onClick={() => setAddingSkill(true)}>
-            {t('settings.skills.addSkill')}
-          </Button>
+          scope ? (
+            <Button size="sm" onClick={() => setAddingSkill(true)}>
+              {t('settings.skills.addSkill')}
+            </Button>
+          ) : null
         }
       >
-        {addingSkill ? (
+        {scope && addingSkill ? (
           <div className={styles.formGrid}>
             <TextField
               label={t('common.name')}
@@ -86,10 +93,10 @@ export const SkillsSettingsPage = memo(function SkillsSettingsPage({ customSkill
             </div>
           </div>
         ) : null}
-        {customSkills.length ? (
+        {scopedSkills.length ? (
           <div className={styles.list}>
-            {customSkills.map((skill) => (
-              <SkillSettingsCard key={skill.id} skill={skill} />
+            {scopedSkills.map((skill) => (
+              <SkillSettingsCard key={`${skill.scope}:${skill.id}`} skill={skill} readOnly={!scope} />
             ))}
           </div>
         ) : !addingSkill ? (
@@ -100,7 +107,13 @@ export const SkillsSettingsPage = memo(function SkillsSettingsPage({ customSkill
   );
 });
 
-const SkillSettingsCard = memo(function SkillSettingsCard({ skill }: { skill: AgentSkill }) {
+const SkillSettingsCard = memo(function SkillSettingsCard({
+  skill,
+  readOnly = false
+}: {
+  skill: AgentSkill;
+  readOnly?: boolean;
+}) {
   const { t } = useI18n();
   const [draft, setDraft] = useState({
     label: skill.label,
@@ -113,7 +126,7 @@ const SkillSettingsCard = memo(function SkillSettingsCard({ skill }: { skill: Ag
     draft.description !== skill.description ||
     draft.command !== skill.command ||
     draft.permission !== skill.permission;
-  const canSave = changed && Boolean(draft.label.trim()) && Boolean(draft.command.trim());
+  const canSave = !readOnly && changed && Boolean(draft.label.trim()) && Boolean(draft.command.trim());
 
   return (
     <Card title={skill.label} description={skill.id}>
@@ -122,17 +135,20 @@ const SkillSettingsCard = memo(function SkillSettingsCard({ skill }: { skill: Ag
           label={t('common.name')}
           value={draft.label}
           onChange={(event) => setDraft((value) => ({ ...value, label: event.target.value }))}
+          disabled={readOnly}
         />
         <TextField
           label={t('common.description')}
           value={draft.description}
           onChange={(event) => setDraft((value) => ({ ...value, description: event.target.value }))}
+          disabled={readOnly}
         />
         <TextArea
           label={t('common.command')}
           rows={5}
           value={draft.command}
           onChange={(event) => setDraft((value) => ({ ...value, command: event.target.value }))}
+          disabled={readOnly}
         />
         <Select
           label={t('common.permission')}
@@ -141,34 +157,38 @@ const SkillSettingsCard = memo(function SkillSettingsCard({ skill }: { skill: Ag
           onChange={(event) =>
             setDraft((value) => ({ ...value, permission: event.target.value as ToolPermissionMode }))
           }
+          disabled={readOnly}
         />
-        <div className={styles.actions}>
-          <Button
-            size="sm"
-            variant="primary"
-            leadingIcon={<Save size={13} />}
-            disabled={!canSave}
-            onClick={() =>
-              agentActions.updateSkill({
-                skillId: skill.id,
-                label: draft.label.trim(),
-                description: draft.description.trim(),
-                command: draft.command.trim(),
-                permission: draft.permission
-              })
-            }
-          >
-            {t('common.save')}
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            leadingIcon={<Trash2 size={13} />}
-            onClick={() => agentActions.deleteSkill(skill.id)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
+        {!readOnly ? (
+          <div className={styles.actions}>
+            <Button
+              size="sm"
+              variant="primary"
+              leadingIcon={<Save size={13} />}
+              disabled={!canSave}
+              onClick={() =>
+                agentActions.updateSkill({
+                  scope: skill.scope,
+                  skillId: skill.id,
+                  label: draft.label.trim(),
+                  description: draft.description.trim(),
+                  command: draft.command.trim(),
+                  permission: draft.permission
+                })
+              }
+            >
+              {t('common.save')}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              leadingIcon={<Trash2 size={13} />}
+              onClick={() => agentActions.deleteSkill(skill.scope, skill.id)}
+            >
+              {t('common.delete')}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </Card>
   );

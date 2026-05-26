@@ -126,16 +126,24 @@ export type WebviewMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
-  | { type: 'addSkill'; label: string; description: string; command: string; permission: ToolPermissionMode }
+  | {
+      type: 'addSkill';
+      scope?: AgentItemScope;
+      label: string;
+      description: string;
+      command: string;
+      permission: ToolPermissionMode;
+    }
   | {
       type: 'updateSkill';
+      scope?: AgentItemScope;
       skillId: string;
       label: string;
       description: string;
       command: string;
       permission: ToolPermissionMode;
     }
-  | { type: 'deleteSkill'; skillId: string }
+  | { type: 'deleteSkill'; scope?: AgentItemScope; skillId: string }
   | { type: 'codexLogin' }
   | { type: 'codexLogout' }
   | {

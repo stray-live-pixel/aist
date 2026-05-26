@@ -4,7 +4,6 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 
 import { getWorkspaceFolder } from '../../shared/workspace';
-import type { AgentSkill } from '../../skills/skills';
 import type { CompactionSettings } from './compaction';
 import type { AgentMode } from './settings';
 
@@ -38,6 +37,7 @@ export type AgentPromptPreset = {
   label: string;
   instructionRefs: AgentItemRef[];
   modeRef?: AgentItemRef;
+  scope: AgentItemScope;
 };
 
 export type AgentPromptConfig = {
@@ -71,11 +71,20 @@ type StoredModeItem = {
   instructions: string;
 };
 
+type StoredSkillItem = {
+  id: string;
+  label: string;
+  description: string;
+  command: string;
+  permission: 'ask' | 'auto';
+  scope?: AgentItemScope;
+};
+
 type StoredAgentConfig = {
   projectInstructions?: string;
   customModes?: AgentMode[];
   modeInstructions?: Record<string, string>;
-  customSkills?: AgentSkill[];
+  customSkills?: StoredSkillItem[];
   compaction?: Partial<CompactionSettings>;
   instructions?: StoredInstructionItem[];
   modes?: StoredModeItem[];
@@ -123,13 +132,15 @@ const DEFAULT_PRESETS: AgentPromptPreset[] = [
       { scope: 'global', id: 'practical-coding' },
       { scope: 'global', id: 'safe-changes' }
     ],
-    modeRef: { scope: 'global', id: 'coder' }
+    modeRef: { scope: 'global', id: 'coder' },
+    scope: 'global'
   },
   {
     id: 'design',
     label: 'Design',
     instructionRefs: [{ scope: 'global', id: 'practical-coding' }],
-    modeRef: { scope: 'global', id: 'architect' }
+    modeRef: { scope: 'global', id: 'architect' },
+    scope: 'global'
   }
 ];
 
@@ -167,7 +178,10 @@ export function getPromptConfig(): AgentPromptConfig {
   const localInstructions = normalizeInstructions(localConfig.instructions, 'local');
   const globalModes = normalizeModes(globalConfig.modes, 'global');
   const localModes = normalizeModes(localConfig.modes, 'local');
-  const presets = normalizePresets([...(globalConfig.presets || []), ...(localConfig.presets || [])]);
+  const presets = [
+    ...normalizePresets(globalConfig.presets || [], 'global'),
+    ...normalizePresets(localConfig.presets || [], 'local')
+  ];
   const fallbackPreset = presets[0];
 
   return {
@@ -302,11 +316,11 @@ export async function applyPromptPreset(presetId: string): Promise<void> {
 }
 
 export async function upsertPromptPreset(
-  input: Omit<AgentPromptPreset, 'id'> & { id?: string; scope?: AgentItemScope }
+  input: Omit<AgentPromptPreset, 'id' | 'scope'> & { id?: string; scope?: AgentItemScope }
 ): Promise<void> {
   const scope = input.scope || 'local';
   const config = readScopedConfig(scope);
-  const current = normalizePresets(config.presets || []);
+  const current = normalizePresets(config.presets || [], scope);
   const id =
     input.id ||
     createUniqueId(
@@ -317,7 +331,8 @@ export async function upsertPromptPreset(
     id,
     label: input.label.trim() || 'Preset',
     instructionRefs: input.instructionRefs || [],
-    modeRef: input.modeRef
+    modeRef: input.modeRef,
+    scope
   };
   const next = current.some((item) => item.id === id)
     ? current.map((item) => (item.id === id ? preset : item))
@@ -330,12 +345,12 @@ export async function deletePromptPreset(presetId: string): Promise<void> {
   const globalConfig = readGlobalAgentConfig();
   await writeJsonConfig(getWorkspaceConfigPath(), {
     ...localConfig,
-    presets: normalizePresets(localConfig.presets || []).filter((item) => item.id !== presetId),
+    presets: normalizePresets(localConfig.presets || [], 'local').filter((item) => item.id !== presetId),
     activePresetId: localConfig.activePresetId === presetId ? undefined : localConfig.activePresetId
   });
   await writeJsonConfig(getGlobalConfigPath(), {
     ...globalConfig,
-    presets: normalizePresets(globalConfig.presets || []).filter((item) => item.id !== presetId)
+    presets: normalizePresets(globalConfig.presets || [], 'global').filter((item) => item.id !== presetId)
   });
 }
 
@@ -361,9 +376,14 @@ export async function setProjectInstructions(instructions: string): Promise<void
   });
 }
 
-function readGlobalAgentConfig(): StoredAgentConfig {
+export function readGlobalAgentConfig(): StoredAgentConfig {
   ensureGlobalDefaults();
   return readJsonConfig(getGlobalConfigPath());
+}
+
+export async function updateGlobalAgentConfig(patch: Partial<StoredAgentConfig>): Promise<void> {
+  const globalConfig = readGlobalAgentConfig();
+  await writeJsonConfig(getGlobalConfigPath(), { ...globalConfig, ...patch });
 }
 
 function readScopedConfig(scope: AgentItemScope): StoredAgentConfig {
@@ -464,7 +484,7 @@ function normalizeStoredModes(raw: unknown): StoredModeItem[] {
     }));
 }
 
-function normalizePresets(raw: unknown): AgentPromptPreset[] {
+function normalizePresets(raw: unknown, fallbackScope: AgentItemScope): AgentPromptPreset[] {
   if (!Array.isArray(raw)) return [];
   const used = new Set<string>();
   const presets: AgentPromptPreset[] = [];
@@ -479,7 +499,8 @@ function normalizePresets(raw: unknown): AgentPromptPreset[] {
       id,
       label,
       instructionRefs: Array.isArray(record.instructionRefs) ? normalizeItemRefs(record.instructionRefs) : [],
-      modeRef: normalizeItemRef(record.modeRef)
+      modeRef: normalizeItemRef(record.modeRef),
+      scope: record.scope === 'global' || record.scope === 'local' ? record.scope : fallbackScope
     });
   }
   return presets;

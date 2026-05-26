@@ -1,7 +1,13 @@
 import { spawn } from 'node:child_process';
 import * as vscode from 'vscode';
 
-import { readAgentConfig, updateAgentConfig } from '../agent/config/agentConfigStore';
+import {
+  type AgentItemScope,
+  readAgentConfig,
+  readGlobalAgentConfig,
+  updateAgentConfig,
+  updateGlobalAgentConfig
+} from '../agent/config/agentConfigStore';
 import type { OpenRouterTool } from '../openrouter/types';
 import { getErrorMessage } from '../shared/errors';
 import { resolveWorkspacePath } from '../shared/workspace';
@@ -13,7 +19,10 @@ export type AgentSkill = {
   description: string;
   command: string;
   permission: ToolPermissionMode;
+  scope: AgentItemScope;
 };
+
+type StoredAgentSkill = Omit<AgentSkill, 'scope'> & { scope?: AgentItemScope };
 
 export const runSkillTool: OpenRouterTool = {
   type: 'function',
@@ -42,8 +51,31 @@ export const runSkillTool: OpenRouterTool = {
   }
 };
 
+/**
+ * Возвращает эффективный список навыков: сначала глобальные, затем проектные.
+ *
+ * Проектный навык с тем же id переопределяет глобальный, потому что run_skill принимает только skillId без scope.
+ * Такой порядок соответствует остальным настройкам: локальный workspace имеет приоритет над пользовательским global.
+ */
 export function getAgentSkills(): AgentSkill[] {
-  const raw = readAgentConfig().customSkills;
+  const globalSkills = getAgentSkillsByScope('global');
+  const localSkills = getAgentSkillsByScope('local');
+  const byId = new Map<string, AgentSkill>();
+
+  for (const skill of [...globalSkills, ...localSkills]) {
+    byId.set(skill.id, skill);
+  }
+
+  return [...byId.values()];
+}
+
+/**
+ * Возвращает навыки конкретной области хранения без смешивания scope.
+ *
+ * UI использует это косвенно через поле scope в AgentSkill, а CRUD-команды — чтобы не удалить одноимённый навык из другой области.
+ */
+export function getAgentSkillsByScope(scope: AgentItemScope): AgentSkill[] {
+  const raw = readSkills(scope);
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -52,7 +84,7 @@ export function getAgentSkills(): AgentSkill[] {
   const usedIds = new Set<string>();
 
   for (const item of raw) {
-    const skill = normalizeSkill(item);
+    const skill = normalizeSkill(item, scope);
     if (!skill || usedIds.has(skill.id)) {
       continue;
     }
@@ -73,12 +105,14 @@ export function getSkillPermission(skillId: string): ToolPermissionMode {
 }
 
 export async function addAgentSkill(input: {
+  scope?: AgentItemScope;
   label: string;
   description: string;
   command: string;
   permission?: ToolPermissionMode;
 }): Promise<AgentSkill> {
-  const skills = getAgentSkills();
+  const scope = input.scope || 'local';
+  const skills = getAgentSkillsByScope(scope);
   const baseId = createSkillId(input.label);
   let id = baseId;
   let counter = 1;
@@ -93,15 +127,20 @@ export async function addAgentSkill(input: {
     label: input.label.trim(),
     description: input.description.trim(),
     command: input.command.trim(),
-    permission: normalizePermission(input.permission, 'ask')
+    permission: normalizePermission(input.permission, 'ask'),
+    scope
   };
 
-  await updateSkills([...skills, skill]);
+  await updateSkills(scope, [...skills, skill]);
   return skill;
 }
 
-export async function updateAgentSkill(skillId: string, patch: Partial<Omit<AgentSkill, 'id'>>): Promise<boolean> {
-  const skills = getAgentSkills();
+export async function updateAgentSkill(
+  skillId: string,
+  patch: Partial<Omit<AgentSkill, 'id' | 'scope'>>,
+  scope: AgentItemScope = 'local'
+): Promise<boolean> {
+  const skills = getAgentSkillsByScope(scope);
   let updated = false;
 
   const next = skills.map((skill) => {
@@ -123,19 +162,19 @@ export async function updateAgentSkill(skillId: string, patch: Partial<Omit<Agen
     return false;
   }
 
-  await updateSkills(next);
+  await updateSkills(scope, next);
   return true;
 }
 
-export async function deleteAgentSkill(skillId: string): Promise<boolean> {
-  const skills = getAgentSkills();
+export async function deleteAgentSkill(skillId: string, scope: AgentItemScope = 'local'): Promise<boolean> {
+  const skills = getAgentSkillsByScope(scope);
   const next = skills.filter((skill) => skill.id !== skillId);
 
   if (next.length === skills.length) {
     return false;
   }
 
-  await updateSkills(next);
+  await updateSkills(scope, next);
   return true;
 }
 
@@ -237,7 +276,7 @@ export async function runAgentSkill(args: Record<string, unknown>): Promise<Reco
   });
 }
 
-function normalizeSkill(value: unknown): AgentSkill | undefined {
+function normalizeSkill(value: unknown, fallbackScope: AgentItemScope): AgentSkill | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;
   }
@@ -256,7 +295,8 @@ function normalizeSkill(value: unknown): AgentSkill | undefined {
     label,
     description: typeof record.description === 'string' ? record.description.trim() : '',
     command,
-    permission: normalizePermission(record.permission, 'ask')
+    permission: normalizePermission(record.permission, 'ask'),
+    scope: record.scope === 'global' || record.scope === 'local' ? record.scope : fallbackScope
   };
 }
 
@@ -273,8 +313,23 @@ function normalizePermission(value: unknown, fallback: ToolPermissionMode): Tool
   return value === 'auto' || value === 'ask' ? value : fallback;
 }
 
-async function updateSkills(skills: AgentSkill[]): Promise<void> {
-  await updateAgentConfig({ customSkills: skills });
+function readSkills(scope: AgentItemScope): StoredAgentSkill[] | undefined {
+  return scope === 'global' ? readGlobalAgentConfig().customSkills : readAgentConfig().customSkills;
+}
+
+async function updateSkills(scope: AgentItemScope, skills: AgentSkill[]): Promise<void> {
+  const storedSkills = skills.map(stripScopeForStorage);
+  if (scope === 'global') {
+    await updateGlobalAgentConfig({ customSkills: storedSkills });
+    return;
+  }
+
+  await updateAgentConfig({ customSkills: storedSkills });
+}
+
+function stripScopeForStorage(skill: AgentSkill): StoredAgentSkill {
+  const { scope: _scope, ...storedSkill } = skill;
+  return storedSkill;
 }
 
 function requireString(value: unknown, name: string): string {

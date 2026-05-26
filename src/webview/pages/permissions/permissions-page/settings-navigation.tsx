@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { useI18n } from '../../../shared/i18n';
 import { IconButton } from '../../../shared/ui/IconButton';
 import styles from '../PermissionsPage.module.scss';
-import { NAV_ITEMS } from './navItems';
+import { NAV_GROUPS, NAV_ITEMS } from './navItems';
 import type { SettingsPageId } from './types';
 
 /**
@@ -21,21 +21,25 @@ export const SettingsSidebar = memo(function SettingsSidebar({
   const { t } = useI18n();
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.sidebarTitle}>{t('settings.sidebarTitle')}</div>
-      <nav className={styles.nav}>
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`${styles.navButton} ${activePage === item.id ? styles.navButtonActive : ''}`}
-            title={t(item.descriptionKey)}
-            onClick={() => onChange(item.id)}
-          >
-            <span className={styles.navIcon}>{item.icon}</span>
-            <span>{t(item.labelKey)}</span>
-          </button>
-        ))}
-      </nav>
+      {NAV_GROUPS.map((group) => (
+        <section key={group.titleKey} className={styles.sidebarPanel}>
+          <div className={styles.sidebarTitle}>{t(group.titleKey)}</div>
+          <nav className={styles.nav}>
+            {group.items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`${styles.navButton} ${activePage === item.id ? styles.navButtonActive : ''}`}
+                title={t(item.descriptionKey)}
+                onClick={() => onChange(item.id)}
+              >
+                <span className={styles.navIcon}>{item.icon}</span>
+                <span>{t(item.labelKey)}</span>
+              </button>
+            ))}
+          </nav>
+        </section>
+      ))}
     </aside>
   );
 });

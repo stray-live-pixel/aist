@@ -164,11 +164,18 @@ export const agentActions = {
     post({ type: 'deletePromptPreset', presetId });
   },
 
-  addSkill(label: string, description: string, command: string, permission: ToolPermissionMode): void {
-    post({ type: 'addSkill', label, description, command, permission });
+  addSkill(
+    scope: AgentItemScope,
+    label: string,
+    description: string,
+    command: string,
+    permission: ToolPermissionMode
+  ): void {
+    post({ type: 'addSkill', scope, label, description, command, permission });
   },
 
   updateSkill(payload: {
+    scope: AgentItemScope;
     skillId: string;
     label: string;
     description: string;
@@ -178,8 +185,8 @@ export const agentActions = {
     post({ type: 'updateSkill', ...payload });
   },
 
-  deleteSkill(skillId: string): void {
-    post({ type: 'deleteSkill', skillId });
+  deleteSkill(scope: AgentItemScope, skillId: string): void {
+    post({ type: 'deleteSkill', scope, skillId });
   },
 
   codexLogin(): void {

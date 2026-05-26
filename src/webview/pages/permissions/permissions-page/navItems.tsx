@@ -1,23 +1,27 @@
-import { BellRing, FileText, Gauge, KeyRound, ShieldCheck, SlidersHorizontal, UserRound, Wrench } from 'lucide-react';
+import {
+  BellRing,
+  FileText,
+  Gauge,
+  KeyRound,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserRound,
+  Wrench,
+  Zap
+} from 'lucide-react';
 
-import type { SettingsNavItem } from './types';
+import type { SettingsNavGroup, SettingsNavItem } from './types';
 
 /**
- * Что это: статический список разделов страницы настроек.
- * Зачем нужно: порядок и иконки навигации не зависят от render-state, поэтому держим их вне компонента и переиспользуем в sidebar/header.
+ * Что это: панель разделов, описывающих поведение агента.
+ * Зачем нужно: порядок «Навыки → Роли → Инструкции → Пресеты» задан продуктовым требованием и не должен зависеть от общего списка настроек.
  */
-export const NAV_ITEMS: SettingsNavItem[] = [
+export const BEHAVIOR_NAV_ITEMS: SettingsNavItem[] = [
   {
-    id: 'overview',
-    labelKey: 'settings.nav.overview',
-    icon: <SlidersHorizontal size={15} />,
-    descriptionKey: 'settings.nav.overviewDescription'
-  },
-  {
-    id: 'instructions',
-    labelKey: 'settings.nav.instructions',
-    icon: <FileText size={15} />,
-    descriptionKey: 'settings.nav.instructionsDescription'
+    id: 'skills',
+    labelKey: 'settings.nav.skills',
+    icon: <Wrench size={15} />,
+    descriptionKey: 'settings.nav.skillsDescription'
   },
   {
     id: 'modes',
@@ -26,10 +30,29 @@ export const NAV_ITEMS: SettingsNavItem[] = [
     descriptionKey: 'settings.nav.modesDescription'
   },
   {
-    id: 'skills',
-    labelKey: 'settings.nav.skills',
-    icon: <Wrench size={15} />,
-    descriptionKey: 'settings.nav.skillsDescription'
+    id: 'instructions',
+    labelKey: 'settings.nav.instructions',
+    icon: <FileText size={15} />,
+    descriptionKey: 'settings.nav.instructionsDescription'
+  },
+  {
+    id: 'presets',
+    labelKey: 'settings.nav.presets',
+    icon: <Zap size={15} />,
+    descriptionKey: 'settings.nav.presetsDescription'
+  }
+];
+
+/**
+ * Что это: остальные разделы страницы настроек.
+ * Зачем нужно: отделяем общие настройки от поведения агента, но оставляем единый контракт item для header и sidebar.
+ */
+export const GENERAL_NAV_ITEMS: SettingsNavItem[] = [
+  {
+    id: 'overview',
+    labelKey: 'settings.nav.overview',
+    icon: <SlidersHorizontal size={15} />,
+    descriptionKey: 'settings.nav.overviewDescription'
   },
   {
     id: 'permissions',
@@ -56,3 +79,18 @@ export const NAV_ITEMS: SettingsNavItem[] = [
     descriptionKey: 'settings.nav.systemDescription'
   }
 ];
+
+/**
+ * Что это: статический список групп sidebar.
+ * Зачем нужно: sidebar рендерит отдельные панели, а header по-прежнему может искать активный пункт в плоском NAV_ITEMS.
+ */
+export const NAV_GROUPS: SettingsNavGroup[] = [
+  { titleKey: 'settings.sidebarTitle', items: GENERAL_NAV_ITEMS },
+  { titleKey: 'settings.behaviorSidebarTitle', items: BEHAVIOR_NAV_ITEMS }
+];
+
+/**
+ * Что это: плоский список разделов страницы настроек.
+ * Зачем нужно: порядок и иконки навигации не зависят от render-state, поэтому держим их вне компонента и переиспользуем в sidebar/header.
+ */
+export const NAV_ITEMS: SettingsNavItem[] = [...GENERAL_NAV_ITEMS, ...BEHAVIOR_NAV_ITEMS];

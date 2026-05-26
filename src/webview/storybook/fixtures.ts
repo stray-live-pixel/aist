@@ -119,7 +119,8 @@ export const storyPromptConfig: AgentPromptConfig = {
         { scope: 'global', id: 'practical-coding' },
         { scope: 'local', id: 'project-style' }
       ],
-      modeRef: { scope: 'global', id: 'coder' }
+      modeRef: { scope: 'global', id: 'coder' },
+      scope: 'local'
     }
   ],
   activeInstructionRefs: [
@@ -136,7 +137,8 @@ export const storyCustomSkills: AgentSkill[] = [
     label: 'Focused tests',
     description: 'Run the smallest useful test command for the current change.',
     command: 'npm run test -- --run',
-    permission: 'ask'
+    permission: 'ask',
+    scope: 'local'
   }
 ];
 

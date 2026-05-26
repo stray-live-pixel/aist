@@ -9,6 +9,7 @@ import type { useI18n } from '../../../shared/i18n';
 export type SettingsPageId =
   | 'overview'
   | 'instructions'
+  | 'presets'
   | 'modes'
   | 'skills'
   | 'permissions'
@@ -23,6 +24,7 @@ export type SettingsPageId =
 export type PermissionsPageProps = {
   onBack?(): void;
   variant?: 'page' | 'embedded';
+  initialPage?: SettingsPageId;
 };
 
 /**
@@ -34,4 +36,13 @@ export type SettingsNavItem = {
   labelKey: ReturnType<typeof useI18n>['t'] extends (key: infer Key, ...args: never[]) => string ? Key : never;
   icon: ReactNode;
   descriptionKey: ReturnType<typeof useI18n>['t'] extends (key: infer Key, ...args: never[]) => string ? Key : never;
+};
+
+/**
+ * Что это: группа пунктов sidebar с собственным заголовком.
+ * Зачем нужно: поведение агента визуально отделено от системных настроек без дублирования рендера кнопок.
+ */
+export type SettingsNavGroup = {
+  titleKey: ReturnType<typeof useI18n>['t'] extends (key: infer Key, ...args: never[]) => string ? Key : never;
+  items: SettingsNavItem[];
 };

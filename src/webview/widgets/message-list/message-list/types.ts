@@ -1,11 +1,4 @@
-import type {
-  AgentInstructionSource,
-  AgentMode,
-  AgentPromptConfig,
-  Chat,
-  ChatMessage,
-  CompactPreviousChat
-} from '../../../shared/types';
+import type { Chat, ChatMessage, CompactPreviousChat } from '../../../shared/types';
 
 /**
  * Что это: props списка сообщений чата.
@@ -17,16 +10,11 @@ export type MessageListProps = {
   previousChat?: CompactPreviousChat;
   compactedAt?: number;
   tools: string[];
-  activeMode: AgentMode | undefined;
-  instructionSources: AgentInstructionSource[];
-  promptConfig: AgentPromptConfig;
   busy: boolean;
   activity: Chat['activity'];
   activityDetail?: string;
   bottomOffset?: 'none' | 'composer';
   resolvedApprovalId?: string;
-  /** Кнопки действий (список чатов, открыть в новой вкладке), рендерятся рядом с плавающей кнопкой инструкций */
-  headerActions?: React.ReactNode;
 };
 
 /**

@@ -30,7 +30,7 @@ export async function handleWebviewSkillMessage(message: SkillMessage, deps: Age
       deps.sendState();
       return;
     case 'deleteSkill':
-      await removeSkill(message.skillId, deps);
+      await removeSkill(message.skillId, message.scope || 'local', deps);
       deps.sendState();
       return;
   }
@@ -42,6 +42,7 @@ async function addSkill(
 ): Promise<void> {
   try {
     const skill = await addAgentSkill({
+      scope: message.scope || 'local',
       label: message.label,
       description: message.description,
       command: message.command,
@@ -59,12 +60,16 @@ async function updateSkill(
   deps: AgentWebviewMessageDeps
 ): Promise<void> {
   try {
-    const updated = await updateAgentSkill(message.skillId, {
-      label: message.label,
-      description: message.description,
-      command: message.command,
-      permission: message.permission
-    });
+    const updated = await updateAgentSkill(
+      message.skillId,
+      {
+        label: message.label,
+        description: message.description,
+        command: message.command,
+        permission: message.permission
+      },
+      message.scope || 'local'
+    );
     deps.logger.info('Agent skill update attempted', { skillId: message.skillId, updated });
   } catch (error) {
     deps.logger.error('Failed to update agent skill', error);
@@ -72,10 +77,10 @@ async function updateSkill(
   }
 }
 
-async function removeSkill(skillId: string, deps: AgentWebviewMessageDeps): Promise<void> {
+async function removeSkill(skillId: string, scope: 'global' | 'local', deps: AgentWebviewMessageDeps): Promise<void> {
   try {
-    const deleted = await deleteAgentSkill(skillId);
-    deps.logger.info('Agent skill delete attempted', { skillId, deleted });
+    const deleted = await deleteAgentSkill(skillId, scope);
+    deps.logger.info('Agent skill delete attempted', { skillId, scope, deleted });
   } catch (error) {
     deps.logger.error('Failed to delete agent skill', error);
     vscode.window.showErrorMessage(t('error.deleteSkill', { error: getErrorMessage(error) }));

@@ -1,75 +1,47 @@
-import { Archive, Brain, Coins, Settings2, ShieldCheck, SlidersHorizontal, Wrench } from 'lucide-react';
+import { Archive, Brain, Coins, FileText, Settings2, ShieldCheck, UserRound } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
 import type { AgentState, ChatContextEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
 import { Button, Select, type SelectCategory, type SelectOption } from '../../shared/ui';
+import type { SettingsPageId } from '../permissions/permissions-page/types';
 import styles from './ChatPage.module.scss';
 
 type AgentSettingsSummaryProps = {
   state: AgentState;
-  onOpen(): void;
+  actions?: React.ReactNode;
+  onOpen(page?: SettingsPageId): void;
 };
 
 /**
  * Что это: компактная панель быстрых настроек над composer.
  * Зачем нужно: позволяет менять режим, preset доступа и reasoning без открытия полной модалки settings.
  */
-export const AgentSettingsSummary = memo(function AgentSettingsSummary({ state, onOpen }: AgentSettingsSummaryProps) {
+export const AgentSettingsSummary = memo(function AgentSettingsSummary({
+  state,
+  actions,
+  onOpen
+}: AgentSettingsSummaryProps) {
   const { t } = useI18n();
-  const agentModeOptions = useMemo(() => getAgentModeOptions(state), [state.agentModes]);
-  const agentModeDisplayLabels = useMemo(() => getAgentModeDisplayLabels(state), [state.agentModes]);
-  const permissionOptions = useMemo(
-    () => [
-      ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
-      ...state.toolPermissionPresets.map((preset) => ({
-        value: preset.id,
-        label: t(`settings.preset.${preset.id}.label` as never)
-      }))
-    ],
-    [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
-  );
-  const reasoningOptions = useMemo(
-    () => [
-      { value: 'auto', label: t('reasoning.autoDetailed') },
-      { value: 'low', label: t('reasoning.lowDetailed') },
-      { value: 'medium', label: t('reasoning.mediumDetailed') },
-      { value: 'high', label: t('reasoning.highDetailed') }
-    ],
-    [t]
-  );
-
+  const activeRoleLabel = getActiveRoleLabel(state, t('systemInstructions.noRole'));
+  const activePresetLabel = getActivePresetLabel(state, t('settings.promptManager.noActivePreset'));
   return (
     <div className={styles.summaryRoot}>
-      <CompactSelect
-        icon={<SlidersHorizontal size={12} />}
+      <SummaryNavigationButton
+        icon={<UserRound size={12} />}
         title={t('summary.agentMode')}
-        value={state.agentMode}
-        disabled={state.activeChat.busy}
-        onChange={agentActions.setAgentMode}
-        options={agentModeOptions}
-        displayLabels={agentModeDisplayLabels}
+        label={activeRoleLabel}
+        onClick={() => onOpen('presets')}
       />
-      <CompactSelect
-        icon={<ShieldCheck size={12} />}
-        title={t('summary.toolPermissionPreset')}
-        value={state.activeToolPermissionPresetId}
-        disabled={state.activeChat.busy || state.activeToolPermissionPresetId === 'custom'}
-        onChange={agentActions.setToolPermissionPreset}
-        options={permissionOptions}
+      <SummaryNavigationButton
+        icon={<FileText size={12} />}
+        title={t('settings.promptManager.activePresetTitle')}
+        label={activePresetLabel}
+        onClick={() => onOpen('presets')}
       />
-      <CompactSelect
-        icon={<Brain size={12} />}
-        title={t('summary.reasoningEffort')}
-        value={state.reasoningEffort}
-        disabled={state.activeChat.busy}
-        onChange={(reasoningEffort) => agentActions.setReasoningEffort(reasoningEffort as ReasoningEffort)}
-        options={reasoningOptions}
-      />
-      <Button type="button" variant="secondary" size="sm" leadingIcon={<Wrench size={12} />} onClick={onOpen}>
-        {t('summary.toolsCount', { count: state.tools.length })}
-      </Button>
+      <ComposerContextControls state={state} />
+      {actions ? <div className={styles.summaryActions}>{actions}</div> : null}
     </div>
   );
 });
@@ -85,6 +57,16 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
     () => (state.models.length ? getModelCategories(state.models) : undefined),
     [state.models]
   );
+  const permissionOptions = useMemo(
+    () => [
+      ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
+      ...state.toolPermissionPresets.map((preset) => ({
+        value: preset.id,
+        label: t(`settings.preset.${preset.id}.label` as never)
+      }))
+    ],
+    [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
+  );
 
   return (
     <div className={styles.contextSummaryRoot}>
@@ -98,13 +80,40 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         options={modelOptions}
         categories={modelCategories}
       />
-      <ContextUsagePie context={state.activeChat.context} />
+      <CompactSelect
+        icon={<Brain size={12} />}
+        title={t('summary.reasoningEffort')}
+        value={state.reasoningEffort}
+        disabled={state.activeChat.busy}
+        className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
+        onChange={(reasoningEffort) => agentActions.setReasoningEffort(reasoningEffort as ReasoningEffort)}
+        options={getReasoningOptions()}
+      />
+      <CompactSelect
+        icon={<ShieldCheck size={12} />}
+        title={t('summary.toolPermissionPreset')}
+        value={state.activeToolPermissionPresetId}
+        disabled={state.activeChat.busy || state.activeToolPermissionPresetId === 'custom'}
+        className={`${styles.compactSelect} ${styles.permissionsCompactSelect}`}
+        onChange={agentActions.setToolPermissionPreset}
+        options={permissionOptions}
+      />
       {state.activeChat.usage.costUsd !== undefined ? (
         <SummaryItem
           icon={<Coins size={12} />}
           text={t('summary.cost', { cost: formatCost(state.activeChat.usage.costUsd) })}
         />
       ) : null}
+    </div>
+  );
+});
+
+const ComposerContextControls = memo(function ComposerContextControls({ state }: { state: AgentState }) {
+  const { t } = useI18n();
+
+  return (
+    <div className={styles.contextControls}>
+      <ContextUsagePie context={state.activeChat.context} />
       <Button
         type="button"
         variant="ghost"
@@ -119,6 +128,34 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
     </div>
   );
 });
+
+const SummaryNavigationButton = memo(function SummaryNavigationButton({
+  icon,
+  title,
+  label,
+  onClick
+}: {
+  icon: React.ReactNode;
+  title: string;
+  label: string;
+  onClick(): void;
+}) {
+  return (
+    <button type="button" className={styles.summaryNavButton} title={title} onClick={onClick}>
+      <span className={styles.summaryIcon}>{icon}</span>
+      <span className={styles.truncate}>{label}</span>
+    </button>
+  );
+});
+
+function getReasoningOptions(): SelectOption[] {
+  return [
+    { value: 'auto', label: 'auto' },
+    { value: 'low', label: 'slow' },
+    { value: 'medium', label: 'medium' },
+    { value: 'high', label: 'high' }
+  ];
+}
 
 function getModelOptions(state: AgentState): SelectOption[] {
   return state.models.length
@@ -139,32 +176,20 @@ function getModelCategories(models: ModelOption[]): SelectCategory[] {
   return categories.filter((category) => providers.has(category.id as NonNullable<ModelOption['provider']>));
 }
 
-function getAgentModeOptions(state: AgentState): SelectOption[] {
-  const modes = state.agentModes.filter((mode) => !mode.id.startsWith('preset:'));
-  const presets = state.agentModes.filter((mode) => mode.id.startsWith('preset:'));
-  return [
-    ...modes.map((mode) => ({ value: mode.id, label: mode.label })),
-    ...presets.map((mode) => ({ value: mode.id, label: mode.label }))
-  ];
+function getActiveRoleLabel(state: AgentState, fallback: string): string {
+  const roleRef = state.promptConfig.activeModeRef;
+  if (!roleRef) return fallback;
+  const role = [...state.promptConfig.globalModes, ...state.promptConfig.localModes].find(
+    (mode) => mode.scope === roleRef.scope && mode.id === roleRef.id
+  );
+  return role?.label || fallback;
 }
 
-function getAgentModeDisplayLabels(state: AgentState): Record<string, string> {
-  return Object.fromEntries(state.agentModes.map((mode) => [mode.id, compactModeLabel(mode.id, mode.label)]));
-}
-
-function compactModeLabel(modeId: string, label: string): string {
-  const cleaned = label
-    .replace(/^Mode\s*·\s*(Global|Project)\s*·\s*/i, '')
-    .replace(/^Preset with instructions\s*·\s*/i, '')
-    .replace(/\s+preset$/i, '');
-  const scope = modeId.startsWith('global:')
-    ? 'G'
-    : modeId.startsWith('local:')
-      ? 'P'
-      : modeId.startsWith('preset:')
-        ? 'Preset'
-        : '';
-  return scope ? `${cleaned} · ${scope}` : cleaned;
+function getActivePresetLabel(state: AgentState, fallback: string): string {
+  if (!state.promptConfig.activePresetId) return fallback;
+  return (
+    state.promptConfig.presets.find((preset) => preset.id === state.promptConfig.activePresetId)?.label || fallback
+  );
 }
 
 const CompactSelect = memo(function CompactSelect({

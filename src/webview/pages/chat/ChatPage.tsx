@@ -8,6 +8,7 @@ import { useAgentState } from '../../shared/lib/agentState';
 import type { AgentState } from '../../shared/types';
 import { IconButton } from '../../shared/ui/IconButton';
 import { MessageList } from '../../widgets/message-list';
+import type { SettingsPageId } from '../permissions/permissions-page/types';
 import { AgentSettingsModal } from './AgentSettingsModal';
 import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
 import { ApprovalPromptModal } from './ApprovalPromptModal';
@@ -22,9 +23,9 @@ export function ChatPage() {
   const state = useAgentState();
   const [chatsOpen, setChatsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
   const [approvalMinimized, setApprovalMinimized] = useState(false);
   const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
-  const activeMode = state.agentModes.find((mode) => mode.id === state.agentMode);
   const chats = useSortedChats(state);
   const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
   const pendingApprovalId = pendingApproval?.id;
@@ -36,6 +37,11 @@ export function ChatPage() {
     }
   }, [pendingApprovalId]);
 
+  function openSettings(page: SettingsPageId = 'overview') {
+    setSettingsInitialPage(page);
+    setSettingsOpen(true);
+  }
+
   return (
     <div className={styles.root}>
       <MessageList
@@ -43,22 +49,22 @@ export function ChatPage() {
         previousChat={state.activeChat.previousChat}
         compactedAt={state.activeChat.compactedAt}
         tools={state.tools}
-        activeMode={activeMode}
-        instructionSources={state.instructionSources}
-        promptConfig={state.promptConfig}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
         activityDetail={state.activeChat.activityDetail}
         bottomOffset="composer"
         resolvedApprovalId={resolvedApprovalId}
-        headerActions={
-          <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
-        }
       />
       <Composer
         busy={state.activeChat.busy}
         floating
-        settings={<AgentSettingsSummary state={state} onOpen={() => setSettingsOpen(true)} />}
+        settings={
+          <AgentSettingsSummary
+            state={state}
+            onOpen={openSettings}
+            actions={<FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />}
+          />
+        }
         footer={<ComposerContextSummary state={state} />}
         notice={
           pendingApproval && approvalMinimized ? (
@@ -81,7 +87,9 @@ export function ChatPage() {
           onClose={() => setChatsOpen(false)}
         />
       ) : null}
-      {settingsOpen ? <AgentSettingsModal onClose={() => setSettingsOpen(false)} /> : null}
+      {settingsOpen ? (
+        <AgentSettingsModal initialPage={settingsInitialPage} onClose={() => setSettingsOpen(false)} />
+      ) : null}
       {pendingApproval && !approvalMinimized ? (
         <ApprovalPromptModal
           message={pendingApproval}

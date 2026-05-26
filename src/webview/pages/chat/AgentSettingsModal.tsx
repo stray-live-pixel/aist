@@ -9,17 +9,19 @@ import type { AgentState, ReasoningEffort } from '../../shared/types';
 import { ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
 import { PermissionsPage } from '../permissions/PermissionsPage';
+import type { SettingsPageId } from '../permissions/permissions-page/types';
 import styles from './ChatPage.module.scss';
 
 type AgentSettingsModalProps = {
   onClose(): void;
+  initialPage?: SettingsPageId;
 };
 
 /**
  * Что это: модалка полной настройки агента поверх чата.
  * Зачем нужно: быстрые настройки остаются в header, а глубокие разделы открываются embedded-версией PermissionsPage.
  */
-export function AgentSettingsModal({ onClose }: AgentSettingsModalProps) {
+export function AgentSettingsModal({ onClose, initialPage = 'overview' }: AgentSettingsModalProps) {
   const { t } = useI18n();
   const state = useAgentState();
   useEffect(() => {
@@ -46,7 +48,7 @@ export function AgentSettingsModal({ onClose }: AgentSettingsModalProps) {
         <div className={styles.quickSettingsWrap}>
           <QuickSettings state={state} />
         </div>
-        <PermissionsPage variant="embedded" />
+        <PermissionsPage variant="embedded" initialPage={initialPage} />
       </ModalSurface>
     </ModalBackdrop>
   );

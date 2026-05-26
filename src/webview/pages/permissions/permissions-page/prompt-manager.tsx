@@ -28,24 +28,27 @@ import {
 } from '../../../shared/ui';
 import { IconButton } from '../../../shared/ui/IconButton';
 import styles from '../PermissionsPage.module.scss';
+import { BehaviorScopeTabs, type BehaviorTab } from './behavior-scope-tabs';
 import { parseRefKey, refKey, scopeLabel } from './utils';
 
 type PromptLibraryKind = 'instructions' | 'roles';
 
 /**
- * Что это: самостоятельная страница управления инструкциями и пресетами.
- * Зачем нужно: инструкции отвечают за дополнительные правила, а не за роль агента; отдельная страница снижает риск случайно поменять роль вместо набора правил.
+ * Что это: самостоятельная страница управления инструкциями.
+ * Зачем нужно: пресеты вынесены отдельно, поэтому здесь остаются активный набор и библиотека правил без смешения сценариев.
  */
 export function InstructionsSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  const [tab, setTab] = useState<BehaviorTab>('active');
+
   return (
     <div className={styles.sectionStack}>
       <PromptManagerIntro
         titleKey="settings.promptManager.instructionsTitle"
         descriptionKey="settings.promptManager.instructionsDescription"
       />
-      <ActivePromptSet promptConfig={promptConfig} />
-      <PromptPriorityManager promptConfig={promptConfig} />
-      <PromptLibrary kind="instructions" promptConfig={promptConfig} />
+      <BehaviorScopeTabs activeTab={tab} includeActive subject="instructions" onChange={setTab} />
+      {tab === 'active' ? <ActivePromptSet promptConfig={promptConfig} /> : null}
+      {tab !== 'active' ? <PromptLibrary kind="instructions" scope={tab} promptConfig={promptConfig} /> : null}
     </div>
   );
 }
@@ -55,14 +58,37 @@ export function InstructionsSettingsPage({ promptConfig }: { promptConfig: Agent
  * Зачем нужно: роль — один основной системный образ поведения, поэтому она настраивается отдельно от дополнительных инструкций и пресетов.
  */
 export function RolesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  const [tab, setTab] = useState<BehaviorTab>('active');
+
   return (
     <div className={styles.sectionStack}>
       <PromptManagerIntro
         titleKey="settings.promptManager.rolesTitle"
         descriptionKey="settings.promptManager.rolesDescription"
       />
-      <ActiveRoleCard promptConfig={promptConfig} />
-      <PromptLibrary kind="roles" promptConfig={promptConfig} />
+      <BehaviorScopeTabs activeTab={tab} includeActive subject="roles" onChange={setTab} />
+      {tab === 'active' ? <ActiveRoleCard promptConfig={promptConfig} /> : null}
+      {tab !== 'active' ? <PromptLibrary kind="roles" scope={tab} promptConfig={promptConfig} /> : null}
+    </div>
+  );
+}
+
+/**
+ * Что это: самостоятельная страница управления пресетами поведения.
+ * Зачем нужно: пресеты меняют сразу роль и набор инструкций, поэтому их редактирование отделено от библиотеки инструкций.
+ */
+export function PresetsSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  const [tab, setTab] = useState<BehaviorTab>('active');
+
+  return (
+    <div className={styles.sectionStack}>
+      <PromptManagerIntro
+        titleKey="settings.promptManager.presetsPageTitle"
+        descriptionKey="settings.promptManager.presetsPageDescription"
+      />
+      <BehaviorScopeTabs activeTab={tab} includeActive subject="presets" onChange={setTab} />
+      {tab === 'active' ? <ActivePresetCard promptConfig={promptConfig} /> : null}
+      {tab !== 'active' ? <PromptPriorityManager promptConfig={promptConfig} scope={tab} /> : null}
     </div>
   );
 }
@@ -98,8 +124,14 @@ function PromptManagerIntro({
   titleKey,
   descriptionKey
 }: {
-  titleKey: 'settings.promptManager.instructionsTitle' | 'settings.promptManager.rolesTitle';
-  descriptionKey: 'settings.promptManager.instructionsDescription' | 'settings.promptManager.rolesDescription';
+  titleKey:
+    | 'settings.promptManager.instructionsTitle'
+    | 'settings.promptManager.rolesTitle'
+    | 'settings.promptManager.presetsPageTitle';
+  descriptionKey:
+    | 'settings.promptManager.instructionsDescription'
+    | 'settings.promptManager.rolesDescription'
+    | 'settings.promptManager.presetsPageDescription';
 }) {
   const { t } = useI18n();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -238,55 +270,49 @@ const ActivePromptSet = memo(function ActivePromptSet({ promptConfig }: { prompt
 
 const PromptLibrary = memo(function PromptLibrary({
   kind,
+  scope,
   promptConfig
 }: {
   kind: PromptLibraryKind;
+  scope: AgentItemScope;
   promptConfig: AgentPromptConfig;
 }) {
   const { t } = useI18n();
-  const [adding, setAdding] = useState<{ scope: AgentItemScope; kind: AgentInstructionKind } | undefined>();
+  const [adding, setAdding] = useState(false);
   const itemKind: AgentInstructionKind = kind === 'instructions' ? 'instruction' : 'mode';
-  const scopes: AgentItemScope[] = ['global', 'local'];
+  const items = getLibraryItems(promptConfig, scope, itemKind);
 
   return (
-    <div className={styles.twoColumns}>
-      {scopes.map((scope) => {
-        const items = getLibraryItems(promptConfig, scope, itemKind);
-        return (
-          <Card
-            key={scope}
-            title={t(`settings.promptManager.${itemKind}.${scope}.title` as never)}
-            description={
-              itemKind === 'instruction'
-                ? t('settings.promptManager.instruction.description')
-                : t('settings.promptManager.mode.description')
-            }
-            actions={
-              <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAdding({ scope, kind: itemKind })}>
-                {itemKind === 'instruction'
-                  ? t('settings.promptManager.addInstruction')
-                  : t('settings.promptManager.addRole')}
-              </Button>
-            }
-          >
-            {adding?.scope === scope && adding.kind === itemKind ? (
-              <PromptItemEditor
-                scope={scope}
-                kind={itemKind}
-                onCancel={() => setAdding(undefined)}
-                onSaved={() => setAdding(undefined)}
-              />
-            ) : null}
-            <div className={styles.list}>
-              {items.map((item) => (
-                <PromptItemCard key={`${item.scope}:${item.id}`} item={item} />
-              ))}
-              {!items.length && !adding ? <p className={styles.empty}>{t('settings.promptManager.empty')}</p> : null}
-            </div>
-          </Card>
-        );
-      })}
-    </div>
+    <Card
+      title={t(`settings.promptManager.${itemKind}.${scope}.title` as never)}
+      description={
+        itemKind === 'instruction'
+          ? t('settings.promptManager.instruction.description')
+          : t('settings.promptManager.mode.description')
+      }
+      actions={
+        <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAdding(true)}>
+          {itemKind === 'instruction'
+            ? t('settings.promptManager.addInstruction')
+            : t('settings.promptManager.addRole')}
+        </Button>
+      }
+    >
+      {adding ? (
+        <PromptItemEditor
+          scope={scope}
+          kind={itemKind}
+          onCancel={() => setAdding(false)}
+          onSaved={() => setAdding(false)}
+        />
+      ) : null}
+      <div className={styles.list}>
+        {items.map((item) => (
+          <PromptItemCard key={`${item.scope}:${item.id}`} item={item} />
+        ))}
+        {!items.length && !adding ? <p className={styles.empty}>{t('settings.promptManager.empty')}</p> : null}
+      </div>
+    </Card>
   );
 });
 
@@ -411,21 +437,76 @@ function PromptItemEditor({
   );
 }
 
-const PromptPriorityManager = memo(function PromptPriorityManager({
-  promptConfig
-}: {
-  promptConfig: AgentPromptConfig;
-}) {
+const ActivePresetCard = memo(function ActivePresetCard({ promptConfig }: { promptConfig: AgentPromptConfig }) {
   const { t } = useI18n();
-  const [selectedPresetId, setSelectedPresetId] = useState(
-    promptConfig.activePresetId || promptConfig.presets[0]?.id || 'new'
-  );
-  const selectedPreset = promptConfig.presets.find((preset) => preset.id === selectedPresetId);
+  const [presetId, setPresetId] = useState(promptConfig.activePresetId || '');
+  const selectedPreset = promptConfig.presets.find((preset) => preset.id === presetId);
+  const activePreset = promptConfig.activePresetId
+    ? promptConfig.presets.find((preset) => preset.id === promptConfig.activePresetId)
+    : undefined;
+  const changed = presetId !== (promptConfig.activePresetId || '');
 
   return (
-    <div className={styles.twoColumns}>
+    <Card
+      title={t('settings.promptManager.activePresetTitle')}
+      description={t('settings.promptManager.activePresetDescription')}
+      actions={
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={!presetId || !changed}
+          onClick={() => agentActions.applyPromptPreset(presetId)}
+        >
+          {t('settings.promptManager.applyPreset')}
+        </Button>
+      }
+    >
+      <div className={styles.formGrid}>
+        <Select
+          label={t('settings.promptManager.choosePreset')}
+          value={presetId}
+          placeholder={t('settings.promptManager.choosePreset')}
+          options={promptConfig.presets.map((preset) => ({
+            value: preset.id,
+            label: `${scopeLabel(preset.scope, t)} · ${preset.label}`
+          }))}
+          onChange={(event) => setPresetId(event.target.value)}
+        />
+        <div className={styles.statusRow}>
+          <Badge tone={changed ? 'warning' : 'success'}>
+            {changed ? t('settings.promptManager.pendingApply') : t('settings.promptManager.applied')}
+          </Badge>
+          <span className={styles.mutedText}>
+            {activePreset
+              ? t('settings.promptManager.currentPreset', { preset: activePreset.label })
+              : t('settings.promptManager.noActivePreset')}
+          </span>
+        </div>
+        {selectedPreset ? <PresetDetails preset={selectedPreset} promptConfig={promptConfig} /> : null}
+      </div>
+    </Card>
+  );
+});
+
+const PromptPriorityManager = memo(function PromptPriorityManager({
+  promptConfig,
+  scope
+}: {
+  promptConfig: AgentPromptConfig;
+  scope: AgentItemScope;
+}) {
+  const { t } = useI18n();
+  const scopedPresets = useMemo(
+    () => promptConfig.presets.filter((preset) => getPresetScope(preset) === scope),
+    [promptConfig.presets, scope]
+  );
+  const [selectedPresetId, setSelectedPresetId] = useState('new');
+  const selectedPreset = scopedPresets.find((preset) => preset.id === selectedPresetId);
+
+  return (
+    <div className={styles.sectionStack}>
       <Card
-        title={t('settings.promptManager.presetsTitle')}
+        title={t(`settings.promptManager.preset.${scope}.title` as never)}
         description={t('settings.promptManager.presetsDescription')}
         actions={
           <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setSelectedPresetId('new')}>
@@ -434,7 +515,7 @@ const PromptPriorityManager = memo(function PromptPriorityManager({
         }
       >
         <div className={styles.list}>
-          {promptConfig.presets.map((preset) => (
+          {scopedPresets.map((preset) => (
             <PresetListItem
               key={preset.id}
               preset={preset}
@@ -443,15 +524,53 @@ const PromptPriorityManager = memo(function PromptPriorityManager({
               onSelect={() => setSelectedPresetId(preset.id)}
             />
           ))}
-          {!promptConfig.presets.length ? (
-            <p className={styles.empty}>{t('settings.promptManager.noPresets')}</p>
-          ) : null}
+          {!scopedPresets.length ? <p className={styles.empty}>{t('settings.promptManager.noPresets')}</p> : null}
         </div>
       </Card>
-      <PresetEditor preset={selectedPreset} promptConfig={promptConfig} key={selectedPreset?.id || 'new'} />
+      <PresetEditor
+        preset={selectedPreset}
+        promptConfig={promptConfig}
+        scope={scope}
+        key={selectedPreset?.id || `new:${scope}`}
+      />
     </div>
   );
 });
+
+function PresetDetails({ preset, promptConfig }: { preset: AgentPromptPreset; promptConfig: AgentPromptConfig }) {
+  const { t } = useI18n();
+  const allRoles = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
+  const allInstructions = useMemo(
+    () => [...promptConfig.globalInstructions, ...promptConfig.localInstructions],
+    [promptConfig]
+  );
+  const role = preset.modeRef ? allRoles.find((item) => refKey(item) === refKey(preset.modeRef!)) : undefined;
+  const instructions = preset.instructionRefs
+    .map((ref) => allInstructions.find((instruction) => refKey(instruction) === refKey(ref)))
+    .filter(Boolean) as AgentInstructionItem[];
+
+  return (
+    <div className={styles.formGrid}>
+      <div className={styles.reliabilityHint}>
+        {t('settings.promptManager.presetDescription', {
+          count: preset.instructionRefs.length,
+          mode: role ? role.label : t('systemInstructions.noRole')
+        })}
+      </div>
+      <MarkdownPreview markdown={role?.instructions || ''} emptyText={t('systemInstructions.noRole')} />
+      <div className={styles.list}>
+        {instructions.map((instruction) => (
+          <MarkdownPreview
+            key={`${instruction.scope}:${instruction.id}`}
+            markdown={instruction.content}
+            emptyText={t('systemInstructions.noAdditional')}
+          />
+        ))}
+        {!instructions.length ? <p className={styles.empty}>{t('settings.promptManager.noInstructions')}</p> : null}
+      </div>
+    </div>
+  );
+}
 
 const PresetListItem = memo(function PresetListItem({
   preset,
@@ -487,7 +606,15 @@ const PresetListItem = memo(function PresetListItem({
   );
 });
 
-function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; promptConfig: AgentPromptConfig }) {
+function PresetEditor({
+  preset,
+  promptConfig,
+  scope
+}: {
+  preset?: AgentPromptPreset;
+  promptConfig: AgentPromptConfig;
+  scope: AgentItemScope;
+}) {
   const { t } = useI18n();
   const roles = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
   const allInstructions = useMemo(
@@ -512,7 +639,7 @@ function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; pr
       label: label.trim(),
       instructionRefs,
       modeRef: parseRefKey(roleKey),
-      scope: 'local'
+      scope
     });
   }
 
@@ -654,4 +781,12 @@ function getLibraryItems(promptConfig: AgentPromptConfig, scope: AgentItemScope,
   }
 
   return scope === 'global' ? promptConfig.globalModes : promptConfig.localModes;
+}
+
+/**
+ * Что это: нормализация scope пресета для UI-вкладок.
+ * Зачем нужно: старые состояния могли приходить без scope, поэтому считаем их проектными — так совпадает прежнее поведение сохранения пресетов.
+ */
+function getPresetScope(preset: AgentPromptPreset): AgentItemScope {
+  return preset.scope || 'local';
 }
