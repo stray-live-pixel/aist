@@ -4,10 +4,29 @@
   --agent-input-border: var(--vscode-input-border, var(--agent-border));
 }
 
+*,
+*::before,
+*::after {
+  /*
+   * В webview много блоков с width: 100% и внутренними padding/border; border-box не даёт им
+   * становиться шире viewport и создавать горизонтальный скролл на узких сайдбарах VS Code.
+   */
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: var(--vscode-editor-font-family);
   background: var(--vscode-editor-background);
+  padding: 0;
 }
 
 button,

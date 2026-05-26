@@ -76,10 +76,15 @@
 .prompt {
   display: block;
   width: 100%;
+  min-width: 0;
   min-height: 48px;
   max-height: 300px;
   padding: 8px 12px;
+  // Длинные prompt часто содержат пути, URL или base64-подобные токены; textarea должна переносить
+  // такие слова внутри composer, иначе браузер показывает внутренний горизонтальный scrollbar.
+  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   resize: none;
   border: 0;
   color: var(--vscode-input-foreground);

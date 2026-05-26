@@ -1,10 +1,13 @@
 .root {
   min-height: 0;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-gutter: stable;
   background: transparent;
-  padding: 12px;
+  // Горизонтальный gutter списка сообщений задан явно: чат должен доходить почти до краёв webview,
+  // но сохранять 16px для читаемости и попадания в scrollbar/рамки VS Code.
+  padding: 12px 16px;
 }
 
 .withComposerOffset {
@@ -17,8 +20,17 @@
   z-index: 10;
   display: flex;
   width: 100%;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 4px;
-  padding: 4px 48px 4px 0;
+  padding: 4px 0;
+}
+
+.stickyActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
 }
 
 .stack {

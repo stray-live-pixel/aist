@@ -2,7 +2,7 @@ import type { useI18n } from '../../../shared/i18n';
 import type { AgentItemRef, AgentItemScope, ToolPermissionMode } from '../../../shared/types';
 
 /**
- * Что это: локализованное имя scope инструкции/режима.
+ * Что это: локализованное имя scope инструкции/роли.
  * Зачем нужно: scope хранится как enum-like значение, а UI должен показывать понятную пользователю подпись.
  */
 export function scopeLabel(scope: AgentItemScope, t: ReturnType<typeof useI18n>['t']): string {

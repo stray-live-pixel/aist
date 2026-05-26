@@ -25,6 +25,8 @@ export type MessageListProps = {
   activityDetail?: string;
   bottomOffset?: 'none' | 'composer';
   resolvedApprovalId?: string;
+  /** Кнопки действий (список чатов, открыть в новой вкладке), рендерятся рядом с плавающей кнопкой инструкций */
+  headerActions?: React.ReactNode;
 };
 
 /**

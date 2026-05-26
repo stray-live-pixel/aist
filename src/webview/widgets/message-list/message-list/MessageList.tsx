@@ -33,7 +33,8 @@ export function MessageList({
   activity,
   activityDetail,
   bottomOffset = 'none',
-  resolvedApprovalId
+  resolvedApprovalId,
+  headerActions
 }: MessageListProps) {
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -64,6 +65,7 @@ export function MessageList({
           promptConfig={promptConfig}
           busy={busy}
         />
+        {headerActions ? <div className={styles.stickyActions}>{headerActions}</div> : null}
       </div>
       <div className={styles.stack}>
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}

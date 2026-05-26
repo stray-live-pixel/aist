@@ -6,7 +6,7 @@ import { CompactionSettingsPage } from './compaction-settings-page';
 import { NotificationSettingsPage } from './notification-settings-page';
 import { OverviewPage } from './overview-page';
 import { PermissionsSettingsPage } from './permissions-settings-page';
-import { PromptManager } from './prompt-manager';
+import { InstructionsSettingsPage, RolesSettingsPage } from './prompt-manager';
 import { SettingsHeader, SettingsSidebar } from './settings-navigation';
 import { SkillsSettingsPage } from './skills-settings-page';
 import { SystemSettingsPage } from './system-settings-page';
@@ -59,10 +59,8 @@ export function PermissionsPage({ onBack, variant = 'page' }: PermissionsPagePro
               codexAuthenticated={codexAuthenticated}
             />
           ) : null}
-          {activePage === 'instructions' ? <PromptManager promptConfig={promptConfig} defaultTab="priorities" /> : null}
-          {activePage === 'modes' ? (
-            <PromptManager promptConfig={promptConfig} defaultTab="priorities" focus="modes" />
-          ) : null}
+          {activePage === 'instructions' ? <InstructionsSettingsPage promptConfig={promptConfig} /> : null}
+          {activePage === 'modes' ? <RolesSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage

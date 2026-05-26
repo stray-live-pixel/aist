@@ -1,5 +1,7 @@
 import { Copy, HelpCircle, Plus, Save, Trash2, X } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
@@ -13,6 +15,7 @@ import type {
   AgentPromptPreset
 } from '../../../shared/types';
 import {
+  Badge,
   Button,
   Card,
   Checkbox,
@@ -27,117 +30,262 @@ import { IconButton } from '../../../shared/ui/IconButton';
 import styles from '../PermissionsPage.module.scss';
 import { parseRefKey, refKey, scopeLabel } from './utils';
 
-type PromptManagerTab = 'global' | 'local' | 'priorities';
-
-type PromptManagerProps = {
-  promptConfig: AgentPromptConfig;
-  defaultTab: PromptManagerTab;
-  focus?: 'instructions' | 'modes';
-};
+type PromptLibraryKind = 'instructions' | 'roles';
 
 /**
- * Что это: раздел управления инструкциями, режимами и preset приоритетов.
- * Зачем нужно: prompt management — самый насыщенный сценарий settings, поэтому он изолирован от общей страницы и дробится на memo-списки.
+ * Что это: самостоятельная страница управления инструкциями и пресетами.
+ * Зачем нужно: инструкции отвечают за дополнительные правила, а не за роль агента; отдельная страница снижает риск случайно поменять роль вместо набора правил.
  */
-export function ModesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
-  return <PromptManager promptConfig={promptConfig} defaultTab="priorities" focus="modes" />;
-}
-
-export function PromptManager({ promptConfig, defaultTab, focus = 'instructions' }: PromptManagerProps) {
-  const { t } = useI18n();
-  const [tab, setTab] = useState<PromptManagerTab>(defaultTab);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const tabs = useMemo(() => ['global', 'local', 'priorities'] as PromptManagerTab[], []);
-
+export function InstructionsSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
   return (
     <div className={styles.sectionStack}>
-      <Card
-        title={t('settings.promptManager.title')}
-        description={t('settings.promptManager.description')}
-        actions={
-          <Button size="sm" variant="ghost" leadingIcon={<HelpCircle size={14} />} onClick={() => setHelpOpen(true)}>
-            {t('settings.promptManager.guide')}
-          </Button>
-        }
-      >
-        <div className={styles.actions}>
-          {tabs.map((item) => (
-            <Button key={item} size="sm" variant={tab === item ? 'primary' : 'secondary'} onClick={() => setTab(item)}>
-              {t(`settings.promptManager.tab.${item}` as never)}
-            </Button>
-          ))}
-        </div>
-      </Card>
-      {tab === 'global' ? (
-        <PromptLibrary scope="global" promptConfig={promptConfig} focus={focus} />
-      ) : tab === 'local' ? (
-        <PromptLibrary scope="local" promptConfig={promptConfig} focus={focus} />
-      ) : (
-        <PromptPriorityManager promptConfig={promptConfig} />
-      )}
-      {helpOpen ? <PromptHelpDialog onClose={() => setHelpOpen(false)} /> : null}
+      <PromptManagerIntro
+        titleKey="settings.promptManager.instructionsTitle"
+        descriptionKey="settings.promptManager.instructionsDescription"
+      />
+      <ActivePromptSet promptConfig={promptConfig} />
+      <PromptPriorityManager promptConfig={promptConfig} />
+      <PromptLibrary kind="instructions" promptConfig={promptConfig} />
     </div>
   );
 }
 
-const PromptLibrary = memo(function PromptLibrary({
-  scope,
-  promptConfig,
-  focus
-}: {
-  scope: AgentItemScope;
-  promptConfig: AgentPromptConfig;
-  focus: 'instructions' | 'modes';
-}) {
-  const { t } = useI18n();
-  const [addingKind, setAddingKind] = useState<AgentInstructionKind | undefined>(undefined);
-  const instructions = scope === 'global' ? promptConfig.globalInstructions : promptConfig.localInstructions;
-  const modes = scope === 'global' ? promptConfig.globalModes : promptConfig.localModes;
-  const orderedKinds = useMemo(
-    () =>
-      focus === 'instructions'
-        ? (['instruction', 'mode'] as AgentInstructionKind[])
-        : (['mode', 'instruction'] as AgentInstructionKind[]),
-    [focus]
-  );
-
+/**
+ * Что это: самостоятельная страница управления ролями агента.
+ * Зачем нужно: роль — один основной системный образ поведения, поэтому она настраивается отдельно от дополнительных инструкций и пресетов.
+ */
+export function RolesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
   return (
     <div className={styles.sectionStack}>
-      {orderedKinds.map((kind) => (
-        <Card
-          key={kind}
-          title={t(`settings.promptManager.${kind}.${scope}.title` as never)}
-          description={
-            kind === 'instruction'
-              ? t('settings.promptManager.instruction.description')
-              : t('settings.promptManager.mode.description')
-          }
-          actions={
-            <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAddingKind(kind)}>
-              {kind === 'instruction'
-                ? t('settings.promptManager.addInstruction')
-                : t('settings.promptManager.addMode')}
-            </Button>
-          }
+      <PromptManagerIntro
+        titleKey="settings.promptManager.rolesTitle"
+        descriptionKey="settings.promptManager.rolesDescription"
+      />
+      <ActiveRoleCard promptConfig={promptConfig} />
+      <PromptLibrary kind="roles" promptConfig={promptConfig} />
+    </div>
+  );
+}
+
+/**
+ * Что это: совместимый alias для dialog быстрых системных инструкций.
+ * Зачем нужно: старый импорт из SystemInstructionLabel остаётся рабочим, но фактически открывает новую страницу ролей.
+ */
+export function ModesSettingsPage({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  return <RolesSettingsPage promptConfig={promptConfig} />;
+}
+
+/**
+ * Что это: совместимый фасад старого PromptManager.
+ * Зачем нужно: внешний код может ещё передавать focus/defaultTab; теперь выбор страницы определяется фокусом, а вкладки больше не смешивают роли и инструкции.
+ */
+export function PromptManager({
+  promptConfig,
+  focus = 'instructions'
+}: {
+  promptConfig: AgentPromptConfig;
+  defaultTab?: 'global' | 'local' | 'priorities';
+  focus?: 'instructions' | 'modes';
+}) {
+  return focus === 'modes' ? (
+    <RolesSettingsPage promptConfig={promptConfig} />
+  ) : (
+    <InstructionsSettingsPage promptConfig={promptConfig} />
+  );
+}
+
+function PromptManagerIntro({
+  titleKey,
+  descriptionKey
+}: {
+  titleKey: 'settings.promptManager.instructionsTitle' | 'settings.promptManager.rolesTitle';
+  descriptionKey: 'settings.promptManager.instructionsDescription' | 'settings.promptManager.rolesDescription';
+}) {
+  const { t } = useI18n();
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  return (
+    <Card
+      title={t(titleKey)}
+      description={t(descriptionKey)}
+      actions={
+        <Button size="sm" variant="ghost" leadingIcon={<HelpCircle size={14} />} onClick={() => setHelpOpen(true)}>
+          {t('settings.promptManager.guide')}
+        </Button>
+      }
+    >
+      <div className={styles.reliabilityHint}>{t('settings.promptManager.autosaveHint')}</div>
+      {helpOpen ? <PromptHelpDialog onClose={() => setHelpOpen(false)} /> : null}
+    </Card>
+  );
+}
+
+const ActiveRoleCard = memo(function ActiveRoleCard({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  const { t } = useI18n();
+  const allRoles = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
+  const [roleKey, setRoleKey] = useState(promptConfig.activeModeRef ? refKey(promptConfig.activeModeRef) : '');
+  const selectedRole = allRoles.find((role) => refKey(role) === roleKey);
+  const currentRole = promptConfig.activeModeRef
+    ? allRoles.find((role) => refKey(role) === refKey(promptConfig.activeModeRef!))
+    : undefined;
+  const changed = roleKey !== (promptConfig.activeModeRef ? refKey(promptConfig.activeModeRef) : '');
+
+  return (
+    <Card
+      title={t('settings.promptManager.activeRoleTitle')}
+      description={t('settings.promptManager.activeRoleDescription')}
+      actions={
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={!changed}
+          onClick={() => agentActions.setActivePromptConfig(promptConfig.activeInstructionRefs, parseRefKey(roleKey))}
         >
-          {addingKind === kind ? (
-            <PromptItemEditor
-              scope={scope}
-              kind={kind}
-              onCancel={() => setAddingKind(undefined)}
-              onSaved={() => setAddingKind(undefined)}
-            />
-          ) : null}
-          <div className={styles.list}>
-            {(kind === 'instruction' ? instructions : modes).map((item) => (
-              <PromptItemCard key={`${item.scope}:${item.id}`} item={item} />
-            ))}
-            {!(kind === 'instruction' ? instructions : modes).length && !addingKind ? (
-              <p className={styles.empty}>{t('settings.promptManager.empty')}</p>
+          {t('settings.promptManager.applyRole')}
+        </Button>
+      }
+    >
+      <div className={styles.formGrid}>
+        <Select
+          label={t('systemInstructions.roleSelect')}
+          value={roleKey}
+          placeholder={t('systemInstructions.noRole')}
+          options={[
+            { value: '', label: t('systemInstructions.noRole') },
+            ...allRoles.map((role) => ({ value: refKey(role), label: `${scopeLabel(role.scope, t)} · ${role.label}` }))
+          ]}
+          onChange={(event) => setRoleKey(event.target.value)}
+        />
+        <div className={styles.statusRow}>
+          <Badge tone={changed ? 'warning' : 'success'}>
+            {changed ? t('settings.promptManager.pendingApply') : t('settings.promptManager.applied')}
+          </Badge>
+          <span className={styles.mutedText}>
+            {currentRole
+              ? t('settings.promptManager.currentRole', { role: currentRole.label })
+              : t('systemInstructions.noRole')}
+          </span>
+        </div>
+        {selectedRole ? (
+          <MarkdownPreview markdown={selectedRole.instructions} emptyText={t('systemInstructions.noAdditional')} />
+        ) : null}
+      </div>
+    </Card>
+  );
+});
+
+const ActivePromptSet = memo(function ActivePromptSet({ promptConfig }: { promptConfig: AgentPromptConfig }) {
+  const { t } = useI18n();
+  const allRoles = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
+  const allInstructions = useMemo(
+    () => [...promptConfig.globalInstructions, ...promptConfig.localInstructions],
+    [promptConfig]
+  );
+  const [roleKey, setRoleKey] = useState(promptConfig.activeModeRef ? refKey(promptConfig.activeModeRef) : '');
+  const [instructionRefs, setInstructionRefs] = useState<AgentItemRef[]>(promptConfig.activeInstructionRefs);
+  const selectedRefKeys = useMemo(() => new Set(instructionRefs.map(refKey)), [instructionRefs]);
+  const activeSignature = `${promptConfig.activeModeRef ? refKey(promptConfig.activeModeRef) : ''}|${promptConfig.activeInstructionRefs.map(refKey).join(',')}`;
+  const draftSignature = `${roleKey}|${instructionRefs.map(refKey).join(',')}`;
+  const changed = activeSignature !== draftSignature;
+
+  const toggleInstruction = useCallback((ref: AgentItemRef, checked: boolean) => {
+    setInstructionRefs((current) =>
+      checked ? [...current, ref] : current.filter((item) => refKey(item) !== refKey(ref))
+    );
+  }, []);
+
+  return (
+    <Card
+      title={t('settings.promptManager.activeTitle')}
+      description={t('settings.promptManager.activeDescription')}
+      actions={
+        <div className={styles.actions}>
+          <Badge tone={changed ? 'warning' : 'success'}>
+            {changed ? t('settings.promptManager.pendingApply') : t('settings.promptManager.applied')}
+          </Badge>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!changed}
+            onClick={() => agentActions.setActivePromptConfig(instructionRefs, parseRefKey(roleKey))}
+          >
+            {t('settings.promptManager.applyActiveSet')}
+          </Button>
+        </div>
+      }
+    >
+      <div className={styles.formGrid}>
+        <Select
+          label={t('systemInstructions.roleSelect')}
+          value={roleKey}
+          placeholder={t('systemInstructions.noRole')}
+          options={[
+            { value: '', label: t('systemInstructions.noRole') },
+            ...allRoles.map((role) => ({ value: refKey(role), label: `${scopeLabel(role.scope, t)} · ${role.label}` }))
+          ]}
+          onChange={(event) => setRoleKey(event.target.value)}
+        />
+        <InstructionPicker
+          title={t('settings.promptManager.connectedInstructions')}
+          instructions={allInstructions}
+          selectedRefKeys={selectedRefKeys}
+          onToggle={toggleInstruction}
+        />
+      </div>
+    </Card>
+  );
+});
+
+const PromptLibrary = memo(function PromptLibrary({
+  kind,
+  promptConfig
+}: {
+  kind: PromptLibraryKind;
+  promptConfig: AgentPromptConfig;
+}) {
+  const { t } = useI18n();
+  const [adding, setAdding] = useState<{ scope: AgentItemScope; kind: AgentInstructionKind } | undefined>();
+  const itemKind: AgentInstructionKind = kind === 'instructions' ? 'instruction' : 'mode';
+  const scopes: AgentItemScope[] = ['global', 'local'];
+
+  return (
+    <div className={styles.twoColumns}>
+      {scopes.map((scope) => {
+        const items = getLibraryItems(promptConfig, scope, itemKind);
+        return (
+          <Card
+            key={scope}
+            title={t(`settings.promptManager.${itemKind}.${scope}.title` as never)}
+            description={
+              itemKind === 'instruction'
+                ? t('settings.promptManager.instruction.description')
+                : t('settings.promptManager.mode.description')
+            }
+            actions={
+              <Button size="sm" leadingIcon={<Plus size={14} />} onClick={() => setAdding({ scope, kind: itemKind })}>
+                {itemKind === 'instruction'
+                  ? t('settings.promptManager.addInstruction')
+                  : t('settings.promptManager.addRole')}
+              </Button>
+            }
+          >
+            {adding?.scope === scope && adding.kind === itemKind ? (
+              <PromptItemEditor
+                scope={scope}
+                kind={itemKind}
+                onCancel={() => setAdding(undefined)}
+                onSaved={() => setAdding(undefined)}
+              />
             ) : null}
-          </div>
-        </Card>
-      ))}
+            <div className={styles.list}>
+              {items.map((item) => (
+                <PromptItemCard key={`${item.scope}:${item.id}`} item={item} />
+              ))}
+              {!items.length && !adding ? <p className={styles.empty}>{t('settings.promptManager.empty')}</p> : null}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 });
@@ -145,6 +293,8 @@ const PromptLibrary = memo(function PromptLibrary({
 const PromptItemCard = memo(function PromptItemCard({ item }: { item: AgentInstructionItem | AgentModeItem }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
+  const content = item.kind === 'instruction' ? item.content : item.instructions;
+
   if (editing) {
     return (
       <PromptItemEditor
@@ -192,7 +342,7 @@ const PromptItemCard = memo(function PromptItemCard({ item }: { item: AgentInstr
         </div>
       }
     >
-      <p className={styles.preWrapText}>{item.kind === 'instruction' ? item.content : item.instructions}</p>
+      <MarkdownPreview markdown={content} emptyText={t('systemInstructions.noAdditional')} />
     </Card>
   );
 });
@@ -235,7 +385,7 @@ function PromptItemEditor({
         />
         <TextArea
           label={t('settings.promptManager.instructionText')}
-          rows={6}
+          rows={8}
           value={content}
           onChange={(event) => setContent(event.target.value)}
         />
@@ -315,8 +465,9 @@ const PresetListItem = memo(function PresetListItem({
   onSelect(): void;
 }) {
   const { t } = useI18n();
-  const allModes = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
-  const mode = preset.modeRef ? allModes.find((item) => refKey(item) === refKey(preset.modeRef!)) : undefined;
+  const allRoles = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
+  const role = preset.modeRef ? allRoles.find((item) => refKey(item) === refKey(preset.modeRef!)) : undefined;
+  const active = preset.id === promptConfig.activePresetId;
 
   return (
     <button
@@ -325,10 +476,11 @@ const PresetListItem = memo(function PresetListItem({
       onClick={onSelect}
     >
       <span>{preset.label}</span>
+      {active ? <Badge tone="success">{t('settings.promptManager.activePreset')}</Badge> : null}
       <span className={styles.navMeta}>
         {t('settings.promptManager.presetDescription', {
           count: preset.instructionRefs.length,
-          mode: mode ? mode.label : t('systemInstructions.noMode')
+          mode: role ? role.label : t('systemInstructions.noRole')
         })}
       </span>
     </button>
@@ -337,12 +489,15 @@ const PresetListItem = memo(function PresetListItem({
 
 function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; promptConfig: AgentPromptConfig }) {
   const { t } = useI18n();
-  const modes = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
-  const globalInstructions = promptConfig.globalInstructions;
-  const localInstructions = promptConfig.localInstructions;
+  const roles = useMemo(() => [...promptConfig.globalModes, ...promptConfig.localModes], [promptConfig]);
+  const allInstructions = useMemo(
+    () => [...promptConfig.globalInstructions, ...promptConfig.localInstructions],
+    [promptConfig]
+  );
   const [label, setLabel] = useState(preset?.label || '');
-  const [modeKey, setModeKey] = useState(preset?.modeRef ? refKey(preset.modeRef) : '');
+  const [roleKey, setRoleKey] = useState(preset?.modeRef ? refKey(preset.modeRef) : '');
   const [instructionRefs, setInstructionRefs] = useState<AgentItemRef[]>(preset?.instructionRefs || []);
+  const selectedRefKeys = useMemo(() => new Set(instructionRefs.map(refKey)), [instructionRefs]);
   const canSave = Boolean(label.trim());
 
   const toggleInstruction = useCallback((ref: AgentItemRef, checked: boolean) => {
@@ -352,12 +507,11 @@ function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; pr
   }, []);
 
   function savePreset() {
-    const modeRef = parseRefKey(modeKey);
     agentActions.upsertPromptPreset({
       id: preset?.id,
       label: label.trim(),
       instructionRefs,
-      modeRef,
+      modeRef: parseRefKey(roleKey),
       scope: 'local'
     });
   }
@@ -393,25 +547,19 @@ function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; pr
           autoFocus
         />
         <Select
-          label={t('systemInstructions.modeSelect')}
-          value={modeKey}
-          placeholder={t('systemInstructions.noMode')}
+          label={t('systemInstructions.roleSelect')}
+          value={roleKey}
+          placeholder={t('systemInstructions.noRole')}
           options={[
-            { value: '', label: t('systemInstructions.noMode') },
-            ...modes.map((mode) => ({ value: refKey(mode), label: `${scopeLabel(mode.scope, t)} · ${mode.label}` }))
+            { value: '', label: t('systemInstructions.noRole') },
+            ...roles.map((role) => ({ value: refKey(role), label: `${scopeLabel(role.scope, t)} · ${role.label}` }))
           ]}
-          onChange={(event) => setModeKey(event.target.value)}
+          onChange={(event) => setRoleKey(event.target.value)}
         />
         <InstructionPicker
-          title={t('settings.promptManager.globalInstructions')}
-          instructions={globalInstructions}
-          selectedRefs={instructionRefs}
-          onToggle={toggleInstruction}
-        />
-        <InstructionPicker
-          title={t('settings.promptManager.localInstructions')}
-          instructions={localInstructions}
-          selectedRefs={instructionRefs}
+          title={t('settings.promptManager.presetInstructions')}
+          instructions={allInstructions}
+          selectedRefKeys={selectedRefKeys}
           onToggle={toggleInstruction}
         />
         <div className={styles.actions}>
@@ -427,16 +575,15 @@ function PresetEditor({ preset, promptConfig }: { preset?: AgentPromptPreset; pr
 const InstructionPicker = memo(function InstructionPicker({
   title,
   instructions,
-  selectedRefs,
+  selectedRefKeys,
   onToggle
 }: {
   title: string;
   instructions: AgentInstructionItem[];
-  selectedRefs: AgentItemRef[];
+  selectedRefKeys: Set<string>;
   onToggle(ref: AgentItemRef, checked: boolean): void;
 }) {
   const { t } = useI18n();
-  const selectedRefKeys = useMemo(() => new Set(selectedRefs.map(refKey)), [selectedRefs]);
 
   return (
     <div className={styles.formGrid}>
@@ -447,8 +594,8 @@ const InstructionPicker = memo(function InstructionPicker({
           return (
             <Checkbox
               key={refKey(ref)}
-              label={instruction.label}
-              description={instruction.content.slice(0, 120)}
+              label={`${scopeLabel(instruction.scope, t)} · ${instruction.label}`}
+              description={instruction.content.slice(0, 160)}
               checked={selectedRefKeys.has(refKey(ref))}
               onChange={(event) => onToggle(ref, event.target.checked)}
             />
@@ -459,6 +606,14 @@ const InstructionPicker = memo(function InstructionPicker({
     </div>
   );
 });
+
+function MarkdownPreview({ markdown, emptyText }: { markdown: string; emptyText: string }) {
+  return (
+    <div className={styles.markdownPreview}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown.trim() || emptyText}</ReactMarkdown>
+    </div>
+  );
+}
 
 function PromptHelpDialog({ onClose }: { onClose(): void }) {
   const { t } = useI18n();
@@ -491,4 +646,12 @@ function PromptHelpDialog({ onClose }: { onClose(): void }) {
       </ModalSurface>
     </ModalBackdrop>
   );
+}
+
+function getLibraryItems(promptConfig: AgentPromptConfig, scope: AgentItemScope, kind: AgentInstructionKind) {
+  if (kind === 'instruction') {
+    return scope === 'global' ? promptConfig.globalInstructions : promptConfig.localInstructions;
+  }
+
+  return scope === 'global' ? promptConfig.globalModes : promptConfig.localModes;
 }

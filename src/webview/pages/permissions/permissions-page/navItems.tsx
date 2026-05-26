@@ -1,4 +1,4 @@
-import { BellRing, Bot, FileText, Gauge, KeyRound, ShieldCheck, SlidersHorizontal, Wrench } from 'lucide-react';
+import { BellRing, FileText, Gauge, KeyRound, ShieldCheck, SlidersHorizontal, UserRound, Wrench } from 'lucide-react';
 
 import type { SettingsNavItem } from './types';
 
@@ -22,7 +22,7 @@ export const NAV_ITEMS: SettingsNavItem[] = [
   {
     id: 'modes',
     labelKey: 'settings.nav.modes',
-    icon: <Bot size={15} />,
+    icon: <UserRound size={15} />,
     descriptionKey: 'settings.nav.modesDescription'
   },
   {

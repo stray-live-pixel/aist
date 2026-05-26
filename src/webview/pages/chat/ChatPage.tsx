@@ -38,7 +38,6 @@ export function ChatPage() {
 
   return (
     <div className={styles.root}>
-      <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
       <MessageList
         messages={state.activeChat.messages}
         previousChat={state.activeChat.previousChat}
@@ -52,6 +51,9 @@ export function ChatPage() {
         activityDetail={state.activeChat.activityDetail}
         bottomOffset="composer"
         resolvedApprovalId={resolvedApprovalId}
+        headerActions={
+          <FloatingChatActions onOpenChats={() => setChatsOpen(true)} activeChatId={state.activeChat.id} />
+        }
       />
       <Composer
         busy={state.activeChat.busy}

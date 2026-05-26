@@ -171,6 +171,106 @@
   line-height: 1.65;
 }
 
+.reliabilityHint {
+  border: 1px solid color-mix(in srgb, var(--vscode-focusBorder) 38%, var(--agent-border));
+  border-radius: 14px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-focusBorder) 8%, transparent);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.statusRow {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mutedText {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.markdownPreview {
+  overflow: auto;
+  max-height: 340px;
+  border: 1px solid var(--agent-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-input-background) 52%, transparent);
+  padding: 12px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.markdownPreview > :first-child {
+  margin-top: 0;
+}
+
+.markdownPreview > :last-child {
+  margin-bottom: 0;
+}
+
+.markdownPreview p,
+.markdownPreview ul,
+.markdownPreview ol,
+.markdownPreview blockquote,
+.markdownPreview pre,
+.markdownPreview table {
+  margin: 0.65rem 0;
+}
+
+.markdownPreview ul,
+.markdownPreview ol {
+  padding-left: 1.25rem;
+}
+
+.markdownPreview ul {
+  list-style: disc;
+}
+
+.markdownPreview ol {
+  list-style: decimal;
+}
+
+.markdownPreview code {
+  border: 1px solid var(--agent-border);
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 0.08rem 0.28rem;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.markdownPreview pre {
+  overflow: auto;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 0.75rem;
+}
+
+.markdownPreview pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.markdownPreview a {
+  color: var(--vscode-textLink-foreground);
+}
+
+.markdownPreview blockquote {
+  border-left: 3px solid var(--agent-border);
+  padding-left: 0.75rem;
+}
+
 .clampedSourceText {
   display: -webkit-box;
   overflow: hidden;

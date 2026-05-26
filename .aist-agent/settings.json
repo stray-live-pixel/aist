@@ -18,15 +18,6 @@
   },
   "presets": [
     {
-      "id": "coding",
-      "label": "Coding",
-      "instructionRefs": [],
-      "modeRef": {
-        "scope": "global",
-        "id": "coder"
-      }
-    },
-    {
       "id": "ai-coder",
       "label": "ai-coder",
       "instructionRefs": [
