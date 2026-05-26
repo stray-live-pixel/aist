@@ -57,6 +57,7 @@ export function Composer({ busy, floating = false, settings, footer, notice }: C
         size="sm"
         shape="round"
         iconOnly
+        className={styles.sendButtonInstant}
         leadingIcon={busy ? <Square size={12} /> : <SendHorizontal size={15} />}
         title={busy ? t('composer.stop') : t('composer.send')}
         aria-label={busy ? t('composer.stopGeneration') : t('composer.sendMessage')}

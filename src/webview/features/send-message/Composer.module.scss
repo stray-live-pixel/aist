@@ -1,3 +1,15 @@
+.sendButtonInstant {
+  // Состояние send/stop меняется по busy часто; transition здесь воспринимается как лаг, поэтому отключаем его точечно.
+  transition: none;
+}
+
+.sendButtonInstant:hover,
+.sendButtonInstant:active,
+.sendButtonInstant:focus-visible,
+.sendButtonInstant:disabled {
+  transition: none;
+}
+
 .composerEnter {
   // Новый composer появляется снизу только transform/opacity: эти свойства композитятся GPU и не заставляют браузер пересчитывать layout.
   animation: composer-enter 500ms cubic-bezier(0.22, 1, 0.36, 1) both;

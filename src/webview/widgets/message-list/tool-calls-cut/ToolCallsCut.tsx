@@ -1,5 +1,5 @@
 import { ChevronRight, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { MessageCard } from '../../../entities/message';
 import { useI18n } from '../../../shared/i18n';
@@ -16,10 +16,22 @@ import { formatToolCallsMeta } from './utils';
 export function ToolCallsCut({ tools, userMessage, assistantMessage, active, resolvedApprovalId }: ToolCallsCutProps) {
   const shouldBeOpen = active || !assistantMessage;
   const [open, setOpen] = useState(shouldBeOpen);
+  const previousToolIdsRef = useRef<Set<string>>(new Set());
+  const hasRenderedRef = useRef(false);
+  const toolIds = tools.map((tool) => tool.id);
+  const previousToolIds = previousToolIdsRef.current;
+  const newToolIds = hasRenderedRef.current
+    ? new Set(toolIds.filter((toolId) => !previousToolIds.has(toolId)))
+    : new Set<string>();
 
   useEffect(() => {
     setOpen(shouldBeOpen);
   }, [shouldBeOpen]);
+
+  useEffect(() => {
+    previousToolIdsRef.current = new Set(toolIds);
+    hasRenderedRef.current = true;
+  }, [toolIds]);
 
   if (!tools.length) {
     return null;
@@ -35,7 +47,9 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active, res
       {open ? (
         <div className={styles.body}>
           {tools.map((tool) => (
-            <MessageCard key={tool.id} message={tool} collapseToolId={resolvedApprovalId} />
+            <div key={tool.id} className={newToolIds.has(tool.id) ? styles.toolEnter : styles.toolItem}>
+              <MessageCard message={tool} collapseToolId={resolvedApprovalId} />
+            </div>
           ))}
         </div>
       ) : null}
