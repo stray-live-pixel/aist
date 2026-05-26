@@ -1,2 +1,0 @@
-"""OpenAI Codex CLI backend."""
-

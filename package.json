@@ -18,6 +18,7 @@
     "onCommand:openrouterAgent.openChat",
     "onCommand:openrouterAgent.newChat",
     "onCommand:openrouterAgent.openSettings",
+    "onCommand:openrouterAgent.openAutonomous",
     "onCommand:openrouterAgent.openStorage",
     "onCommand:openrouterAgent.showLogs",
     "onCommand:openrouterAgent.editSelection",
@@ -66,6 +67,11 @@
         "icon": "$(settings-gear)"
       },
       {
+        "command": "openrouterAgent.openAutonomous",
+        "title": "aist: Autonomous Runner",
+        "icon": "$(rocket)"
+      },
+      {
         "command": "openrouterAgent.openStorage",
         "title": "aist: Open Extension Storage",
         "icon": "$(folder-opened)"
@@ -98,6 +104,11 @@
           "command": "openrouterAgent.openSettings",
           "when": "view == openrouterAgent.chats",
           "group": "navigation@2"
+        },
+        {
+          "command": "openrouterAgent.openAutonomous",
+          "when": "view == openrouterAgent.chats",
+          "group": "navigation@2.5"
         },
         {
           "command": "openrouterAgent.openStorage",

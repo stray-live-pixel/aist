@@ -1,0 +1,34 @@
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 120px;
+  padding: 18px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--vscode-foreground);
+  opacity: 0.8;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.text strong {
+  color: var(--vscode-foreground);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}

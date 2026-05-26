@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { AgentController } from './extension/agent/agentController';
+import { AutonomousController } from './extension/autonomous/controller';
 import { ChatStore } from './extension/chats/chatStore';
 import { DEFAULT_MODEL } from './extension/shared/constants';
 import { createLogger } from './extension/shared/logger';
@@ -20,17 +21,20 @@ export function activate(context: vscode.ExtensionContext): void {
   const configModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
   const chats = new ChatStore(context.workspaceState, configModel);
   const agent = new AgentController(context, chats, logger);
+  const autonomous = new AutonomousController(context, logger);
 
   logger.info('Registering WebviewViewProvider', { viewId: 'openrouterAgent.chats' });
 
   context.subscriptions.push(
     logger,
+    autonomous,
     vscode.window.registerWebviewViewProvider('openrouterAgent.chats', agent),
     vscode.commands.registerCommand('openrouterAgent.openChat', (chatId?: string) => agent.openChat(chatId)),
     vscode.commands.registerCommand('openrouterAgent.openChatInEditor', (chatId?: string) =>
       agent.openChatInEditor(chatId)
     ),
     vscode.commands.registerCommand('openrouterAgent.openSettings', () => agent.openSettings()),
+    vscode.commands.registerCommand('openrouterAgent.openAutonomous', () => autonomous.open()),
     vscode.commands.registerCommand('openrouterAgent.openStorage', () => agent.openStorage()),
     vscode.commands.registerCommand('openrouterAgent.newChat', () => agent.createChat()),
     vscode.commands.registerCommand('openrouterAgent.editSelection', () => agent.editSelection()),

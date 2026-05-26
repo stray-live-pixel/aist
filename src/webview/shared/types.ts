@@ -184,6 +184,106 @@ export type ApprovalNotificationSettings = {
   durationSeconds: number;
 };
 
+export type AutonomousSourceKind = 'native' | 'legacy';
+export type AutonomousEngineId = 'claude-cli' | 'codex-cli' | 'openrouter-api' | 'codex-api' | 'dry-run';
+export type AutonomousSessionStatus = 'created' | 'running' | 'paused' | 'finished' | 'stopped' | 'error';
+
+export type AutonomousDefinitionDiagnostic = {
+  code: string;
+  message: string;
+  path?: string;
+};
+
+export type AutonomousStageDefinition = {
+  index: number;
+  file: string;
+  title: string;
+  body: string;
+  model?: string;
+  codexModel?: string;
+  contexts: { mode: 'continue' | 'continue-from' | 'summary-from'; from?: number; summaryRules?: string }[];
+  summaryRules?: string;
+  sourcePath: string;
+};
+
+export type AutonomousFlowDefinition = {
+  id: string;
+  title: string;
+  description: string;
+  body: string;
+  defaultModel?: string;
+  defaultCodexModel?: string;
+  defaultSummaryRules?: string;
+  stages: AutonomousStageDefinition[];
+  sourceKind: AutonomousSourceKind;
+  sourcePath: string;
+  diagnostics: AutonomousDefinitionDiagnostic[];
+};
+
+export type AutonomousRunTaskDefinition = {
+  index: number;
+  taskPath: string;
+  flowId: string;
+  repeat: number;
+  body: string;
+  sourcePath: string;
+};
+
+export type AutonomousRunDefinition = {
+  id: string;
+  title: string;
+  workDir: string;
+  repeat: number;
+  tasks: AutonomousRunTaskDefinition[];
+  sourceKind: AutonomousSourceKind;
+  sourcePath: string;
+  diagnostics: AutonomousDefinitionDiagnostic[];
+};
+
+export type AutonomousEvent = {
+  id: string;
+  ts: string;
+  level: 'debug' | 'info' | 'warning' | 'error';
+  action: string;
+  message: string;
+  stageIndex?: number;
+  taskIndex?: number;
+  data?: Record<string, unknown>;
+};
+
+export type AutonomousSessionView = {
+  meta: {
+    id: string;
+    kind: 'flow' | 'run' | 'direct';
+    targetId?: string;
+    status: AutonomousSessionStatus;
+    engineId: AutonomousEngineId;
+    workspaceRoot: string;
+    workDir: string;
+    startedAt: string;
+    finishedAt?: string;
+    error?: string;
+  };
+  events: AutonomousEvent[];
+};
+
+export type AutonomousState = {
+  workspaceName: string;
+  storageRoot: string;
+  definitions: {
+    flows: AutonomousFlowDefinition[];
+    runs: AutonomousRunDefinition[];
+    diagnostics: AutonomousDefinitionDiagnostic[];
+  };
+  engines: {
+    id: AutonomousEngineId;
+    label: string;
+    capabilities: { resume: boolean; fork: boolean; tools: boolean; requiresBinary?: string; requiresAuth?: boolean };
+  }[];
+  sessions: AutonomousSessionView[];
+  diagnostics: AutonomousDefinitionDiagnostic[];
+};
+
 export type AgentState = {
   viewKind: 'sidebar' | 'editor';
   /** Версия установленного VS Code extension; приходит из packageJSON, чтобы UI не хардкодил номер релиза. */
@@ -215,8 +315,10 @@ export type ExtensionToWebviewMessage =
   | ({
       type: 'state';
     } & AgentState)
-  | { type: 'page'; page: 'chat' | 'settings' }
-  | { type: 'errorModal'; message: string };
+  | { type: 'page'; page: 'chat' | 'settings' | 'autonomous' }
+  | { type: 'errorModal'; message: string }
+  | { type: 'autonomous.state'; state: AutonomousState }
+  | { type: 'autonomous.error'; message: string };
 
 export type WebviewToExtensionMessage =
   | { type: 'webviewReady' }
@@ -292,4 +394,19 @@ export type WebviewToExtensionMessage =
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop' }
   | { type: 'clear' }
-  | { type: 'copyMessage'; markdown: string };
+  | { type: 'copyMessage'; markdown: string }
+  | { type: 'autonomous.refresh' }
+  | { type: 'autonomous.importLegacy' }
+  | {
+      type: 'autonomous.startFlow';
+      flowId: string;
+      launch: { engineId: AutonomousEngineId; dryRun: boolean; workDir?: string; extraPrompt?: string };
+    }
+  | {
+      type: 'autonomous.startRun';
+      runId: string;
+      launch: { engineId: AutonomousEngineId; dryRun: boolean; workDir?: string; extraPrompt?: string };
+    }
+  | { type: 'autonomous.stopSession'; sessionId: string }
+  | { type: 'autonomous.revealSession'; sessionId: string }
+  | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' };

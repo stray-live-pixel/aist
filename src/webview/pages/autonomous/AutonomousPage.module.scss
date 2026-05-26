@@ -1,0 +1,79 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 18px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  margin: 4px 0 6px;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.heroActions,
+.actions,
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heroActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.grid,
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.options,
+.list,
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.definition,
+.sessionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+  border-radius: 12px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+}
+
+.row {
+  justify-content: space-between;
+}
+
+
+@media (max-width: 860px) {
+  .hero,
+  .grid,
+  .columns {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .heroActions {
+    justify-content: flex-start;
+  }
+}

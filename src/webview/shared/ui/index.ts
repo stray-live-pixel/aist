@@ -5,6 +5,8 @@ export type { ButtonProps, ButtonShape, ButtonSize, ButtonVariant } from './butt
 export { Card } from './card';
 export type { CardProps, CardTone } from './card';
 export { Checkbox } from './checkbox';
+export { CodeBlock } from './code-block';
+export type { CodeBlockProps } from './code-block';
 export type { CheckboxProps } from './checkbox';
 export {
   CompactControlGroup,
@@ -20,10 +22,14 @@ export type {
 } from './compact-control';
 export { ComposerFrame } from './composer-frame';
 export type { ComposerFrameProps } from './composer-frame';
+export { EmptyState } from './empty-state';
+export type { EmptyStateProps } from './empty-state';
 export { KeyboardShortcut, Keycap } from './keyboard-shortcut';
 export { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from './modal';
 export type { ModalSize, ModalTone } from './modal';
 export type { KeyboardShortcutProps, KeycapProps } from './keyboard-shortcut';
+export { PipelineSteps } from './pipeline-steps';
+export type { PipelineStep, PipelineStepsProps } from './pipeline-steps';
 export { Select } from './select';
 export type { SelectCategory, SelectOption, SelectProps, SelectSize } from './select';
 export { Switch } from './switch';

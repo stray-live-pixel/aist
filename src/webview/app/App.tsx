@@ -1,12 +1,13 @@
 import { AlertTriangle, Bot, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { AutonomousPage } from '../pages/autonomous/AutonomousPage';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 import { I18nProvider, translate } from '../shared/i18n';
 import { agentActions } from '../shared/lib/agentActions';
 import { AgentStateProvider } from '../shared/lib/agentState';
-import type { AgentState, ExtensionToWebviewMessage } from '../shared/types';
+import type { AgentState, AutonomousState, ExtensionToWebviewMessage } from '../shared/types';
 import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../shared/ui';
 import { IconButton } from '../shared/ui/IconButton';
 import styles from './App.module.scss';
@@ -17,8 +18,10 @@ import styles from './App.module.scss';
  */
 export function App() {
   const [state, setState] = useState<AgentState | null>(null);
-  const [page, setPage] = useState<'chat' | 'settings'>('chat');
+  const [autonomousState, setAutonomousState] = useState<AutonomousState | null>(null);
+  const [page, setPage] = useState<'chat' | 'settings' | 'autonomous'>('chat');
   const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [autonomousError, setAutonomousError] = useState<string | null>(null);
 
   useEffect(() => {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
@@ -28,6 +31,11 @@ export function App() {
         setPage(event.data.page);
       } else if (event.data.type === 'errorModal') {
         setErrorModal(event.data.message);
+      } else if (event.data.type === 'autonomous.state') {
+        setAutonomousState(event.data.state);
+        setAutonomousError(null);
+      } else if (event.data.type === 'autonomous.error') {
+        setAutonomousError(event.data.message);
       }
     };
 
@@ -38,6 +46,15 @@ export function App() {
   }, []);
 
   const modal = errorModal ? <GlobalErrorModal message={errorModal} onClose={() => setErrorModal(null)} /> : null;
+
+  if (page === 'autonomous' && autonomousState) {
+    return (
+      <I18nProvider language={state?.agentLanguage || 'ru'}>
+        <AutonomousPage state={autonomousState} error={autonomousError} />
+        {modal}
+      </I18nProvider>
+    );
+  }
 
   if (!state) {
     return (
