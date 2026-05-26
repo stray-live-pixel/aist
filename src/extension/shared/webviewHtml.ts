@@ -1,8 +1,12 @@
 import * as vscode from 'vscode';
 
 const WEBVIEW_ASSETS = {
-  logo: ['assets', 'logo.png'],
-  logoAnimated: ['assets', 'logo-animated.png']
+  logo: ['assets', 'logo-main.svg'],
+  logoAnimStep1: ['assets', 'logo-anim', '1.svg'],
+  logoAnimStep2: ['assets', 'logo-anim', '2.svg'],
+  logoAnimStep3: ['assets', 'logo-anim', '3.svg'],
+  logoAnimStep4: ['assets', 'logo-anim', '4.svg'],
+  logoAnimStep5: ['assets', 'logo-anim', '5.svg']
 } as const;
 
 export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {

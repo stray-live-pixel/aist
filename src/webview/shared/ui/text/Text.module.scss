@@ -1,0 +1,213 @@
+.text {
+  display: block;
+  max-width: 100%;
+  color: var(--text-color, var(--vscode-foreground));
+  overflow-wrap: anywhere;
+}
+
+.text a {
+  color: var(--vscode-textLink-foreground);
+}
+
+.text a:hover {
+  color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground));
+}
+
+.text p {
+  margin: 0 0 0.65em;
+}
+
+.text p:last-child {
+  margin-bottom: 0;
+}
+
+.text code {
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background, color-mix(in srgb, var(--vscode-foreground) 8%, transparent));
+  padding: 0.1em 0.35em;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.display {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  --text-color: var(--vscode-descriptionForeground);
+
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.body {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.bodyStrong {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.caption {
+  --text-color: var(--vscode-descriptionForeground);
+
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.code {
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: var(--vscode-textCodeBlock-background, color-mix(in srgb, var(--vscode-foreground) 6%, transparent));
+  padding: 8px 10px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.quote {
+  --text-color: var(--vscode-descriptionForeground);
+
+  border-left: 3px solid var(--vscode-textLink-foreground);
+  padding-left: 10px;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.danger {
+  --text-color: var(--vscode-errorForeground);
+
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.align-start {
+  text-align: start;
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-end {
+  text-align: end;
+}
+
+.animatedGradient {
+  display: block;
+
+  /*
+   * Упрощённая задумчивая пульсация: один линейный фон покрывает весь блок текста синхронно.
+   * Тёмные/прозрачные волны повторяются внутри широкого градиента, а сам фон сильно вынесен за края,
+   * поэтому в начале и конце цикла текст выглядит обычным и перезапуск не заметен.
+   */
+  background-image: linear-gradient(
+    90deg,
+    var(--text-color, var(--vscode-foreground)) 0%,
+    var(--text-color, var(--vscode-foreground)) 26%,
+    color-mix(in srgb, var(--text-color, var(--vscode-foreground)) 78%, transparent) 36%,
+    color-mix(in srgb, var(--text-color, var(--vscode-foreground)) 42%, transparent) 45%,
+    color-mix(in srgb, var(--text-color, var(--vscode-foreground)) 18%, transparent) 50%,
+    color-mix(in srgb, var(--text-color, var(--vscode-foreground)) 42%, transparent) 55%,
+    color-mix(in srgb, var(--text-color, var(--vscode-foreground)) 78%, transparent) 64%,
+    var(--text-color, var(--vscode-foreground)) 74%,
+    var(--text-color, var(--vscode-foreground)) 100%
+  );
+  background-size: 300% 100%;
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  background-clip: text;
+  color: transparent;
+  animation: text-gradient-shimmer 4s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes text-gradient-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+
+  to {
+    background-position: 0% 50%;
+  }
+}
+
+.changeHost {
+  position: relative;
+}
+
+.enteringContent,
+.exitingContent {
+  display: inline;
+}
+
+.enteringContent {
+  animation: text-content-enter 300ms ease-out both;
+}
+
+.exitingContent {
+  position: absolute;
+  inset: 0 auto auto 0;
+  max-width: 100%;
+  pointer-events: none;
+  animation: text-content-exit 300ms ease-in both;
+}
+
+@keyframes text-content-enter {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(0.2em);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes text-content-exit {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-0.2em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animatedGradient,
+  .enteringContent,
+  .exitingContent {
+    animation: none;
+  }
+
+  .exitingContent {
+    display: none;
+  }
+}

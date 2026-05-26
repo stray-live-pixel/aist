@@ -36,6 +36,7 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
   const activePresetLabel = getActivePresetLabel(state, t('settings.promptManager.noActivePreset'));
   return (
     <CompactControlGroup className={styles.summaryRoot}>
+      <ComposerContextControls state={state} />
       <CompactNavigationButton
         icon={<UserRound size={12} />}
         title={t('summary.agentMode')}
@@ -48,7 +49,6 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
         label={activePresetLabel}
         onClick={() => onOpen('presets')}
       />
-      <ComposerContextControls state={state} />
       {actions ? <div className={styles.summaryActions}>{actions}</div> : null}
     </CompactControlGroup>
   );

@@ -28,6 +28,8 @@ export { Select } from './select';
 export type { SelectCategory, SelectOption, SelectProps, SelectSize } from './select';
 export { Switch } from './switch';
 export type { SwitchProps } from './switch';
+export { Text } from './text';
+export type { TextAlign, TextProps, TextVariant } from './text';
 export { TextArea } from './text-area';
 export type { TextAreaProps, TextAreaVariant } from './text-area';
 export { TextField } from './text-field';

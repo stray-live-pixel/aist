@@ -17,11 +17,9 @@
   mask: none;
 }
 
-.animated::before,
-.animated::after {
+.animationFrame {
   position: absolute;
   inset: 0;
-  content: '';
   background: linear-gradient(
     115deg,
     color-mix(in srgb, currentColor 24%, transparent) 0%,
@@ -31,20 +29,39 @@
     color-mix(in srgb, currentColor 24%, transparent) 100%
   );
   background-size: 420% 100%;
+  animation: logoPulse 2400ms ease-in-out infinite;
+  mask: var(--aist-logo-frame-uri) center / contain no-repeat;
+  opacity: 0;
 }
 
-.animated::before {
+.animationFrame:nth-child(1) {
   animation:
     logoPulse 2400ms ease-in-out infinite,
-    logoBaseFade 1800ms ease-in-out infinite;
-  mask: var(--aist-logo-base-uri) center / contain no-repeat;
+    logoFrame1Fade 1800ms ease-in-out infinite;
 }
 
-.animated::after {
+.animationFrame:nth-child(2) {
   animation:
     logoPulse 2400ms ease-in-out infinite,
-    logoAnimatedFade 1800ms ease-in-out infinite;
-  mask: var(--aist-logo-animated-uri) center / contain no-repeat;
+    logoFrame2Fade 1800ms ease-in-out infinite;
+}
+
+.animationFrame:nth-child(3) {
+  animation:
+    logoPulse 2400ms ease-in-out infinite,
+    logoFrame3Fade 1800ms ease-in-out infinite;
+}
+
+.animationFrame:nth-child(4) {
+  animation:
+    logoPulse 2400ms ease-in-out infinite,
+    logoFrame4Fade 1800ms ease-in-out infinite;
+}
+
+.animationFrame:nth-child(5) {
+  animation:
+    logoPulse 2400ms ease-in-out infinite,
+    logoFrame5Fade 1800ms ease-in-out infinite;
 }
 
 .brand {
@@ -88,34 +105,72 @@
   }
 }
 
-@keyframes logoBaseFade {
+@keyframes logoFrame1Fade {
   0%,
-  32% {
+  100% {
     opacity: 1;
   }
 
-  50%,
-  82% {
+  25%,
+  75% {
+    opacity: 0;
+  }
+}
+
+@keyframes logoFrame2Fade {
+  0%,
+  25%,
+  75%,
+  100% {
     opacity: 0;
   }
 
-  100% {
+  12.5%,
+  87.5% {
     opacity: 1;
   }
 }
 
-@keyframes logoAnimatedFade {
+@keyframes logoFrame3Fade {
   0%,
-  32% {
-    opacity: 0;
-  }
-
-  50%,
-  82% {
-    opacity: 1;
-  }
-
+  12.5%,
+  37.5%,
+  62.5%,
+  87.5%,
   100% {
     opacity: 0;
+  }
+
+  25%,
+  75% {
+    opacity: 1;
+  }
+}
+
+@keyframes logoFrame4Fade {
+  0%,
+  25%,
+  50%,
+  75%,
+  100% {
+    opacity: 0;
+  }
+
+  37.5%,
+  62.5% {
+    opacity: 1;
+  }
+}
+
+@keyframes logoFrame5Fade {
+  0%,
+  37.5%,
+  62.5%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
   }
 }

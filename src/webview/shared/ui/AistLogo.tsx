@@ -11,20 +11,27 @@ type AistLogoProps = {
 
 type AistAnimatedLogoProps = Omit<AistLogoProps, 'assetKey'> & {
   baseAssetKey?: string;
-  animatedAssetKey?: string;
+  frameAssetKeys?: readonly string[];
 };
 
 type LogoStyle = CSSProperties & {
   '--aist-logo-uri': string;
 };
 
-type AnimatedLogoStyle = CSSProperties & {
-  '--aist-logo-base-uri': string;
-  '--aist-logo-animated-uri': string;
+type AnimatedLogoFrameStyle = CSSProperties & {
+  '--aist-logo-frame-uri': string;
 };
 
+const DEFAULT_ANIMATION_FRAME_ASSET_KEYS = [
+  'logoAnimStep1',
+  'logoAnimStep2',
+  'logoAnimStep3',
+  'logoAnimStep4',
+  'logoAnimStep5'
+] as const;
+
 /**
- * Рисует PNG-логотип как CSS-mask, чтобы он наследовал цвет текста VS Code.
+ * Рисует SVG-логотип как CSS-mask, чтобы он наследовал цвет текста VS Code.
  *
  * Использование: <AistLogo /> или <AistLogo className={styles.mutedLogo} />.
  * Компонент берет URI из общего webview asset manifest, а не импортирует файл
@@ -45,37 +52,36 @@ export function AistLogo({ className = '', assetKey = 'logo', title = 'aist' }: 
 }
 
 /**
- * Переключает два PNG-логотипа через opacity примерно раз в секунду.
+ * Проигрывает пять SVG-кадров вперед и назад за прежние 1800ms.
  *
  * Использование: <AistAnimatedLogo />.
- * Обе картинки остаются CSS-mask, поэтому наследуют цвет текста редактора и не
- * зависят от исходного черного цвета PNG.
+ * Все пять картинок лежат отдельными mask-слоями и меняются только через
+ * opacity: так виден честный cross-fade между кадрами, а браузеру не нужно
+ * пересчитывать URL маски внутри keyframes.
  */
 export function AistAnimatedLogo({
   className = '',
   baseAssetKey = 'logo',
-  animatedAssetKey = 'logoAnimated',
+  frameAssetKeys = DEFAULT_ANIMATION_FRAME_ASSET_KEYS,
   title = 'aist'
 }: AistAnimatedLogoProps) {
   const baseLogoUri = getWebviewAssetUri(baseAssetKey);
-  const animatedLogoUri = getWebviewAssetUri(animatedAssetKey);
+  const frameLogoUris = frameAssetKeys.map((assetKey) => getWebviewAssetUri(assetKey));
 
-  if (!baseLogoUri || !animatedLogoUri) {
+  if (!baseLogoUri || frameLogoUris.some((frameLogoUri) => !frameLogoUri)) {
     return <AistLogo className={className} assetKey={baseAssetKey} title={title} />;
   }
 
-  const style: AnimatedLogoStyle = {
-    '--aist-logo-base-uri': `url(${baseLogoUri})`,
-    '--aist-logo-animated-uri': `url(${animatedLogoUri})`
-  };
-
   return (
-    <span
-      className={`${styles.logo} ${styles.animated} ${className}`.trim()}
-      style={style}
-      role="img"
-      aria-label={title}
-    />
+    <span className={`${styles.logo} ${styles.animated} ${className}`.trim()} role="img" aria-label={title}>
+      {frameLogoUris.map((frameLogoUri) => {
+        const style: AnimatedLogoFrameStyle = {
+          '--aist-logo-frame-uri': `url(${frameLogoUri})`
+        };
+
+        return <span aria-hidden="true" className={styles.animationFrame} key={frameLogoUri} style={style} />;
+      })}
+    </span>
   );
 }
 

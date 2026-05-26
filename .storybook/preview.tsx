@@ -15,8 +15,12 @@ const vscodeApi = {
 Object.assign(globalThis, {
   acquireVsCodeApi: () => vscodeApi,
   __AIST_ASSETS__: {
-    logo: '/assets/logo.png',
-    logoAnimated: '/assets/logo-animated.png'
+    logo: '/assets/logo-main.svg',
+    logoAnimStep1: '/assets/logo-anim/1.svg',
+    logoAnimStep2: '/assets/logo-anim/2.svg',
+    logoAnimStep3: '/assets/logo-anim/3.svg',
+    logoAnimStep4: '/assets/logo-anim/4.svg',
+    logoAnimStep5: '/assets/logo-anim/5.svg'
   }
 });
 
