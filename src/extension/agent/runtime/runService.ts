@@ -13,7 +13,8 @@ import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getRepoVerificationContextNote } from '../../shared/repoMap';
 import { getWorkspaceFolder } from '../../shared/workspace';
-import { getEditorContext } from '../context/editorContext';
+import { governModelContext } from '../context/contextGovernor';
+import { getEditorContextSnapshot } from '../context/editorContext';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { MAX_MODEL_REQUEST_ATTEMPTS, formatChatErrorMessage, isRetryableModelRequestError } from './errors';
 import { runAgentLoop } from './loop';
@@ -118,17 +119,12 @@ export class AgentRunService {
   }
 
   private createInitialHistory(chat: Chat, prompt: string): OpenRouterMessage[] {
-    const editorContext = getEditorContext();
-    const repoContextNote = getOptionalRepoContextNote(prompt);
-    const userContent = [
+    const initialHistory = governModelContext({
       prompt,
-      repoContextNote ? `\n\nContext note:\n${repoContextNote}` : '',
-      editorContext ? `\n\nActive editor context:\n${editorContext}` : ''
-    ].join('');
-    const initialHistory = [
-      ...chat.history.filter((message) => message.role !== 'system'),
-      { role: 'user' as const, content: userContent }
-    ];
+      history: chat.history,
+      editorContext: getEditorContextSnapshot(),
+      repoContextNote: getOptionalRepoContextNote(prompt)
+    }).messages;
     this.deps.chats.setHistory(chat.id, initialHistory);
     return initialHistory;
   }

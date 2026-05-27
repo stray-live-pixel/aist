@@ -1,12 +1,17 @@
 import * as vscode from 'vscode';
 
 import { normalizeEditorContextMode } from '../config/config';
-import { buildEditorContext } from './editorContextBuilder';
+import { type EditorContextInput, buildEditorContext } from './editorContextBuilder';
 
 export function getEditorContext(): string {
+  const snapshot = getEditorContextSnapshot();
+  return snapshot ? buildEditorContext(snapshot) : '';
+}
+
+export function getEditorContextSnapshot(): EditorContextInput | undefined {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    return '';
+    return undefined;
   }
 
   const config = vscode.workspace.getConfiguration('openrouterAgent');
@@ -16,14 +21,14 @@ export function getEditorContext(): string {
   const selectionText = document.getText(editor.selection);
   const fullText = document.getText();
 
-  return buildEditorContext({
+  return {
     fileName: document.fileName,
     languageId: document.languageId,
     selectionText,
     fullText,
     maxChars,
     mode
-  });
+  };
 }
 
 export function stripCodeFence(text: string): string {
