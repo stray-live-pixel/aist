@@ -56,7 +56,8 @@ export type AgentInstructionSource = {
   title: string;
   content: string;
   priority: number;
-  kind: 'base' | 'file' | 'mode' | 'custom' | 'skills';
+  kind: 'base' | 'file' | 'declarative' | 'mode' | 'custom' | 'skills';
+  source?: string;
 };
 
 type StoredInstructionItem = {
@@ -353,9 +354,19 @@ export async function deletePromptPreset(presetId: string): Promise<void> {
 }
 
 export function getExternalInstructionSources(): AgentInstructionSource[] {
-  return [readInstructionFile('AGENTS.md', 20), readInstructionFile('CLAUDE.md', 30)].filter(
-    Boolean
-  ) as AgentInstructionSource[];
+  return [
+    readInstructionFile('AGENTS.md', 20),
+    readInstructionFile('CLAUDE.md', 30),
+    ...getDeclarativeInstructionSources()
+  ]
+    .filter((source): source is AgentInstructionSource => Boolean(source))
+    .sort((left, right) => left.priority - right.priority);
+}
+
+export function getDeclarativeInstructionSources(): AgentInstructionSource[] {
+  return DECLARATIVE_INSTRUCTION_FILES.map((item) => readDeclarativeInstructionFile(item)).filter(
+    (source): source is AgentInstructionSource => Boolean(source)
+  );
 }
 
 export function getProjectInstructions(): string {
@@ -434,7 +445,43 @@ function readInstructionFile(fileName: string, priority: number): AgentInstructi
     if (!fs.existsSync(filePath)) return undefined;
 
     const content = fs.readFileSync(filePath, 'utf8').trim();
-    return content ? { id: fileName, title: fileName, content, priority, kind: 'file' } : undefined;
+    return content ? { id: fileName, title: fileName, content, priority, kind: 'file', source: fileName } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const DECLARATIVE_INSTRUCTION_FILES = [
+  {
+    path: '.aist-agent/instructions/project.md',
+    title: '.aist-agent project instructions',
+    priority: 12
+  },
+  {
+    path: '.aist-agent/policies/prompt-policy.md',
+    title: '.aist-agent prompt policy',
+    priority: 14
+  }
+] as const;
+
+function readDeclarativeInstructionFile(
+  definition: (typeof DECLARATIVE_INSTRUCTION_FILES)[number]
+): AgentInstructionSource | undefined {
+  try {
+    const filePath = path.join(getWorkspaceFolder().uri.fsPath, definition.path);
+    if (!fs.existsSync(filePath)) return undefined;
+
+    const content = fs.readFileSync(filePath, 'utf8').trim();
+    return content
+      ? {
+          id: definition.path,
+          title: definition.title,
+          content,
+          priority: definition.priority,
+          kind: 'declarative',
+          source: definition.path
+        }
+      : undefined;
   } catch {
     return undefined;
   }

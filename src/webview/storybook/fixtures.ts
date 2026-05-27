@@ -51,21 +51,24 @@ export const storyInstructionSources = [
     title: 'AIST base system prompt',
     content: 'Core coding-agent rules, language policy and tool usage rules.',
     priority: 0,
-    kind: 'base' as const
+    kind: 'base' as const,
+    source: 'immutable kernel'
   },
   {
     id: 'AGENTS.md',
     title: 'AGENTS.md',
     content: 'Follow Feature-Sliced Design and keep files small.',
     priority: 20,
-    kind: 'file' as const
+    kind: 'file' as const,
+    source: 'AGENTS.md'
   },
   {
-    id: 'project-instructions',
+    id: '.aist-agent/instructions/project.md',
     title: '.aist-agent project instructions',
     content: 'Prefer simple implementations and run typecheck after edits.',
-    priority: 40,
-    kind: 'custom' as const
+    priority: 12,
+    kind: 'declarative' as const,
+    source: '.aist-agent/instructions/project.md'
   },
   {
     id: 'mode:frontend',

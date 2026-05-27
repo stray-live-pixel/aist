@@ -204,7 +204,8 @@ export type AgentInstructionSource = {
   title: string;
   content: string;
   priority: number;
-  kind: 'base' | 'file' | 'mode' | 'custom' | 'skills';
+  kind: 'base' | 'file' | 'declarative' | 'mode' | 'custom' | 'skills';
+  source?: string;
 };
 
 export type AgentMemoryItem = {
