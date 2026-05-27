@@ -14,7 +14,7 @@ import {
   upsertPromptPreset
 } from '../../config/agentConfigStore';
 import { setCompactionSettings } from '../../config/compaction';
-import { normalizeCodexServiceTier, normalizeReasoningEffort } from '../../config/config';
+import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
 import {
   addAgentMode,
@@ -31,6 +31,7 @@ type SettingsMessage = Extract<
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
   | { type: 'setCodexServiceTier' }
+  | { type: 'setEditorContextMode' }
   | { type: 'setStreamingEnabled' }
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
@@ -55,6 +56,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setMaxToolIterations',
     'setReasoningEffort',
     'setCodexServiceTier',
+    'setEditorContextMode',
     'setStreamingEnabled',
     'setCompactionSettings',
     'setApprovalNotificationSettings',
@@ -100,6 +102,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setCodexServiceTier':
       await updateWorkspaceSetting('codexServiceTier', normalizeCodexServiceTier(message.codexServiceTier));
+      deps.sendState();
+      return;
+    case 'setEditorContextMode':
+      await updateWorkspaceSetting('editorContextMode', normalizeEditorContextMode(message.editorContextMode));
       deps.sendState();
       return;
     case 'setStreamingEnabled':

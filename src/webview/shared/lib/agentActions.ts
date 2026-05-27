@@ -7,6 +7,7 @@ import type {
   ApprovalNotificationSettings,
   CodexServiceTier,
   CompactionSettings,
+  EditorContextMode,
   ReasoningEffort,
   ToolPermissionMode,
   ToolPermissionPresetId,
@@ -91,6 +92,10 @@ export const agentActions = {
 
   setCodexServiceTier(codexServiceTier: CodexServiceTier): void {
     post({ type: 'setCodexServiceTier', codexServiceTier });
+  },
+
+  setEditorContextMode(editorContextMode: EditorContextMode): void {
+    post({ type: 'setEditorContextMode', editorContextMode });
   },
 
   setStreamingEnabled(streamingEnabled: boolean): void {

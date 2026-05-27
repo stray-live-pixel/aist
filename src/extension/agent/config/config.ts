@@ -1,4 +1,4 @@
-import type { CodexServiceTier, ReasoningEffort } from '../types';
+import type { CodexServiceTier, EditorContextMode, ReasoningEffort } from '../types';
 
 /**
  * Приводит значение reasoning effort из VS Code settings/webview к безопасному enum.
@@ -18,4 +18,8 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
  */
 export function normalizeCodexServiceTier(value: unknown): CodexServiceTier {
   return value === 'priority' ? 'priority' : 'auto';
+}
+
+export function normalizeEditorContextMode(value: unknown): EditorContextMode {
+  return value === 'selection' || value === 'file' || value === 'off' ? value : 'auto';
 }

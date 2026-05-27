@@ -1,11 +1,11 @@
-import { Brain, RadioTower, X } from 'lucide-react';
+import { Brain, FileText, RadioTower, X } from 'lucide-react';
 import { memo, useEffect } from 'react';
 
 import { ModelSelect, PermissionPresetSelect } from '../../features';
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
 import { useAgentState } from '../../shared/lib/agentState';
-import type { AgentState, ReasoningEffort } from '../../shared/types';
+import type { AgentState, EditorContextMode, ReasoningEffort } from '../../shared/types';
 import { ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
 import { IconButton } from '../../shared/ui/IconButton';
 import { PermissionsPage } from '../permissions/PermissionsPage';
@@ -71,6 +71,7 @@ const QuickSettings = memo(function QuickSettings({ state }: { state: AgentState
           disabled={state.activeChat.busy}
         />
         <ReasoningSelect value={state.reasoningEffort} disabled={state.activeChat.busy} />
+        <EditorContextModeSelect value={state.editorContextMode} disabled={state.activeChat.busy} />
         <StreamingToggle enabled={state.streamingEnabled} disabled={state.activeChat.busy} />
       </div>
     </section>
@@ -102,6 +103,36 @@ const ReasoningSelect = memo(function ReasoningSelect({
         <option value="low">{t('reasoning.low')}</option>
         <option value="medium">{t('reasoning.medium')}</option>
         <option value="high">{t('reasoning.high')}</option>
+      </select>
+    </label>
+  );
+});
+
+const EditorContextModeSelect = memo(function EditorContextModeSelect({
+  value,
+  disabled
+}: {
+  value: EditorContextMode;
+  disabled: boolean;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <label className={styles.reasoningField}>
+      <span className={styles.reasoningLabel}>
+        <FileText size={14} className={styles.reasoningIcon} />
+        <span>{t('settings.editorContextTitle')}</span>
+      </span>
+      <select
+        className={styles.reasoningSelect}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => agentActions.setEditorContextMode(event.target.value as EditorContextMode)}
+      >
+        <option value="auto">{t('editorContext.auto')}</option>
+        <option value="selection">{t('editorContext.selection')}</option>
+        <option value="file">{t('editorContext.file')}</option>
+        <option value="off">{t('editorContext.off')}</option>
       </select>
     </label>
   );

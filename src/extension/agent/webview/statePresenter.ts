@@ -43,7 +43,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
     return;
   }
 
-  const { configuredModel, maxToolIterations, reasoningEffort, codexServiceTier, streamingEnabled } =
+  const { configuredModel, maxToolIterations, reasoningEffort, codexServiceTier, editorContextMode, streamingEnabled } =
     getAgentSettingsSnapshot();
   const language = getAgentLanguage();
   const activeMode = getActiveAgentMode();
@@ -64,6 +64,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       maxToolIterations,
       reasoningEffort,
       codexServiceTier,
+      editorContextMode,
       streamingEnabled,
       language,
       activeMode,
@@ -85,6 +86,7 @@ type StateContext = SendAgentStateParams & {
   maxToolIterations: number;
   reasoningEffort: string;
   codexServiceTier: string;
+  editorContextMode: string;
   streamingEnabled: boolean;
   language: string;
   activeMode: { id: string };
@@ -133,6 +135,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     maxToolIterations: context.maxToolIterations,
     reasoningEffort: context.reasoningEffort,
     codexServiceTier: context.codexServiceTier,
+    editorContextMode: context.editorContextMode,
     streamingEnabled: context.streamingEnabled,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,

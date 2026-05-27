@@ -133,6 +133,7 @@ export type ModelOption = {
 export type ToolPermissionMode = 'ask' | 'auto';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type CodexServiceTier = 'auto' | 'priority';
+export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 export type AgentLanguage = 'ru' | 'en';
 export type AgentModeId = string;
 export type ToolPermissionPresetId = string;
@@ -371,6 +372,7 @@ export type AgentState = {
   reasoningEffort: ReasoningEffort;
   /** Управляет ChatGPT Codex service_tier; auto не отправляет поле, priority просит ускоренную обработку. */
   codexServiceTier: CodexServiceTier;
+  editorContextMode: EditorContextMode;
   /** Включает live streaming ответа; по умолчанию false, потому что non-streaming устойчивее к обрывам SSE. */
   streamingEnabled: boolean;
   compactionSettings: CompactionSettings;
@@ -414,6 +416,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
+  | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }

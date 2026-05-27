@@ -157,6 +157,23 @@
           "minimum": 1000,
           "description": "Maximum characters from the active file sent as context."
         },
+        "openrouterAgent.editorContextMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "selection",
+            "file",
+            "off"
+          ],
+          "default": "auto",
+          "enumDescriptions": [
+            "Send selected code; include a short full file only when nothing is selected.",
+            "Send only selected code and file metadata.",
+            "Send selected code, or the active file content when nothing is selected.",
+            "Do not automatically send active editor context."
+          ],
+          "description": "Controls how AIST automatically adds active editor context to chat requests."
+        },
         "openrouterAgent.maxToolIterations": {
           "type": "number",
           "default": 0,

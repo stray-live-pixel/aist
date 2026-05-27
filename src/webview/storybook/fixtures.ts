@@ -503,6 +503,7 @@ export const storyAgentState: AgentState = {
   maxToolIterations: 6,
   reasoningEffort: 'medium',
   codexServiceTier: 'priority',
+  editorContextMode: 'auto',
   streamingEnabled: false,
   compactionSettings: { enabled: true, thresholdPercent: 70, keepLastMessages: 0 },
   approvalNotificationSettings: {
