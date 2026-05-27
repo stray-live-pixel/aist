@@ -20,6 +20,7 @@ import { getAgentSettingsSnapshot, getConfiguredModel } from './config/settingsS
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
+import { createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory } from './runtime/compaction';
 import { formatChatErrorMessage } from './runtime/errors';
 import { AgentRunService } from './runtime/runService';
 import { getChatContextEstimate } from './runtime/usage';
@@ -28,32 +29,6 @@ import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from '
 import { handleAgentWebviewMessage } from './webview/messages';
 import { postWebviewPage } from './webview/page';
 import { sendAgentState } from './webview/statePresenter';
-
-const COMPACTION_SYSTEM_PROMPT = [
-  'You summarize coding-agent chat history for context compaction.',
-  'Create a dense handoff summary that will be used as the first message in a new chat.',
-  'Preserve user goals, decisions, constraints, files changed, commands run, current status, open tasks, and important errors.',
-  'Do not include irrelevant chatter. Be concise but complete. Write in the same language as the conversation.'
-].join(' ');
-
-function createCompactionMessages(history: OpenRouterMessage[]): OpenRouterMessage[] {
-  const serialized = history
-    .filter((message) => message.role !== 'system')
-    .map((message, index) => {
-      const toolCalls = message.tool_calls?.length ? `\nTool calls: ${JSON.stringify(message.tool_calls)}` : '';
-      const toolId = message.tool_call_id ? `\nTool call id: ${message.tool_call_id}` : '';
-      return `#${index + 1} ${message.role}\n${message.content || ''}${toolCalls}${toolId}`;
-    })
-    .join('\n\n---\n\n');
-
-  return [
-    { role: 'system', content: COMPACTION_SYSTEM_PROMPT },
-    {
-      role: 'user',
-      content: `Summarize this chat history for context compaction. The next chat will only receive your summary, not the original history.\n\n${serialized}`
-    }
-  ];
-}
 
 /**
  * Тонкий координатор VS Code extension commands и webview surfaces.
@@ -309,6 +284,9 @@ export class AgentController {
       throw new Error('Cannot compact a chat while it is running.');
     }
 
+    const { keepLastMessages } = getCompactionSettings();
+    const { summaryHistory, tailHistory } = splitCompactionHistory(source.history, keepLastMessages);
+    const tailMessages = selectCompactionTailMessages(source.messages, keepLastMessages);
     const args = { chatId: source.id, trigger };
     const toolMessage = this.chats.appendMessage(source.id, {
       role: 'tool',
@@ -322,16 +300,17 @@ export class AgentController {
     this.sendState();
 
     try {
-      const summary = await this.summarizeChat(source.id);
+      const summary = await this.summarizeChat(source.id, summaryHistory);
       this.chats.setActivity(source.id, undefined);
       this.chats.setBusy(source.id, false);
-      const chat = this.chats.compactChat(source.id, summary);
+      const chat = this.chats.compactChat(source.id, summary, { messages: tailMessages, history: tailHistory });
       const result = {
         ok: true,
         sourceChatId: source.id,
         chatId: chat.id,
         summary,
         summaryLength: summary.length,
+        keptMessages: tailMessages.length,
         trigger
       };
       this.chats.updateMessage(source.id, toolMessage.id, {
@@ -342,7 +321,8 @@ export class AgentController {
         sourceChatId: source.id,
         chatId: chat.id,
         trigger,
-        summaryLength: summary.length
+        summaryLength: summary.length,
+        keptMessages: tailMessages.length
       });
       this.sendState();
       return chat;
@@ -364,9 +344,9 @@ export class AgentController {
     }
   }
 
-  private async summarizeChat(chatId: string): Promise<string> {
+  private async summarizeChat(chatId: string, history?: OpenRouterMessage[]): Promise<string> {
     const chat = this.chats.getChat(chatId) || this.chats.getActiveChat();
-    const messages = createCompactionMessages(chat.history);
+    const messages = createCompactionMessages(history ?? chat.history);
     const response = await this.chat(messages, undefined, chat.model);
     const summary = response.content?.trim();
     if (!summary) {

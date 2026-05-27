@@ -99,7 +99,11 @@ export class ChatStore {
     return chat;
   }
 
-  compactChat(chatId: string, summary: string): Chat {
+  compactChat(
+    chatId: string,
+    summary: string,
+    tail: { messages?: ChatMessage[]; history?: Chat['history'] } = {}
+  ): Chat {
     const source = this.requireChat(chatId);
     if (source.busy) {
       throw new Error('Cannot compact a chat while it is running.');
@@ -118,8 +122,8 @@ export class ChatStore {
       model: source.model,
       previousChatId: source.id,
       compactedAt: now,
-      messages: [summaryMessage],
-      history: [{ role: 'assistant', content: summary }],
+      messages: [summaryMessage, ...(tail.messages || []).map((message) => cloneMessage(message))],
+      history: [{ role: 'assistant', content: summary }, ...clonePlain(tail.history || [])],
       lastAnswer: summary,
       activity: undefined,
       busy: false,
