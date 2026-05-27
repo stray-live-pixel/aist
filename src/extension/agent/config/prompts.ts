@@ -10,39 +10,79 @@ export type AgentPromptOptions = {
   }>;
 };
 
+/**
+ * Собирает базовый system prompt как короткий контракт поведения агента.
+ * Секции оставлены явными: модели лучше следуют named blocks, а тестам проще
+ * проверять инварианты без привязки к длинному prose-тексту.
+ */
 export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }): string {
-  const languageInstruction =
-    options.language === 'ru'
-      ? 'Write final answers and every tool call "reason" argument in Russian.'
-      : 'Write final answers and every tool call "reason" argument in English.';
-
   return [
-    'You are a coding agent inside VS Code.',
-    'You can inspect and modify files using the provided filesystem tools.',
-    getSkillsInstruction(options.skills || []),
-    'All tool paths must be workspace-relative.',
-    'Every tool call must include a short "reason" argument explaining why the tool is needed.',
-    languageInstruction,
-    options.instructions ? `Additional user-defined working instructions:\n${options.instructions}` : '',
-    'Before implementing code changes, call create_plan with a short title and clear sequential one-sentence steps.',
-    'Use update_plan only when the meaning of the active plan changes.',
-    'Use set_plan_item_status to mark exactly one step as in_progress, done, blocked, or pending as work progresses.',
-    'Plan steps must be concise, decomposed, sequential, and easy to follow without complex formatting.',
-    'Use grep_search when you need to find symbols, strings, or related files across the workspace.',
-    'Use write_file and replace_in_file for file edits whenever possible. Do not use run_bash_script with python/sed/perl/etc. just to edit files if a standard file-editing tool can do it.',
-    'Use run_bash_script when shell execution is useful, such as running tests, builds, git-safe inspections, or shell-based diagnostics; keep scripts focused and workspace-relative.',
-    'If you choose run_bash_script for mass editing, explicitly explain in the reason why the standard file-editing tools are not suitable for that edit.',
-    'Before editing, read the relevant files and preserve the existing project style.',
-    'Do not repeat the same tool call with the same arguments if its result is already present in the conversation.',
-    'After a tool succeeds, use its result to make progress; if you are stuck, explain the blocker instead of looping.',
-    'After successful file edits, verify at most once when verification is useful, then provide the final answer.',
-    'Keep final answers concise and mention changed files.',
-    'Do not claim that a file was changed unless a tool call succeeded.'
+    section('Identity', [
+      'You are AIST, a coding agent inside VS Code.',
+      'Inspect and change the current workspace only through the provided tools.'
+    ]),
+    section('Workflow', [
+      'Inspect relevant files first, then plan, edit, verify when useful, and finish concisely.',
+      'Before code changes, call create_plan with a short title and sequential one-sentence steps.',
+      'Use update_plan only when the plan meaning changes; use set_plan_item_status for exactly one step at a time.',
+      'After a tool succeeds, use its result to move forward; if blocked, explain the blocker.'
+    ]),
+    section('Tool rules', [
+      'All tool paths must be workspace-relative.',
+      'Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.',
+      'Use grep_search for symbols, strings, or related files across the workspace.',
+      'Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.',
+      'For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.',
+      'Do not repeat an identical tool call when its result is already in the conversation.'
+    ]),
+    section('Editing rules', [
+      'Read relevant files before editing and preserve the existing style.',
+      'Prefer small focused changes with write_file or replace_in_file when possible.',
+      'Treat edits as approval-aware: mutating tools may require user confirmation, so keep changes reviewable.',
+      'Do not invent tool results, file contents, builds, or tests; only claim what actually happened.',
+      'After successful edits, verify at most once when verification is useful.'
+    ]),
+    section('Language', [
+      getLanguageInstruction(options.language),
+      'Keep final answers concise and mention changed files.'
+    ]),
+    getUserInstructionsSection(options.instructions),
+    getSkillsInstruction(options.skills || [])
   ]
     .filter(Boolean)
-    .join(' ');
+    .join('\n\n');
 }
 
+/**
+ * Форматирует секции одинаково, чтобы prompt был компактным и snapshot tests
+ * ловили случайное превращение короткого контракта обратно в длинный абзац.
+ */
+function section(title: string, lines: string[]): string {
+  return [`## ${title}`, ...lines.map((line) => `- ${line}`)].join('\n');
+}
+
+/**
+ * Отдельная функция нужна, чтобы языковая политика была проверяемым инвариантом
+ * для EN/RU prompt и не размазывалась по остальным секциям.
+ */
+function getLanguageInstruction(language: AgentLanguage): string {
+  return language === 'ru'
+    ? 'Write final answers and every tool call "reason" argument in Russian.'
+    : 'Write final answers and every tool call "reason" argument in English.';
+}
+
+/**
+ * Пользовательские инструкции идут отдельной секцией после kernel-правил: так они
+ * видимы модели, но не смешиваются с неизменяемым контрактом tool/edit workflow.
+ */
+function getUserInstructionsSection(instructions: string | undefined): string {
+  return instructions?.trim() ? `## User instructions\n${instructions.trim()}` : '';
+}
+
+/**
+ * Skills добавляются только при наличии зарегистрированных skills, иначе prompt
+ * не упоминает run_skill и не провоцирует модель искать несуществующий инструмент.
+ */
 function getSkillsInstruction(skills: AgentPromptOptions['skills']): string {
   if (!skills?.length) {
     return '';
@@ -54,9 +94,10 @@ function getSkillsInstruction(skills: AgentPromptOptions['skills']): string {
   });
 
   return [
-    'You can also use user-defined custom skills through the run_skill tool.',
+    '## Skills',
+    'Use run_skill only for listed custom skills.',
     'Available custom skills:',
     ...lines,
-    'Call run_skill with a listed skillId and put any task-specific payload in the input argument.'
+    'Call run_skill with a listed skillId and put task-specific payload in input.'
   ].join('\n');
 }

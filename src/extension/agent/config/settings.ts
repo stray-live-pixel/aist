@@ -23,13 +23,13 @@ export const DEFAULT_AGENT_MODES: AgentMode[] = [
     id: 'global:coder',
     label: 'Coder',
     instructions:
-      'Act as an implementation-focused coding agent. Make direct code changes, keep the scope tight, and mention changed files in the final answer.'
+      'Act as an implementation-focused coding agent and make direct code changes within the requested scope.'
   },
   {
     id: 'global:architect',
     label: 'Architect',
     instructions:
-      'Act as a software architect. Focus on design, trade-offs, risks, boundaries, and a clear implementation plan before changing code.'
+      'Act as a software architect focused on design trade-offs, risks, boundaries, and implementation shape.'
   }
 ];
 
