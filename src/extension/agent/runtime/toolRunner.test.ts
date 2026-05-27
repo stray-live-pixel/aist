@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ChatStore } from '../../chats/chatStore';
 import type { ChatMessage } from '../../chats/types';
 import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
+import { createToolError } from '../../shared/toolErrors';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { handleAgentToolCall } from './toolRunner';
 
@@ -113,6 +114,41 @@ describe('handleAgentToolCall approval feedback', () => {
       comment: 'Stop here.',
       continueAfterDeny: false,
       userApprovalComment: 'Stop here.'
+    });
+  });
+
+  it('preserves structured error codes in model-visible catch results', async () => {
+    const context = createToolRunnerContext({
+      approved: true,
+      continueAfterDeny: false
+    });
+
+    await handleAgentToolCall({
+      chat: context.chat,
+      workingMessages: context.workingMessages,
+      toolCall: createPlanToolCall(),
+      run: context.run,
+      chats: context.chats,
+      sendState: vi.fn(),
+      throwIfStopped: () => {
+        throw createToolError('TIMEOUT', 'Tool execution timed out.', { timeoutMs: 1000 });
+      },
+      askToolPermission: vi.fn(async () => context.decision)
+    });
+
+    expect(parseToolResult(context.workingMessages[0]?.content)).toEqual({
+      ok: false,
+      code: 'TIMEOUT',
+      error: 'Tool execution timed out.',
+      details: { timeoutMs: 1000 }
+    });
+    expect(getLastToolMessage(context)).toMatchObject({
+      status: 'error',
+      result: {
+        ok: false,
+        code: 'TIMEOUT',
+        error: 'Tool execution timed out.'
+      }
     });
   });
 });

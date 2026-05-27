@@ -209,7 +209,11 @@ describe('filesystemTools', () => {
         startLine: 3,
         endLine: 2
       })
-    ).rejects.toThrow('startLine');
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT',
+      error: expect.stringContaining('startLine')
+    });
   });
 
   it('reports missing files through the workspace filesystem', async () => {
@@ -220,7 +224,11 @@ describe('filesystemTools', () => {
         startLine: 1,
         endLine: 2
       })
-    ).rejects.toThrow('File not found');
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'FILE_NOT_FOUND',
+      error: expect.stringContaining('File not found')
+    });
   });
 
   it('limits large ranges to 400 lines', async () => {
@@ -255,7 +263,45 @@ describe('filesystemTools', () => {
         startLine: 1,
         endLine: 2
       })
-    ).rejects.toThrow('outside the workspace');
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'PATH_OUTSIDE_WORKSPACE',
+      error: expect.stringContaining('outside the workspace'),
+      details: { path: '../outside.ts' }
+    });
+  });
+
+  it('returns TEXT_NOT_FOUND when replace_in_file cannot find exact text', async () => {
+    setWorkspaceFile('src/example.ts', 'one\ntwo\nthree');
+
+    await expect(
+      runFilesystemTool('replace_in_file', {
+        reason: 'patch exact text',
+        path: 'src/example.ts',
+        search: 'missing',
+        replace: 'found'
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'TEXT_NOT_FOUND',
+      error: 'Text was not found in src/example.ts.',
+      details: { path: 'src/example.ts' }
+    });
+  });
+
+  it('returns NOT_A_DIRECTORY when list_files receives a file path', async () => {
+    setWorkspaceFile('src/example.ts', 'one\ntwo\nthree');
+
+    await expect(
+      runFilesystemTool('list_files', {
+        reason: 'list directory',
+        path: 'src/example.ts'
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'NOT_A_DIRECTORY',
+      error: expect.stringContaining('workspace directory')
+    });
   });
 
   it('returns a nested outline from VS Code document symbols', async () => {
@@ -372,9 +418,10 @@ describe('filesystemTools', () => {
       })
     ).resolves.toMatchObject({
       ok: false,
+      code: 'INVALID_ARGUMENT',
       path: 'src/plain.txt',
       symbols: [],
-      message: 'No document symbols were returned for this file.'
+      error: 'No document symbols were returned for this file.'
     });
   });
 
@@ -507,6 +554,11 @@ describe('filesystemTools', () => {
         path: '.',
         regex: true
       })
-    ).rejects.toThrow('Invalid grep_search regex');
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT',
+      error: expect.stringContaining('Invalid grep_search regex'),
+      details: { query: '[' }
+    });
   });
 });

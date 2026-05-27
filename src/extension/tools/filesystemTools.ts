@@ -4,6 +4,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
 import type { OpenRouterTool } from '../openrouter/types';
+import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
 import { showEditableFileDiff } from './editableDiffPreview';
 
@@ -225,7 +226,8 @@ export const filesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'replace_in_file',
-      description: 'Replace text in an existing UTF-8 file.',
+      description:
+        'Replace text in an existing UTF-8 file. If this returns code TEXT_NOT_FOUND, read_file_range around the expected location before retrying.',
       parameters: {
         type: 'object',
         properties: {
@@ -279,31 +281,35 @@ export async function runFilesystemTool(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  switch (toolName) {
-    case 'list_files':
-      return listFiles(args);
-    case 'read_file':
-      return readFile(args);
-    case 'read_file_range':
-      return readFileRange(args);
-    case 'outline_file':
-      return outlineFile(args);
-    case 'grep_search':
-      return grepSearch(args);
-    case 'run_bash_script':
-      return runBashScript(args);
-    case 'write_file':
-      return writeFile(args);
-    case 'replace_in_file':
-      return replaceInFile(args);
-    case 'create_directory':
-      return createDirectory(args);
-    case 'delete_path':
-      return deletePath(args);
-    case 'get_workspace_info':
-      return getWorkspaceInfo();
-    default:
-      throw new Error(`Unknown tool: ${toolName}`);
+  try {
+    switch (toolName) {
+      case 'list_files':
+        return await listFiles(args);
+      case 'read_file':
+        return await readFile(args);
+      case 'read_file_range':
+        return await readFileRange(args);
+      case 'outline_file':
+        return await outlineFile(args);
+      case 'grep_search':
+        return await grepSearch(args);
+      case 'run_bash_script':
+        return await runBashScript(args);
+      case 'write_file':
+        return await writeFile(args);
+      case 'replace_in_file':
+        return await replaceInFile(args);
+      case 'create_directory':
+        return await createDirectory(args);
+      case 'delete_path':
+        return await deletePath(args);
+      case 'get_workspace_info':
+        return getWorkspaceInfo();
+      default:
+        throw createToolError('INVALID_ARGUMENT', `Unknown tool: ${toolName}`, { toolName });
+    }
+  } catch (error) {
+    return toStructuredToolFailure(error);
   }
 }
 
@@ -326,7 +332,7 @@ export async function previewFilesystemTool(
     const content = textDecoder.decode(await vscode.workspace.fs.readFile(uri));
 
     if (!content.includes(search)) {
-      throw new Error(`Text was not found in ${filePath}.`);
+      throw createToolError('TEXT_NOT_FOUND', `Text was not found in ${filePath}.`, { path: filePath });
     }
 
     const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
@@ -351,7 +357,14 @@ function getWorkspaceInfo(): Record<string, unknown> {
 }
 
 async function listFiles(args: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const uri = resolveWorkspacePath(String(args.path || '.'));
+  const rawPath = String(args.path || '.');
+  const uri = resolveWorkspacePath(rawPath);
+  const stat = await vscode.workspace.fs.stat(uri);
+  if (stat.type !== vscode.FileType.Directory) {
+    throw createToolError('NOT_A_DIRECTORY', `list_files path must point to a workspace directory: ${rawPath}`, {
+      path: rawPath
+    });
+  }
   const maxDepth = clampNumber(args.maxDepth, 2, 0, 8);
   const limit = clampNumber(args.limit, 200, 1, 1000);
   const entries: Array<{ path: string; type: string }> = [];
@@ -387,7 +400,7 @@ async function readFileRange(args: Record<string, unknown>): Promise<Record<stri
   const requestedEndLine = requireLineNumber(args.endLine, 'endLine');
 
   if (requestedStartLine > requestedEndLine) {
-    throw new Error('Tool argument "startLine" must be less than or equal to "endLine".');
+    throw createToolError('INVALID_ARGUMENT', 'Tool argument "startLine" must be less than or equal to "endLine".');
   }
 
   const uri = resolveWorkspacePath(filePath);
@@ -417,7 +430,9 @@ async function outlineFile(args: Record<string, unknown>): Promise<Record<string
   const stat = await vscode.workspace.fs.stat(uri);
 
   if (stat.type !== vscode.FileType.File) {
-    throw new Error(`outline_file path must point to a workspace file: ${filePath}`);
+    throw createToolError('INVALID_ARGUMENT', `outline_file path must point to a workspace file: ${filePath}`, {
+      path: filePath
+    });
   }
 
   let rawSymbols: Array<vscode.DocumentSymbol | vscode.SymbolInformation> | undefined;
@@ -428,19 +443,20 @@ async function outlineFile(args: Record<string, unknown>): Promise<Record<string
     );
   } catch (error) {
     return {
+      ...toStructuredToolFailure(error),
       ok: false,
       path: filePath,
-      symbols: [],
-      error: getErrorText(error)
+      symbols: []
     };
   }
 
   if (!rawSymbols?.length) {
     return {
       ok: false,
+      code: 'INVALID_ARGUMENT',
       path: filePath,
       symbols: [],
-      message: 'No document symbols were returned for this file.'
+      error: 'No document symbols were returned for this file.'
     };
   }
 
@@ -584,7 +600,7 @@ async function runBashScript(args: Record<string, unknown>): Promise<Record<stri
   const cwdUri = resolveWorkspacePath(cwd);
   const stat = await vscode.workspace.fs.stat(cwdUri);
   if (stat.type !== vscode.FileType.Directory) {
-    throw new Error(`cwd must point to a workspace directory: ${cwd}`);
+    throw createToolError('NOT_A_DIRECTORY', `cwd must point to a workspace directory: ${cwd}`, { cwd });
   }
 
   const timeoutMs = clampNumber(args.timeoutMs, 30000, 1000, 120000);
@@ -628,9 +644,9 @@ async function runBashScript(args: Record<string, unknown>): Promise<Record<stri
     child.on('error', (error) => {
       clearTimeout(timeout);
       resolve({
+        ...toStructuredToolFailure(error),
         ok: false,
         cwd,
-        error: getErrorText(error),
         durationMs: Date.now() - startedAt
       });
     });
@@ -638,8 +654,10 @@ async function runBashScript(args: Record<string, unknown>): Promise<Record<stri
     child.on('close', (exitCode, signal) => {
       closed = true;
       clearTimeout(timeout);
+      const ok = exitCode === 0 && !timedOut;
       resolve({
-        ok: exitCode === 0 && !timedOut,
+        ok,
+        ...getProcessFailure(ok, timedOut, `Bash script timed out after ${timeoutMs}ms.`, exitCode, signal),
         cwd,
         exitCode,
         signal,
@@ -683,7 +701,7 @@ async function replaceInFile(args: Record<string, unknown>): Promise<Record<stri
   const content = textDecoder.decode(await vscode.workspace.fs.readFile(uri));
 
   if (!content.includes(search)) {
-    throw new Error(`Text was not found in ${filePath}.`);
+    throw createToolError('TEXT_NOT_FOUND', `Text was not found in ${filePath}.`, { path: filePath });
   }
 
   const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
@@ -741,7 +759,7 @@ async function getSearchFiles(
   }
 
   if (stat.type !== vscode.FileType.Directory) {
-    throw new Error('grep_search path must point to a file or directory.');
+    throw createToolError('NOT_A_DIRECTORY', 'grep_search path must point to a file or directory.');
   }
 
   return vscode.workspace.findFiles(new vscode.RelativePattern(baseUri, include), exclude, maxFiles);
@@ -934,7 +952,7 @@ function createLineMatcher(
     try {
       regex = new RegExp(query, flags);
     } catch (error) {
-      throw new Error(`Invalid grep_search regex: ${getErrorText(error)}`);
+      throw createToolError('INVALID_ARGUMENT', `Invalid grep_search regex: ${getErrorText(error)}`, { query });
     }
     return (line) => {
       const match = regex.exec(line);
@@ -970,9 +988,36 @@ function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function getProcessFailure(
+  ok: boolean,
+  timedOut: boolean,
+  timeoutError: string,
+  exitCode: number | null,
+  signal: NodeJS.Signals | null
+): Record<string, unknown> {
+  if (ok) {
+    return {};
+  }
+
+  if (timedOut) {
+    return {
+      code: 'TIMEOUT',
+      error: timeoutError
+    };
+  }
+
+  return {
+    code: 'INVALID_ARGUMENT',
+    error:
+      exitCode === null
+        ? `Bash script exited without an exit code${signal ? ` after signal ${signal}` : ''}.`
+        : `Bash script exited with code ${exitCode}.`
+  };
+}
+
 function requireString(value: unknown, name: string): string {
   if (typeof value !== 'string') {
-    throw new Error(`Tool argument "${name}" must be a string.`);
+    throw createToolError('INVALID_ARGUMENT', `Tool argument "${name}" must be a string.`, { argument: name });
   }
 
   return value;
@@ -981,7 +1026,9 @@ function requireString(value: unknown, name: string): string {
 function requireLineNumber(value: unknown, name: string): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    throw new Error(`Tool argument "${name}" must be a finite number.`);
+    throw createToolError('INVALID_ARGUMENT', `Tool argument "${name}" must be a finite number.`, {
+      argument: name
+    });
   }
 
   return Math.floor(numeric);

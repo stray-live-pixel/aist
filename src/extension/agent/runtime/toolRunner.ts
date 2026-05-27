@@ -3,8 +3,8 @@ import * as vscode from 'vscode';
 import type { ChatStore } from '../../chats/chatStore';
 import type { Chat } from '../../chats/types';
 import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
-import { getErrorMessage } from '../../shared/errors';
 import { t } from '../../shared/i18n';
+import { toStructuredToolFailure } from '../../shared/toolErrors';
 import { getSkillPermission, runAgentSkill } from '../../skills/skills';
 import { type FilesystemToolPreview, previewFilesystemTool, runFilesystemTool } from '../../tools/filesystemTools';
 import { getToolPermission } from '../../tools/permissions';
@@ -103,7 +103,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
       return;
     }
 
-    const result = { ok: false, error: getErrorMessage(error) };
+    const result = toStructuredToolFailure(error);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: 'error',
       reason,
@@ -113,7 +113,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     params.workingMessages.push({
       role: 'tool',
       tool_call_id: params.toolCall.id,
-      content: JSON.stringify(result)
+      content: JSON.stringify(result, null, 2)
     });
   } finally {
     await previewHandle?.cleanup();

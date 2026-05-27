@@ -9,7 +9,7 @@ import {
   updateGlobalAgentConfig
 } from '../agent/config/agentConfigStore';
 import type { OpenRouterTool } from '../openrouter/types';
-import { getErrorMessage } from '../shared/errors';
+import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { resolveWorkspacePath } from '../shared/workspace';
 import type { ToolPermissionMode } from '../tools/permissions';
 
@@ -179,14 +179,22 @@ export async function deleteAgentSkill(skillId: string, scope: AgentItemScope = 
 }
 
 export async function runAgentSkill(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  try {
+    return await runAgentSkillImpl(args);
+  } catch (error) {
+    return toStructuredToolFailure(error);
+  }
+}
+
+async function runAgentSkillImpl(args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const skillId = requireString(args.skillId, 'skillId');
   const skill = getAgentSkill(skillId);
   if (!skill) {
-    throw new Error(`Unknown skill: ${skillId}`);
+    throw createToolError('INVALID_ARGUMENT', `Unknown skill: ${skillId}`, { skillId });
   }
 
   if (!skill.command.trim()) {
-    throw new Error(`Skill "${skill.label}" has no command.`);
+    throw createToolError('INVALID_ARGUMENT', `Skill "${skill.label}" has no command.`, { skillId });
   }
 
   const input = typeof args.input === 'string' ? args.input : '';
@@ -194,7 +202,7 @@ export async function runAgentSkill(args: Record<string, unknown>): Promise<Reco
   const cwdUri = resolveWorkspacePath(cwd);
   const stat = await vscode.workspace.fs.stat(cwdUri);
   if (stat.type !== vscode.FileType.Directory) {
-    throw new Error(`cwd must point to a workspace directory: ${cwd}`);
+    throw createToolError('NOT_A_DIRECTORY', `cwd must point to a workspace directory: ${cwd}`, { cwd });
   }
 
   const timeoutMs = clampNumber(args.timeoutMs, 30000, 1000, 120000);
@@ -243,11 +251,11 @@ export async function runAgentSkill(args: Record<string, unknown>): Promise<Reco
     child.on('error', (error) => {
       clearTimeout(timeout);
       resolve({
+        ...toStructuredToolFailure(error),
         ok: false,
         skillId: skill.id,
         label: skill.label,
         cwd,
-        error: getErrorMessage(error),
         durationMs: Date.now() - startedAt
       });
     });
@@ -255,8 +263,10 @@ export async function runAgentSkill(args: Record<string, unknown>): Promise<Reco
     child.on('close', (exitCode, signal) => {
       closed = true;
       clearTimeout(timeout);
+      const ok = exitCode === 0 && !timedOut;
       resolve({
-        ok: exitCode === 0 && !timedOut,
+        ok,
+        ...getProcessFailure(ok, timedOut, `Skill "${skill.label}" timed out after ${timeoutMs}ms.`, exitCode, signal),
         skillId: skill.id,
         label: skill.label,
         cwd,
@@ -334,10 +344,39 @@ function stripScopeForStorage(skill: AgentSkill): StoredAgentSkill {
 
 function requireString(value: unknown, name: string): string {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`Tool argument "${name}" must be a non-empty string.`);
+    throw createToolError('INVALID_ARGUMENT', `Tool argument "${name}" must be a non-empty string.`, {
+      argument: name
+    });
   }
 
   return value.trim();
+}
+
+function getProcessFailure(
+  ok: boolean,
+  timedOut: boolean,
+  timeoutError: string,
+  exitCode: number | null,
+  signal: NodeJS.Signals | null
+): Record<string, unknown> {
+  if (ok) {
+    return {};
+  }
+
+  if (timedOut) {
+    return {
+      code: 'TIMEOUT',
+      error: timeoutError
+    };
+  }
+
+  return {
+    code: 'INVALID_ARGUMENT',
+    error:
+      exitCode === null
+        ? `Skill exited without an exit code${signal ? ` after signal ${signal}` : ''}.`
+        : `Skill exited with code ${exitCode}.`
+  };
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
