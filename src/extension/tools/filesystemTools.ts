@@ -10,7 +10,17 @@ import { showEditableFileDiff } from './editableDiffPreview';
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8');
 const MAX_READ_FILE_RANGE_LINES = 400;
+const DEFAULT_OUTLINE_SYMBOL_LIMIT = 200;
+const DEFAULT_OUTLINE_DEPTH = 4;
 const GREP_SEARCH_DEFAULT_EXCLUDE = '{**/.git/**,**/node_modules/**,**/dist/**,**/out/**,**/.vscode-test/**}';
+
+type OutlineSymbol = {
+  name: string;
+  kind: string;
+  line: number;
+  endLine: number;
+  children?: OutlineSymbol[];
+};
 
 export type FilesystemToolPreview = {
   preview: Record<string, unknown>;
@@ -33,6 +43,31 @@ export const filesystemTools: OpenRouterTool[] = [
           }
         },
         required: ['reason'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'outline_file',
+      description:
+        'Return a compact symbol outline for a workspace file using VS Code document symbols. Use this before reading large TypeScript, React, or other language-server-backed files.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          path: { type: 'string', description: 'Workspace-relative file path.' },
+          maxDepth: {
+            type: 'number',
+            description: `Maximum symbol nesting depth. Default is ${DEFAULT_OUTLINE_DEPTH}.`
+          },
+          maxSymbols: {
+            type: 'number',
+            description: `Maximum number of symbols to return across the outline. Default is ${DEFAULT_OUTLINE_SYMBOL_LIMIT}.`
+          }
+        },
+        required: ['reason', 'path'],
         additionalProperties: false
       }
     }
@@ -251,6 +286,8 @@ export async function runFilesystemTool(
       return readFile(args);
     case 'read_file_range':
       return readFileRange(args);
+    case 'outline_file':
+      return outlineFile(args);
     case 'grep_search':
       return grepSearch(args);
     case 'run_bash_script':
@@ -369,6 +406,57 @@ async function readFileRange(args: Record<string, unknown>): Promise<Record<stri
     totalLines,
     content: lines.slice(startLine - 1, endLine).join('\n'),
     truncatedRange: startLine !== requestedStartLine || endLine !== requestedEndLine
+  };
+}
+
+async function outlineFile(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const filePath = requireString(args.path, 'path');
+  const maxDepth = clampNumber(args.maxDepth, DEFAULT_OUTLINE_DEPTH, 1, 10);
+  const maxSymbols = clampNumber(args.maxSymbols, DEFAULT_OUTLINE_SYMBOL_LIMIT, 1, 1000);
+  const uri = resolveWorkspacePath(filePath);
+  const stat = await vscode.workspace.fs.stat(uri);
+
+  if (stat.type !== vscode.FileType.File) {
+    throw new Error(`outline_file path must point to a workspace file: ${filePath}`);
+  }
+
+  let rawSymbols: Array<vscode.DocumentSymbol | vscode.SymbolInformation> | undefined;
+  try {
+    rawSymbols = await vscode.commands.executeCommand<Array<vscode.DocumentSymbol | vscode.SymbolInformation>>(
+      'vscode.executeDocumentSymbolProvider',
+      uri
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      path: filePath,
+      symbols: [],
+      error: getErrorText(error)
+    };
+  }
+
+  if (!rawSymbols?.length) {
+    return {
+      ok: false,
+      path: filePath,
+      symbols: [],
+      message: 'No document symbols were returned for this file.'
+    };
+  }
+
+  const budget = { remaining: maxSymbols, truncated: false };
+  const symbols = isDocumentSymbol(rawSymbols[0])
+    ? convertDocumentSymbols(rawSymbols as vscode.DocumentSymbol[], maxDepth, budget, 1)
+    : convertSymbolInformation(rawSymbols as vscode.SymbolInformation[], maxSymbols, budget);
+
+  return {
+    ok: true,
+    path: filePath,
+    symbols,
+    symbolCount: maxSymbols - budget.remaining,
+    maxDepth,
+    maxSymbols,
+    truncated: budget.truncated
   };
 }
 
@@ -702,6 +790,70 @@ async function walkDirectory(
       await walkDirectory(vscode.Uri.joinPath(uri, name), childRelative, depth + 1, maxDepth, limit, entries);
     }
   }
+}
+
+function convertDocumentSymbols(
+  symbols: vscode.DocumentSymbol[],
+  maxDepth: number,
+  budget: { remaining: number; truncated: boolean },
+  depth: number
+): OutlineSymbol[] {
+  const outline: OutlineSymbol[] = [];
+
+  for (const symbol of symbols) {
+    if (budget.remaining <= 0) {
+      budget.truncated = true;
+      break;
+    }
+
+    budget.remaining -= 1;
+    const outlineSymbol: OutlineSymbol = {
+      name: symbol.name,
+      kind: getSymbolKindName(symbol.kind),
+      line: symbol.range.start.line + 1,
+      endLine: symbol.range.end.line + 1
+    };
+
+    if (symbol.children?.length) {
+      if (depth < maxDepth) {
+        const children = convertDocumentSymbols(symbol.children, maxDepth, budget, depth + 1);
+        if (children.length) {
+          outlineSymbol.children = children;
+        }
+      } else {
+        budget.truncated = true;
+      }
+    }
+
+    outline.push(outlineSymbol);
+  }
+
+  return outline;
+}
+
+function convertSymbolInformation(
+  symbols: vscode.SymbolInformation[],
+  maxSymbols: number,
+  budget: { remaining: number; truncated: boolean }
+): OutlineSymbol[] {
+  const limited = symbols.slice(0, maxSymbols);
+  budget.remaining -= limited.length;
+  budget.truncated = symbols.length > limited.length;
+
+  return limited.map((symbol) => ({
+    name: symbol.name,
+    kind: getSymbolKindName(symbol.kind),
+    line: symbol.location.range.start.line + 1,
+    endLine: symbol.location.range.end.line + 1
+  }));
+}
+
+function isDocumentSymbol(symbol: vscode.DocumentSymbol | vscode.SymbolInformation): symbol is vscode.DocumentSymbol {
+  return 'range' in symbol;
+}
+
+function getSymbolKindName(kind: vscode.SymbolKind): string {
+  return vscode.SymbolKind[kind] || String(kind);
 }
 
 function shouldSkipPath(name: string): boolean {

@@ -2,10 +2,13 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { filesystemTools, runFilesystemTool } from '../filesystemTools';
+import { DEFAULT_TOOL_PERMISSIONS } from '../permissions';
 
 const vscodeMock = vi.hoisted(() => ({
   workspaceRoot: '/tmp/aist-workspace',
-  files: new Map<string, string>()
+  files: new Map<string, string>(),
+  documentSymbols: new Map<string, unknown[]>(),
+  executeCommand: vi.fn()
 }));
 
 vi.mock('vscode', () => {
@@ -19,6 +22,18 @@ vi.mock('vscode', () => {
     FileType: {
       File: 1,
       Directory: 2
+    },
+    SymbolKind: {
+      5: 'Method',
+      11: 'Function',
+      12: 'Class',
+      13: 'Interface',
+      14: 'Module',
+      Method: 5,
+      Function: 11,
+      Class: 12,
+      Interface: 13,
+      Module: 14
     },
     Uri: {
       file,
@@ -88,7 +103,7 @@ vi.mock('vscode', () => {
       visibleTextEditors: []
     },
     commands: {
-      executeCommand: vi.fn()
+      executeCommand: vscodeMock.executeCommand
     }
   };
 });
@@ -97,13 +112,42 @@ function setWorkspaceFile(relativePath: string, content: string): void {
   vscodeMock.files.set(path.join(vscodeMock.workspaceRoot, relativePath), content);
 }
 
+function setDocumentSymbols(relativePath: string, symbols: unknown[]): void {
+  vscodeMock.documentSymbols.set(path.join(vscodeMock.workspaceRoot, relativePath), symbols);
+}
+
+function range(startLine: number, endLine: number) {
+  return {
+    start: { line: startLine - 1, character: 0 },
+    end: { line: endLine - 1, character: 0 }
+  };
+}
+
 describe('filesystemTools', () => {
   beforeEach(() => {
     vscodeMock.files.clear();
+    vscodeMock.documentSymbols.clear();
+    vscodeMock.executeCommand.mockReset();
+    vscodeMock.executeCommand.mockImplementation(async (command: string, uri: { fsPath: string }) => {
+      if (command !== 'vscode.executeDocumentSymbolProvider') {
+        return undefined;
+      }
+
+      return vscodeMock.documentSymbols.get(uri.fsPath);
+    });
   });
 
   it('exposes read_file_range in the model tool list', () => {
     expect(filesystemTools.map((tool) => tool.function.name)).toContain('read_file_range');
+  });
+
+  it('exposes outline_file with a required reason in the model tool list', () => {
+    const outlineTool = filesystemTools.find((tool) => tool.function.name === 'outline_file');
+
+    expect(outlineTool?.function.parameters.required).toEqual(['reason', 'path']);
+    expect(outlineTool?.function.parameters.properties).toHaveProperty('maxDepth');
+    expect(outlineTool?.function.parameters.properties).toHaveProperty('maxSymbols');
+    expect(DEFAULT_TOOL_PERMISSIONS.outline_file).toBe('auto');
   });
 
   it('exposes compact grep_search controls in the model tool schema', () => {
@@ -212,6 +256,126 @@ describe('filesystemTools', () => {
         endLine: 2
       })
     ).rejects.toThrow('outside the workspace');
+  });
+
+  it('returns a nested outline from VS Code document symbols', async () => {
+    setWorkspaceFile('src/example.tsx', 'export class Example {}');
+    setDocumentSymbols('src/example.tsx', [
+      {
+        name: 'Example',
+        kind: 12,
+        range: range(1, 10),
+        children: [
+          {
+            name: 'render',
+            kind: 5,
+            range: range(4, 8),
+            children: []
+          }
+        ]
+      }
+    ]);
+
+    const result = await runFilesystemTool('outline_file', {
+      reason: 'inspect TSX structure',
+      path: 'src/example.tsx'
+    });
+
+    expect(vscodeMock.executeCommand).toHaveBeenCalledWith(
+      'vscode.executeDocumentSymbolProvider',
+      expect.objectContaining({ fsPath: path.join(vscodeMock.workspaceRoot, 'src/example.tsx') })
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      path: 'src/example.tsx',
+      symbolCount: 2,
+      truncated: false,
+      symbols: [
+        {
+          name: 'Example',
+          kind: 'Class',
+          line: 1,
+          endLine: 10,
+          children: [
+            {
+              name: 'render',
+              kind: 'Method',
+              line: 4,
+              endLine: 8
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('limits outline depth and symbol count', async () => {
+    setWorkspaceFile('src/example.ts', 'export function outer() {}');
+    setDocumentSymbols('src/example.ts', [
+      {
+        name: 'outer',
+        kind: 11,
+        range: range(1, 8),
+        children: [
+          {
+            name: 'inner',
+            kind: 11,
+            range: range(2, 7),
+            children: [
+              {
+                name: 'deep',
+                kind: 11,
+                range: range(3, 6),
+                children: []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        name: 'another',
+        kind: 11,
+        range: range(10, 12),
+        children: []
+      }
+    ]);
+
+    const result = await runFilesystemTool('outline_file', {
+      reason: 'inspect limited structure',
+      path: 'src/example.ts',
+      maxDepth: 2,
+      maxSymbols: 2
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      symbolCount: 2,
+      truncated: true,
+      symbols: [
+        {
+          name: 'outer',
+          children: [{ name: 'inner' }]
+        }
+      ]
+    });
+    expect(JSON.stringify(result)).not.toContain('deep');
+    expect(JSON.stringify(result)).not.toContain('another');
+  });
+
+  it('returns a clear fallback when no document symbols are available', async () => {
+    setWorkspaceFile('src/plain.txt', 'plain text');
+
+    await expect(
+      runFilesystemTool('outline_file', {
+        reason: 'check available outline',
+        path: 'src/plain.txt'
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      path: 'src/plain.txt',
+      symbols: [],
+      message: 'No document symbols were returned for this file.'
+    });
   });
 
   it('keeps grep_search contextLines behavior unchanged', async () => {

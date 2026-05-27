@@ -342,6 +342,7 @@
             "list_files": "auto",
             "read_file": "auto",
             "read_file_range": "auto",
+            "outline_file": "auto",
             "grep_search": "auto",
             "run_bash_script": "ask",
             "write_file": "ask",
