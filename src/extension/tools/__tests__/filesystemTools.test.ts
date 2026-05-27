@@ -172,6 +172,20 @@ describe('filesystemTools', () => {
     expect(DEFAULT_TOOL_PERMISSIONS.apply_patch).toBe('ask');
   });
 
+  it('exposes edit_file with semantic edit arguments and ask permission by default', () => {
+    const editFileTool = filesystemTools.find((tool) => tool.function.name === 'edit_file');
+
+    expect(editFileTool?.function.parameters.required).toEqual([
+      'reason',
+      'path',
+      'strategy',
+      'instructions',
+      'expectedChange'
+    ]);
+    expect(editFileTool?.function.parameters.properties).toHaveProperty('expectedChange');
+    expect(DEFAULT_TOOL_PERMISSIONS.edit_file).toBe('ask');
+  });
+
   it('keeps read_file behavior unchanged', async () => {
     setWorkspaceFile('src/example.ts', 'one\ntwo\nthree');
 
@@ -298,6 +312,30 @@ describe('filesystemTools', () => {
       error: 'Text was not found in src/example.ts.',
       details: { path: 'src/example.ts' }
     });
+  });
+
+  it('applies edit_file through the selected exact-replace primitive', async () => {
+    setWorkspaceFile('src/example.ts', 'one\ntwo\nthree\n');
+
+    const result = await runFilesystemTool('edit_file', {
+      reason: 'semantic edit',
+      path: 'src/example.ts',
+      strategy: 'auto',
+      instructions: 'Rename the middle token.',
+      expectedChange: {
+        search: 'two',
+        replacement: 'deux'
+      }
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      path: 'src/example.ts',
+      strategyUsed: 'exact_replace',
+      changedRanges: [{ path: 'src/example.ts', changedStartLine: 2, changedEndLine: 2 }],
+      replacements: 1
+    });
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/example.ts'))).toBe('one\ndeux\nthree\n');
   });
 
   it('applies a unified diff patch to a workspace file', async () => {

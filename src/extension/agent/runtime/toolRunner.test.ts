@@ -37,7 +37,7 @@ const filesystemToolsMock = vi.hoisted(() => ({
 
     return { ok: true };
   }),
-  previewFilesystemTool: vi.fn(async () => undefined)
+  previewFilesystemTool: vi.fn(async (): Promise<unknown> => undefined)
 }));
 
 vi.mock('../../tools/filesystemTools', () => filesystemToolsMock);
@@ -191,6 +191,69 @@ describe('handleAgentToolCall approval feedback', () => {
       status: 'denied',
       approval: 'denied',
       userApprovalComment: 'Do not create a plan yet.'
+    });
+  });
+
+  it('cleans up edit_file preview on denial so preview edits can roll back', async () => {
+    const cleanup = vi.fn(async () => undefined);
+    const approve = vi.fn(async () => ({ ok: true }));
+    filesystemToolsMock.previewFilesystemTool.mockResolvedValueOnce({
+      preview: {
+        ok: true,
+        path: 'src/example.ts',
+        diffShown: true,
+        editable: true,
+        strategyUsed: 'exact_replace'
+      },
+      approve,
+      cleanup
+    });
+    const context = createToolRunnerContext({
+      approved: false,
+      continueAfterDeny: true,
+      comment: 'Do not apply this edit.'
+    });
+
+    await handleAgentToolCall({
+      chat: context.chat,
+      workingMessages: context.workingMessages,
+      toolCall: {
+        id: 'call-edit-file',
+        type: 'function',
+        function: {
+          name: 'edit_file',
+          arguments: {
+            reason: 'semantic edit',
+            path: 'src/example.ts',
+            strategy: 'auto',
+            instructions: 'Rename the token.',
+            expectedChange: {
+              search: 'old',
+              replacement: 'new'
+            }
+          }
+        }
+      },
+      run: context.run,
+      chats: context.chats,
+      sendState: vi.fn(),
+      throwIfStopped: vi.fn(),
+      askToolPermission: vi.fn(async () => context.decision)
+    });
+
+    expect(filesystemToolsMock.previewFilesystemTool).toHaveBeenCalledWith(
+      'edit_file',
+      expect.objectContaining({ path: 'src/example.ts' })
+    );
+    expect(approve).not.toHaveBeenCalled();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(filesystemToolsMock.runFilesystemTool).not.toHaveBeenCalledWith('edit_file', expect.anything());
+    expect(getLastToolMessage(context)).toMatchObject({
+      status: 'denied',
+      approval: 'denied',
+      result: {
+        preview: expect.objectContaining({ strategyUsed: 'exact_replace' })
+      }
     });
   });
 

@@ -45,6 +45,7 @@ function compactExecutableResult(
       return compactBashResult(result);
     case 'write_file':
     case 'replace_in_file':
+    case 'edit_file':
     case 'apply_patch':
       return compactDiffToolResult(toolName, result);
     default:
@@ -69,7 +70,7 @@ function shouldCompact(toolName: string, result: Record<string, unknown>, uiResu
     return matches.length > MAX_GREP_MODEL_MATCHES || isLargeSerialized(result);
   }
 
-  if (['write_file', 'replace_in_file', 'apply_patch'].includes(toolName)) {
+  if (['write_file', 'replace_in_file', 'edit_file', 'apply_patch'].includes(toolName)) {
     const files = Array.isArray(result.files)
       ? result.files
       : Array.isArray(result.changedFiles)
@@ -158,6 +159,10 @@ function compactDiffToolResult(toolName: string, result: Record<string, unknown>
     bytes: result.bytes,
     replacements: result.replacements,
     generatedReplacements: result.generatedReplacements,
+    instructions: result.instructions,
+    strategyUsed: result.strategyUsed,
+    diagnostics: result.diagnostics,
+    changedRanges: result.changedRanges,
     changed: result.changed,
     ...changedRange(result),
     modelResultNotice: createArtifactMarker(toolName)
@@ -184,6 +189,9 @@ function compactDiffPreview(preview: Record<string, unknown> | undefined): Recor
   return {
     ok: preview.ok,
     path: preview.path,
+    instructions: preview.instructions,
+    strategyUsed: preview.strategyUsed,
+    diagnostics: preview.diagnostics,
     diffShown: preview.diffShown,
     editable: preview.editable,
     reason: preview.reason,
@@ -266,6 +274,9 @@ function compactDiffFile(value: unknown): Record<string, unknown> {
     bytes: file.bytes,
     replacements: file.replacements,
     generatedReplacements: file.generatedReplacements,
+    strategyUsed: file.strategyUsed,
+    diagnostics: file.diagnostics,
+    changedRanges: file.changedRanges,
     changed: file.changed,
     ...changedRange(file)
   });

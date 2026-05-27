@@ -9,6 +9,7 @@ import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
 import { type AppliedPatch, applyUnifiedPatchToContents, parseUnifiedPatch } from './applyPatch';
 import { showEditableFileDiff } from './editableDiffPreview';
+import { type SemanticEditPlan, changedRangesFromLineRange, selectSemanticEdit } from './semanticEdit';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8');
@@ -248,6 +249,52 @@ export const filesystemTools: OpenRouterTool[] = [
   {
     type: 'function',
     function: {
+      name: 'edit_file',
+      description:
+        'Request a semantic single-file edit. Provide intent in instructions and a compact expectedChange object; the runtime reads the current file, selects exact replace, unified patch, or small-file rewrite, opens an approval preview, and reports changed ranges and diagnostics.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          path: { type: 'string', description: 'Workspace-relative file path.' },
+          strategy: {
+            type: 'string',
+            enum: ['auto', 'exact_replace', 'patch', 'rewrite'],
+            description: 'Preferred edit primitive. Use auto unless a specific primitive is required.'
+          },
+          instructions: {
+            type: 'string',
+            description: 'Human-readable edit intent and constraints for the approval preview.'
+          },
+          expectedChange: {
+            type: 'object',
+            description:
+              'Compact concrete change. For exact_replace use search plus replacement. For patch use patch as a unified diff for this path. For rewrite use content/newContent/fullContent; large rewrites require explicitLargeRewriteApproval=true.',
+            properties: {
+              search: { type: 'string', description: 'Exact text expected in the current file.' },
+              replacement: { type: 'string', description: 'Replacement text for search.' },
+              replace: { type: 'string', description: 'Alias for replacement.' },
+              all: { type: 'boolean', description: 'Replace all exact matches when using search/replacement.' },
+              patch: { type: 'string', description: 'Unified diff patch that modifies only path.' },
+              content: { type: 'string', description: 'Full expected file content for small-file rewrite.' },
+              newContent: { type: 'string', description: 'Alias for content.' },
+              fullContent: { type: 'string', description: 'Alias for content.' },
+              explicitLargeRewriteApproval: {
+                type: 'boolean',
+                description: 'Required to preview a full rewrite of a large file.'
+              }
+            },
+            additionalProperties: true
+          }
+        },
+        required: ['reason', 'path', 'strategy', 'instructions', 'expectedChange'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'apply_patch',
       description:
         'Apply a unified diff patch to one or more UTF-8 workspace files. Use this for multi-location edits or when exact large replace_in_file blocks would be brittle.',
@@ -323,6 +370,8 @@ export async function runFilesystemTool(
         return await writeFile(args);
       case 'replace_in_file':
         return await replaceInFile(args);
+      case 'edit_file':
+        return await editFile(args);
       case 'apply_patch':
         return await applyPatch(args);
       case 'create_directory':
@@ -364,6 +413,11 @@ export async function previewFilesystemTool(
     const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
     const generatedReplacements = replaceAll ? content.split(search).length - 1 : 1;
     return showFileDiff(filePath, nextContent, generatedReplacements);
+  }
+
+  if (toolName === 'edit_file') {
+    const plan = await getSemanticEditPlan(args);
+    return showSemanticEditDiff(plan);
   }
 
   if (toolName === 'apply_patch') {
@@ -760,6 +814,20 @@ async function replaceInFile(args: Record<string, unknown>): Promise<Record<stri
   };
 }
 
+async function editFile(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const plan = await getSemanticEditPlan(args);
+  const uri = resolveWorkspacePath(plan.path);
+
+  await vscode.workspace.fs.writeFile(uri, textEncoder.encode(plan.nextContent));
+
+  return createSemanticEditResult(plan, {
+    ok: true,
+    path: plan.path,
+    bytes: Buffer.byteLength(plan.nextContent, 'utf8'),
+    ...getChangedLineRangeFromRanges(plan.changedRanges)
+  });
+}
+
 async function applyPatch(args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const patch = requireString(args.patch, 'patch');
   const appliedPatch = await getAppliedPatch(patch);
@@ -833,6 +901,27 @@ async function showFileDiff(
   generatedReplacements?: number
 ): Promise<FilesystemToolPreview> {
   return showEditableFileDiff({ filePath, nextContent, generatedReplacements });
+}
+
+async function showSemanticEditDiff(plan: SemanticEditPlan): Promise<FilesystemToolPreview> {
+  const preview = await showFileDiff(plan.path, plan.nextContent, plan.replacements);
+
+  return {
+    preview: {
+      ...preview.preview,
+      instructions: plan.instructions,
+      strategyUsed: plan.strategyUsed,
+      diagnostics: plan.diagnostics,
+      changedRanges: plan.changedRanges
+    },
+    approve: async () => {
+      const result = await preview.approve();
+      return createSemanticEditResult(plan, result);
+    },
+    cleanup: async () => {
+      await preview.cleanup();
+    }
+  };
 }
 
 async function showPatchDiff(appliedPatch: AppliedPatch): Promise<FilesystemToolPreview> {
@@ -1015,6 +1104,13 @@ async function getAppliedPatch(patch: string): Promise<AppliedPatch> {
   return applyUnifiedPatchToContents(patch, contentsByPath);
 }
 
+async function getSemanticEditPlan(args: Record<string, unknown>): Promise<SemanticEditPlan> {
+  const filePath = requireString(args.path, 'path');
+  const uri = resolveWorkspacePath(filePath);
+  const content = textDecoder.decode(await vscode.workspace.fs.readFile(uri));
+  return selectSemanticEdit(args, content);
+}
+
 async function rollbackWrittenPatchFiles(files: AppliedPatch['files']): Promise<void> {
   for (const file of [...files].reverse()) {
     const uri = resolveWorkspacePath(file.path);
@@ -1043,6 +1139,33 @@ function toPatchFileSummary(file: AppliedPatch['files'][number]): Record<string,
     created: file.created,
     bytes: Buffer.byteLength(file.newContent, 'utf8'),
     ...getChangedLineRange(file.oldContent || '', file.newContent)
+  };
+}
+
+function createSemanticEditResult(plan: SemanticEditPlan, result: Record<string, unknown>): Record<string, unknown> {
+  const changedRanges = changedRangesFromLineRange(plan.path, result);
+
+  return {
+    ...result,
+    instructions: plan.instructions,
+    strategyUsed: plan.strategyUsed,
+    diagnostics: plan.diagnostics,
+    changedRanges: changedRanges.length ? changedRanges : plan.changedRanges,
+    ...(plan.replacements === undefined ? {} : { replacements: plan.replacements })
+  };
+}
+
+function getChangedLineRangeFromRanges(ranges: ReturnType<typeof changedRangesFromLineRange>): Record<string, number> {
+  const range = ranges[0];
+  if (!range) {
+    return {};
+  }
+
+  return {
+    changedStartLine: range.changedStartLine,
+    changedStartColumn: range.changedStartColumn,
+    changedEndLine: range.changedEndLine,
+    changedEndColumn: range.changedEndColumn
   };
 }
 

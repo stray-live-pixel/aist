@@ -296,6 +296,10 @@ function runPlanningTool(
 }
 
 function getToolCallPermission(toolName: string, args: Record<string, unknown>): ReturnType<typeof getToolPermission> {
+  if (toolName === 'edit_file') {
+    return 'ask';
+  }
+
   const projectTool = getAgentToolRegistry().getProjectTool(toolName);
   if (projectTool) {
     return getToolPermission(toolName);
