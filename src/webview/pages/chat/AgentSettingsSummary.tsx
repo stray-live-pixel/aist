@@ -3,7 +3,13 @@ import { memo, useMemo } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
-import type { AgentState, ChatContextEstimate, ModelOption, ReasoningEffort } from '../../shared/types';
+import type {
+  AgentState,
+  ChatContextEstimate,
+  CodexServiceTier,
+  ModelOption,
+  ReasoningEffort
+} from '../../shared/types';
 import {
   CompactControlGroup,
   CompactControlItem,
@@ -65,6 +71,8 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
     () => (state.models.length ? getModelCategories(state.models) : undefined),
     [state.models]
   );
+  const activeModel = state.models.find((model) => model.id === state.activeChat.model);
+  const codexServiceTierOptions = getCodexServiceTierOptions(activeModel);
   const permissionOptions = useMemo(
     () => [
       ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
@@ -101,6 +109,19 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         onChange={(event) => agentActions.setReasoningEffort(event.target.value as ReasoningEffort)}
         options={getReasoningOptions()}
       />
+      {codexServiceTierOptions ? (
+        <Select
+          className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
+          size="sm"
+          leadingIcon={<Settings2 size={12} />}
+          aria-label="Codex speed"
+          title="Codex speed"
+          value={state.codexServiceTier}
+          disabled={state.activeChat.busy}
+          onChange={(event) => agentActions.setCodexServiceTier(event.target.value as CodexServiceTier)}
+          options={codexServiceTierOptions}
+        />
+      ) : null}
       <Select
         className={`${styles.compactSelect} ${styles.permissionsCompactSelect}`}
         size="sm"
@@ -145,6 +166,22 @@ function getReasoningOptions(): SelectOption[] {
     { value: 'low', label: 'slow' },
     { value: 'medium', label: 'medium' },
     { value: 'high', label: 'high' }
+  ];
+}
+
+/**
+ * Возвращает варианты ускорения только для Codex-моделей с объявленной поддержкой.
+ * Так UI не предлагает priority для OpenRouter и для будущих Codex-моделей, если API
+ * перестанет принимать service_tier или потребует отдельного entitlement.
+ */
+function getCodexServiceTierOptions(model: ModelOption | undefined): SelectOption[] | undefined {
+  if (model?.provider !== 'codex' || !model.codexServiceTiers?.includes('priority')) {
+    return undefined;
+  }
+
+  return [
+    { value: 'auto', label: 'auto' },
+    { value: 'priority', label: 'priority' }
   ];
 }
 

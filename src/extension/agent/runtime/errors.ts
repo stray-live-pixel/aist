@@ -1,3 +1,4 @@
+import { getModelRequestErrorInfo } from '../../openrouter/errors';
 import { getErrorMessage } from '../../shared/errors';
 import { isAbortError } from './runtime';
 
@@ -26,6 +27,17 @@ export function formatChatErrorMessage(error: unknown, context?: string): string
 export function isRetryableModelRequestError(error: unknown): boolean {
   if (isAbortError(error)) {
     return false;
+  }
+
+  const requestInfo = getModelRequestErrorInfo(error);
+  if (requestInfo?.status) {
+    if ([400, 401, 403, 404].includes(requestInfo.status)) {
+      return false;
+    }
+
+    if ([408, 409, 425, 429, 500, 502, 503, 504].includes(requestInfo.status)) {
+      return true;
+    }
   }
 
   const message = getErrorMessage(error).toLowerCase();

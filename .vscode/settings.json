@@ -8,11 +8,11 @@
     "list_files": "auto",
     "read_file": "auto",
     "grep_search": "auto",
-    "run_bash_script": "ask",
-    "write_file": "ask",
-    "replace_in_file": "ask",
-    "create_directory": "ask",
-    "delete_path": "ask"
+    "run_bash_script": "auto",
+    "write_file": "auto",
+    "replace_in_file": "auto",
+    "create_directory": "auto",
+    "delete_path": "auto"
   },
   "openrouterAgent.language": "ru",
   "openrouterAgent.approvalNotifications": {
@@ -21,5 +21,6 @@
     "sound": false,
     "volume": 0.35,
     "durationSeconds": 3
-  }
+  },
+  "openrouterAgent.codexServiceTier": "priority"
 }

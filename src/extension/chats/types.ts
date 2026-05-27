@@ -32,11 +32,56 @@ export type ChatUsageEstimate = {
   costUsd?: number;
 };
 
+/** Статус пункта активного плана; хранится в чате и синхронизируется в sticky UI. */
+export type ChatPlanItemStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
+
+/** Один короткий шаг плана. id стабилен внутри текущей версии плана и нужен React-рендеру. */
+export type ChatPlanItem = {
+  id: string;
+  text: string;
+  status: ChatPlanItemStatus;
+};
+
+/** Активный план работ по текущему чату, которым управляют planning tools модели. */
+export type ChatPlan = {
+  title: string;
+  items: ChatPlanItem[];
+};
+
 export type ChatContextEstimate = {
   tokens?: number;
   maxTokens?: number;
   percent?: number;
   inputCostUsd?: number;
+};
+
+export type ChatModelRequestPhase =
+  | 'sending'
+  | 'receiving'
+  | 'streaming'
+  | 'completed'
+  | 'retrying'
+  | 'failed'
+  | 'aborted';
+
+export type ChatModelRequestStatus = {
+  provider?: 'openrouter' | 'codex';
+  model: string;
+  attempt: number;
+  maxAttempts: number;
+  requestNumber: number;
+  phase: ChatModelRequestPhase;
+  stream: boolean;
+  startedAt: number;
+  updatedAt: number;
+  durationMs?: number;
+  endpoint?: string;
+  method?: string;
+  httpStatus?: number;
+  httpStatusText?: string;
+  retryable?: boolean;
+  error?: string;
+  responseBody?: string;
 };
 
 export type Chat = {
@@ -50,9 +95,11 @@ export type Chat = {
   lastAnswer: string;
   activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'answering' | 'stopping';
   activityDetail?: string;
+  modelRequest?: ChatModelRequestStatus;
   busy: boolean;
   context?: ChatContextEstimate;
   contextLength?: number;
+  activePlan?: ChatPlan;
   usage: ChatUsageEstimate;
   createdAt: number;
   updatedAt: number;

@@ -84,6 +84,29 @@
   opacity: 0.7;
 }
 
+/* Static plan tool details. */
+.planPreview {
+  display: grid;
+  gap: 6px;
+}
+
+.planTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.planSteps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.planSteps li {
+  padding-left: 2px;
+}
+
 /* Bash script result. */
 .bashPreview {
   display: grid;

@@ -63,10 +63,12 @@ export function ChatPage() {
         messages={state.activeChat.messages}
         previousChat={state.activeChat.previousChat}
         compactedAt={state.activeChat.compactedAt}
+        activePlan={state.activeChat.activePlan}
         tools={state.tools}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
         activityDetail={state.activeChat.activityDetail}
+        modelRequest={state.activeChat.modelRequest}
         bottomOffset="composer"
         resolvedApprovalId={resolvedApprovalId}
       />

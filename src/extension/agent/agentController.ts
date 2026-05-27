@@ -4,14 +4,19 @@ import { ChatStore } from '../chats/chatStore';
 import { createChatErrorMessage } from '../chats/errorMessages';
 import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
-import type { ModelStreamCallbacks, OpenRouterMessage, OpenRouterTool } from '../openrouter/types';
+import type {
+  ModelRequestLifecycleCallbacks,
+  ModelStreamCallbacks,
+  OpenRouterMessage,
+  OpenRouterTool
+} from '../openrouter/types';
 import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
 import { editSelection as runEditSelectionCommand } from './commands/editSelection';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from './commands/openWorkspaceFile';
 import { initializeAgentConfigStore } from './config/agentConfigStore';
 import { getCompactionSettings } from './config/compaction';
-import { getConfiguredModel } from './config/settingsSnapshot';
+import { getAgentSettingsSnapshot, getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
@@ -84,8 +89,8 @@ export class AgentController {
       reportError: (error, options) => this.reportError(error, options),
       getSystemPrompt: () => this.getSystemPrompt(),
       getModelOption: (modelId) => this.modelCatalog.getOption(modelId),
-      chat: (messages, tools, modelOverride, signal, stream) =>
-        this.chat(messages, tools, modelOverride, signal, stream)
+      chat: (messages, tools, modelOverride, signal, stream, lifecycle) =>
+        this.chat(messages, tools, modelOverride, signal, stream, lifecycle)
     });
     void this.refreshCodexAuthState();
     this.logger.info('AgentController initialized', {
@@ -486,13 +491,15 @@ export class AgentController {
     tools?: OpenRouterTool[],
     modelOverride?: string,
     signal?: AbortSignal,
-    stream?: ModelStreamCallbacks
+    stream?: ModelStreamCallbacks,
+    lifecycle?: ModelRequestLifecycleCallbacks
   ): Promise<OpenRouterMessage> {
     if (isCodexModel(modelOverride)) {
-      return this.codexClient.chat(messages, tools, modelOverride, signal, stream);
+      const { codexServiceTier } = getAgentSettingsSnapshot();
+      return this.codexClient.chat(messages, tools, modelOverride, signal, stream, lifecycle, codexServiceTier);
     }
 
-    return this.openRouterClient.chat(messages, tools, modelOverride, signal, stream);
+    return this.openRouterClient.chat(messages, tools, modelOverride, signal, stream, lifecycle);
   }
 
   private sendState(targetSurface?: WebviewSurface): void {

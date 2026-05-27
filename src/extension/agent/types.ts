@@ -7,6 +7,7 @@ import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './confi
 import type { AgentModeId } from './config/settings';
 
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+export type CodexServiceTier = 'auto' | 'priority';
 
 /**
  * Хранит состояние одного активного запуска агента.
@@ -84,6 +85,7 @@ export type WebviewMessage =
   | { type: 'setToolPermissionPreset'; presetId: string }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
+  | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | {

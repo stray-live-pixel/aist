@@ -7,6 +7,7 @@ import { type ReactNode, useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../../entities/message';
 import { CopyMessageButton } from '../../../features';
+import { ActivePlanWidget } from '../active-plan';
 import { AgentActivityStatus } from '../agent-activity-status';
 import { EmptyState } from '../empty-state';
 import { ToolCallsCut } from '../tool-calls-cut';
@@ -24,10 +25,12 @@ export function MessageList({
   messages,
   previousChat,
   compactedAt,
+  activePlan,
   tools: _tools,
   busy,
   activity,
   activityDetail,
+  modelRequest,
   bottomOffset = 'none',
   resolvedApprovalId
 }: MessageListProps) {
@@ -64,6 +67,7 @@ export function MessageList({
       onScroll={handleScroll}
     >
       <div className={styles.stack}>
+        {activePlan ? <ActivePlanWidget plan={activePlan} /> : null}
         {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
         {messages.length === 0 && !previousChat ? <EmptyState /> : null}
         {groups.map((group) => (
@@ -71,7 +75,9 @@ export function MessageList({
             {renderMessageGroup(group, getLastAssistantMessageId(messages), resolvedApprovalId)}
           </AnimatedMessageGroup>
         ))}
-        {busy ? <AgentActivityStatus activity={activity} detail={activityDetail} /> : null}
+        {busy || modelRequest?.phase === 'failed' ? (
+          <AgentActivityStatus activity={activity} detail={activityDetail} modelRequest={modelRequest} />
+        ) : null}
       </div>
     </main>
   );

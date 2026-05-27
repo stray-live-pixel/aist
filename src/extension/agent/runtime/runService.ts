@@ -2,6 +2,7 @@ import type { ChatStore } from '../../chats/chatStore';
 import { createChatErrorMessage } from '../../chats/errorMessages';
 import type { Chat } from '../../chats/types';
 import type {
+  ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterModelOption,
@@ -29,7 +30,8 @@ export type AgentRunServiceDeps = {
     tools?: OpenRouterTool[],
     modelOverride?: string,
     signal?: AbortSignal,
-    stream?: ModelStreamCallbacks
+    stream?: ModelStreamCallbacks,
+    lifecycle?: ModelRequestLifecycleCallbacks
   ): Promise<OpenRouterMessage>;
 };
 
@@ -97,6 +99,7 @@ export class AgentRunService {
 
   private startRun(chat: Chat, prompt: string): AgentRun {
     this.deps.logger.info('Agent run started', { chatId: chat.id, promptLength: prompt.length });
+    this.deps.chats.setModelRequest(chat.id, undefined);
     this.deps.chats.appendMessage(chat.id, { role: 'user', content: prompt });
     this.deps.chats.setBusy(chat.id, true);
     this.deps.chats.setActivity(chat.id, 'thinking', t('activity.detail.prepareRequest'));
@@ -137,13 +140,19 @@ export class AgentRunService {
           );
           this.deps.sendState();
         }
-        return await this.runLoop(chat, initialHistory, run);
+        return await this.runLoop(chat, initialHistory, run, attempt);
       } catch (error) {
         lastError = error;
         if (run.stopRequested || isAbortError(error) || !isRetryableModelRequestError(error)) {
           throw error;
         }
 
+        this.deps.chats.updateModelRequest(chat.id, {
+          phase: 'retrying',
+          retryable: true,
+          updatedAt: Date.now()
+        });
+        this.deps.sendState();
         this.deps.logger.error('Retryable model request failed', error);
         this.deps.reportError(error, {
           chatId: chat.id,
@@ -159,7 +168,7 @@ export class AgentRunService {
     throw lastError;
   }
 
-  private runLoop(chat: Chat, initialHistory: OpenRouterMessage[], run: AgentRun) {
+  private runLoop(chat: Chat, initialHistory: OpenRouterMessage[], run: AgentRun, requestAttempt: number) {
     return runAgentLoop(chat, initialHistory, run, {
       chats: this.deps.chats,
       logger: this.deps.logger,
@@ -169,7 +178,9 @@ export class AgentRunService {
       handleToolCall: (targetChat, messages, toolCall, targetRun) =>
         this.handleToolCall(targetChat, messages, toolCall, targetRun),
       sendState: this.deps.sendState,
-      throwIfStopped: (targetRun) => this.throwIfStopped(targetRun)
+      throwIfStopped: (targetRun) => this.throwIfStopped(targetRun),
+      requestAttempt,
+      maxRequestAttempts: MAX_MODEL_REQUEST_ATTEMPTS
     });
   }
 

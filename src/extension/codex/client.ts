@@ -3,7 +3,10 @@ import { type Server, createServer } from 'node:http';
 import * as os from 'node:os';
 import * as vscode from 'vscode';
 
+import { ModelRequestError } from '../openrouter/errors';
 import type {
+  CodexServiceTier,
+  ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterModelOption,
@@ -154,7 +157,9 @@ export class CodexClient {
     tools?: OpenRouterTool[],
     modelOverride?: string,
     signal?: AbortSignal,
-    stream?: ModelStreamCallbacks
+    stream?: ModelStreamCallbacks,
+    lifecycle?: ModelRequestLifecycleCallbacks,
+    codexServiceTier: CodexServiceTier = 'auto'
   ): Promise<OpenRouterMessage> {
     const auth = await this.getValidAuth();
     const model = stripCodexPrefix(modelOverride || 'codex:gpt-5.1-codex');
@@ -174,15 +179,25 @@ export class CodexClient {
         model,
         store: false,
         stream: true,
+        ...(codexServiceTier === 'priority' ? { service_tier: 'priority' } : {}),
         instructions: payload.instructions,
         input: payload.input,
         ...(tools?.length ? { tools: tools.map(toCodexTool), tool_choice: 'auto' } : {})
       })
     });
+    lifecycle?.onResponseHeaders?.({ status: response.status, statusText: response.statusText });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`ChatGPT Codex request failed: ${response.status} ${response.statusText}\n${text}`);
+      throw new ModelRequestError({
+        provider: 'codex',
+        model,
+        endpoint: CODEX_RESPONSES_URL,
+        method: 'POST',
+        status: response.status,
+        statusText: response.statusText,
+        responseBody: text
+      });
     }
 
     if (response.body) {
@@ -596,7 +611,13 @@ async function parseCodexStream(
       }
 
       if (event.type === 'response.failed') {
-        throw new Error(event.error?.message || 'ChatGPT Codex stream failed.');
+        throw new ModelRequestError({
+          provider: 'codex',
+          model,
+          endpoint: CODEX_RESPONSES_URL,
+          method: 'POST',
+          message: event.error?.message || 'ChatGPT Codex stream failed.'
+        });
       }
 
       if (event.type === 'response.completed' && event.response) {

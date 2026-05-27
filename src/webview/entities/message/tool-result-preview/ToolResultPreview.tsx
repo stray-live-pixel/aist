@@ -39,6 +39,8 @@ function renderPrimaryResult(
   preview?: Record<string, unknown>
 ) {
   if (message.name === 'run_bash_script') return <BashScriptResult message={message} result={result} />;
+  if (message.name === 'create_plan' || message.name === 'update_plan') return <PlanChangePreview message={message} />;
+  if (message.name === 'set_plan_item_status') return <PlanStatusPreview message={message} result={result} />;
   if (!result && preview) return <CompactFacts result={preview} />;
   if (!result) return null;
   if (asString(result.error)) return <ErrorText text={asString(result.error) || ''} />;
@@ -48,6 +50,44 @@ function renderPrimaryResult(
   if (message.name === 'grep_search') return <SearchFiles result={result} />;
 
   return <CompactFacts result={result} />;
+}
+
+function PlanChangePreview({ message }: { message: ChatMessage }) {
+  const title = asString(message.args?.title) || '';
+  const steps = arrayValue(message.args?.steps)
+    .map((step) => String(step || '').trim())
+    .filter(Boolean);
+
+  return (
+    <div className={styles.planPreview}>
+      {title ? <p className={styles.planTitle}>{title}</p> : null}
+      <ol className={styles.planSteps}>
+        {steps.map((step, index) => (
+          <li key={`${index}-${step}`}>{step}</li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function PlanStatusPreview({ message, result }: { message: ChatMessage; result?: Record<string, unknown> }) {
+  const { t } = useI18n();
+  const index = String(message.args?.itemIndex || result?.itemIndex || '');
+  const status = getPlanStatusLabel(asString(message.args?.status) || asString(result?.status) || '', t);
+
+  return (
+    <p className={styles.compactFacts}>
+      {t('tool.target.planItem', { index })}: {status}
+    </p>
+  );
+}
+
+function getPlanStatusLabel(status: string, t: ReturnType<typeof useI18n>['t']): string {
+  if (status === 'in_progress') return t('plan.status.inProgress');
+  if (status === 'done') return t('plan.status.done');
+  if (status === 'blocked') return t('plan.status.blocked');
+  if (status === 'pending') return t('plan.status.pending');
+  return status;
 }
 
 function CodePreview({ result }: { result: Record<string, unknown> }) {

@@ -1,16 +1,20 @@
 import type { ChatStore } from '../../chats/chatStore';
 import type { Chat, ChatUsageEstimate } from '../../chats/types';
+import { getModelRequestErrorInfo } from '../../openrouter/errors';
 import type {
+  ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterModelOption,
   OpenRouterTool
 } from '../../openrouter/types';
+import { CODEX_RESPONSES_URL, OPENROUTER_URL } from '../../shared/constants';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getAgentSkills } from '../../skills/skills';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import type { AgentLoopResult, AgentRun } from '../types';
+import { isRetryableModelRequestError } from './errors';
 import { getPersistableHistory } from './runtime';
 import { findRepeatedToolCall, getRepeatedToolCallAnswer, redactLargeArgs } from './toolCalls';
 import { getAgentTools } from './tools';
@@ -31,7 +35,8 @@ export type RunAgentLoopDeps = {
     tools?: OpenRouterTool[],
     modelOverride?: string,
     signal?: AbortSignal,
-    stream?: ModelStreamCallbacks
+    stream?: ModelStreamCallbacks,
+    lifecycle?: ModelRequestLifecycleCallbacks
   ): Promise<OpenRouterMessage>;
   handleToolCall(
     chat: Chat,
@@ -41,6 +46,8 @@ export type RunAgentLoopDeps = {
   ): Promise<void>;
   sendState(): void;
   throwIfStopped(run: AgentRun): void;
+  requestAttempt: number;
+  maxRequestAttempts: number;
 };
 
 /**
@@ -62,6 +69,7 @@ export async function runAgentLoop(
   const usage: ChatUsageEstimate = createEmptyUsage();
   const toolCallCounts = new Map<string, number>();
   const tools = getAgentTools(getAgentSkills());
+  let modelRequestNumber = 0;
 
   for (let iteration = 0; maxToolIterations === 0 || iteration < maxToolIterations; iteration += 1) {
     deps.throwIfStopped(run);
@@ -73,7 +81,18 @@ export async function runAgentLoop(
     );
     deps.sendState();
 
-    const responseMessage = await requestModel(chat, workingMessages, tools, run, deps, usage, model, streamingEnabled);
+    modelRequestNumber += 1;
+    const responseMessage = await requestModel(
+      chat,
+      workingMessages,
+      tools,
+      run,
+      deps,
+      usage,
+      model,
+      streamingEnabled,
+      modelRequestNumber
+    );
     const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
 
     if (!toolCalls.length) {
@@ -142,27 +161,141 @@ async function requestModel(
   deps: RunAgentLoopDeps,
   usage: ChatUsageEstimate,
   model: OpenRouterModelOption | undefined,
-  streamingEnabled: boolean
+  streamingEnabled: boolean,
+  requestNumber: number
 ): Promise<OpenRouterMessage> {
-  const responseMessage = await deps.chat(
-    workingMessages,
-    tools,
-    chat.model,
-    run.abortController.signal,
-    // Stream callbacks дают живой preview reasoning/answer, но требуют долгого SSE-соединения; non-streaming устойчивее.
-    streamingEnabled ? run.activityStream : undefined
-  );
-  const callUsage = getCallUsageFromModelUsage(responseMessage.usage, model?.pricing);
-  const callContext = getChatContextEstimateFromModelUsage(responseMessage.usage, model);
-  mergeUsage(usage, callUsage);
-  if (callUsage) {
-    deps.chats.addUsage(chat.id, callUsage);
+  const startedAt = Date.now();
+  const provider = model?.provider || (chat.model.startsWith('codex:') ? 'codex' : 'openrouter');
+  const endpoint = provider === 'codex' ? CODEX_RESPONSES_URL : OPENROUTER_URL;
+  deps.chats.setModelRequest(chat.id, {
+    provider,
+    model: chat.model,
+    attempt: deps.requestAttempt,
+    maxAttempts: deps.maxRequestAttempts,
+    requestNumber,
+    phase: 'sending',
+    stream: streamingEnabled,
+    startedAt,
+    updatedAt: startedAt,
+    endpoint,
+    method: 'POST'
+  });
+  deps.sendState();
+
+  let streamingMarked = false;
+  const markStreaming = () => {
+    if (streamingMarked) {
+      return;
+    }
+
+    streamingMarked = true;
+    deps.chats.updateModelRequest(chat.id, {
+      phase: 'streaming',
+      updatedAt: Date.now()
+    });
+    deps.sendState();
+  };
+  const streamCallbacks =
+    streamingEnabled && run.activityStream
+      ? createModelRequestStreamCallbacks(run.activityStream, markStreaming)
+      : undefined;
+  const lifecycle = createModelRequestLifecycle(chat.id, streamingEnabled, deps);
+
+  try {
+    const responseMessage = await deps.chat(
+      workingMessages,
+      tools,
+      chat.model,
+      run.abortController.signal,
+      // Stream callbacks дают живой preview reasoning/answer, но требуют долгого SSE-соединения; non-streaming устойчивее.
+      streamCallbacks,
+      lifecycle
+    );
+    const finishedAt = Date.now();
+    deps.chats.updateModelRequest(chat.id, {
+      phase: 'completed',
+      updatedAt: finishedAt,
+      durationMs: finishedAt - startedAt,
+      retryable: false
+    });
+    deps.sendState();
+
+    const callUsage = getCallUsageFromModelUsage(responseMessage.usage, model?.pricing);
+    const callContext = getChatContextEstimateFromModelUsage(responseMessage.usage, model);
+    mergeUsage(usage, callUsage);
+    if (callUsage) {
+      deps.chats.addUsage(chat.id, callUsage);
+    }
+    if (callContext) {
+      deps.chats.setContext(chat.id, callContext);
+    }
+
+    return responseMessage;
+  } catch (error) {
+    const finishedAt = Date.now();
+    const info = getModelRequestErrorInfo(error);
+    deps.chats.updateModelRequest(chat.id, {
+      phase: run.stopRequested ? 'aborted' : 'failed',
+      updatedAt: finishedAt,
+      durationMs: finishedAt - startedAt,
+      endpoint: info?.endpoint || endpoint,
+      method: info?.method || 'POST',
+      httpStatus: info?.status,
+      httpStatusText: info?.statusText,
+      error: getModelRequestErrorSummary(error, info),
+      responseBody: info?.responseBody,
+      retryable: isRetryableModelRequestError(error)
+    });
+    deps.sendState();
+    throw error;
   }
-  if (callContext) {
-    deps.chats.setContext(chat.id, callContext);
+}
+
+function getModelRequestErrorSummary(error: unknown, info: ReturnType<typeof getModelRequestErrorInfo>): string {
+  if (info?.message) {
+    return info.message;
   }
 
-  return responseMessage;
+  if (info?.status) {
+    return `HTTP ${info.status}${info.statusText ? ` ${info.statusText}` : ''}`;
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
+
+function createModelRequestStreamCallbacks(
+  activityStream: NonNullable<AgentRun['activityStream']>,
+  onStreamStart: () => void
+): ModelStreamCallbacks {
+  return {
+    onComplete: () => activityStream.onComplete?.(),
+    onReasoningDelta: (delta) => {
+      onStreamStart();
+      activityStream.onReasoningDelta?.(delta);
+    },
+    onContentDelta: (delta) => {
+      onStreamStart();
+      activityStream.onContentDelta?.(delta);
+    }
+  };
+}
+
+function createModelRequestLifecycle(
+  chatId: string,
+  streamingEnabled: boolean,
+  deps: RunAgentLoopDeps
+): ModelRequestLifecycleCallbacks {
+  return {
+    onResponseHeaders: (info) => {
+      deps.chats.updateModelRequest(chatId, {
+        phase: info.status >= 400 ? 'failed' : streamingEnabled ? 'streaming' : 'receiving',
+        httpStatus: info.status,
+        httpStatusText: info.statusText,
+        updatedAt: Date.now()
+      });
+      deps.sendState();
+    }
+  };
 }
 
 function getResponseDetail(message: OpenRouterMessage, fallback: string): string {

@@ -156,6 +156,7 @@ function buildChatJsonExport(
       model: chat.model,
       language: getAgentLanguage(),
       reasoningEffort: settings.reasoningEffort,
+      codexServiceTier: settings.codexServiceTier,
       maxToolIterations: settings.maxToolIterations,
       systemPrompt,
       instructionSources: getAgentInstructionSources(),

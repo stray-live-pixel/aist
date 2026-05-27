@@ -17,6 +17,9 @@ const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: To
   run_bash_script: { actionKey: 'tool.action.run_bash_script', tone: 'slate' },
   run_skill: { actionKey: 'tool.action.run_skill', tone: 'green' },
   compact_chat: { actionKey: 'tool.action.compact_chat', tone: 'purple' },
+  create_plan: { actionKey: 'tool.action.create_plan', tone: 'purple' },
+  update_plan: { actionKey: 'tool.action.update_plan', tone: 'purple' },
+  set_plan_item_status: { actionKey: 'tool.action.set_plan_item_status', tone: 'purple' },
   write_file: { actionKey: 'tool.action.write_file', tone: 'amber' },
   replace_in_file: { actionKey: 'tool.action.replace_in_file', tone: 'cyan' },
   create_directory: { actionKey: 'tool.action.create_directory', tone: 'blue' },
@@ -32,7 +35,7 @@ export function buildToolDisplayModel(message: ChatMessage, t: Translator): Tool
   const meta = getToolMeta(message.name, t);
   const primaryFile = getPrimaryFileReference(message);
   const files = uniqueFiles(getAllFileReferences(message, primaryFile));
-  const target = primaryFile?.path || getToolTarget(message) || '';
+  const target = primaryFile?.path || getToolTarget(message, t) || '';
 
   return {
     action: meta.action,
@@ -113,7 +116,7 @@ function fileFromSearchMatch(value: unknown): FileReference | undefined {
  * Извлекает «цель» инструмента для заголовка: путь, скрипт, skillId и т.д.
  * Разные инструменты имеют разные поля-цели, поэтому нужен диспетчер.
  */
-function getToolTarget(message: ChatMessage): string | undefined {
+function getToolTarget(message: ChatMessage, t: Translator): string | undefined {
   if (message.name === 'run_bash_script') {
     return compactSingleLine(asString(message.args?.script));
   }
@@ -124,6 +127,14 @@ function getToolTarget(message: ChatMessage): string | undefined {
 
   if (message.name === 'compact_chat') {
     return asString(message.args?.trigger) || asString(getToolResult(message)?.chatId);
+  }
+
+  if (message.name === 'create_plan' || message.name === 'update_plan') {
+    return asString(message.args?.title) || asString(getToolResult(message)?.title);
+  }
+
+  if (message.name === 'set_plan_item_status') {
+    return t('tool.target.planItem', { index: String(message.args?.itemIndex || '') }).trim();
   }
 
   return (
@@ -153,6 +164,15 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
     const chatId = asString(result.chatId);
     return chatId ? t('tool.summary.newChat', { chatId }) : t('tool.summary.compacted');
   }
+  if (message.name === 'create_plan' || message.name === 'update_plan') {
+    return t('tool.summary.planItems', { count: Number(result.itemCount || 0) });
+  }
+  if (message.name === 'set_plan_item_status') {
+    return t('tool.summary.planStatus', {
+      index: Number(result.itemIndex || message.args?.itemIndex || 0),
+      status: getPlanStatusLabel(asString(result.status) || asString(message.args?.status) || '', t)
+    });
+  }
   if (message.name === 'list_files') return t('tool.summary.entries', { count: arrayValue(result.entries).length });
   if (message.name === 'replace_in_file')
     return t('tool.summary.replacements', { count: Number(result.replacements || 0) });
@@ -168,6 +188,14 @@ function getBashSummary(result: Record<string, unknown>, t: Translator): string 
   const durationLabel = typeof result.durationMs === 'number' ? ` · ${formatDuration(result.durationMs)}` : '';
 
   return `${exitLabel}${durationLabel}`;
+}
+
+function getPlanStatusLabel(status: string, t: Translator): string {
+  if (status === 'in_progress') return t('plan.status.inProgress');
+  if (status === 'done') return t('plan.status.done');
+  if (status === 'blocked') return t('plan.status.blocked');
+  if (status === 'pending') return t('plan.status.pending');
+  return status;
 }
 
 /**

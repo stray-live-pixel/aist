@@ -35,6 +35,7 @@ export class ChatStore {
           chat.busy = false;
           chat.activity = undefined;
           chat.activityDetail = undefined;
+          chat.modelRequest = undefined;
           chat.usage = normalizeUsage(chat.usage);
 
           // Reset any stuck tool calls to error state
@@ -147,6 +148,7 @@ export class ChatStore {
       messages: source.messages.map((message) => cloneMessage(message)),
       history: clonePlain(source.history),
       lastAnswer: source.lastAnswer,
+      activePlan: source.activePlan ? clonePlain(source.activePlan) : undefined,
       activity: undefined,
       busy: false,
       usage: normalizeUsage(source.usage),
@@ -281,9 +283,11 @@ export class ChatStore {
     chat.lastAnswer = '';
     chat.activity = undefined;
     chat.activityDetail = undefined;
+    chat.modelRequest = undefined;
     chat.busy = false;
     chat.context = undefined;
     chat.contextLength = undefined;
+    chat.activePlan = undefined;
     chat.usage = { ...EMPTY_USAGE };
     chat.title = 'New chat';
     this.touch(chat);
@@ -339,6 +343,16 @@ export class ChatStore {
     this.touch(chat);
   }
 
+  /**
+   * Обновляет активный план работ чата из planning tools.
+   * План хранится вместе с чатом, чтобы sticky-виджет переживал перерисовки webview и дублирование state.
+   */
+  setActivePlan(chatId: string, activePlan: Chat['activePlan']): void {
+    const chat = this.requireChat(chatId);
+    chat.activePlan = activePlan;
+    this.touch(chat);
+  }
+
   setActivity(chatId: string, activity: Chat['activity'], detail?: string): void {
     const chat = this.requireChat(chatId);
     chat.activity = activity;
@@ -350,6 +364,26 @@ export class ChatStore {
     const chat = this.requireChat(chatId);
     chat.activityDetail = detail;
     this.touch(chat);
+  }
+
+  setModelRequest(chatId: string, modelRequest: Chat['modelRequest']): void {
+    const chat = this.requireChat(chatId);
+    chat.modelRequest = modelRequest;
+    this.touch(chat);
+  }
+
+  updateModelRequest(
+    chatId: string,
+    patch: Partial<NonNullable<Chat['modelRequest']>>
+  ): Chat['modelRequest'] | undefined {
+    const chat = this.requireChat(chatId);
+    if (!chat.modelRequest) {
+      return undefined;
+    }
+
+    chat.modelRequest = { ...chat.modelRequest, ...patch };
+    this.touch(chat);
+    return chat.modelRequest;
   }
 
   private requireChat(chatId: string): Chat {

@@ -5,6 +5,7 @@ import type {
   AgentLanguage,
   AgentModeId,
   ApprovalNotificationSettings,
+  CodexServiceTier,
   CompactionSettings,
   ReasoningEffort,
   ToolPermissionMode,
@@ -86,6 +87,10 @@ export const agentActions = {
 
   setReasoningEffort(reasoningEffort: ReasoningEffort): void {
     post({ type: 'setReasoningEffort', reasoningEffort });
+  },
+
+  setCodexServiceTier(codexServiceTier: CodexServiceTier): void {
+    post({ type: 'setCodexServiceTier', codexServiceTier });
   },
 
   setStreamingEnabled(streamingEnabled: boolean): void {

@@ -1,5 +1,7 @@
 export { AgentActivityStatus } from './agent-activity-status';
 export type { AgentActivityStatusProps } from './agent-activity-status';
+export { ActivePlanWidget } from './active-plan';
+export type { ActivePlanWidgetProps } from './active-plan';
 export { EmptyState } from './empty-state';
 export type { EmptyStateProps } from './empty-state';
 export { MessageList } from './message-list';

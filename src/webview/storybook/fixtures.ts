@@ -164,7 +164,8 @@ export const storyModels: ModelOption[] = [
     name: 'GPT-5.1 Codex',
     provider: 'codex',
     contextLength: 256000,
-    supportsTools: true
+    supportsTools: true,
+    codexServiceTiers: ['priority']
   },
   {
     id: 'meta-llama/llama-3.1-8b-instruct',
@@ -473,6 +474,7 @@ export const storyAgentState: AgentState = {
   models: storyModels,
   maxToolIterations: 6,
   reasoningEffort: 'medium',
+  codexServiceTier: 'priority',
   streamingEnabled: false,
   compactionSettings: { enabled: true, thresholdPercent: 70, keepLastMessages: 0 },
   approvalNotificationSettings: {

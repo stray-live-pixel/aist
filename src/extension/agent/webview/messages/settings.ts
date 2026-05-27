@@ -14,7 +14,7 @@ import {
   upsertPromptPreset
 } from '../../config/agentConfigStore';
 import { setCompactionSettings } from '../../config/compaction';
-import { normalizeReasoningEffort } from '../../config/config';
+import { normalizeCodexServiceTier, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
 import {
   addAgentMode,
@@ -30,6 +30,7 @@ type SettingsMessage = Extract<
   WebviewMessage,
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
+  | { type: 'setCodexServiceTier' }
   | { type: 'setStreamingEnabled' }
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
@@ -53,6 +54,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
   return [
     'setMaxToolIterations',
     'setReasoningEffort',
+    'setCodexServiceTier',
     'setStreamingEnabled',
     'setCompactionSettings',
     'setApprovalNotificationSettings',
@@ -94,6 +96,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setReasoningEffort':
       await updateWorkspaceSetting('reasoningEffort', normalizeReasoningEffort(message.reasoningEffort));
+      deps.sendState();
+      return;
+    case 'setCodexServiceTier':
+      await updateWorkspaceSetting('codexServiceTier', normalizeCodexServiceTier(message.codexServiceTier));
       deps.sendState();
       return;
     case 'setStreamingEnabled':

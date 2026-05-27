@@ -50,6 +50,48 @@ export type ChatContextEstimate = {
   inputCostUsd?: number;
 };
 
+export type ChatPlanItemStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
+
+export type ChatPlanItem = {
+  id: string;
+  text: string;
+  status: ChatPlanItemStatus;
+};
+
+export type ChatPlan = {
+  title: string;
+  items: ChatPlanItem[];
+};
+
+export type ChatModelRequestPhase =
+  | 'sending'
+  | 'receiving'
+  | 'streaming'
+  | 'completed'
+  | 'retrying'
+  | 'failed'
+  | 'aborted';
+
+export type ChatModelRequestStatus = {
+  provider?: 'openrouter' | 'codex';
+  model: string;
+  attempt: number;
+  maxAttempts: number;
+  requestNumber: number;
+  phase: ChatModelRequestPhase;
+  stream: boolean;
+  startedAt: number;
+  updatedAt: number;
+  durationMs?: number;
+  endpoint?: string;
+  method?: string;
+  httpStatus?: number;
+  httpStatusText?: string;
+  retryable?: boolean;
+  error?: string;
+  responseBody?: string;
+};
+
 export type CompactPreviousChat = Omit<Chat, 'previousChat'>;
 
 export type Chat = {
@@ -63,9 +105,11 @@ export type Chat = {
   lastAnswer: string;
   activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'answering' | 'stopping';
   activityDetail?: string;
+  modelRequest?: ChatModelRequestStatus;
   busy: boolean;
   context?: ChatContextEstimate;
   contextLength?: number;
+  activePlan?: ChatPlan;
   usage: ChatUsageEstimate;
   createdAt: number;
   updatedAt: number;
@@ -81,10 +125,13 @@ export type ModelOption = {
     completion?: number;
   };
   supportsTools: boolean;
+  /** Какие ускоренные service_tier доступны для ChatGPT Codex; отсутствие поля скрывает control в UI. */
+  codexServiceTiers?: Exclude<CodexServiceTier, 'auto'>[];
 };
 
 export type ToolPermissionMode = 'ask' | 'auto';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+export type CodexServiceTier = 'auto' | 'priority';
 export type AgentLanguage = 'ru' | 'en';
 export type AgentModeId = string;
 export type ToolPermissionPresetId = string;
@@ -321,6 +368,8 @@ export type AgentState = {
   models: ModelOption[];
   maxToolIterations: number;
   reasoningEffort: ReasoningEffort;
+  /** Управляет ChatGPT Codex service_tier; auto не отправляет поле, priority просит ускоренную обработку. */
+  codexServiceTier: CodexServiceTier;
   /** Включает live streaming ответа; по умолчанию false, потому что non-streaming устойчивее к обрывам SSE. */
   streamingEnabled: boolean;
   compactionSettings: CompactionSettings;
@@ -363,6 +412,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
+  | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { filesystemTools } from './filesystemTools';
+import { planningTools } from './planningTools';
 
 export type ToolPermissionMode = 'ask' | 'auto';
 
@@ -27,8 +28,13 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   write_file: 'ask',
   replace_in_file: 'ask',
   create_directory: 'ask',
-  delete_path: 'ask'
+  delete_path: 'ask',
+  create_plan: 'ask',
+  update_plan: 'ask',
+  set_plan_item_status: 'auto'
 };
+
+const permissionTools = [...filesystemTools, ...planningTools];
 
 export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
   {
@@ -44,7 +50,10 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       write_file: 'ask',
       replace_in_file: 'ask',
       create_directory: 'ask',
-      delete_path: 'ask'
+      delete_path: 'ask',
+      create_plan: 'ask',
+      update_plan: 'ask',
+      set_plan_item_status: 'ask'
     }
   },
   {
@@ -66,7 +75,10 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       write_file: 'auto',
       replace_in_file: 'auto',
       create_directory: 'auto',
-      delete_path: 'ask'
+      delete_path: 'ask',
+      create_plan: 'ask',
+      update_plan: 'ask',
+      set_plan_item_status: 'auto'
     }
   },
   {
@@ -82,7 +94,10 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       write_file: 'auto',
       replace_in_file: 'auto',
       create_directory: 'auto',
-      delete_path: 'auto'
+      delete_path: 'auto',
+      create_plan: 'auto',
+      update_plan: 'auto',
+      set_plan_item_status: 'auto'
     }
   }
 ];
@@ -92,7 +107,7 @@ export function getToolPermissions(): Record<string, ToolPermissionMode> {
     vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {};
   const permissions: Record<string, ToolPermissionMode> = {};
 
-  for (const tool of filesystemTools) {
+  for (const tool of permissionTools) {
     const name = tool.function.name;
     permissions[name] = normalizePermission(configured[name], DEFAULT_TOOL_PERMISSIONS[name] || 'ask');
   }
@@ -107,7 +122,7 @@ export function getToolPermission(toolName: string): ToolPermissionMode {
 export function getToolPermissionItems(): ToolPermissionItem[] {
   const permissions = getToolPermissions();
 
-  return filesystemTools.map((tool) => ({
+  return permissionTools.map((tool) => ({
     name: tool.function.name,
     description: tool.function.description,
     permission: permissions[tool.function.name] || 'ask',
@@ -160,7 +175,7 @@ export async function setToolPermissionPreset(presetId: string): Promise<boolean
 function normalizePermissionMap(source: Record<string, unknown>): Record<string, ToolPermissionMode> {
   const permissions: Record<string, ToolPermissionMode> = {};
 
-  for (const tool of filesystemTools) {
+  for (const tool of permissionTools) {
     const name = tool.function.name;
     permissions[name] = normalizePermission(source[name], DEFAULT_TOOL_PERMISSIONS[name] || 'ask');
   }
@@ -172,7 +187,7 @@ function permissionMapsEqual(
   left: Record<string, ToolPermissionMode>,
   right: Record<string, ToolPermissionMode>
 ): boolean {
-  return filesystemTools.every((tool) => {
+  return permissionTools.every((tool) => {
     const name = tool.function.name;
     return left[name] === right[name];
   });

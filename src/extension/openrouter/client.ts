@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 
 import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
 import type { AistLogger } from '../shared/logger';
+import { ModelRequestError } from './errors';
 import type {
+  ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterModelOption,
@@ -73,7 +75,8 @@ export class OpenRouterClient {
     tools?: OpenRouterTool[],
     modelOverride?: string,
     signal?: AbortSignal,
-    stream?: ModelStreamCallbacks
+    stream?: ModelStreamCallbacks,
+    lifecycle?: ModelRequestLifecycleCallbacks
   ): Promise<OpenRouterMessage> {
     const config = vscode.workspace.getConfiguration('openrouterAgent');
     const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
@@ -104,10 +107,19 @@ export class OpenRouterClient {
         temperature: 0.2
       })
     });
+    lifecycle?.onResponseHeaders?.({ status: response.status, statusText: response.statusText });
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`OpenRouter request failed: ${response.status} ${response.statusText}\n${text}`);
+      throw new ModelRequestError({
+        provider: 'openrouter',
+        model,
+        endpoint: OPENROUTER_URL,
+        method: 'POST',
+        status: response.status,
+        statusText: response.statusText,
+        responseBody: text
+      });
     }
 
     if (stream && response.body) {

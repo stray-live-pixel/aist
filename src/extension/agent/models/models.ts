@@ -20,7 +20,8 @@ export function mergeModels(models: OpenRouterModelOption[], ...selectedModels: 
         id: modelId,
         name: modelId,
         provider: isCodexModel(modelId) ? 'codex' : 'openrouter',
-        supportsTools: true
+        supportsTools: true,
+        ...(isCodexModel(modelId) ? { codexServiceTiers: ['priority' as const] } : {})
       });
     }
   }

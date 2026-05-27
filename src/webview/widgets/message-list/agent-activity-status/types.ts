@@ -8,4 +8,5 @@ import type { Chat } from '../../../shared/types';
 export type AgentActivityStatusProps = {
   activity: Chat['activity'];
   detail?: string;
+  modelRequest?: Chat['modelRequest'];
 };

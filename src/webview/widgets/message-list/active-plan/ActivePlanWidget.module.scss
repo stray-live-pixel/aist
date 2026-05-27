@@ -1,0 +1,118 @@
+.root {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: 300px;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 94%, var(--vscode-focusBorder));
+  box-shadow: 0 8px 20px color-mix(in srgb, #000 18%, transparent);
+}
+
+.header {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+  border: 0;
+  color: var(--vscode-foreground);
+  background: transparent;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.headerText {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.kicker {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title,
+.current {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.current {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.list {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 0 12px 12px 32px;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.status {
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.pending {
+  color: var(--vscode-descriptionForeground);
+}
+
+.inProgress {
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 70%, var(--agent-border));
+  color: var(--vscode-focusBorder);
+}
+
+.done {
+  color: var(--vscode-testing-iconPassed, #4ade80);
+}
+
+.blocked {
+  color: var(--vscode-testing-iconFailed, #f87171);
+}
+
+.itemText {
+  min-width: 0;
+}

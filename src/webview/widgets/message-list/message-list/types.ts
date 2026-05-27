@@ -9,10 +9,12 @@ export type MessageListProps = {
   messages: ChatMessage[];
   previousChat?: CompactPreviousChat;
   compactedAt?: number;
+  activePlan?: Chat['activePlan'];
   tools: string[];
   busy: boolean;
   activity: Chat['activity'];
   activityDetail?: string;
+  modelRequest?: Chat['modelRequest'];
   bottomOffset?: 'none' | 'composer';
   resolvedApprovalId?: string;
 };

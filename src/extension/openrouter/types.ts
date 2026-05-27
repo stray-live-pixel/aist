@@ -30,6 +30,15 @@ export type ModelStreamCallbacks = {
   onComplete?(): void;
 };
 
+export type ModelHttpResponseInfo = {
+  status: number;
+  statusText: string;
+};
+
+export type ModelRequestLifecycleCallbacks = {
+  onResponseHeaders?(info: ModelHttpResponseInfo): void;
+};
+
 export type OpenRouterTool = {
   type: 'function';
   function: {
@@ -40,6 +49,7 @@ export type OpenRouterTool = {
 };
 
 export type ModelProvider = 'openrouter' | 'codex';
+export type CodexServiceTier = 'auto' | 'priority';
 
 export type OpenRouterModelOption = {
   id: string;
@@ -48,6 +58,11 @@ export type OpenRouterModelOption = {
   contextLength?: number;
   pricing?: OpenRouterModelPricing;
   supportsTools: boolean;
+  /**
+   * Какие service_tier можно отправлять в ChatGPT Codex Responses API для этой модели.
+   * Отсутствие поля означает, что UI не показывает селектор, а transport не добавляет service_tier.
+   */
+  codexServiceTiers?: Exclude<CodexServiceTier, 'auto'>[];
 };
 
 export type OpenRouterModelPricing = {

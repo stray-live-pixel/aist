@@ -8,6 +8,7 @@ import { t } from '../../shared/i18n';
 import { getSkillPermission, runAgentSkill } from '../../skills/skills';
 import { type FilesystemToolPreview, previewFilesystemTool, runFilesystemTool } from '../../tools/filesystemTools';
 import { getToolPermission } from '../../tools/permissions';
+import { createPlanFromArgs, isPlanningTool, updatePlanItemStatus } from '../../tools/planningTools';
 import { getApprovalNotificationSettings } from '../config/notifications';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { getToolReason, parseToolArguments } from './toolCalls';
@@ -52,7 +53,8 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     const permission = getToolCallPermission(toolName, args);
 
     if (permission === 'ask') {
-      previewHandle = toolName === 'run_skill' ? undefined : await previewFilesystemTool(toolName, args);
+      previewHandle =
+        toolName === 'run_skill' || isPlanningTool(toolName) ? undefined : await previewFilesystemTool(toolName, args);
       preview = previewHandle?.preview;
       const approval = await waitForToolApproval({ ...params, toolMessageId: toolMessage.id, reason, args, preview });
       if (!approval.approved) {
@@ -78,7 +80,10 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     });
     params.sendState();
 
-    const result = withApprovalComment(await runApprovedTool(toolName, args, previewHandle), toolMessage.userComment);
+    const result = withApprovalComment(
+      await runApprovedTool(toolName, args, params.chat.id, params.chats, previewHandle),
+      toolMessage.userComment
+    );
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: result.ok === false ? 'error' : 'done',
       reason,
@@ -204,13 +209,47 @@ function withApprovalComment(result: Record<string, unknown>, comment: string | 
 async function runApprovedTool(
   toolName: string,
   args: Record<string, unknown>,
+  chatId: string,
+  chats: ChatStore,
   previewHandle?: FilesystemToolPreview
 ): Promise<Record<string, unknown>> {
   if (previewHandle) {
     return previewHandle.approve();
   }
 
+  if (isPlanningTool(toolName)) {
+    return runPlanningTool(toolName, args, chatId, chats);
+  }
+
   return toolName === 'run_skill' ? runAgentSkill(args) : runFilesystemTool(toolName, args);
+}
+
+/**
+ * Применяет planning tool к активному чату и возвращает короткий результат для history.
+ * Подробный актуальный план UI берёт из chat.activePlan, поэтому tool-card остаётся статичной записью действия.
+ */
+function runPlanningTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  chatId: string,
+  chats: ChatStore
+): Record<string, unknown> {
+  if (toolName === 'create_plan' || toolName === 'update_plan') {
+    const plan = createPlanFromArgs(args);
+    chats.setActivePlan(chatId, plan);
+    return { ok: true, action: toolName, title: plan.title, itemCount: plan.items.length };
+  }
+
+  const chat = chats.getChat(chatId);
+  const plan = updatePlanItemStatus(chat?.activePlan, args);
+  chats.setActivePlan(chatId, plan);
+  return {
+    ok: true,
+    action: toolName,
+    itemIndex: Number(args.itemIndex),
+    status: String(args.status),
+    title: plan.title
+  };
 }
 
 function getToolCallPermission(toolName: string, args: Record<string, unknown>): ReturnType<typeof getToolPermission> {
