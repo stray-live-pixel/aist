@@ -3,7 +3,12 @@ import { memo } from 'react';
 import { PermissionPresetSelect, ToolPermissionSelect } from '../../../features';
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
-import type { ToolPermissionItem, ToolPermissionPreset, ToolPermissionPresetId } from '../../../shared/types';
+import type {
+  ProjectToolDiagnostic,
+  ToolPermissionItem,
+  ToolPermissionPreset,
+  ToolPermissionPresetId
+} from '../../../shared/types';
 import { Badge, Button, Card } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
 
@@ -13,10 +18,12 @@ import styles from '../PermissionsPage.module.scss';
  */
 export const PermissionsSettingsPage = memo(function PermissionsSettingsPage({
   tools,
+  projectToolDiagnostics,
   permissionPresets,
   activePermissionPresetId
 }: {
   tools: ToolPermissionItem[];
+  projectToolDiagnostics: ProjectToolDiagnostic[];
   permissionPresets: ToolPermissionPreset[];
   activePermissionPresetId: ToolPermissionPresetId | 'custom';
 }) {
@@ -37,6 +44,16 @@ export const PermissionsSettingsPage = memo(function PermissionsSettingsPage({
         </div>
       </Card>
       <Card title={t('settings.permissions.perToolTitle')} description={t('settings.permissions.perToolDescription')}>
+        {projectToolDiagnostics.length ? (
+          <div className={styles.diagnostics}>
+            {projectToolDiagnostics.map((diagnostic, index) => (
+              <Badge key={`${diagnostic.code}-${diagnostic.path || index}`} tone="warning">
+                {diagnostic.toolId ? `${diagnostic.toolId}: ` : ''}
+                {diagnostic.message}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
         <div className={styles.list}>
           {tools.map((tool) => (
             <ToolPermissionRow key={tool.name} item={tool} />

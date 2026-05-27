@@ -355,6 +355,14 @@
             "set_plan_item_status": "auto"
           },
           "markdownDescription": "Per-tool permission mode. Use `ask` to require confirmation or `auto` to run automatically. File-reading tools default to `auto`; mutating tools default to `ask`."
+        },
+        "openrouterAgent.projectToolDisabledIds": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Project declarative tool IDs disabled for this workspace. Project tools are loaded from `.aist-agent/tools/*.md`."
         }
       }
     }

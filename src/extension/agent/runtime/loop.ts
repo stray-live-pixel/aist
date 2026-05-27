@@ -12,12 +12,13 @@ import { CODEX_RESPONSES_URL, OPENROUTER_URL } from '../../shared/constants';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getAgentSkills } from '../../skills/skills';
+import { getDisabledProjectToolIds } from '../../tools/permissions';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import type { AgentLoopResult, AgentRun } from '../types';
 import { isRetryableModelRequestError } from './errors';
 import { getPersistableHistory } from './runtime';
 import { findRepeatedToolCall, getRepeatedToolCallAnswer, redactLargeArgs } from './toolCalls';
-import { getAgentTools } from './tools';
+import { getAgentToolRegistry } from './toolRegistry';
 import {
   createEmptyUsage,
   getCallUsageFromModelUsage,
@@ -68,7 +69,6 @@ export async function runAgentLoop(
   const model = deps.getModelOption(chat.model);
   const usage: ChatUsageEstimate = createEmptyUsage();
   const toolCallCounts = new Map<string, number>();
-  const tools = getAgentTools(getAgentSkills());
   let modelRequestNumber = 0;
 
   for (let iteration = 0; maxToolIterations === 0 || iteration < maxToolIterations; iteration += 1) {
@@ -80,6 +80,13 @@ export async function runAgentLoop(
       iteration > 0 ? t('activity.detail.requestModelAfterTools', { iteration }) : t('activity.detail.requestModel')
     );
     deps.sendState();
+
+    const tools = (
+      await getAgentToolRegistry().refresh({
+        skills: getAgentSkills(),
+        disabledProjectToolIds: getDisabledProjectToolIds()
+      })
+    ).tools;
 
     modelRequestNumber += 1;
     const responseMessage = await requestModel(

@@ -398,6 +398,8 @@
   "settings.permissions.customActive": "Активны пользовательские разрешения",
   "settings.permissions.perToolTitle": "Разрешения по инструментам",
   "settings.permissions.perToolDescription": "Точно настройте, какие инструменты требуют подтверждения.",
+  "settings.projectTools.enabled": "Включён",
+  "settings.projectTools.disabled": "Отключён",
   "settings.compaction.title": "Сжатие контекста",
   "settings.compaction.description": "Когда контекст становится слишком большим, AIST может начать свежий чат, связанный с предыдущим. Старые сообщения остаются видимыми, но больше не отправляются модели.",
   "settings.compaction.threshold": "Порог в процентах",

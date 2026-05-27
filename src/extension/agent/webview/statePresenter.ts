@@ -16,6 +16,7 @@ import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
 import { getAgentMemoryItems } from '../memory/memory';
 import { mergeModels } from '../models/models';
+import { getAgentToolRegistry } from '../runtime/toolRegistry';
 import { getAgentTools } from '../runtime/tools';
 import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
 import type { WebviewSurface } from '../types';
@@ -58,6 +59,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const memoryItems = getAgentMemoryItems();
   const compactionSettings = getCompactionSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
+  const projectToolDiagnostics = getAgentToolRegistry().snapshot().diagnostics;
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -79,7 +81,8 @@ export function sendAgentState(params: SendAgentStateParams): void {
       memoryItems,
       instructionSources,
       compactionSettings,
-      approvalNotificationSettings
+      approvalNotificationSettings,
+      projectToolDiagnostics
     });
   }
 }
@@ -103,6 +106,7 @@ type StateContext = SendAgentStateParams & {
   instructionSources: unknown;
   compactionSettings: unknown;
   approvalNotificationSettings: unknown;
+  projectToolDiagnostics: unknown;
 };
 
 function omitHistory<T extends { history?: unknown }>(chat: T): Omit<T, 'history'> {
@@ -143,6 +147,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     streamingEnabled: context.streamingEnabled,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,
+    projectToolDiagnostics: context.projectToolDiagnostics,
     agentLanguage: context.language,
     agentMode: context.activeMode.id,
     agentModes: context.agentModes,

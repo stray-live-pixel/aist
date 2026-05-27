@@ -398,6 +398,8 @@
   "settings.permissions.customActive": "Custom permissions are active",
   "settings.permissions.perToolTitle": "Per-tool permissions",
   "settings.permissions.perToolDescription": "Fine-tune which tools require confirmation.",
+  "settings.projectTools.enabled": "Enabled",
+  "settings.projectTools.disabled": "Disabled",
   "settings.compaction.title": "Context compaction",
   "settings.compaction.description": "When context becomes too large, AIST can start a fresh chat linked to the previous one. Old messages stay visible but stop being sent to the model.",
   "settings.compaction.threshold": "Threshold percent",

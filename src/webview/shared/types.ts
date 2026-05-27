@@ -239,9 +239,20 @@ export type AgentReflectionCandidate = {
 
 export type ToolPermissionItem = {
   name: string;
+  label?: string;
   description: string;
   permission: ToolPermissionMode;
   defaultPermission: ToolPermissionMode;
+  source?: 'builtin' | 'skill' | 'project';
+  enabled?: boolean;
+  version?: string;
+};
+
+export type ProjectToolDiagnostic = {
+  code: string;
+  message: string;
+  path?: string;
+  toolId?: string;
 };
 
 export type ToolPermissionPreset = {
@@ -422,6 +433,7 @@ export type AgentState = {
   toolPermissions: ToolPermissionItem[];
   toolPermissionPresets: ToolPermissionPreset[];
   activeToolPermissionPresetId: ToolPermissionPresetId | 'custom';
+  projectToolDiagnostics: ProjectToolDiagnostic[];
 };
 
 export type ExtensionToWebviewMessage =
@@ -446,6 +458,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
+  | { type: 'setProjectToolEnabled'; toolId: string; enabled: boolean }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }

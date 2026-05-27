@@ -4,8 +4,18 @@ import { handleWebviewPermissionMessage } from './permissions';
 import type { AgentWebviewMessageDeps } from './types';
 
 vi.mock('../../../tools/permissions', () => ({
+  getDisabledProjectToolIds: vi.fn(() => []),
+  setProjectToolEnabled: vi.fn(),
   setToolPermission: vi.fn(),
   setToolPermissionPreset: vi.fn(async () => true)
+}));
+vi.mock('../../../skills/skills', () => ({
+  getAgentSkills: vi.fn(() => [])
+}));
+vi.mock('../../runtime/toolRegistry', () => ({
+  getAgentToolRegistry: () => ({
+    refresh: vi.fn(async () => undefined)
+  })
 }));
 
 describe('handleWebviewPermissionMessage', () => {

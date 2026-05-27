@@ -192,6 +192,13 @@
   gap: 10px;
 }
 
+.diagnostics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 10px;
+}
+
 .empty {
   border: 1px dashed var(--agent-border);
   border-radius: 16px;

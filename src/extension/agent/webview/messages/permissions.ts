@@ -1,16 +1,27 @@
-import { setToolPermission, setToolPermissionPreset } from '../../../tools/permissions';
+import { getAgentSkills } from '../../../skills/skills';
+import {
+  getDisabledProjectToolIds,
+  setProjectToolEnabled,
+  setToolPermission,
+  setToolPermissionPreset
+} from '../../../tools/permissions';
+import { getAgentToolRegistry } from '../../runtime/toolRegistry';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
 type PermissionMessage = Extract<
   WebviewMessage,
-  { type: 'setToolPermission' } | { type: 'setToolPermissionPreset' } | { type: 'resolveToolCall' }
+  | { type: 'setToolPermission' }
+  | { type: 'setToolPermissionPreset' }
+  | { type: 'setProjectToolEnabled' }
+  | { type: 'resolveToolCall' }
 >;
 
 export function isPermissionMessage(message: WebviewMessage): message is PermissionMessage {
   return (
     message.type === 'setToolPermission' ||
     message.type === 'setToolPermissionPreset' ||
+    message.type === 'setProjectToolEnabled' ||
     message.type === 'resolveToolCall'
   );
 }
@@ -33,6 +44,14 @@ export async function handleWebviewPermissionMessage(
       return;
     case 'setToolPermissionPreset':
       await applyPermissionPreset(message.presetId, deps);
+      deps.sendState();
+      return;
+    case 'setProjectToolEnabled':
+      await setProjectToolEnabled(message.toolId, message.enabled);
+      await getAgentToolRegistry().refresh({
+        skills: getAgentSkills(),
+        disabledProjectToolIds: getDisabledProjectToolIds()
+      });
       deps.sendState();
       return;
     case 'resolveToolCall':

@@ -36,7 +36,8 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     customSkills,
     codexAuthenticated,
     toolPermissionPresets,
-    activeToolPermissionPresetId
+    activeToolPermissionPresetId,
+    projectToolDiagnostics
   } = state;
   const activeMode = useMemo(
     () => agentModes.find((mode) => mode.id === agentMode) || agentModes[0],
@@ -76,6 +77,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage
               tools={toolPermissions}
+              projectToolDiagnostics={projectToolDiagnostics}
               permissionPresets={toolPermissionPresets}
               activePermissionPresetId={activeToolPermissionPresetId}
             />

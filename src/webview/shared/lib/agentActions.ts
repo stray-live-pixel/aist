@@ -83,6 +83,10 @@ export const agentActions = {
     post({ type: 'setToolPermissionPreset', presetId });
   },
 
+  setProjectToolEnabled(toolId: string, enabled: boolean): void {
+    post({ type: 'setProjectToolEnabled', toolId, enabled });
+  },
+
   setMaxToolIterations(maxToolIterations: number): void {
     post({ type: 'setMaxToolIterations', maxToolIterations });
   },

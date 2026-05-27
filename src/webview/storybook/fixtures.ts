@@ -548,5 +548,6 @@ export const storyAgentState: AgentState = {
   codexAuthenticated: true,
   toolPermissions: storyToolPermissions,
   toolPermissionPresets: storyToolPermissionPresets,
-  activeToolPermissionPresetId: 'balanced'
+  activeToolPermissionPresetId: 'balanced',
+  projectToolDiagnostics: []
 };

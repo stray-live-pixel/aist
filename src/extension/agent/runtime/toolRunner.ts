@@ -13,6 +13,7 @@ import { getApprovalNotificationSettings } from '../config/notifications';
 import { type AgentMemoryCandidate, addAgentMemory } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { getToolReason, parseToolArguments } from './toolCalls';
+import { getAgentToolRegistry } from './toolRegistry';
 import { buildModelToolResult } from './toolResultCompaction';
 
 export type HandleAgentToolCallParams = {
@@ -56,7 +57,9 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
 
     if (permission === 'ask') {
       previewHandle =
-        toolName === 'run_skill' || isPlanningTool(toolName) ? undefined : await previewFilesystemTool(toolName, args);
+        toolName === 'run_skill' || isPlanningTool(toolName) || getAgentToolRegistry().getProjectTool(toolName)
+          ? undefined
+          : await previewFilesystemTool(toolName, args);
       preview = previewHandle?.preview;
       const approval = await waitForToolApproval({ ...params, toolMessageId: toolMessage.id, reason, args, preview });
       if (!approval.approved) {
@@ -256,6 +259,11 @@ async function runApprovedTool(
     return runPlanningTool(toolName, args, chatId, chats);
   }
 
+  const projectTool = getAgentToolRegistry().getProjectTool(toolName);
+  if (projectTool) {
+    return getAgentToolRegistry().runProjectTool(toolName, args);
+  }
+
   return toolName === 'run_skill' ? runAgentSkill(args) : runFilesystemTool(toolName, args);
 }
 
@@ -288,6 +296,10 @@ function runPlanningTool(
 }
 
 function getToolCallPermission(toolName: string, args: Record<string, unknown>): ReturnType<typeof getToolPermission> {
+  const projectTool = getAgentToolRegistry().getProjectTool(toolName);
+  if (projectTool) {
+    return getToolPermission(toolName);
+  }
   return toolName === 'run_skill' ? getSkillPermission(String(args.skillId || '')) : getToolPermission(toolName);
 }
 
