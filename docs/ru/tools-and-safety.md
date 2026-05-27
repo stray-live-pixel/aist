@@ -71,7 +71,11 @@ Shell execution предназначен для тестов, сборок, ди
 - `regex` — воспринимать `query` как JavaScript regex;
 - `caseSensitive` — учитывать регистр;
 - `contextLines` — от 0 до 5 строк контекста;
-- `maxResults` — от 1 до 1000;
+- `beforeLines` / `afterLines` — от 0 до 5 строк асимметричного контекста, по умолчанию `contextLines`;
+- `filesOnly` — вернуть только уникальные paths с совпадениями;
+- `countOnly` — вернуть paths с количеством совпадений без текста строк;
+- `exclude` — дополнительный glob pattern вместе со стандартными ignored директориями;
+- `maxResults` — от 1 до 1000 совпадений или paths в compact-режимах;
 - `maxFiles` — от 1 до 10000.
 
 Binary files и файлы больше 1 MiB пропускаются.

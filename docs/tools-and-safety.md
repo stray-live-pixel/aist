@@ -75,7 +75,11 @@ Search options:
 - `regex` — treat `query` as JavaScript regex;
 - `caseSensitive` — case-sensitive matching;
 - `contextLines` — 0 to 5 context lines;
-- `maxResults` — 1 to 1000;
+- `beforeLines` / `afterLines` — 0 to 5 asymmetric context lines, defaulting to `contextLines`;
+- `filesOnly` — return only unique matching paths;
+- `countOnly` — return matching paths with counts and no line text;
+- `exclude` — additional glob pattern combined with standard ignored directories;
+- `maxResults` — 1 to 1000 matches, or paths in compact modes;
 - `maxFiles` — 1 to 10000.
 
 Binary files and files larger than 1 MiB are skipped.

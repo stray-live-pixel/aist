@@ -50,6 +50,30 @@ describe('toolMessageModel', () => {
     ).toBe('exit 0 · 1.5s');
   });
 
+  it('summarizes grep_search by totalMatches when compact results are returned', () => {
+    expect(
+      buildToolDisplayModel(
+        {
+          id: 'tool-grep',
+          role: 'tool',
+          name: 'grep_search',
+          status: 'done',
+          args: { query: 'target' },
+          result: {
+            ok: true,
+            totalMatches: 3,
+            matches: [
+              { path: 'src/one.ts', count: 2 },
+              { path: 'src/two.ts', count: 1 }
+            ]
+          },
+          createdAt: 0
+        },
+        t
+      ).summary
+    ).toBe('3 matches');
+  });
+
   it('summarizes structured approval denials without treating them as normal tool results', () => {
     expect(
       buildToolDisplayModel(

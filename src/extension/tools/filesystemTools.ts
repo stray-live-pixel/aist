@@ -10,6 +10,7 @@ import { showEditableFileDiff } from './editableDiffPreview';
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8');
 const MAX_READ_FILE_RANGE_LINES = 400;
+const GREP_SEARCH_DEFAULT_EXCLUDE = '{**/.git/**,**/node_modules/**,**/dist/**,**/out/**,**/.vscode-test/**}';
 
 export type FilesystemToolPreview = {
   preview: Record<string, unknown>;
@@ -113,7 +114,31 @@ export const filesystemTools: OpenRouterTool[] = [
             type: 'number',
             description: 'Number of lines before and after each match. Default is 0, maximum is 5.'
           },
-          maxResults: { type: 'number', description: 'Maximum number of matches to return. Default is 100.' },
+          beforeLines: {
+            type: 'number',
+            description: 'Number of lines before each match. Defaults to contextLines, maximum is 5.'
+          },
+          afterLines: {
+            type: 'number',
+            description: 'Number of lines after each match. Defaults to contextLines, maximum is 5.'
+          },
+          filesOnly: {
+            type: 'boolean',
+            description: 'Return only unique matching file paths without line text. Default is false.'
+          },
+          countOnly: {
+            type: 'boolean',
+            description: 'Return matching file paths with match counts, without line text. Default is false.'
+          },
+          exclude: {
+            type: 'string',
+            description:
+              'Additional glob pattern to exclude from search, combined with the standard ignored directories.'
+          },
+          maxResults: {
+            type: 'number',
+            description: 'Maximum number of matches to return, or paths in compact modes. Default is 100.'
+          },
           maxFiles: { type: 'number', description: 'Maximum number of files to inspect. Default is 2000.' }
         },
         required: ['reason', 'query'],
@@ -354,20 +379,28 @@ async function grepSearch(args: Record<string, unknown>): Promise<Record<string,
   const caseSensitive = Boolean(args.caseSensitive);
   const useRegex = Boolean(args.regex);
   const contextLines = clampNumber(args.contextLines, 0, 0, 5);
+  const beforeLines = clampNumber(args.beforeLines, contextLines, 0, 5);
+  const afterLines = clampNumber(args.afterLines, contextLines, 0, 5);
+  const filesOnly = Boolean(args.filesOnly);
+  const countOnly = Boolean(args.countOnly) && !filesOnly;
+  const excludePatterns = getAdditionalExcludePatterns(args.exclude);
   const maxResults = clampNumber(args.maxResults, 100, 1, 1000);
   const maxFiles = clampNumber(args.maxFiles, 2000, 1, 10000);
   const baseUri = resolveWorkspacePath(searchPath);
-  const files = await getSearchFiles(baseUri, include, maxFiles);
+  const files = await getSearchFiles(baseUri, include, getFindFilesExclude(excludePatterns), maxFiles);
   const matcher = createLineMatcher(query, useRegex, caseSensitive);
-  const matches: Array<{
+  type SearchMatch = {
     path: string;
-    line: number;
-    column: number;
-    text: string;
+    line?: number;
+    column?: number;
+    text?: string;
+    count?: number;
     before?: string[];
     after?: string[];
-  }> = [];
+  };
+  const matches: SearchMatch[] = [];
   let searchedFiles = 0;
+  let totalMatches = 0;
 
   for (const file of files) {
     if (matches.length >= maxResults) {
@@ -375,7 +408,7 @@ async function grepSearch(args: Record<string, unknown>): Promise<Record<string,
     }
 
     const relativePath = toWorkspaceRelativePath(file);
-    if (shouldSkipRelativePath(relativePath)) {
+    if (shouldSkipRelativePath(relativePath, excludePatterns)) {
       continue;
     }
 
@@ -386,33 +419,50 @@ async function grepSearch(args: Record<string, unknown>): Promise<Record<string,
 
     searchedFiles += 1;
     const lines = content.split(/\r?\n/);
+    let fileMatchCount = 0;
 
-    for (let index = 0; index < lines.length && matches.length < maxResults; index += 1) {
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!filesOnly && !countOnly && matches.length >= maxResults) {
+        break;
+      }
+
       const column = matcher(lines[index]);
       if (column === undefined) {
         continue;
       }
 
-      const match: {
-        path: string;
-        line: number;
-        column: number;
-        text: string;
-        before?: string[];
-        after?: string[];
-      } = {
+      fileMatchCount += 1;
+      totalMatches += 1;
+
+      if (filesOnly) {
+        matches.push({ path: relativePath });
+        break;
+      }
+
+      if (countOnly) {
+        continue;
+      }
+
+      const match: SearchMatch = {
         path: relativePath,
         line: index + 1,
         column: column + 1,
         text: trimSearchLine(lines[index])
       };
 
-      if (contextLines > 0) {
-        match.before = lines.slice(Math.max(0, index - contextLines), index).map(trimSearchLine);
-        match.after = lines.slice(index + 1, index + 1 + contextLines).map(trimSearchLine);
+      if (beforeLines > 0) {
+        match.before = lines.slice(Math.max(0, index - beforeLines), index).map(trimSearchLine);
+      }
+
+      if (afterLines > 0) {
+        match.after = lines.slice(index + 1, index + 1 + afterLines).map(trimSearchLine);
       }
 
       matches.push(match);
+    }
+
+    if (countOnly && fileMatchCount > 0) {
+      matches.push({ path: relativePath, count: fileMatchCount });
     }
   }
 
@@ -421,10 +471,16 @@ async function grepSearch(args: Record<string, unknown>): Promise<Record<string,
     query,
     path: searchPath,
     include,
+    exclude: excludePatterns,
     regex: useRegex,
     caseSensitive,
+    filesOnly,
+    countOnly,
+    beforeLines,
+    afterLines,
     filesInspected: searchedFiles,
     fileLimitReached: files.length >= maxFiles,
+    ...(!filesOnly ? { totalMatches } : {}),
     matches,
     truncated: matches.length >= maxResults
   };
@@ -584,7 +640,12 @@ async function deletePath(args: Record<string, unknown>): Promise<Record<string,
   };
 }
 
-async function getSearchFiles(baseUri: vscode.Uri, include: string, maxFiles: number): Promise<vscode.Uri[]> {
+async function getSearchFiles(
+  baseUri: vscode.Uri,
+  include: string,
+  exclude: string,
+  maxFiles: number
+): Promise<vscode.Uri[]> {
   const stat = await vscode.workspace.fs.stat(baseUri);
 
   if (stat.type === vscode.FileType.File) {
@@ -595,11 +656,7 @@ async function getSearchFiles(baseUri: vscode.Uri, include: string, maxFiles: nu
     throw new Error('grep_search path must point to a file or directory.');
   }
 
-  return vscode.workspace.findFiles(
-    new vscode.RelativePattern(baseUri, include),
-    '{**/.git/**,**/node_modules/**,**/dist/**,**/out/**,**/.vscode-test/**}',
-    maxFiles
-  );
+  return vscode.workspace.findFiles(new vscode.RelativePattern(baseUri, include), exclude, maxFiles);
 }
 
 async function showFileDiff(
@@ -651,8 +708,11 @@ function shouldSkipPath(name: string): boolean {
   return name.startsWith('.aist-') || ['.git', 'node_modules', 'dist', 'out', '.vscode-test'].includes(name);
 }
 
-function shouldSkipRelativePath(relativePath: string): boolean {
-  return relativePath.split('/').some(shouldSkipPath);
+function shouldSkipRelativePath(relativePath: string, excludePatterns: string[] = []): boolean {
+  return (
+    relativePath.split('/').some(shouldSkipPath) ||
+    excludePatterns.some((pattern) => matchesGlob(relativePath, pattern))
+  );
 }
 
 function toWorkspaceRelativePath(uri: vscode.Uri): string {
@@ -718,7 +778,12 @@ function createLineMatcher(
 ): (line: string) => number | undefined {
   if (useRegex) {
     const flags = caseSensitive ? '' : 'i';
-    const regex = new RegExp(query, flags);
+    let regex: RegExp;
+    try {
+      regex = new RegExp(query, flags);
+    } catch (error) {
+      throw new Error(`Invalid grep_search regex: ${getErrorText(error)}`);
+    }
     return (line) => {
       const match = regex.exec(line);
       return match ? match.index : undefined;
@@ -777,4 +842,122 @@ function clampNumber(value: unknown, fallback: number, min: number, max: number)
   }
 
   return Math.min(max, Math.max(min, Math.floor(numeric)));
+}
+
+function getAdditionalExcludePatterns(value: unknown): string[] {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  const pattern = value.trim();
+  return pattern ? expandGlobAlternatives(pattern) : [];
+}
+
+function getFindFilesExclude(excludePatterns: string[]): string {
+  if (!excludePatterns.length) {
+    return GREP_SEARCH_DEFAULT_EXCLUDE;
+  }
+
+  const defaults = expandGlobAlternatives(GREP_SEARCH_DEFAULT_EXCLUDE);
+  return `{${[...defaults, ...excludePatterns].join(',')}}`;
+}
+
+function expandGlobAlternatives(pattern: string): string[] {
+  const trimmed = pattern.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+    return [trimmed];
+  }
+
+  const body = trimmed.slice(1, -1);
+  const alternatives: string[] = [];
+  let current = '';
+  let depth = 0;
+
+  for (const char of body) {
+    if (char === '{') {
+      depth += 1;
+      current += char;
+      continue;
+    }
+
+    if (char === '}') {
+      depth -= 1;
+      current += char;
+      continue;
+    }
+
+    if (char === ',' && depth === 0) {
+      if (current.trim()) {
+        alternatives.push(current.trim());
+      }
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) {
+    alternatives.push(current.trim());
+  }
+
+  return alternatives;
+}
+
+function matchesGlob(relativePath: string, pattern: string): boolean {
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const normalizedPattern = pattern.replace(/\\/g, '/').replace(/^\/+/, '').trim();
+  if (!normalizedPattern) {
+    return false;
+  }
+
+  return expandGlobAlternatives(normalizedPattern).some((alternative) => {
+    const regex = globToRegExp(alternative);
+    if (regex.test(normalizedPath)) {
+      return true;
+    }
+
+    return !alternative.includes('/') && regex.test(path.basename(normalizedPath));
+  });
+}
+
+function globToRegExp(pattern: string): RegExp {
+  let source = '^';
+
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    const next = pattern[index + 1];
+    const afterNext = pattern[index + 2];
+
+    if (char === '*' && next === '*' && afterNext === '/') {
+      source += '(?:.*/)?';
+      index += 2;
+      continue;
+    }
+
+    if (char === '*' && next === '*') {
+      source += '.*';
+      index += 1;
+      continue;
+    }
+
+    if (char === '*') {
+      source += '[^/]*';
+      continue;
+    }
+
+    if (char === '?') {
+      source += '[^/]';
+      continue;
+    }
+
+    source += escapeRegExp(char);
+  }
+
+  source += '$';
+  return new RegExp(source);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&');
 }
