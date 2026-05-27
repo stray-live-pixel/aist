@@ -39,6 +39,7 @@ function renderPrimaryResult(
   preview?: Record<string, unknown>
 ) {
   if (message.name === 'run_bash_script') return <BashScriptResult message={message} result={result} />;
+  if (result?.decision === 'denied') return <DeniedResult result={result} />;
   if (message.name === 'create_plan' || message.name === 'update_plan') return <PlanChangePreview message={message} />;
   if (message.name === 'set_plan_item_status') return <PlanStatusPreview message={message} result={result} />;
   if (!result && preview) return <CompactFacts result={preview} />;
@@ -237,6 +238,14 @@ function CompactFacts({ result }: { result: Record<string, unknown> }) {
     .filter(([, value]) => typeof value !== 'object')
     .map(([key, value]) => `${key}: ${String(value)}`);
 
+  return <p className={styles.compactFacts}>{facts.join(' · ')}</p>;
+}
+
+function DeniedResult({ result }: { result: Record<string, unknown> }) {
+  const facts = [
+    `decision: ${String(result.decision)}`,
+    `continueAfterDeny: ${String(Boolean(result.continueAfterDeny))}`
+  ];
   return <p className={styles.compactFacts}>{facts.join(' · ')}</p>;
 }
 

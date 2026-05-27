@@ -10,6 +10,7 @@ export type ChatMessage = {
   reason?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  userApprovalComment?: string;
   userComment?: string;
   usage?: ChatMessageUsageEstimate;
   marker?: string;

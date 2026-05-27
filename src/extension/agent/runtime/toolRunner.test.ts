@@ -1,0 +1,194 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { ChatStore } from '../../chats/chatStore';
+import type { ChatMessage } from '../../chats/types';
+import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
+import type { AgentRun, ToolApprovalDecision } from '../types';
+import { handleAgentToolCall } from './toolRunner';
+
+type Listener<T> = (event: T) => unknown;
+
+vi.mock('vscode', () => {
+  class EventEmitter<T> {
+    private listeners: Listener<T>[] = [];
+
+    event = (listener: Listener<T>) => {
+      this.listeners.push(listener);
+      return { dispose: () => undefined };
+    };
+
+    fire(event: T): void {
+      for (const listener of this.listeners) {
+        listener(event);
+      }
+    }
+
+    dispose(): void {
+      this.listeners = [];
+    }
+  }
+
+  return {
+    EventEmitter,
+    window: {
+      showInformationMessage: vi.fn()
+    },
+    workspace: {
+      getConfiguration: () => ({
+        get: (key: string) => {
+          if (key === 'approvalNotifications') {
+            return { enabled: false };
+          }
+          if (key === 'toolPermissions') {
+            return {};
+          }
+          return undefined;
+        },
+        update: vi.fn()
+      })
+    },
+    ConfigurationTarget: {
+      Workspace: 2
+    }
+  };
+});
+
+describe('handleAgentToolCall approval feedback', () => {
+  it('returns approve comments as userApprovalComment in the model-visible tool result', async () => {
+    const context = createToolRunnerContext({
+      approved: true,
+      continueAfterDeny: false,
+      comment: 'Use smaller steps.'
+    });
+
+    await runCreatePlanTool(context);
+
+    expect(parseToolResult(context.workingMessages[0]?.content)).toMatchObject({
+      ok: true,
+      action: 'create_plan',
+      userApprovalComment: 'Use smaller steps.'
+    });
+    expect(getLastToolMessage(context).userApprovalComment).toBe('Use smaller steps.');
+    expect(getLastToolMessage(context).approval).toBe('approved');
+  });
+
+  it('returns deny-continue comments as a structured denial result', async () => {
+    const context = createToolRunnerContext({
+      approved: false,
+      continueAfterDeny: true,
+      comment: 'Do not create a plan yet.'
+    });
+
+    await runCreatePlanTool(context);
+
+    expect(context.chat.activePlan).toBeUndefined();
+    expect(parseToolResult(context.workingMessages[0]?.content)).toEqual({
+      ok: false,
+      decision: 'denied',
+      comment: 'Do not create a plan yet.',
+      continueAfterDeny: true,
+      userApprovalComment: 'Do not create a plan yet.'
+    });
+    expect(getLastToolMessage(context)).toMatchObject({
+      status: 'denied',
+      approval: 'denied',
+      userApprovalComment: 'Do not create a plan yet.'
+    });
+  });
+
+  it('stops the current run on deny-stop', async () => {
+    const context = createToolRunnerContext({
+      approved: false,
+      continueAfterDeny: false,
+      comment: 'Stop here.'
+    });
+
+    await expect(runCreatePlanTool(context)).rejects.toThrow('The user denied this tool call.');
+
+    expect(context.run.stopRequested).toBe(true);
+    expect(context.chat.activePlan).toBeUndefined();
+    expect(parseToolResult(context.workingMessages[0]?.content)).toMatchObject({
+      ok: false,
+      decision: 'denied',
+      comment: 'Stop here.',
+      continueAfterDeny: false,
+      userApprovalComment: 'Stop here.'
+    });
+  });
+});
+
+function createToolRunnerContext(decision: ToolApprovalDecision) {
+  const chats = new ChatStore(createMemento(), 'test-model');
+  const chat = chats.getActiveChat();
+  const run: AgentRun = {
+    chatId: chat.id,
+    abortController: new AbortController(),
+    stopRequested: false,
+    permissionResolvers: new Map()
+  };
+
+  return {
+    chat,
+    chats,
+    run,
+    decision,
+    workingMessages: [] as OpenRouterMessage[]
+  };
+}
+
+function runCreatePlanTool(context: ReturnType<typeof createToolRunnerContext>) {
+  return handleAgentToolCall({
+    chat: context.chat,
+    workingMessages: context.workingMessages,
+    toolCall: createPlanToolCall(),
+    run: context.run,
+    chats: context.chats,
+    sendState: vi.fn(),
+    throwIfStopped: (run) => {
+      if (run.stopRequested) {
+        throw new Error('Stopped by user.');
+      }
+    },
+    askToolPermission: vi.fn(async () => context.decision)
+  });
+}
+
+function createPlanToolCall(): ToolCall {
+  return {
+    id: 'call-create-plan',
+    type: 'function',
+    function: {
+      name: 'create_plan',
+      arguments: {
+        reason: 'Plan before changing code.',
+        title: 'Approval feedback',
+        steps: ['Inspect approval flow.', 'Patch tool result mapping.']
+      }
+    }
+  };
+}
+
+function getLastToolMessage(context: ReturnType<typeof createToolRunnerContext>): ChatMessage {
+  return context.chat.messages.filter((message) => message.role === 'tool').at(-1) as ChatMessage;
+}
+
+function parseToolResult(content: string | undefined): unknown {
+  return JSON.parse(content || '{}');
+}
+
+function createMemento() {
+  const values = new Map<string, unknown>();
+
+  return {
+    get<T>(key: string): T | undefined {
+      return values.get(key) as T | undefined;
+    },
+    update(key: string, value: unknown): Thenable<void> {
+      values.set(key, value);
+      return Promise.resolve();
+    },
+    keys(): readonly string[] {
+      return [...values.keys()];
+    }
+  };
+}

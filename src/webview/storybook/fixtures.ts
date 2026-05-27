@@ -391,6 +391,23 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     reason: 'Checking the parser helpers still behave correctly.',
     createdAt: storyNow - 1000 * 55
   },
+  approvedWithComment: {
+    id: 'tool-approved-comment',
+    role: 'tool',
+    name: 'replace_in_file',
+    status: 'done',
+    approval: 'approved',
+    reason: 'Apply the user-approved wording change.',
+    userApprovalComment: 'Keep the public API name unchanged.',
+    args: { path: 'src/extension/agent/runtime/toolRunner.ts', search: 'userComment', replace: 'userApprovalComment' },
+    result: {
+      ok: true,
+      path: 'src/extension/agent/runtime/toolRunner.ts',
+      replacements: 3,
+      userApprovalComment: 'Keep the public API name unchanged.'
+    },
+    createdAt: storyNow - 1000 * 50
+  },
   errored: {
     id: 'tool-error',
     role: 'tool',

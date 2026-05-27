@@ -33,7 +33,8 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
       'Use grep_search for symbols, strings, or related files across the workspace.',
       'Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.',
       'For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.',
-      'Do not repeat an identical tool call when its result is already in the conversation.'
+      'Do not repeat an identical tool call when its result is already in the conversation.',
+      'Approval comments in tool results are high-priority user instructions for the current run; follow them before choosing the next step.'
     ]),
     section('Editing rules', [
       'Read relevant files before editing and preserve the existing style.',

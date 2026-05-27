@@ -49,4 +49,28 @@ describe('toolMessageModel', () => {
       ).summary
     ).toBe('exit 0 · 1.5s');
   });
+
+  it('summarizes structured approval denials without treating them as normal tool results', () => {
+    expect(
+      buildToolDisplayModel(
+        {
+          id: 'tool-denied',
+          role: 'tool',
+          name: 'create_plan',
+          status: 'denied',
+          approval: 'denied',
+          args: { title: 'Old plan' },
+          result: {
+            ok: false,
+            decision: 'denied',
+            comment: 'Revise the approach first.',
+            continueAfterDeny: true,
+            userApprovalComment: 'Revise the approach first.'
+          },
+          createdAt: 0
+        },
+        t
+      ).summary
+    ).toBe('Revise the approach first.');
+  });
 });

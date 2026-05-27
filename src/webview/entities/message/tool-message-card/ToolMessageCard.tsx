@@ -14,6 +14,7 @@ import { ToolApprovalActions } from '../tool-approval-actions';
 import { type ToolDisplayModel, buildToolDisplayModel } from '../tool-message-model';
 import { ToolRawJsonModal } from '../tool-raw-json-modal';
 import { ToolResultPreview } from '../tool-result-preview';
+import { asString, getToolResult } from '../tool-value';
 import { WorkspaceFileLink } from '../workspace-file-link';
 import styles from './ToolMessageCard.module.scss';
 import type { ToolMessageCardProps } from './types';
@@ -60,6 +61,7 @@ export function ToolMessageCard({ message, collapseToolId }: ToolMessageCardProp
         {expanded ? (
           <>
             <ToolDetailsHeader message={message} model={model} onRawClick={() => setRawOpen(true)} />
+            <ApprovalFeedback message={message} />
             <ToolResultPreview message={message} />
             {needsApproval ? (
               <div onClick={stopPropagation}>
@@ -120,6 +122,29 @@ function ToolDetailsHeader({ message, model, onRawClick }: ToolDetailsHeaderProp
   );
 }
 
+function ApprovalFeedback({ message }: { message: ChatMessage }) {
+  const { t } = useI18n();
+  const comment = getApprovalComment(message);
+  if (!message.approval || message.approval === 'pending') {
+    return null;
+  }
+
+  const decisionLabel =
+    message.approval === 'approved' ? t('tool.approvalDecision.approved') : t('tool.approvalDecision.denied');
+
+  return (
+    <div className={`${styles.approvalFeedback} ${message.approval === 'denied' ? styles.approvalDenied : ''}`}>
+      <span className={styles.approvalDecision}>{decisionLabel}</span>
+      {comment ? (
+        <span className={styles.approvalComment}>
+          <strong>{t('tool.approvalComment')}</strong>
+          {comment}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolTitle({ model }: { model: ToolDisplayModel }) {
   return (
     <div className={styles.title}>
@@ -129,6 +154,17 @@ function ToolTitle({ model }: { model: ToolDisplayModel }) {
         <span className={styles.titleText}>{model.title}</span>
       )}
     </div>
+  );
+}
+
+function getApprovalComment(message: ChatMessage): string | undefined {
+  const result = getToolResult(message);
+  return (
+    asString(message.userApprovalComment) ||
+    asString(message.userComment) ||
+    asString(result?.userApprovalComment) ||
+    asString(result?.comment) ||
+    asString(result?.userComment)
   );
 }
 

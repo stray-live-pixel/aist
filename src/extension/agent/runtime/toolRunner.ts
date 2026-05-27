@@ -61,7 +61,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
         return;
       }
       if (approval.comment) {
-        toolMessage.userComment = approval.comment;
+        toolMessage.userApprovalComment = approval.comment;
       }
     }
 
@@ -82,7 +82,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
 
     const result = withApprovalComment(
       await runApprovedTool(toolName, args, params.chat.id, params.chats, previewHandle),
-      toolMessage.userComment
+      toolMessage.userApprovalComment
     );
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: result.ok === false ? 'error' : 'done',
@@ -97,6 +97,9 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     });
   } catch (error) {
     if (error instanceof ToolCallDeniedError) {
+      if (params.run.stopRequested) {
+        throw error;
+      }
       return;
     }
 
@@ -151,6 +154,7 @@ async function waitForToolApproval(params: ApprovalParams): Promise<{ approved: 
   if (!decision.approved) {
     denyToolCall(params, decision);
     if (!decision.continueAfterDeny) {
+      params.run.stopRequested = true;
       throw new ToolCallDeniedError();
     }
     return { approved: false };
@@ -181,18 +185,22 @@ function showApprovalSystemNotification(toolName: string): void {
  * без выполнения опасного действия; если выбрана остановка — выше будет выброшена ошибка остановки цикла.
  */
 function denyToolCall(params: ApprovalParams, decision: ToolApprovalDecision): void {
-  const result = {
+  const result: Record<string, unknown> = {
     ok: false,
-    error: decision.comment || 'The user denied this tool call.',
-    userComment: decision.comment
+    decision: 'denied',
+    comment: decision.comment || '',
+    continueAfterDeny: decision.continueAfterDeny
   };
+  if (decision.comment) {
+    result.userApprovalComment = decision.comment;
+  }
   params.chats.updateMessage(params.chat.id, params.toolMessageId, {
     status: 'denied',
     approval: 'denied',
     reason: params.reason,
     args: params.args,
     result: params.preview ? { preview: params.preview, result } : result,
-    userComment: decision.comment
+    userApprovalComment: decision.comment
   });
   params.workingMessages.push({
     role: 'tool',
@@ -203,7 +211,7 @@ function denyToolCall(params: ApprovalParams, decision: ToolApprovalDecision): v
 }
 
 function withApprovalComment(result: Record<string, unknown>, comment: string | undefined): Record<string, unknown> {
-  return comment ? { ...result, userComment: comment } : result;
+  return comment ? { ...result, userApprovalComment: comment } : result;
 }
 
 async function runApprovedTool(

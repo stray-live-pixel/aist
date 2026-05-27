@@ -157,6 +157,7 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
   if (!result && message.name === 'run_skill')
     return t('tool.summary.skill', { skill: asString(message.args?.skillId) || '' }).trim();
   if (!result) return message.status || t('message.tool').toLowerCase();
+  if (result.decision === 'denied') return asString(result.comment) || t('tool.status.denied');
   if (asString(result.error)) return asString(result.error) || t('tool.summary.toolError');
   if (message.name === 'grep_search') return t('tool.summary.matches', { count: arrayValue(result.matches).length });
   if (message.name === 'run_bash_script') return getBashSummary(result, t);

@@ -43,7 +43,7 @@ export async function handleWebviewPermissionMessage(
 
 /**
  * UI отправляет продуктовые действия кнопок, а runtime нужен компактный объект решения.
- * Комментарий прикладывается к любому решению: approve запускает инструмент, deny-continue возвращает отказ модели, deny-stop останавливает цикл.
+ * Комментарий прикладывается к любому решению и дальше становится userApprovalComment в tool result.
  */
 function toApprovalDecision(message: Extract<PermissionMessage, { type: 'resolveToolCall' }>) {
   return {
