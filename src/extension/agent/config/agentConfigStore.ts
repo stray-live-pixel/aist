@@ -98,14 +98,12 @@ const DEFAULT_GLOBAL_INSTRUCTIONS: StoredInstructionItem[] = [
   {
     id: 'practical-coding',
     label: 'Practical coding',
-    content:
-      'Work briefly and practically. Before editing, inspect relevant files and preserve the existing project style.'
+    content: 'Favor the simplest working implementation and keep the user-facing explanation practical.'
   },
   {
     id: 'safe-changes',
     label: 'Safe changes',
-    content:
-      'Prefer small focused changes. Ask or explain before risky operations. After edits, verify once when it is useful.'
+    content: 'Keep changes small and avoid risky operations unless the user explicitly needs them.'
   }
 ];
 
@@ -114,13 +112,13 @@ const DEFAULT_GLOBAL_MODES: StoredModeItem[] = [
     id: 'coder',
     label: 'Coder',
     instructions:
-      'Act as an implementation-focused coding agent. Make direct code changes, keep the scope tight, and mention changed files in the final answer.'
+      'Act as an implementation-focused coding agent and make direct code changes within the requested scope.'
   },
   {
     id: 'architect',
     label: 'Architect',
     instructions:
-      'Act as a software architect. Focus on design, trade-offs, risks, boundaries, and a clear implementation plan before changing code.'
+      'Act as a software architect focused on design trade-offs, risks, boundaries, and implementation shape.'
   }
 ];
 
