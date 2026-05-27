@@ -23,7 +23,8 @@ import {
   setAgentMode,
   setAgentModeInstructions
 } from '../../config/settings';
-import { deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
+import { type AgentMemoryScope, addAgentMemory, deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
+import { validateReflectionCandidates } from '../../runtime/reflection';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -52,6 +53,8 @@ type SettingsMessage = Extract<
   | { type: 'deletePromptPreset' }
   | { type: 'setMemoryEnabled' }
   | { type: 'deleteMemory' }
+  | { type: 'saveReflectionCandidate' }
+  | { type: 'rejectReflectionCandidate' }
 >;
 
 export function isSettingsMessage(message: WebviewMessage): message is SettingsMessage {
@@ -78,7 +81,9 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'upsertPromptPreset',
     'deletePromptPreset',
     'setMemoryEnabled',
-    'deleteMemory'
+    'deleteMemory',
+    'saveReflectionCandidate',
+    'rejectReflectionCandidate'
   ].includes(message.type);
 }
 
@@ -189,7 +194,55 @@ export async function handleWebviewSettingsMessage(
       await deleteAgentMemory(message.scope, message.id);
       deps.sendState();
       return;
+    case 'saveReflectionCandidate':
+      await saveReflectionCandidate(message.chatId, message.candidateId, deps);
+      deps.sendState();
+      return;
+    case 'rejectReflectionCandidate':
+      deps.chats.setReflectionCandidateStatus(message.chatId, message.candidateId, 'rejected');
+      deps.sendState();
+      return;
   }
+}
+
+async function saveReflectionCandidate(
+  chatId: string,
+  candidateId: string,
+  deps: AgentWebviewMessageDeps
+): Promise<void> {
+  const chat = deps.chats.getChat(chatId);
+  const candidate = chat?.reflectionCandidates?.find((item) => item.id === candidateId && item.status === 'pending');
+  const validated = validateReflectionCandidates(candidate ? [candidate] : [])[0];
+  if (!candidate || !validated) {
+    deps.chats.setReflectionCandidateStatus(chatId, candidateId, 'rejected');
+    return;
+  }
+
+  await addAgentMemory({
+    scope: getReflectionMemoryScope(validated),
+    note: getReflectionMemoryNote(validated)
+  });
+
+  deps.chats.setReflectionCandidateStatus(chatId, candidateId, 'saved');
+}
+
+function getReflectionMemoryScope(
+  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
+): AgentMemoryScope {
+  return candidate.kind === 'memory_preference' && candidate.scope === 'global' ? 'global' : 'project';
+}
+
+function getReflectionMemoryNote(
+  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
+): string {
+  if (candidate.kind === 'verification_command') {
+    return `Verification command: ${candidate.content}`;
+  }
+  if (candidate.kind === 'declarative_definition') {
+    return `Possible declarative definition: ${candidate.content}`;
+  }
+
+  return candidate.content;
 }
 
 function updateWorkspaceSetting(key: string, value: unknown): Thenable<void> {

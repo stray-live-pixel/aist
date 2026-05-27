@@ -112,6 +112,7 @@ export type Chat = {
   context?: ChatContextEstimate;
   contextLength?: number;
   activePlan?: ChatPlan;
+  reflectionCandidates?: AgentReflectionCandidate[];
   usage: ChatUsageEstimate;
   createdAt: number;
   updatedAt: number;
@@ -215,6 +216,25 @@ export type AgentMemoryItem = {
   enabled: boolean;
   createdAt: number;
   updatedAt: number;
+};
+
+export type AgentReflectionCandidateKind =
+  | 'memory_preference'
+  | 'project_lesson'
+  | 'verification_command'
+  | 'declarative_definition';
+
+export type AgentReflectionCandidateStatus = 'pending' | 'saved' | 'rejected';
+
+export type AgentReflectionCandidate = {
+  id: string;
+  kind: AgentReflectionCandidateKind;
+  title: string;
+  content: string;
+  reason?: string;
+  scope?: 'global' | 'project' | 'local';
+  status: AgentReflectionCandidateStatus;
+  createdAt: number;
 };
 
 export type ToolPermissionItem = {
@@ -464,6 +484,8 @@ export type WebviewToExtensionMessage =
   | { type: 'deletePromptPreset'; presetId: string }
   | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
   | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
+  | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }
+  | { type: 'rejectReflectionCandidate'; chatId: string; candidateId: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;

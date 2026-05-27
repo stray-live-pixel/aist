@@ -191,6 +191,14 @@ export const agentActions = {
     post({ type: 'deleteMemory', scope, id });
   },
 
+  saveReflectionCandidate(chatId: string, candidateId: string): void {
+    post({ type: 'saveReflectionCandidate', chatId, candidateId });
+  },
+
+  rejectReflectionCandidate(chatId: string, candidateId: string): void {
+    post({ type: 'rejectReflectionCandidate', chatId, candidateId });
+  },
+
   addSkill(
     scope: AgentItemScope,
     label: string,

@@ -2,7 +2,15 @@ import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 
 import { DEFAULT_MODEL } from '../shared/constants';
-import type { Chat, ChatContextEstimate, ChatMessage, ChatSummary, ChatUsageEstimate } from './types';
+import type {
+  AgentReflectionCandidate,
+  AgentReflectionCandidateStatus,
+  Chat,
+  ChatContextEstimate,
+  ChatMessage,
+  ChatSummary,
+  ChatUsageEstimate
+} from './types';
 
 const EMPTY_USAGE: ChatUsageEstimate = {
   promptTokens: 0,
@@ -36,6 +44,7 @@ export class ChatStore {
           chat.activity = undefined;
           chat.activityDetail = undefined;
           chat.modelRequest = undefined;
+          chat.reflectionCandidates = normalizeReflectionCandidates(chat.reflectionCandidates);
           chat.usage = normalizeUsage(chat.usage);
 
           // Reset any stuck tool calls to error state
@@ -153,6 +162,9 @@ export class ChatStore {
       history: clonePlain(source.history),
       lastAnswer: source.lastAnswer,
       activePlan: source.activePlan ? clonePlain(source.activePlan) : undefined,
+      reflectionCandidates: normalizeReflectionCandidates(source.reflectionCandidates).map((candidate) =>
+        clonePlain(candidate)
+      ),
       activity: undefined,
       busy: false,
       usage: normalizeUsage(source.usage),
@@ -292,6 +304,7 @@ export class ChatStore {
     chat.context = undefined;
     chat.contextLength = undefined;
     chat.activePlan = undefined;
+    chat.reflectionCandidates = [];
     chat.usage = { ...EMPTY_USAGE };
     chat.title = 'New chat';
     this.touch(chat);
@@ -357,6 +370,49 @@ export class ChatStore {
     this.touch(chat);
   }
 
+  addReflectionCandidates(chatId: string, candidates: AgentReflectionCandidate[]): void {
+    if (!candidates.length) {
+      return;
+    }
+
+    const chat = this.requireChat(chatId);
+    const current = normalizeReflectionCandidates(chat.reflectionCandidates);
+    const existingKeys = new Set(current.map((candidate) => getReflectionCandidateKey(candidate)));
+    const nextCandidates = candidates.filter((candidate) => {
+      const key = getReflectionCandidateKey(candidate);
+      if (existingKeys.has(key)) {
+        return false;
+      }
+      existingKeys.add(key);
+      return true;
+    });
+
+    if (!nextCandidates.length) {
+      return;
+    }
+
+    chat.reflectionCandidates = [...current, ...nextCandidates];
+    this.touch(chat);
+  }
+
+  setReflectionCandidateStatus(
+    chatId: string,
+    candidateId: string,
+    status: AgentReflectionCandidateStatus
+  ): AgentReflectionCandidate | undefined {
+    const chat = this.requireChat(chatId);
+    const candidates = normalizeReflectionCandidates(chat.reflectionCandidates);
+    const candidate = candidates.find((item) => item.id === candidateId);
+    if (!candidate) {
+      return undefined;
+    }
+
+    candidate.status = status;
+    chat.reflectionCandidates = candidates;
+    this.touch(chat);
+    return candidate;
+  }
+
   setActivity(chatId: string, activity: Chat['activity'], detail?: string): void {
     const chat = this.requireChat(chatId);
     chat.activity = activity;
@@ -420,6 +476,51 @@ function getLastMessageAt(chat: Chat): number {
 function getChatTitle(chat: Chat): string {
   const firstUserMessage = chat.messages.find((message) => message.role === 'user' && message.content?.trim());
   return firstUserMessage ? toSingleLinePreview(firstUserMessage.content || '', 50) || chat.title : chat.title;
+}
+
+function normalizeReflectionCandidates(raw: unknown): AgentReflectionCandidate[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => item as Record<string, unknown>)
+    .filter((item) => typeof item.id === 'string' && typeof item.title === 'string' && typeof item.content === 'string')
+    .map((item) => ({
+      id: String(item.id),
+      kind: normalizeReflectionKind(item.kind),
+      title: String(item.title),
+      content: String(item.content),
+      reason: typeof item.reason === 'string' ? item.reason : undefined,
+      scope: normalizeReflectionScope(item.scope),
+      status: normalizeReflectionStatus(item.status),
+      createdAt: typeof item.createdAt === 'number' ? item.createdAt : 0
+    }));
+}
+
+function normalizeReflectionKind(value: unknown): AgentReflectionCandidate['kind'] {
+  return ['memory_preference', 'project_lesson', 'verification_command', 'declarative_definition'].includes(
+    String(value)
+  )
+    ? (value as AgentReflectionCandidate['kind'])
+    : 'project_lesson';
+}
+
+function normalizeReflectionScope(value: unknown): AgentReflectionCandidate['scope'] {
+  return ['global', 'project', 'local'].includes(String(value))
+    ? (value as AgentReflectionCandidate['scope'])
+    : undefined;
+}
+
+function normalizeReflectionStatus(value: unknown): AgentReflectionCandidate['status'] {
+  return ['pending', 'saved', 'rejected'].includes(String(value))
+    ? (value as AgentReflectionCandidate['status'])
+    : 'pending';
+}
+
+function getReflectionCandidateKey(candidate: AgentReflectionCandidate): string {
+  return `${candidate.kind}:${candidate.scope || ''}:${candidate.content.replace(/\s+/g, ' ').trim().toLowerCase()}`;
 }
 
 function getLastUserMessage(chat: Chat): string {

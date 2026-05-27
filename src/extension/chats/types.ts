@@ -27,6 +27,25 @@ export type ChatMessageUsageEstimate = {
   costUsd?: number;
 };
 
+export type AgentReflectionCandidateKind =
+  | 'memory_preference'
+  | 'project_lesson'
+  | 'verification_command'
+  | 'declarative_definition';
+
+export type AgentReflectionCandidateStatus = 'pending' | 'saved' | 'rejected';
+
+export type AgentReflectionCandidate = {
+  id: string;
+  kind: AgentReflectionCandidateKind;
+  title: string;
+  content: string;
+  reason?: string;
+  scope?: 'global' | 'project' | 'local';
+  status: AgentReflectionCandidateStatus;
+  createdAt: number;
+};
+
 export type ChatUsageEstimate = {
   promptTokens: number;
   completionTokens: number;
@@ -102,6 +121,7 @@ export type Chat = {
   context?: ChatContextEstimate;
   contextLength?: number;
   activePlan?: ChatPlan;
+  reflectionCandidates?: AgentReflectionCandidate[];
   usage: ChatUsageEstimate;
   createdAt: number;
   updatedAt: number;

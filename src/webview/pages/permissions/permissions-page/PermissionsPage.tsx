@@ -31,6 +31,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     agentConfigScope,
     promptConfig,
     memoryItems,
+    activeChat,
     instructionSources,
     customSkills,
     codexAuthenticated,
@@ -64,7 +65,13 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           {activePage === 'instructions' ? <InstructionsSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'modes' ? <RolesSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'presets' ? <PresetsSettingsPage promptConfig={promptConfig} /> : null}
-          {activePage === 'memory' ? <MemorySettingsPage memoryItems={memoryItems} /> : null}
+          {activePage === 'memory' ? (
+            <MemorySettingsPage
+              chatId={activeChat.id}
+              memoryItems={memoryItems}
+              reflectionCandidates={activeChat.reflectionCandidates || []}
+            />
+          ) : null}
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage

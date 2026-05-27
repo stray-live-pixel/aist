@@ -19,6 +19,12 @@ import { getRelevantMemoryPromptBlock } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { MAX_MODEL_REQUEST_ATTEMPTS, formatChatErrorMessage, isRetryableModelRequestError } from './errors';
 import { runAgentLoop } from './loop';
+import {
+  type RunReflectionOutcome,
+  buildRunReflectionPrompt,
+  buildRunReflectionTrace,
+  parseReflectionResponse
+} from './reflection';
 import { isAbortError } from './runtime';
 import { handleAgentToolCall } from './toolRunner';
 
@@ -64,6 +70,7 @@ export class AgentRunService {
     }
 
     const run = this.startRun(chat, cleanPrompt);
+    let reflectionOutcome: RunReflectionOutcome = { status: 'stopped' };
     try {
       const initialHistory = this.createInitialHistory(chat, cleanPrompt);
       const result = await this.runLoopWithRetries(chat, initialHistory, run);
@@ -74,10 +81,16 @@ export class AgentRunService {
         content: result.answer,
         usage: result.usage.totalTokens ? result.usage : undefined
       });
+      reflectionOutcome = { status: 'success', answer: result.answer };
     } catch (error) {
       this.handleRunError(chat, run, error);
+      reflectionOutcome =
+        run.stopRequested || isAbortError(error)
+          ? { status: 'stopped' }
+          : { status: 'error', error: formatChatErrorMessage(error, 'agent run failed') };
     } finally {
       this.finishRun(chat, run);
+      this.schedulePostRunReflection(chat.id, run, reflectionOutcome);
     }
   }
 
@@ -109,6 +122,8 @@ export class AgentRunService {
     this.deps.chats.setActivity(chat.id, 'thinking', t('activity.detail.prepareRequest'));
     const run = {
       chatId: chat.id,
+      startedAt: Date.now(),
+      prompt,
       abortController: new AbortController(),
       stopRequested: false,
       activityStream: this.createActivityStream(chat.id),
@@ -278,6 +293,63 @@ export class AgentRunService {
     this.deps.chats.setBusy(chat.id, false);
     this.deps.sendState();
     this.deps.logger.info('Agent run finished', { chatId: chat.id });
+  }
+
+  private schedulePostRunReflection(chatId: string, run: AgentRun, outcome: RunReflectionOutcome): void {
+    if (run.stopRequested || outcome.status === 'stopped') {
+      return;
+    }
+
+    setTimeout(() => {
+      void this.runPostRunReflection(chatId, run, outcome);
+    }, 0);
+  }
+
+  private async runPostRunReflection(chatId: string, run: AgentRun, outcome: RunReflectionOutcome): Promise<void> {
+    const chat = this.deps.chats.getChat(chatId);
+    if (!chat) {
+      return;
+    }
+
+    const trace = buildRunReflectionTrace({
+      chat,
+      runStartedAt: run.startedAt,
+      task: run.prompt,
+      outcome
+    });
+    if (!trace.tools.length && !trace.errors.length && !trace.approvalFeedback.length && !trace.changedFiles.length) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), 30_000);
+    try {
+      const response = await this.deps.chat(
+        [
+          {
+            role: 'system',
+            content:
+              'You are AIST post-run reflection. Produce only safe JSON candidates for user review. Never call tools.'
+          },
+          { role: 'user', content: buildRunReflectionPrompt(trace) }
+        ],
+        undefined,
+        chat.model,
+        abortController.signal
+      );
+      const candidates = parseReflectionResponse(response.content || '');
+      if (candidates.length) {
+        this.deps.chats.addReflectionCandidates(chatId, candidates);
+        this.deps.sendState();
+      }
+    } catch (error) {
+      this.deps.logger.info('Post-run reflection skipped', {
+        chatId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private throwIfStopped(run: AgentRun): void {

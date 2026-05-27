@@ -255,6 +255,8 @@ function createToolRunnerContext(decision: ToolApprovalDecision) {
   const chat = chats.getActiveChat();
   const run: AgentRun = {
     chatId: chat.id,
+    startedAt: Date.now(),
+    prompt: 'Run tool',
     abortController: new AbortController(),
     stopRequested: false,
     permissionResolvers: new Map()

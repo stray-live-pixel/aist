@@ -20,6 +20,8 @@ export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
  */
 export type AgentRun = {
   chatId: string;
+  startedAt: number;
+  prompt: string;
   abortController: AbortController;
   stopRequested: boolean;
   activityStream?: AgentActivityStream;
@@ -137,6 +139,8 @@ export type WebviewMessage =
   | { type: 'deletePromptPreset'; presetId: string }
   | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
   | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
+  | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }
+  | { type: 'rejectReflectionCandidate'; chatId: string; candidateId: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;
