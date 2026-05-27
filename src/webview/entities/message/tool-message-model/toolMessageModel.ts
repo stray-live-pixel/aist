@@ -13,6 +13,7 @@ const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: To
   get_workspace_info: { actionKey: 'tool.action.get_workspace_info', tone: 'slate' },
   list_files: { actionKey: 'tool.action.list_files', tone: 'blue' },
   read_file: { actionKey: 'tool.action.read_file', tone: 'green' },
+  read_file_range: { actionKey: 'tool.action.read_file_range', tone: 'green' },
   grep_search: { actionKey: 'tool.action.grep_search', tone: 'purple' },
   run_bash_script: { actionKey: 'tool.action.run_bash_script', tone: 'slate' },
   run_skill: { actionKey: 'tool.action.run_skill', tone: 'green' },

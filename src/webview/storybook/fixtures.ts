@@ -17,6 +17,7 @@ export const storyTools = [
   'get_workspace_info',
   'list_files',
   'read_file',
+  'read_file_range',
   'grep_search',
   'run_bash_script',
   'write_file',
@@ -184,6 +185,12 @@ export const storyToolPermissions: ToolPermissionItem[] = [
     defaultPermission: 'auto'
   },
   {
+    name: 'read_file_range',
+    description: 'Read a bounded line range from a workspace file.',
+    permission: 'auto',
+    defaultPermission: 'auto'
+  },
+  {
     name: 'grep_search',
     description: 'Search the repository with ripgrep and show matching files.',
     permission: 'auto',
@@ -212,6 +219,7 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'ask',
       list_files: 'ask',
       read_file: 'ask',
+      read_file_range: 'ask',
       grep_search: 'ask',
       run_bash_script: 'ask',
       write_file: 'ask',
@@ -228,6 +236,7 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
       grep_search: 'auto',
       run_bash_script: 'ask',
       write_file: 'ask',
@@ -244,6 +253,7 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
       grep_search: 'auto',
       run_bash_script: 'ask',
       write_file: 'auto',
@@ -260,6 +270,7 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
       grep_search: 'auto',
       run_bash_script: 'auto',
       write_file: 'auto',

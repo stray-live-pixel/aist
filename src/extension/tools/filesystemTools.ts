@@ -9,6 +9,7 @@ import { showEditableFileDiff } from './editableDiffPreview';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8');
+const MAX_READ_FILE_RANGE_LINES = 400;
 
 export type FilesystemToolPreview = {
   preview: Record<string, unknown>;
@@ -57,7 +58,8 @@ export const filesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'read_file',
-      description: 'Read a UTF-8 text file from the workspace.',
+      description:
+        'Read a UTF-8 text file from the workspace. Prefer read_file_range when you already know the needed line range.',
       parameters: {
         type: 'object',
         properties: {
@@ -66,6 +68,28 @@ export const filesystemTools: OpenRouterTool[] = [
           maxChars: { type: 'number', description: 'Maximum characters to return. Default is 20000.' }
         },
         required: ['reason', 'path'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_file_range',
+      description:
+        'Read an inclusive 1-based line range from a UTF-8 workspace file. Use this after grep_search when line numbers are known.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          path: { type: 'string', description: 'Workspace-relative file path.' },
+          startLine: { type: 'number', description: 'Inclusive 1-based start line.' },
+          endLine: {
+            type: 'number',
+            description: `Inclusive 1-based end line. At most ${MAX_READ_FILE_RANGE_LINES} lines are returned.`
+          }
+        },
+        required: ['reason', 'path', 'startLine', 'endLine'],
         additionalProperties: false
       }
     }
@@ -200,6 +224,8 @@ export async function runFilesystemTool(
       return listFiles(args);
     case 'read_file':
       return readFile(args);
+    case 'read_file_range':
+      return readFileRange(args);
     case 'grep_search':
       return grepSearch(args);
     case 'run_bash_script':
@@ -290,6 +316,34 @@ async function readFile(args: Record<string, unknown>): Promise<Record<string, u
     path: filePath,
     content: truncated ? content.slice(0, maxChars) : content,
     truncated
+  };
+}
+
+async function readFileRange(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const filePath = requireString(args.path, 'path');
+  const requestedStartLine = requireLineNumber(args.startLine, 'startLine');
+  const requestedEndLine = requireLineNumber(args.endLine, 'endLine');
+
+  if (requestedStartLine > requestedEndLine) {
+    throw new Error('Tool argument "startLine" must be less than or equal to "endLine".');
+  }
+
+  const uri = resolveWorkspacePath(filePath);
+  const content = textDecoder.decode(await vscode.workspace.fs.readFile(uri));
+  const lines = content.split(/\r?\n/);
+  const totalLines = lines.length;
+  const startLine = Math.min(Math.max(requestedStartLine, 1), totalLines);
+  const rangeLimitedEndLine = Math.min(requestedEndLine, startLine + MAX_READ_FILE_RANGE_LINES - 1);
+  const endLine = Math.min(Math.max(rangeLimitedEndLine, startLine), totalLines);
+
+  return {
+    ok: true,
+    path: filePath,
+    startLine,
+    endLine,
+    totalLines,
+    content: lines.slice(startLine - 1, endLine).join('\n'),
+    truncatedRange: startLine !== requestedStartLine || endLine !== requestedEndLine
   };
 }
 
@@ -705,6 +759,15 @@ function requireString(value: unknown, name: string): string {
   }
 
   return value;
+}
+
+function requireLineNumber(value: unknown, name: string): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`Tool argument "${name}" must be a finite number.`);
+  }
+
+  return Math.floor(numeric);
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number): number {

@@ -26,6 +26,7 @@ export function ToolIcon({ name, size = 16, className }: ToolIconProps) {
     case 'list_files':
       return <FolderTree size={size} className={className} />;
     case 'read_file':
+    case 'read_file_range':
       return <FileText size={size} className={className} />;
     case 'grep_search':
       return <Search size={size} className={className} />;
@@ -58,6 +59,8 @@ export function getToolLabel(name?: string): string {
       return 'List files';
     case 'read_file':
       return 'Read file';
+    case 'read_file_range':
+      return 'Read file range';
     case 'grep_search':
       return 'Search repository';
     case 'run_bash_script':
