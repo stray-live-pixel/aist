@@ -69,6 +69,19 @@ npm run format:check
 
 E2E tests build the extension and webview before running Playwright.
 
+Prompt contract snapshots live next to their focused Vitest spec:
+`src/extension/agent/config/__tests__/prompts.test.ts`. Run the focused check with:
+
+```bash
+npm run test -- src/extension/agent/config/__tests__/prompts.test.ts
+```
+
+When a prompt contract change is intentional, update and review the snapshots with:
+
+```bash
+npm run test -- src/extension/agent/config/__tests__/prompts.test.ts -u
+```
+
 ## Storybook
 
 ```bash
