@@ -4,6 +4,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
 import type { OpenRouterTool } from '../openrouter/types';
+import { getRepoMap } from '../shared/repoMap';
 import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
 import { type AppliedPatch, applyUnifiedPatchToContents, parseUnifiedPatch } from './applyPatch';
@@ -35,7 +36,8 @@ export const filesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'get_workspace_info',
-      description: 'Get the current VS Code workspace folder and active editor metadata.',
+      description:
+        'Get the current VS Code workspace folder, active editor metadata, and a compact on-demand repo map with verification hints.',
       parameters: {
         type: 'object',
         properties: {
@@ -376,13 +378,23 @@ export async function previewFilesystemTool(
 function getWorkspaceInfo(): Record<string, unknown> {
   const folder = getWorkspaceFolder();
   const editor = vscode.window.activeTextEditor;
+  const repoMap = getRepoMap(folder.uri.fsPath);
 
   return {
     ok: true,
     workspaceName: folder.name,
     workspacePath: folder.uri.fsPath,
     activeFile: editor ? editor.document.fileName : null,
-    activeLanguage: editor ? editor.document.languageId : null
+    activeLanguage: editor ? editor.document.languageId : null,
+    repoMap: {
+      packageManager: repoMap.packageManager,
+      packageName: repoMap.packageName,
+      scripts: repoMap.scripts,
+      configFiles: repoMap.configFiles,
+      topLevelDirs: repoMap.topLevelDirs,
+      verificationHints: repoMap.verificationHints,
+      excerpt: repoMap.excerpt
+    }
   };
 }
 
