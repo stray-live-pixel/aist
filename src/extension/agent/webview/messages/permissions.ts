@@ -49,7 +49,9 @@ function toApprovalDecision(message: Extract<PermissionMessage, { type: 'resolve
   return {
     approved: message.decision === 'approve',
     continueAfterDeny: message.decision === 'deny-continue',
-    comment: message.comment?.trim() || undefined
+    comment: message.comment?.trim() || undefined,
+    rememberGlobal: message.rememberGlobal?.trim() || undefined,
+    rememberProject: message.rememberProject?.trim() || undefined
   };
 }
 

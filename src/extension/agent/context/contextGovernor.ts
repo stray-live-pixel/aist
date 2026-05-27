@@ -10,6 +10,7 @@ export type ContextGovernorInput = {
   history: OpenRouterMessage[];
   editorContext?: EditorContextInput | null;
   repoContextNote?: string;
+  memoryContextBlock?: string;
   budgets?: Partial<ContextGovernorBudgets>;
 };
 
@@ -56,6 +57,7 @@ export function governModelContext(input: ContextGovernorInput): GovernedContext
     editorPack,
     recentToolSummaries,
     repoContextNote: input.repoContextNote,
+    memoryContextBlock: input.memoryContextBlock,
     keptHistoryMessages: historyTail.messages.length,
     omittedHistoryMessages: historyTail.omitted
   });
@@ -63,6 +65,7 @@ export function governModelContext(input: ContextGovernorInput): GovernedContext
     input.prompt,
     note ? `\n\nContext note:\n${note}` : '',
     input.repoContextNote ? `\n\nRepository note:\n${input.repoContextNote}` : '',
+    input.memoryContextBlock ? `\n\nMemory:\n${input.memoryContextBlock}` : '',
     recentToolSummaries.length
       ? `\n\nRecent tool summaries:\n${recentToolSummaries.map((item) => `- ${item}`).join('\n')}`
       : '',
@@ -291,6 +294,7 @@ function buildContextNote(input: {
   editorPack: EditorPack;
   recentToolSummaries: string[];
   repoContextNote?: string;
+  memoryContextBlock?: string;
   keptHistoryMessages: number;
   omittedHistoryMessages: number;
 }): string {
@@ -318,6 +322,10 @@ function buildContextNote(input: {
 
   if (input.repoContextNote) {
     parts.push('Included repository verification hints.');
+  }
+
+  if (input.memoryContextBlock) {
+    parts.push('Included relevant memory notes.');
   }
 
   return parts.join(' ');

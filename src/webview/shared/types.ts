@@ -157,6 +157,7 @@ export type AgentSkill = {
 export type AgentConfigScope = 'workspace' | 'user';
 export type AgentItemScope = 'global' | 'local';
 export type AgentInstructionKind = 'instruction' | 'mode';
+export type AgentMemoryScope = 'global' | 'project';
 
 export type AgentItemRef = {
   scope: AgentItemScope;
@@ -204,6 +205,15 @@ export type AgentInstructionSource = {
   content: string;
   priority: number;
   kind: 'base' | 'file' | 'mode' | 'custom' | 'skills';
+};
+
+export type AgentMemoryItem = {
+  id: string;
+  scope: AgentMemoryScope;
+  note: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type ToolPermissionItem = {
@@ -384,6 +394,7 @@ export type AgentState = {
   agentConfigScope: AgentConfigScope;
   projectInstructions: string;
   promptConfig: AgentPromptConfig;
+  memoryItems: AgentMemoryItem[];
   instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];
   codexAuthenticated: boolean;
@@ -450,6 +461,8 @@ export type WebviewToExtensionMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
+  | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
+  | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;
@@ -475,6 +488,8 @@ export type WebviewToExtensionMessage =
       messageId: string;
       decision: 'approve' | 'deny-stop' | 'deny-continue';
       comment?: string;
+      rememberGlobal?: string;
+      rememberProject?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop' }

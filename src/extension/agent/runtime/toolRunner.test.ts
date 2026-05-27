@@ -4,6 +4,7 @@ import { ChatStore } from '../../chats/chatStore';
 import type { ChatMessage } from '../../chats/types';
 import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
 import { createToolError } from '../../shared/toolErrors';
+import { addAgentMemory } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { handleAgentToolCall } from './toolRunner';
 
@@ -40,6 +41,9 @@ const filesystemToolsMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../tools/filesystemTools', () => filesystemToolsMock);
+vi.mock('../memory/memory', () => ({
+  addAgentMemory: vi.fn(async () => undefined)
+}));
 
 vi.mock('vscode', () => {
   class EventEmitter<T> {
@@ -146,6 +150,24 @@ describe('handleAgentToolCall approval feedback', () => {
     });
     expect(getLastToolMessage(context).userApprovalComment).toBe('Use smaller steps.');
     expect(getLastToolMessage(context).approval).toBe('approved');
+  });
+
+  it('saves only explicitly filled approval memory fields', async () => {
+    vi.mocked(addAgentMemory).mockClear();
+    const context = createToolRunnerContext({
+      approved: true,
+      continueAfterDeny: false,
+      comment: 'Current run only.',
+      rememberProject: 'Use focused tests for approval changes.'
+    });
+
+    await runCreatePlanTool(context);
+
+    expect(addAgentMemory).toHaveBeenCalledTimes(1);
+    expect(addAgentMemory).toHaveBeenCalledWith({
+      scope: 'project',
+      note: 'Use focused tests for approval changes.'
+    });
   });
 
   it('returns deny-continue comments as a structured denial result', async () => {

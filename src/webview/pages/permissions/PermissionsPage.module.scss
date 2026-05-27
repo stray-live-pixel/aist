@@ -332,6 +332,32 @@
   color: var(--vscode-foreground);
 }
 
+.memoryScope {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 14%, transparent);
+  padding: 10px;
+}
+
+.memoryItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 58%, transparent);
+  padding: 10px;
+}
+
+.memoryItemBody {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
 @media (max-width: 760px) {
   .shell {
     grid-template-columns: 1fr;
@@ -345,4 +371,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .memoryItem {
+    grid-template-columns: 1fr;
+  }
 }

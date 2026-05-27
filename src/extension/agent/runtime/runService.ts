@@ -15,6 +15,7 @@ import { getRepoVerificationContextNote } from '../../shared/repoMap';
 import { getWorkspaceFolder } from '../../shared/workspace';
 import { governModelContext } from '../context/contextGovernor';
 import { getEditorContextSnapshot } from '../context/editorContext';
+import { getRelevantMemoryPromptBlock } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { MAX_MODEL_REQUEST_ATTEMPTS, formatChatErrorMessage, isRetryableModelRequestError } from './errors';
 import { runAgentLoop } from './loop';
@@ -123,7 +124,8 @@ export class AgentRunService {
       prompt,
       history: chat.history,
       editorContext: getEditorContextSnapshot(),
-      repoContextNote: getOptionalRepoContextNote(prompt)
+      repoContextNote: getOptionalRepoContextNote(prompt),
+      memoryContextBlock: getRelevantMemoryPromptBlock(prompt)
     }).messages;
     this.deps.chats.setHistory(chat.id, initialHistory);
     return initialHistory;

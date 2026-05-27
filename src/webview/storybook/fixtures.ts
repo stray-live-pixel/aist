@@ -530,6 +530,16 @@ export const storyAgentState: AgentState = {
   agentConfigScope: 'workspace',
   projectInstructions: 'Prefer simple implementations and run typecheck after edits.',
   promptConfig: storyPromptConfig,
+  memoryItems: [
+    {
+      id: 'prefer-focused-tests',
+      scope: 'project',
+      note: 'Prefer focused Vitest coverage for the changed extension layer before broader checks.',
+      enabled: true,
+      createdAt: storyNow - 1000 * 60 * 60 * 24,
+      updatedAt: storyNow - 1000 * 60 * 30
+    }
+  ],
   instructionSources: storyInstructionSources,
   customSkills: storyCustomSkills,
   codexAuthenticated: true,

@@ -5,6 +5,7 @@ import type { ModelStreamCallbacks, OpenRouterMessage } from '../openrouter/type
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
+import type { AgentMemoryScope } from './memory/memory';
 
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type CodexServiceTier = 'auto' | 'priority';
@@ -34,6 +35,8 @@ export type ToolApprovalDecision = {
   approved: boolean;
   continueAfterDeny: boolean;
   comment?: string;
+  rememberGlobal?: string;
+  rememberProject?: string;
 };
 
 export type AgentActivityStream = ModelStreamCallbacks & {
@@ -132,6 +135,8 @@ export type WebviewMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
+  | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
+  | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;
@@ -157,6 +162,8 @@ export type WebviewMessage =
       messageId: string;
       decision: 'approve' | 'deny-stop' | 'deny-continue';
       comment?: string;
+      rememberGlobal?: string;
+      rememberProject?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop' }

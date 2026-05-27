@@ -3,6 +3,7 @@ import type {
   AgentItemRef,
   AgentItemScope,
   AgentLanguage,
+  AgentMemoryScope,
   AgentModeId,
   ApprovalNotificationSettings,
   CodexServiceTier,
@@ -182,6 +183,14 @@ export const agentActions = {
     post({ type: 'deletePromptPreset', presetId });
   },
 
+  setMemoryEnabled(scope: AgentMemoryScope, id: string, enabled: boolean): void {
+    post({ type: 'setMemoryEnabled', scope, id, enabled });
+  },
+
+  deleteMemory(scope: AgentMemoryScope, id: string): void {
+    post({ type: 'deleteMemory', scope, id });
+  },
+
   addSkill(
     scope: AgentItemScope,
     label: string,
@@ -215,8 +224,12 @@ export const agentActions = {
     post({ type: 'codexLogout' });
   },
 
-  resolveToolCall(messageId: string, decision: 'approve' | 'deny-stop' | 'deny-continue', comment?: string): void {
-    post({ type: 'resolveToolCall', messageId, decision, comment });
+  resolveToolCall(
+    messageId: string,
+    decision: 'approve' | 'deny-stop' | 'deny-continue',
+    payload?: { comment?: string; rememberGlobal?: string; rememberProject?: string }
+  ): void {
+    post({ type: 'resolveToolCall', messageId, decision, ...payload });
   },
 
   openWorkspaceFile(file: {

@@ -10,6 +10,7 @@ import { type FilesystemToolPreview, previewFilesystemTool, runFilesystemTool } 
 import { getToolPermission } from '../../tools/permissions';
 import { createPlanFromArgs, isPlanningTool, updatePlanItemStatus } from '../../tools/planningTools';
 import { getApprovalNotificationSettings } from '../config/notifications';
+import { type AgentMemoryCandidate, addAgentMemory } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { getToolReason, parseToolArguments } from './toolCalls';
 import { buildModelToolResult } from './toolResultCompaction';
@@ -157,6 +158,8 @@ async function waitForToolApproval(params: ApprovalParams): Promise<{ approved: 
   params.sendState();
 
   const decision = await params.askToolPermission(params.toolMessageId, params.run);
+  await saveApprovalMemory(decision);
+  params.sendState();
   if (!decision.approved) {
     denyToolCall(params, decision);
     if (!decision.continueAfterDeny) {
@@ -167,6 +170,21 @@ async function waitForToolApproval(params: ApprovalParams): Promise<{ approved: 
   }
 
   return { approved: true, comment: decision.comment };
+}
+
+async function saveApprovalMemory(decision: ToolApprovalDecision): Promise<void> {
+  const candidates = [
+    decision.rememberGlobal ? { scope: 'global' as const, note: decision.rememberGlobal } : undefined,
+    decision.rememberProject ? { scope: 'project' as const, note: decision.rememberProject } : undefined
+  ].filter((candidate): candidate is AgentMemoryCandidate => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    try {
+      await addAgentMemory(candidate);
+    } catch (error) {
+      console.error('[aist] Failed to save approval memory', error);
+    }
+  }
 }
 
 /**

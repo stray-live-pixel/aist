@@ -1,5 +1,6 @@
 import {
   BellRing,
+  Brain,
   FileText,
   Gauge,
   KeyRound,
@@ -40,6 +41,12 @@ export const BEHAVIOR_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'settings.nav.presets',
     icon: <Zap size={15} />,
     descriptionKey: 'settings.nav.presetsDescription'
+  },
+  {
+    id: 'memory',
+    labelKey: 'settings.nav.memory',
+    icon: <Brain size={15} />,
+    descriptionKey: 'settings.nav.memoryDescription'
   }
 ];
 

@@ -23,6 +23,7 @@ import {
   setAgentMode,
   setAgentModeInstructions
 } from '../../config/settings';
+import { deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -49,6 +50,8 @@ type SettingsMessage = Extract<
   | { type: 'applyPromptPreset' }
   | { type: 'upsertPromptPreset' }
   | { type: 'deletePromptPreset' }
+  | { type: 'setMemoryEnabled' }
+  | { type: 'deleteMemory' }
 >;
 
 export function isSettingsMessage(message: WebviewMessage): message is SettingsMessage {
@@ -73,7 +76,9 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setActivePromptConfig',
     'applyPromptPreset',
     'upsertPromptPreset',
-    'deletePromptPreset'
+    'deletePromptPreset',
+    'setMemoryEnabled',
+    'deleteMemory'
   ].includes(message.type);
 }
 
@@ -174,6 +179,14 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'deletePromptPreset':
       await deletePromptPreset(message.presetId);
+      deps.sendState();
+      return;
+    case 'setMemoryEnabled':
+      await setAgentMemoryEnabled(message.scope, message.id, message.enabled);
+      deps.sendState();
+      return;
+    case 'deleteMemory':
+      await deleteAgentMemory(message.scope, message.id);
       deps.sendState();
       return;
   }

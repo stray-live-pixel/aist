@@ -14,6 +14,7 @@ import { getApprovalNotificationSettings } from '../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
+import { getAgentMemoryItems } from '../memory/memory';
 import { mergeModels } from '../models/models';
 import { getAgentTools } from '../runtime/tools';
 import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
@@ -54,6 +55,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const projectInstructions = getProjectInstructions();
   const instructionSources = getAgentInstructionSources();
   const promptConfig = getPromptConfig();
+  const memoryItems = getAgentMemoryItems();
   const compactionSettings = getCompactionSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
 
@@ -74,6 +76,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       agentConfigScope,
       projectInstructions,
       promptConfig,
+      memoryItems,
       instructionSources,
       compactionSettings,
       approvalNotificationSettings
@@ -96,6 +99,7 @@ type StateContext = SendAgentStateParams & {
   agentConfigScope: string;
   projectInstructions: string;
   promptConfig: unknown;
+  memoryItems: unknown;
   instructionSources: unknown;
   compactionSettings: unknown;
   approvalNotificationSettings: unknown;
@@ -145,6 +149,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     agentConfigScope: context.agentConfigScope,
     projectInstructions: context.projectInstructions,
     promptConfig: context.promptConfig,
+    memoryItems: context.memoryItems,
     instructionSources: context.instructionSources,
     customSkills: context.customSkills,
     codexAuthenticated: context.codexAuthenticated,

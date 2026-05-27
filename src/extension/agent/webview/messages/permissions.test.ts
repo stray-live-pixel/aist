@@ -17,7 +17,9 @@ describe('handleWebviewPermissionMessage', () => {
         type: 'resolveToolCall',
         messageId: 'tool-1',
         decision: 'deny-continue',
-        comment: '  Try a read-only command instead.  '
+        comment: '  Try a read-only command instead.  ',
+        rememberGlobal: '  Prefer short explanations. ',
+        rememberProject: '  Use npm scripts in this repo. '
       },
       deps
     );
@@ -25,7 +27,9 @@ describe('handleWebviewPermissionMessage', () => {
     expect(deps.resolveToolCall).toHaveBeenCalledWith('tool-1', {
       approved: false,
       continueAfterDeny: true,
-      comment: 'Try a read-only command instead.'
+      comment: 'Try a read-only command instead.',
+      rememberGlobal: 'Prefer short explanations.',
+      rememberProject: 'Use npm scripts in this repo.'
     });
   });
 });

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useAgentState } from '../../../shared/lib/agentState';
 import styles from '../PermissionsPage.module.scss';
 import { CompactionSettingsPage } from './compaction-settings-page';
+import { MemorySettingsPage } from './memory-settings-page';
 import { NotificationSettingsPage } from './notification-settings-page';
 import { OverviewPage } from './overview-page';
 import { PermissionsSettingsPage } from './permissions-settings-page';
@@ -29,6 +30,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     agentModes,
     agentConfigScope,
     promptConfig,
+    memoryItems,
     instructionSources,
     customSkills,
     codexAuthenticated,
@@ -62,6 +64,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           {activePage === 'instructions' ? <InstructionsSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'modes' ? <RolesSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'presets' ? <PresetsSettingsPage promptConfig={promptConfig} /> : null}
+          {activePage === 'memory' ? <MemorySettingsPage memoryItems={memoryItems} /> : null}
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage

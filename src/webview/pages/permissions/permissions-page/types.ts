@@ -12,6 +12,7 @@ export type SettingsPageId =
   | 'presets'
   | 'modes'
   | 'skills'
+  | 'memory'
   | 'permissions'
   | 'notifications'
   | 'compaction'
