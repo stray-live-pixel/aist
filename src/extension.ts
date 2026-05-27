@@ -30,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
     autonomous,
     vscode.window.registerWebviewViewProvider('openrouterAgent.chats', agent),
     vscode.commands.registerCommand('openrouterAgent.openChat', (chatId?: string) => agent.openChat(chatId)),
+    vscode.commands.registerCommand('openrouterAgent.openChats', () => agent.openChats()),
     vscode.commands.registerCommand('openrouterAgent.openChatInEditor', (chatId?: string) =>
       agent.openChatInEditor(chatId)
     ),

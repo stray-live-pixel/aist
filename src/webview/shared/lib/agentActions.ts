@@ -88,6 +88,10 @@ export const agentActions = {
     post({ type: 'setReasoningEffort', reasoningEffort });
   },
 
+  setStreamingEnabled(streamingEnabled: boolean): void {
+    post({ type: 'setStreamingEnabled', streamingEnabled });
+  },
+
   compactChat(chatId?: string): void {
     post({ type: 'compactChat', chatId });
   },

@@ -23,7 +23,7 @@ export function MessageCard({ message, actions, defaultExpanded = true, collapse
     return <ToolMessageCard message={message} collapseToolId={collapseToolId} />;
   }
 
-  const variant = getMessageVariant(message.role, t, styles);
+  const variant = getMessageVariant(message, t, styles);
   const collapsible = isCollapsibleMessage(message);
   const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);
 
@@ -32,6 +32,7 @@ export function MessageCard({ message, actions, defaultExpanded = true, collapse
   }, [collapsible, defaultExpanded, message.id]);
 
   const cutClass = collapsible ? (expanded ? styles.expanded : styles.collapsed) : '';
+  const hasBody = Boolean(message.content);
   const rootClassName = `${styles.root} ${collapsible ? styles.cutCard : ''} ${cutClass} ${variant.className}`;
 
   return (
@@ -41,13 +42,16 @@ export function MessageCard({ message, actions, defaultExpanded = true, collapse
         label={variant.label}
         message={message}
         actions={actions}
+        hasBody={hasBody}
         collapsible={collapsible}
         expanded={expanded}
         onToggle={() => setExpanded((value) => !value)}
       />
-      <div className={styles.markdownBody}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || ''}</ReactMarkdown>
-      </div>
+      {hasBody ? (
+        <div className={styles.markdownBody}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || ''}</ReactMarkdown>
+        </div>
+      ) : null}
       {collapsible && !expanded ? <div className={styles.cutShadow} /> : null}
     </article>
   );
@@ -57,11 +61,21 @@ export function MessageCard({ message, actions, defaultExpanded = true, collapse
  * Заголовок карточки сообщения: иконка, лейбл, дата, usage, действия.
  * Вынесен в отдельный компонент для читаемости MessageCard.
  */
-function MessageHeader({ icon, label, message, actions, collapsible, expanded, onToggle }: MessageHeaderProps) {
+function MessageHeader({
+  icon,
+  label,
+  message,
+  actions,
+  hasBody,
+  collapsible,
+  expanded,
+  onToggle
+}: MessageHeaderProps) {
   const { t } = useI18n();
+  const headerClassName = `${styles.header} ${hasBody ? '' : styles.headerWithoutBody}`;
 
   return (
-    <div className={styles.header}>
+    <div className={headerClassName}>
       <div className={styles.headerMeta}>
         {collapsible ? (
           <button
@@ -88,6 +102,7 @@ type MessageHeaderProps = {
   label: string;
   message: ChatMessage;
   actions?: ReactNode;
+  hasBody: boolean;
   collapsible: boolean;
   expanded: boolean;
   onToggle(): void;

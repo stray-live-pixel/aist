@@ -31,6 +31,12 @@
   min-width: 0;
 }
 
+.headerWithoutDescription {
+  // Без description высота header обычно задаётся actions; центрируем heading,
+  // чтобы одинокий title не прилипал к верхнему краю рядом с кнопками/иконками.
+  align-items: center;
+}
+
 .heading {
   display: grid;
   gap: 4px;

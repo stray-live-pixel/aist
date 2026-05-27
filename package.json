@@ -17,6 +17,7 @@
   "activationEvents": [
     "onCommand:openrouterAgent.openChat",
     "onCommand:openrouterAgent.newChat",
+    "onCommand:openrouterAgent.openChats",
     "onCommand:openrouterAgent.openSettings",
     "onCommand:openrouterAgent.openAutonomous",
     "onCommand:openrouterAgent.openStorage",
@@ -55,6 +56,11 @@
         "command": "openrouterAgent.newChat",
         "title": "aist: New Chat",
         "icon": "$(add)"
+      },
+      {
+        "command": "openrouterAgent.openChats",
+        "title": "aist: Show Chats",
+        "icon": "$(comment-discussion)"
       },
       {
         "command": "openrouterAgent.openChatInEditor",
@@ -99,6 +105,11 @@
           "command": "openrouterAgent.newChat",
           "when": "view == openrouterAgent.chats",
           "group": "navigation@1"
+        },
+        {
+          "command": "openrouterAgent.openChats",
+          "when": "view == openrouterAgent.chats",
+          "group": "navigation@1.5"
         },
         {
           "command": "openrouterAgent.openSettings",
@@ -162,6 +173,11 @@
           ],
           "default": "auto",
           "description": "Reasoning effort sent to OpenRouter. Auto does not send a reasoning parameter."
+        },
+        "openrouterAgent.streamingEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Stream model responses while they are generated. Disabled by default because non-streaming requests are usually more resilient to interrupted SSE connections."
         },
         "openrouterAgent.language": {
           "type": "string",
@@ -351,6 +367,8 @@
     "esbuild-sass-plugin": "^3.7.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
+    "postcss": "^8.5.15",
+    "postcss-modules": "^6.0.1",
     "prettier": "^3.8.3",
     "sass": "^1.100.0",
     "storybook": "^10.4.1",

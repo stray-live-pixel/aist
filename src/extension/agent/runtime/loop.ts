@@ -56,7 +56,7 @@ export async function runAgentLoop(
   run: AgentRun,
   deps: RunAgentLoopDeps
 ): Promise<AgentLoopResult> {
-  const { maxToolIterations } = getAgentSettingsSnapshot();
+  const { maxToolIterations, streamingEnabled } = getAgentSettingsSnapshot();
   const workingMessages = createWorkingMessages(deps.getSystemPrompt(), initialHistory);
   const model = deps.getModelOption(chat.model);
   const usage: ChatUsageEstimate = createEmptyUsage();
@@ -73,7 +73,7 @@ export async function runAgentLoop(
     );
     deps.sendState();
 
-    const responseMessage = await requestModel(chat, workingMessages, tools, run, deps, usage, model);
+    const responseMessage = await requestModel(chat, workingMessages, tools, run, deps, usage, model, streamingEnabled);
     const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
 
     if (!toolCalls.length) {
@@ -141,14 +141,16 @@ async function requestModel(
   run: AgentRun,
   deps: RunAgentLoopDeps,
   usage: ChatUsageEstimate,
-  model: OpenRouterModelOption | undefined
+  model: OpenRouterModelOption | undefined,
+  streamingEnabled: boolean
 ): Promise<OpenRouterMessage> {
   const responseMessage = await deps.chat(
     workingMessages,
     tools,
     chat.model,
     run.abortController.signal,
-    run.activityStream
+    // Stream callbacks дают живой preview reasoning/answer, но требуют долгого SSE-соединения; non-streaming устойчивее.
+    streamingEnabled ? run.activityStream : undefined
   );
   const callUsage = getCallUsageFromModelUsage(responseMessage.usage, model?.pricing);
   const callContext = getChatContextEstimateFromModelUsage(responseMessage.usage, model);

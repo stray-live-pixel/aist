@@ -374,8 +374,40 @@
   }
 }
 
+.streamingField {
+  display: grid;
+  min-width: 144px;
+  align-content: start;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.streamingControlRow {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  color: var(--vscode-foreground);
+}
+
+.streamingCheckbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vscode-focusBorder);
+}
+
+.streamingCheckbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.streamingDescription {
+  line-height: 16px;
+}
+
 @media (min-width: 768px) {
   .quickSettingsGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

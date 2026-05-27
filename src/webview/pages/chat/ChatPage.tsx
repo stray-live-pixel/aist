@@ -37,6 +37,21 @@ export function ChatPage() {
     }
   }, [pendingApprovalId]);
 
+  useEffect(() => {
+    /**
+     * Системная view/title-кнопка живёт вне React-дерева, поэтому открытие списка чатов
+     * приходит отдельным IPC-событием и переиспользует локальное состояние модалки.
+     */
+    const listener = (event: MessageEvent<{ type: string }>) => {
+      if (event.data.type === 'showChats') {
+        setChatsOpen(true);
+      }
+    };
+
+    window.addEventListener('message', listener);
+    return () => window.removeEventListener('message', listener);
+  }, []);
+
   function openSettings(page: SettingsPageId = 'overview') {
     setSettingsInitialPage(page);
     setSettingsOpen(true);

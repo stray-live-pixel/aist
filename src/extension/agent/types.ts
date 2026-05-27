@@ -84,6 +84,7 @@ export type WebviewMessage =
   | { type: 'setToolPermissionPreset'; presetId: string }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
+  | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | {
       type: 'setCompactionSettings';

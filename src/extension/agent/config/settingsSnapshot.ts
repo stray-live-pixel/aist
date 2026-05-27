@@ -16,19 +16,22 @@ export function getConfiguredModel(): string {
 /**
  * Снимает настройки, которые нужны для state webview.
  *
- * Snapshot делает sendState короче и гарантирует одинаковую нормализацию чисел и
- * reasoningEffort для всех webview-поверхностей.
+ * Snapshot делает sendState короче и гарантирует одинаковую нормализацию чисел,
+ * reasoningEffort и режима streaming для всех webview-поверхностей.
  */
 export function getAgentSettingsSnapshot(): {
   configuredModel: string;
   maxToolIterations: number;
   reasoningEffort: ReturnType<typeof normalizeReasoningEffort>;
+  streamingEnabled: boolean;
 } {
   const config = vscode.workspace.getConfiguration('openrouterAgent');
 
   return {
     configuredModel: config.get<string>('model') || DEFAULT_MODEL,
     maxToolIterations: Math.max(0, Math.floor(config.get<number>('maxToolIterations') || 0)),
-    reasoningEffort: normalizeReasoningEffort(config.get<string>('reasoningEffort'))
+    reasoningEffort: normalizeReasoningEffort(config.get<string>('reasoningEffort')),
+    // По умолчанию используем non-streaming: он менее интерактивный, но устойчивее к оборванным SSE-соединениям.
+    streamingEnabled: config.get<boolean>('streamingEnabled') === true
   };
 }

@@ -1,14 +1,28 @@
 import { getErrorMessage } from '../../shared/errors';
 import { isAbortError } from './runtime';
 
+/** Количество попыток держим небольшим: transient network ошибки частые, но долгие циклы ухудшают UX и могут дублировать tool context. */
 export const MAX_MODEL_REQUEST_ATTEMPTS = 3;
 
+/**
+ * Форматирует ошибку в markdown-сообщение чата.
+ *
+ * Контекст добавляется в заголовок, чтобы пользователь видел, какой этап упал:
+ * первичный agent run, retry модели или отдельная команда webview.
+ */
 export function formatChatErrorMessage(error: unknown, context?: string): string {
   const message = getErrorMessage(error);
   const title = context ? `AIST error (${context})` : 'AIST error';
   return [`**${title}**`, '', message].join('\n');
 }
 
+/**
+ * Определяет, стоит ли повторять запрос к LLM после ошибки транспорта.
+ *
+ * Сначала отсекаем пользовательскую отмену и детерминированные ошибки доступа/4xx:
+ * retry их не исправит и только создаст лишние сообщения. Затем ищем признаки
+ * временных сетевых сбоев у fetch/undici, OpenRouter SSE и ChatGPT Codex backend.
+ */
 export function isRetryableModelRequestError(error: unknown): boolean {
   if (isAbortError(error)) {
     return false;
@@ -32,6 +46,8 @@ export function isRetryableModelRequestError(error: unknown): boolean {
 
   return (
     message.includes('failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('terminated') ||
     message.includes('network') ||
     message.includes('socket') ||
     message.includes('timeout') ||

@@ -164,6 +164,12 @@
   gap: 12px;
 }
 
+.headerWithoutBody {
+  // Header без markdown-body является единственным содержимым карточки: нижний
+  // отступ здесь создаёт визуальную пустоту и ломает вертикальное центрирование.
+  margin-bottom: 0;
+}
+
 .headerMeta {
   display: flex;
   min-width: 0;

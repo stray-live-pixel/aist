@@ -321,6 +321,8 @@ export type AgentState = {
   models: ModelOption[];
   maxToolIterations: number;
   reasoningEffort: ReasoningEffort;
+  /** Включает live streaming ответа; по умолчанию false, потому что non-streaming устойчивее к обрывам SSE. */
+  streamingEnabled: boolean;
   compactionSettings: CompactionSettings;
   approvalNotificationSettings: ApprovalNotificationSettings;
   agentLanguage: AgentLanguage;
@@ -342,6 +344,7 @@ export type ExtensionToWebviewMessage =
       type: 'state';
     } & AgentState)
   | { type: 'page'; page: 'chat' | 'settings' | 'autonomous' }
+  | { type: 'showChats' }
   | { type: 'errorModal'; message: string }
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string };
@@ -360,6 +363,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
+  | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }
   | { type: 'setApprovalNotificationSettings'; settings: Partial<ApprovalNotificationSettings> }

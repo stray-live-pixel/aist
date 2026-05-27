@@ -245,7 +245,7 @@ export class AgentRunService {
 
   private handleRunError(chat: Chat, run: AgentRun, error: unknown): void {
     if (run.stopRequested || isAbortError(error)) {
-      this.deps.chats.appendMessage(chat.id, { role: 'status', content: 'Stopped.' });
+      this.deps.chats.appendMessage(chat.id, { role: 'status', marker: 'stopped' });
       this.deps.logger.info('Agent run stopped', { chatId: chat.id });
       return;
     }

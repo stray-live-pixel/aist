@@ -473,6 +473,7 @@ export const storyAgentState: AgentState = {
   models: storyModels,
   maxToolIterations: 6,
   reasoningEffort: 'medium',
+  streamingEnabled: false,
   compactionSettings: { enabled: true, thresholdPercent: 70, keepLastMessages: 0 },
   approvalNotificationSettings: {
     enabled: true,

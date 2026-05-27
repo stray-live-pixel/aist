@@ -108,6 +108,21 @@ export class AgentController {
     this.postSidebarPage();
   }
 
+  /**
+   * Открывает список чатов из системной панели VS Code.
+   *
+   * Команда не меняет активный чат: она только гарантирует видимость sidebar и просит
+   * уже загруженный webview показать ту же модалку, что и компактная кнопка в composer.
+   */
+  openChats(): void {
+    this.logger.info('openChats command received');
+    this.sidebarPage = 'chat';
+    void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
+    this.sendState();
+    this.postSidebarPage();
+    this.postShowChats();
+  }
+
   openSettings(): void {
     this.logger.info('openSettings command received');
     this.sidebarPage = 'settings';
@@ -412,6 +427,27 @@ export class AgentController {
     }
 
     this.postPage(this.createSidebarSurface(this.sidebarView.webview), this.sidebarPage);
+  }
+
+  /**
+   * Просит sidebar webview открыть локальную модалку списка чатов.
+   *
+   * Список остаётся состоянием React-компонента, поэтому extension отправляет отдельное
+   * короткое событие вместо попытки хранить UI-флаг в AgentState и синхронизировать его обратно.
+   */
+  private postShowChats(): void {
+    if (!this.sidebarView) {
+      return;
+    }
+
+    void this.sidebarView.webview.postMessage({ type: 'showChats' }).then(
+      (delivered) => {
+        this.logger.info('Show chats posted to sidebar webview', { delivered });
+      },
+      (error) => {
+        this.logger.error('Failed to post show chats to sidebar webview', error);
+      }
+    );
   }
 
   private postPage(surface: WebviewSurface, page: 'chat' | 'settings'): void {

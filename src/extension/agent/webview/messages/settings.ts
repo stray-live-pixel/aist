@@ -30,6 +30,7 @@ type SettingsMessage = Extract<
   WebviewMessage,
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
+  | { type: 'setStreamingEnabled' }
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
   | { type: 'setAgentLanguage' }
@@ -52,6 +53,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
   return [
     'setMaxToolIterations',
     'setReasoningEffort',
+    'setStreamingEnabled',
     'setCompactionSettings',
     'setApprovalNotificationSettings',
     'setAgentLanguage',
@@ -92,6 +94,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setReasoningEffort':
       await updateWorkspaceSetting('reasoningEffort', normalizeReasoningEffort(message.reasoningEffort));
+      deps.sendState();
+      return;
+    case 'setStreamingEnabled':
+      await updateWorkspaceSetting('streamingEnabled', message.streamingEnabled === true);
       deps.sendState();
       return;
     case 'setCompactionSettings':
