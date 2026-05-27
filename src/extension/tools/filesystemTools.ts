@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import type { OpenRouterTool } from '../openrouter/types';
 import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
+import { type AppliedPatch, applyUnifiedPatchToContents, parseUnifiedPatch } from './applyPatch';
 import { showEditableFileDiff } from './editableDiffPreview';
 
 const textEncoder = new TextEncoder();
@@ -245,6 +246,27 @@ export const filesystemTools: OpenRouterTool[] = [
   {
     type: 'function',
     function: {
+      name: 'apply_patch',
+      description:
+        'Apply a unified diff patch to one or more UTF-8 workspace files. Use this for multi-location edits or when exact large replace_in_file blocks would be brittle.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string', description: 'A short explanation of why this patch is needed.' },
+          patch: {
+            type: 'string',
+            description:
+              'Unified diff patch for workspace-relative files. Binary patches, path traversal, file deletion, and renames are rejected.'
+          }
+        },
+        required: ['reason', 'patch'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_directory',
       description: 'Create a workspace directory, including parent directories.',
       parameters: {
@@ -299,6 +321,8 @@ export async function runFilesystemTool(
         return await writeFile(args);
       case 'replace_in_file':
         return await replaceInFile(args);
+      case 'apply_patch':
+        return await applyPatch(args);
       case 'create_directory':
         return await createDirectory(args);
       case 'delete_path':
@@ -338,6 +362,12 @@ export async function previewFilesystemTool(
     const nextContent = replaceAll ? content.split(search).join(replace) : content.replace(search, replace);
     const generatedReplacements = replaceAll ? content.split(search).length - 1 : 1;
     return showFileDiff(filePath, nextContent, generatedReplacements);
+  }
+
+  if (toolName === 'apply_patch') {
+    const patch = requireString(args.patch, 'patch');
+    const appliedPatch = await getAppliedPatch(patch);
+    return showPatchDiff(appliedPatch);
   }
 
   return undefined;
@@ -718,6 +748,26 @@ async function replaceInFile(args: Record<string, unknown>): Promise<Record<stri
   };
 }
 
+async function applyPatch(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const patch = requireString(args.patch, 'patch');
+  const appliedPatch = await getAppliedPatch(patch);
+  const written: AppliedPatch['files'] = [];
+
+  try {
+    for (const file of appliedPatch.files) {
+      const uri = resolveWorkspacePath(file.path);
+      await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(uri.fsPath)));
+      await vscode.workspace.fs.writeFile(uri, textEncoder.encode(file.newContent));
+      written.push(file);
+    }
+  } catch (error) {
+    await rollbackWrittenPatchFiles(written);
+    throw error;
+  }
+
+  return createApplyPatchResult(appliedPatch);
+}
+
 async function createDirectory(args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const dirPath = requireString(args.path, 'path');
   const uri = resolveWorkspacePath(dirPath);
@@ -771,6 +821,49 @@ async function showFileDiff(
   generatedReplacements?: number
 ): Promise<FilesystemToolPreview> {
   return showEditableFileDiff({ filePath, nextContent, generatedReplacements });
+}
+
+async function showPatchDiff(appliedPatch: AppliedPatch): Promise<FilesystemToolPreview> {
+  const previews: FilesystemToolPreview[] = [];
+
+  try {
+    for (const file of appliedPatch.files) {
+      previews.push(await showFileDiff(file.path, file.newContent));
+    }
+  } catch (error) {
+    await cleanupPatchPreviews(previews);
+    throw error;
+  }
+
+  return {
+    preview: {
+      ok: true,
+      diffShown: true,
+      editable: true,
+      files: appliedPatch.files.map(toPatchFileSummary)
+    },
+    approve: async () => {
+      const files = [];
+      for (const preview of previews) {
+        files.push(await preview.approve());
+      }
+
+      return {
+        ok: true,
+        files,
+        changedFiles: files
+      };
+    },
+    cleanup: async () => {
+      await cleanupPatchPreviews(previews);
+    }
+  };
+}
+
+async function cleanupPatchPreviews(previews: FilesystemToolPreview[]): Promise<void> {
+  for (const preview of [...previews].reverse()) {
+    await preview.cleanup();
+  }
 }
 
 async function walkDirectory(
@@ -896,6 +989,49 @@ async function readFileIfExists(uri: vscode.Uri): Promise<string | undefined> {
   } catch {
     return undefined;
   }
+}
+
+async function getAppliedPatch(patch: string): Promise<AppliedPatch> {
+  const parsedFiles = parseUnifiedPatch(patch);
+  const contentsByPath: Record<string, string | undefined> = {};
+
+  for (const file of parsedFiles) {
+    const uri = resolveWorkspacePath(file.path);
+    contentsByPath[file.path] = await readFileIfExists(uri);
+  }
+
+  return applyUnifiedPatchToContents(patch, contentsByPath);
+}
+
+async function rollbackWrittenPatchFiles(files: AppliedPatch['files']): Promise<void> {
+  for (const file of [...files].reverse()) {
+    const uri = resolveWorkspacePath(file.path);
+    if (file.oldContent === undefined) {
+      await vscode.workspace.fs.delete(uri, { recursive: false, useTrash: false });
+      continue;
+    }
+
+    await vscode.workspace.fs.writeFile(uri, textEncoder.encode(file.oldContent));
+  }
+}
+
+function createApplyPatchResult(appliedPatch: AppliedPatch): Record<string, unknown> {
+  const files = appliedPatch.files.map(toPatchFileSummary);
+
+  return {
+    ok: true,
+    files,
+    changedFiles: files
+  };
+}
+
+function toPatchFileSummary(file: AppliedPatch['files'][number]): Record<string, unknown> {
+  return {
+    path: file.path,
+    created: file.created,
+    bytes: Buffer.byteLength(file.newContent, 'utf8'),
+    ...getChangedLineRange(file.oldContent || '', file.newContent)
+  };
 }
 
 function getChangedLineRange(beforeContent: string, afterContent: string): Record<string, number> {

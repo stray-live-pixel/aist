@@ -15,6 +15,7 @@ AIST exposes workspace tools to the model. Each tool call is shown in chat with 
 | `run_bash_script`    | Runs a focused Bash script from inside the workspace.                          | `ask`                                |
 | `write_file`         | Creates or overwrites a UTF-8 file.                                            | `ask`                                |
 | `replace_in_file`    | Replaces exact text in an existing UTF-8 file.                                 | `ask`                                |
+| `apply_patch`        | Applies a unified diff patch to workspace text files.                          | `ask`                                |
 | `create_directory`   | Creates a directory, including parents.                                        | `ask`                                |
 | `delete_path`        | Deletes a file or directory using trash; directories require `recursive=true`. | `ask`                                |
 | `run_skill`          | Runs a user-defined custom skill.                                              | Per-skill permission, default `ask`. |
@@ -35,6 +36,7 @@ Before mutating file tools write changes, AIST opens a VS Code-native diff previ
 
 - `write_file` previews the full target content.
 - `replace_in_file` previews the generated replacement.
+- `apply_patch` previews every changed file from the unified diff.
 - The approval card stays in chat while the diff editor remains open in parallel.
 
 Only after approval does the tool write the changes.

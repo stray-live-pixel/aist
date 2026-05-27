@@ -29,11 +29,12 @@ describe('getSystemPrompt', () => {
       - For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.
       - Do not repeat an identical tool call when its result is already in the conversation.
       - If replace_in_file returns code TEXT_NOT_FOUND, read a nearby range before retrying the replacement.
+      - Use apply_patch with a unified diff for coordinated multi-file or multi-location edits.
       - Approval comments in tool results are high-priority user instructions for the current run; follow them before choosing the next step.
 
       ## Editing rules
       - Read relevant files before editing and preserve the existing style.
-      - Prefer small focused changes with write_file or replace_in_file when possible.
+      - Prefer small focused changes with write_file or replace_in_file when possible; use apply_patch when a patch is clearer.
       - Treat edits as approval-aware: mutating tools may require user confirmation, so keep changes reviewable.
       - Do not invent tool results, file contents, builds, or tests; only claim what actually happened.
       - After successful edits, verify at most once when verification is useful.

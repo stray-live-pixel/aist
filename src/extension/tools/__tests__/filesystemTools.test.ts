@@ -86,8 +86,12 @@ vi.mock('vscode', () => {
         }),
         readDirectory: vi.fn(),
         createDirectory: vi.fn(),
-        writeFile: vi.fn(),
-        delete: vi.fn()
+        writeFile: vi.fn(async (uri: { fsPath: string }, bytes: Uint8Array) => {
+          vscodeMock.files.set(uri.fsPath, Buffer.from(bytes).toString('utf8'));
+        }),
+        delete: vi.fn(async (uri: { fsPath: string }) => {
+          vscodeMock.files.delete(uri.fsPath);
+        })
       },
       findFiles: vi.fn(async (includePattern: { baseUri: { fsPath: string } }, _excludePattern: string, maxResults) => {
         const basePath = includePattern.baseUri.fsPath;
@@ -159,6 +163,13 @@ describe('filesystemTools', () => {
     expect(properties).toHaveProperty('beforeLines');
     expect(properties).toHaveProperty('afterLines');
     expect(properties).toHaveProperty('exclude');
+  });
+
+  it('exposes apply_patch with ask permission by default', () => {
+    const applyPatchTool = filesystemTools.find((tool) => tool.function.name === 'apply_patch');
+
+    expect(applyPatchTool?.function.parameters.required).toEqual(['reason', 'patch']);
+    expect(DEFAULT_TOOL_PERMISSIONS.apply_patch).toBe('ask');
   });
 
   it('keeps read_file behavior unchanged', async () => {
@@ -287,6 +298,128 @@ describe('filesystemTools', () => {
       error: 'Text was not found in src/example.ts.',
       details: { path: 'src/example.ts' }
     });
+  });
+
+  it('applies a unified diff patch to a workspace file', async () => {
+    setWorkspaceFile('src/example.ts', 'one\ntwo\nthree\n');
+
+    const result = await runFilesystemTool('apply_patch', {
+      reason: 'apply focused patch',
+      patch: [
+        '--- a/src/example.ts',
+        '+++ b/src/example.ts',
+        '@@ -1,3 +1,3 @@',
+        ' one',
+        '-two',
+        '+deux',
+        ' three',
+        ''
+      ].join('\n')
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      files: [
+        {
+          path: 'src/example.ts',
+          created: false,
+          changedStartLine: 2,
+          changedEndLine: 2
+        }
+      ]
+    });
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/example.ts'))).toBe('one\ndeux\nthree\n');
+  });
+
+  it('applies a unified diff patch to multiple workspace files', async () => {
+    setWorkspaceFile('src/a.ts', 'alpha\nbeta\n');
+    setWorkspaceFile('src/b.ts', 'one\ntwo\n');
+
+    const result = await runFilesystemTool('apply_patch', {
+      reason: 'apply coordinated patch',
+      patch: [
+        '--- a/src/a.ts',
+        '+++ b/src/a.ts',
+        '@@ -1,2 +1,2 @@',
+        ' alpha',
+        '-beta',
+        '+bravo',
+        '--- a/src/b.ts',
+        '+++ b/src/b.ts',
+        '@@ -1,2 +1,2 @@',
+        '-one',
+        '+uno',
+        ' two',
+        ''
+      ].join('\n')
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      files: [{ path: 'src/a.ts' }, { path: 'src/b.ts' }]
+    });
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/a.ts'))).toBe('alpha\nbravo\n');
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/b.ts'))).toBe('uno\ntwo\n');
+  });
+
+  it('rejects invalid unified diff patches', async () => {
+    await expect(
+      runFilesystemTool('apply_patch', {
+        reason: 'apply invalid patch',
+        patch: 'not a diff'
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT',
+      error: expect.stringContaining('unified diff')
+    });
+  });
+
+  it('rejects apply_patch path traversal before writing files', async () => {
+    setWorkspaceFile('src/example.ts', 'old\n');
+
+    await expect(
+      runFilesystemTool('apply_patch', {
+        reason: 'apply unsafe patch',
+        patch: ['--- a/src/example.ts', '+++ b/../outside.ts', '@@ -1 +1 @@', '-old', '+new', ''].join('\n')
+      })
+    ).resolves.toMatchObject({
+      ok: false,
+      code: 'PATH_OUTSIDE_WORKSPACE'
+    });
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/example.ts'))).toBe('old\n');
+  });
+
+  it('does not partially write apply_patch changes when a later file conflicts', async () => {
+    setWorkspaceFile('src/a.ts', 'alpha\nbeta\n');
+    setWorkspaceFile('src/b.ts', 'actual\ntwo\n');
+
+    const result = await runFilesystemTool('apply_patch', {
+      reason: 'apply patch with conflict',
+      patch: [
+        '--- a/src/a.ts',
+        '+++ b/src/a.ts',
+        '@@ -1,2 +1,2 @@',
+        ' alpha',
+        '-beta',
+        '+bravo',
+        '--- a/src/b.ts',
+        '+++ b/src/b.ts',
+        '@@ -1,2 +1,2 @@',
+        ' expected',
+        '-two',
+        '+dos',
+        ''
+      ].join('\n')
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT',
+      error: expect.stringContaining('does not apply cleanly')
+    });
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/a.ts'))).toBe('alpha\nbeta\n');
+    expect(vscodeMock.files.get(path.join(vscodeMock.workspaceRoot, 'src/b.ts'))).toBe('actual\ntwo\n');
   });
 
   it('returns NOT_A_DIRECTORY when list_files receives a file path', async () => {
