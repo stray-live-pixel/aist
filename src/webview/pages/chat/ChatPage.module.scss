@@ -31,11 +31,13 @@
 
 .contextSummaryRoot {
   min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .compactSelect {
   width: clamp(6.8rem, 18vw, 10.5rem);
-  min-width: 0;
+  min-width: 3.8rem;
   flex-shrink: 1;
 }
 

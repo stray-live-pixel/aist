@@ -12,7 +12,10 @@
     "write_file": "auto",
     "replace_in_file": "auto",
     "create_directory": "auto",
-    "delete_path": "auto"
+    "delete_path": "auto",
+    "create_plan": "auto",
+    "update_plan": "auto",
+    "set_plan_item_status": "auto"
   },
   "openrouterAgent.language": "ru",
   "openrouterAgent.approvalNotifications": {
