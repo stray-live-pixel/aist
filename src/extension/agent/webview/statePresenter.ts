@@ -16,6 +16,7 @@ import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
 import { getAgentMemoryItems } from '../memory/memory';
 import { mergeModels } from '../models/models';
+import { getTelemetryDashboardState } from '../runtime/telemetry';
 import { getAgentToolRegistry } from '../runtime/toolRegistry';
 import { getAgentTools } from '../runtime/tools';
 import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
@@ -60,6 +61,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const compactionSettings = getCompactionSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
   const projectToolDiagnostics = getAgentToolRegistry().snapshot().diagnostics;
+  const telemetry = getTelemetryDashboardState();
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -82,6 +84,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       instructionSources,
       compactionSettings,
       approvalNotificationSettings,
+      telemetry,
       projectToolDiagnostics
     });
   }
@@ -106,6 +109,7 @@ type StateContext = SendAgentStateParams & {
   instructionSources: unknown;
   compactionSettings: unknown;
   approvalNotificationSettings: unknown;
+  telemetry: unknown;
   projectToolDiagnostics: unknown;
 };
 
@@ -147,6 +151,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     streamingEnabled: context.streamingEnabled,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,
+    telemetry: context.telemetry,
     projectToolDiagnostics: context.projectToolDiagnostics,
     agentLanguage: context.language,
     agentMode: context.activeMode.id,

@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   BellRing,
   Brain,
   FileText,
@@ -72,6 +73,12 @@ export const GENERAL_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'settings.nav.notifications',
     icon: <BellRing size={15} />,
     descriptionKey: 'settings.nav.notificationsDescription'
+  },
+  {
+    id: 'telemetry',
+    labelKey: 'settings.nav.telemetry',
+    icon: <BarChart3 size={15} />,
+    descriptionKey: 'settings.nav.telemetryDescription'
   },
   {
     id: 'compaction',

@@ -549,5 +549,27 @@ export const storyAgentState: AgentState = {
   toolPermissions: storyToolPermissions,
   toolPermissionPresets: storyToolPermissionPresets,
   activeToolPermissionPresetId: 'balanced',
+  telemetry: {
+    storagePath: '/workspace/.aist-agent/telemetry',
+    recentRuns: [],
+    aggregates: {
+      runCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      stoppedCount: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      toolCallCount: 0,
+      repeatedToolCalls: 0,
+      failedEdits: 0,
+      approvals: { requested: 0, approved: 0, denied: 0 },
+      contextBytes: 0,
+      averageDurationMs: 0,
+      toolCallsByType: {}
+    },
+    jsonExport: '{}\n',
+    markdownExport: '# AIST Telemetry\n'
+  },
   projectToolDiagnostics: []
 };

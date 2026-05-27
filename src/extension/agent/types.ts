@@ -6,6 +6,7 @@ import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
 import type { AgentMemoryScope } from './memory/memory';
+import type { AgentRunTelemetryDraft } from './runtime/telemetry';
 
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type CodexServiceTier = 'auto' | 'priority';
@@ -26,6 +27,7 @@ export type AgentRun = {
   stopRequested: boolean;
   activityStream?: AgentActivityStream;
   permissionResolvers: Map<string, (decision: ToolApprovalDecision) => void>;
+  telemetry?: AgentRunTelemetryDraft;
 };
 
 /**

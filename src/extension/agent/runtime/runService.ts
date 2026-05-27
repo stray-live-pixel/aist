@@ -26,6 +26,7 @@ import {
   parseReflectionResponse
 } from './reflection';
 import { isAbortError } from './runtime';
+import { type RunTelemetryStatus, createRunTelemetryDraft, finalizeRunTelemetry } from './telemetry';
 import { handleAgentToolCall } from './toolRunner';
 
 export type AgentRunServiceDeps = {
@@ -71,6 +72,7 @@ export class AgentRunService {
 
     const run = this.startRun(chat, cleanPrompt);
     let reflectionOutcome: RunReflectionOutcome = { status: 'stopped' };
+    let telemetryStatus: RunTelemetryStatus = 'success';
     try {
       const initialHistory = this.createInitialHistory(chat, cleanPrompt);
       const result = await this.runLoopWithRetries(chat, initialHistory, run);
@@ -88,8 +90,9 @@ export class AgentRunService {
         run.stopRequested || isAbortError(error)
           ? { status: 'stopped' }
           : { status: 'error', error: formatChatErrorMessage(error, 'agent run failed') };
+      telemetryStatus = reflectionOutcome.status === 'error' ? 'error' : 'stopped';
     } finally {
-      this.finishRun(chat, run);
+      this.finishRun(chat, run, telemetryStatus);
       this.schedulePostRunReflection(chat.id, run, reflectionOutcome);
     }
   }
@@ -120,14 +123,16 @@ export class AgentRunService {
     this.deps.chats.appendMessage(chat.id, { role: 'user', content: prompt });
     this.deps.chats.setBusy(chat.id, true);
     this.deps.chats.setActivity(chat.id, 'thinking', t('activity.detail.prepareRequest'));
+    const startedAt = Date.now();
     const run = {
       chatId: chat.id,
-      startedAt: Date.now(),
+      startedAt,
       prompt,
       abortController: new AbortController(),
       stopRequested: false,
       activityStream: this.createActivityStream(chat.id),
-      permissionResolvers: new Map()
+      permissionResolvers: new Map(),
+      telemetry: createRunTelemetryDraft(chat, startedAt)
     };
     this.currentRun = run;
     this.deps.sendState();
@@ -285,10 +290,11 @@ export class AgentRunService {
     this.deps.logger.error('Agent run failed', error);
   }
 
-  private finishRun(chat: Chat, run: AgentRun): void {
+  private finishRun(chat: Chat, run: AgentRun, telemetryStatus: RunTelemetryStatus): void {
     if (this.currentRun === run) {
       this.currentRun = undefined;
     }
+    finalizeRunTelemetry(run.telemetry, telemetryStatus);
     this.deps.chats.setActivity(chat.id, undefined);
     this.deps.chats.setBusy(chat.id, false);
     this.deps.sendState();

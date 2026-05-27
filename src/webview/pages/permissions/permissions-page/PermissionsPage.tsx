@@ -11,6 +11,7 @@ import { InstructionsSettingsPage, PresetsSettingsPage, RolesSettingsPage } from
 import { SettingsHeader, SettingsSidebar } from './settings-navigation';
 import { SkillsSettingsPage } from './skills-settings-page';
 import { SystemSettingsPage } from './system-settings-page';
+import { TelemetrySettingsPage } from './telemetry-settings-page';
 import type { PermissionsPageProps, SettingsPageId } from './types';
 
 /**
@@ -37,7 +38,8 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     codexAuthenticated,
     toolPermissionPresets,
     activeToolPermissionPresetId,
-    projectToolDiagnostics
+    projectToolDiagnostics,
+    telemetry
   } = state;
   const activeMode = useMemo(
     () => agentModes.find((mode) => mode.id === agentMode) || agentModes[0],
@@ -83,6 +85,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
             />
           ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
+          {activePage === 'telemetry' ? <TelemetrySettingsPage telemetry={telemetry} /> : null}
           {activePage === 'compaction' ? <CompactionSettingsPage settings={compactionSettings} /> : null}
           {activePage === 'system' ? (
             <SystemSettingsPage

@@ -23,6 +23,7 @@ import { isCodexModel } from './models/models';
 import { createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory } from './runtime/compaction';
 import { formatChatErrorMessage } from './runtime/errors';
 import { AgentRunService } from './runtime/runService';
+import { initializeTelemetryStore } from './runtime/telemetry';
 import { getChatContextEstimate } from './runtime/usage';
 import type { WebviewMessage, WebviewSurface } from './types';
 import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from './webview/host';
@@ -54,6 +55,10 @@ export class AgentController {
     private readonly logger: AistLogger
   ) {
     initializeAgentConfigStore(context);
+    initializeTelemetryStore({
+      workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      fallbackRoot: (context.storageUri || context.globalStorageUri).fsPath
+    });
     this.openRouterClient = new OpenRouterClient(logger);
     this.codexClient = new CodexClient(context, logger);
     this.modelCatalog = new AgentModelCatalog(this.openRouterClient, this.codexClient, logger, () => this.sendState());

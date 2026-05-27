@@ -12,6 +12,7 @@ import { createPlanFromArgs, isPlanningTool, updatePlanItemStatus } from '../../
 import { getApprovalNotificationSettings } from '../config/notifications';
 import { type AgentMemoryCandidate, addAgentMemory } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';
+import { recordApprovalDecision, recordApprovalRequested, recordFailedEdit, recordToolStarted } from './telemetry';
 import { getToolReason, parseToolArguments } from './toolCalls';
 import { getAgentToolRegistry } from './toolRegistry';
 import { buildModelToolResult } from './toolResultCompaction';
@@ -36,6 +37,7 @@ export type HandleAgentToolCallParams = {
  */
 export async function handleAgentToolCall(params: HandleAgentToolCallParams): Promise<void> {
   const toolName = params.toolCall.function.name;
+  recordToolStarted(params.run.telemetry, toolName);
   const args = parseToolArguments(params.toolCall.function.arguments);
   const reason = getToolReason(args);
   const toolMessage = params.chats.appendMessage(params.chat.id, {
@@ -89,6 +91,9 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
       await runApprovedTool(toolName, args, params.chat.id, params.chats, previewHandle),
       toolMessage.userApprovalComment
     );
+    if (result.ok === false) {
+      recordFailedEdit(params.run.telemetry, toolName);
+    }
     const uiResult = preview ? { preview, result } : result;
     const modelResult = buildModelToolResult(toolName, args, uiResult);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
@@ -112,6 +117,7 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     }
 
     const result = toStructuredToolFailure(error);
+    recordFailedEdit(params.run.telemetry, toolName);
     const modelResult = buildModelToolResult(toolName, args, result);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: 'error',
@@ -160,7 +166,9 @@ async function waitForToolApproval(params: ApprovalParams): Promise<{ approved: 
   showApprovalSystemNotification(params.toolCall.function.name);
   params.sendState();
 
+  recordApprovalRequested(params.run.telemetry);
   const decision = await params.askToolPermission(params.toolMessageId, params.run);
+  recordApprovalDecision(params.run.telemetry, decision.approved);
   await saveApprovalMemory(decision);
   params.sendState();
   if (!decision.approved) {

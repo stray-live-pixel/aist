@@ -17,6 +17,13 @@ import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import type { AgentLoopResult, AgentRun } from '../types';
 import { isRetryableModelRequestError } from './errors';
 import { getPersistableHistory } from './runtime';
+import {
+  recordContextBytes,
+  recordModelRequest,
+  recordModelUsage,
+  recordRepeatedToolCall,
+  recordToolCalls
+} from './telemetry';
 import { findRepeatedToolCall, getRepeatedToolCallAnswer, redactLargeArgs } from './toolCalls';
 import { getAgentToolRegistry } from './toolRegistry';
 import {
@@ -66,6 +73,7 @@ export async function runAgentLoop(
 ): Promise<AgentLoopResult> {
   const { maxToolIterations, streamingEnabled } = getAgentSettingsSnapshot();
   const workingMessages = createWorkingMessages(deps.getSystemPrompt(), initialHistory);
+  recordContextBytes(run.telemetry, getContextBytes(workingMessages));
   const model = deps.getModelOption(chat.model);
   const usage: ChatUsageEstimate = createEmptyUsage();
   const toolCallCounts = new Map<string, number>();
@@ -101,6 +109,10 @@ export async function runAgentLoop(
       modelRequestNumber
     );
     const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
+    recordToolCalls(
+      run.telemetry,
+      toolCalls.map((toolCall) => toolCall.function.name)
+    );
 
     if (!toolCalls.length) {
       if (!run.activityStream?.hasContent()) {
@@ -116,6 +128,7 @@ export async function runAgentLoop(
 
     const repeatedToolCall = findRepeatedToolCall(toolCalls, toolCallCounts);
     if (repeatedToolCall) {
+      recordRepeatedToolCall(run.telemetry);
       const answer = getRepeatedToolCallAnswer(repeatedToolCall);
       deps.logger.info('Stopping repeated tool-call loop', {
         chatId: chat.id,
@@ -160,6 +173,21 @@ function createWorkingMessages(systemPrompt: string, initialHistory: OpenRouterM
   return [{ role: 'system', content: systemPrompt }, ...initialHistory.filter((message) => message.role !== 'system')];
 }
 
+function getContextBytes(messages: OpenRouterMessage[]): number {
+  return Buffer.byteLength(
+    JSON.stringify(
+      messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+        reasoning: message.reasoning,
+        tool_calls: message.tool_calls,
+        tool_call_id: message.tool_call_id
+      }))
+    ),
+    'utf8'
+  );
+}
+
 async function requestModel(
   chat: Chat,
   workingMessages: OpenRouterMessage[],
@@ -172,6 +200,7 @@ async function requestModel(
   requestNumber: number
 ): Promise<OpenRouterMessage> {
   const startedAt = Date.now();
+  recordModelRequest(run.telemetry);
   const provider = model?.provider || (chat.model.startsWith('codex:') ? 'codex' : 'openrouter');
   const endpoint = provider === 'codex' ? CODEX_RESPONSES_URL : OPENROUTER_URL;
   deps.chats.setModelRequest(chat.id, {
@@ -230,6 +259,7 @@ async function requestModel(
     const callUsage = getCallUsageFromModelUsage(responseMessage.usage, model?.pricing);
     const callContext = getChatContextEstimateFromModelUsage(responseMessage.usage, model);
     mergeUsage(usage, callUsage);
+    recordModelUsage(run.telemetry, callUsage);
     if (callUsage) {
       deps.chats.addUsage(chat.id, callUsage);
     }
