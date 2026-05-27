@@ -9,6 +9,38 @@ import { handleAgentToolCall } from './toolRunner';
 
 type Listener<T> = (event: T) => unknown;
 
+const filesystemToolsMock = vi.hoisted(() => ({
+  filesystemTools: [
+    {
+      type: 'function',
+      function: {
+        name: 'run_bash_script'
+      }
+    }
+  ],
+  runFilesystemTool: vi.fn(async (toolName: string) => {
+    if (toolName === 'run_bash_script') {
+      return {
+        ok: true,
+        cwd: '.',
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        durationMs: 12,
+        stdout: 'large stdout '.repeat(1000),
+        stderr: '',
+        stdoutTruncated: false,
+        stderrTruncated: false
+      };
+    }
+
+    return { ok: true };
+  }),
+  previewFilesystemTool: vi.fn(async () => undefined)
+}));
+
+vi.mock('../../tools/filesystemTools', () => filesystemToolsMock);
+
 vi.mock('vscode', () => {
   class EventEmitter<T> {
     private listeners: Listener<T>[] = [];
@@ -55,6 +87,49 @@ vi.mock('vscode', () => {
 });
 
 describe('handleAgentToolCall approval feedback', () => {
+  it('stores full tool output for UI while sending compact output to model history', async () => {
+    const context = createToolRunnerContext({
+      approved: true,
+      continueAfterDeny: false
+    });
+
+    await handleAgentToolCall({
+      chat: context.chat,
+      workingMessages: context.workingMessages,
+      toolCall: {
+        id: 'call-bash',
+        type: 'function',
+        function: {
+          name: 'run_bash_script',
+          arguments: {
+            reason: 'verify large output handling',
+            script: 'printf big'
+          }
+        }
+      },
+      run: context.run,
+      chats: context.chats,
+      sendState: vi.fn(),
+      throwIfStopped: vi.fn(),
+      askToolPermission: vi.fn(async () => context.decision)
+    });
+
+    const toolMessage = getLastToolMessage(context);
+    const modelResult = parseToolResult(context.workingMessages[0]?.content) as Record<string, unknown>;
+
+    expect(String(toolMessage.result?.stdout)).toContain('large stdout');
+    expect(toolMessage.modelResult).toMatchObject({
+      ok: true,
+      modelResultNotice: {
+        compacted: true,
+        fullResultStoredIn: 'ChatMessage.result'
+      }
+    });
+    expect(modelResult).toEqual(toolMessage.modelResult);
+    expect(modelResult).not.toHaveProperty('stdout');
+    expect(JSON.stringify(modelResult).length).toBeLessThan(String(toolMessage.result?.stdout).length);
+  });
+
   it('returns approve comments as userApprovalComment in the model-visible tool result', async () => {
     const context = createToolRunnerContext({
       approved: true,

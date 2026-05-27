@@ -12,6 +12,7 @@ import { createPlanFromArgs, isPlanningTool, updatePlanItemStatus } from '../../
 import { getApprovalNotificationSettings } from '../config/notifications';
 import type { AgentRun, ToolApprovalDecision } from '../types';
 import { getToolReason, parseToolArguments } from './toolCalls';
+import { buildModelToolResult } from './toolResultCompaction';
 
 export type HandleAgentToolCallParams = {
   chat: Chat;
@@ -84,16 +85,19 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
       await runApprovedTool(toolName, args, params.chat.id, params.chats, previewHandle),
       toolMessage.userApprovalComment
     );
+    const uiResult = preview ? { preview, result } : result;
+    const modelResult = buildModelToolResult(toolName, args, uiResult);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: result.ok === false ? 'error' : 'done',
       reason,
       args,
-      result: preview ? { preview, result } : result
+      result: uiResult,
+      modelResult
     });
     params.workingMessages.push({
       role: 'tool',
       tool_call_id: params.toolCall.id,
-      content: JSON.stringify(result, null, 2)
+      content: JSON.stringify(modelResult, null, 2)
     });
   } catch (error) {
     if (error instanceof ToolCallDeniedError) {
@@ -104,16 +108,18 @@ export async function handleAgentToolCall(params: HandleAgentToolCallParams): Pr
     }
 
     const result = toStructuredToolFailure(error);
+    const modelResult = buildModelToolResult(toolName, args, result);
     params.chats.updateMessage(params.chat.id, toolMessage.id, {
       status: 'error',
       reason,
       args,
-      result
+      result,
+      modelResult
     });
     params.workingMessages.push({
       role: 'tool',
       tool_call_id: params.toolCall.id,
-      content: JSON.stringify(result, null, 2)
+      content: JSON.stringify(modelResult, null, 2)
     });
   } finally {
     await previewHandle?.cleanup();
@@ -194,18 +200,21 @@ function denyToolCall(params: ApprovalParams, decision: ToolApprovalDecision): v
   if (decision.comment) {
     result.userApprovalComment = decision.comment;
   }
+  const uiResult = params.preview ? { preview: params.preview, result } : result;
+  const modelResult = buildModelToolResult(params.toolCall.function.name, params.args, uiResult);
   params.chats.updateMessage(params.chat.id, params.toolMessageId, {
     status: 'denied',
     approval: 'denied',
     reason: params.reason,
     args: params.args,
-    result: params.preview ? { preview: params.preview, result } : result,
+    result: uiResult,
+    modelResult,
     userApprovalComment: decision.comment
   });
   params.workingMessages.push({
     role: 'tool',
     tool_call_id: params.toolCall.id,
-    content: JSON.stringify(result)
+    content: JSON.stringify(modelResult)
   });
   params.sendState();
 }
