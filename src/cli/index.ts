@@ -14,6 +14,7 @@ export {
 } from './router';
 export type {
   CliCommand,
+  CliModelProvider,
   CliPaths,
   CliWriter,
   DoctorCheck,

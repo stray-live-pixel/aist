@@ -12,6 +12,8 @@ import type { JsonObject, JsonValue } from './types';
 
 export type ConfigScope = 'workspace' | 'global';
 
+export const OPENROUTER_API_KEY_SECRET_KEY = 'openrouter.apiKey';
+
 export type ConfigStoreErrorCode =
   | 'config.invalidKey'
   | 'config.invalidJson'

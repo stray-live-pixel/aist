@@ -1,4 +1,4 @@
-import type { ConfigStore, SecretStore } from '../../core/config';
+import { type ConfigStore, OPENROUTER_API_KEY_SECRET_KEY, type SecretStore } from '../../core/config';
 import { DEFAULT_MODEL } from '../../core/modelDefaults';
 import { OpenRouterTransport, type OpenRouterTransportOptions } from '../../core/openrouterTransport';
 import type {
@@ -12,7 +12,7 @@ import type {
 } from '../../core/types';
 import type { AistLogger } from '../shared/logger';
 
-export const OPENROUTER_API_KEY_SECRET_KEY = 'openrouter.apiKey';
+export { OPENROUTER_API_KEY_SECRET_KEY };
 export type { ReasoningEffort } from '../../core/types';
 
 export type OpenRouterClientTransportOptions = Pick<
