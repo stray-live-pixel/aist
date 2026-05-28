@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
-
+import type { ConfigStore, SecretStore } from '../../core/config';
 import type {
+  JsonValue,
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
@@ -66,10 +66,16 @@ type OpenRouterModelsResponse = {
   data?: OpenRouterModelApiItem[];
 };
 
+export const OPENROUTER_API_KEY_SECRET_KEY = 'openrouter.apiKey';
 export type { ReasoningEffort } from '../../core/types';
 
 export class OpenRouterClient {
-  constructor(private readonly logger?: AistLogger) {}
+  constructor(
+    private readonly configStore: ConfigStore,
+    private readonly secretStore?: Pick<SecretStore, 'get'>,
+    private readonly logger?: AistLogger,
+    private readonly env: Record<string, string | undefined> = process.env
+  ) {}
 
   async chat(
     messages: OpenRouterMessage[],
@@ -79,12 +85,11 @@ export class OpenRouterClient {
     stream?: ModelStreamCallbacks,
     lifecycle?: ModelRequestLifecycleCallbacks
   ): Promise<OpenRouterMessage> {
-    const config = vscode.workspace.getConfiguration('openrouterAgent');
-    const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
-    const model = modelOverride || config.get<string>('model') || DEFAULT_MODEL;
-    const siteUrl = config.get<string>('siteUrl') || '';
-    const siteName = config.get<string>('siteName') || 'aist';
-    const reasoningEffort = normalizeReasoningEffort(config.get<string>('reasoningEffort'));
+    const apiKey = await this.getApiKey();
+    const model = modelOverride || (await getConfigString(this.configStore, 'model')) || DEFAULT_MODEL;
+    const siteUrl = await getConfigString(this.configStore, 'siteUrl', '');
+    const siteName = await getConfigString(this.configStore, 'siteName', 'aist');
+    const reasoningEffort = normalizeReasoningEffort(await this.configStore.get('reasoningEffort'));
 
     if (!apiKey) {
       throw new Error('Set openrouterAgent.apiKey in VS Code settings or OPENROUTER_API_KEY in your environment.');
@@ -139,8 +144,7 @@ export class OpenRouterClient {
   }
 
   async listModels(): Promise<OpenRouterModelOption[]> {
-    const config = vscode.workspace.getConfiguration('openrouterAgent');
-    const apiKey = config.get<string>('apiKey') || process.env.OPENROUTER_API_KEY;
+    const apiKey = await this.getApiKey();
     const response = await fetch(`${OPENROUTER_MODELS_URL}?output_modalities=text`, {
       method: 'GET',
       headers: {
@@ -167,6 +171,25 @@ export class OpenRouterClient {
 
     return models.sort((a, b) => a.name.localeCompare(b.name));
   }
+
+  private async getApiKey(): Promise<string | undefined> {
+    const envApiKey = this.env.OPENROUTER_API_KEY;
+    if (envApiKey) {
+      return envApiKey;
+    }
+
+    const secretApiKey = await this.secretStore?.get(OPENROUTER_API_KEY_SECRET_KEY);
+    if (secretApiKey) {
+      return secretApiKey;
+    }
+
+    return getConfigString(this.configStore, 'apiKey');
+  }
+}
+
+async function getConfigString(store: ConfigStore, key: string, defaultValue = ''): Promise<string> {
+  const value: JsonValue | undefined = await store.get(key);
+  return typeof value === 'string' ? value : defaultValue;
 }
 
 async function parseOpenRouterStream(

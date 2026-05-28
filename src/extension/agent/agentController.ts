@@ -6,6 +6,7 @@ import type {
   OpenRouterMessage,
   OpenRouterTool
 } from '../../core/types';
+import { createVscodeConfigStore, createVscodeSecretStore } from '../adapters/vscodeStores';
 import { ChatStore } from '../chats/chatStore';
 import { createChatErrorMessage } from '../chats/errorMessages';
 import { CodexClient } from '../codex/client';
@@ -59,8 +60,10 @@ export class AgentController {
       workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       fallbackRoot: (context.storageUri || context.globalStorageUri).fsPath
     });
-    this.openRouterClient = new OpenRouterClient(logger);
-    this.codexClient = new CodexClient(context, logger);
+    const configStore = createVscodeConfigStore();
+    const secretStore = createVscodeSecretStore(context.secrets);
+    this.openRouterClient = new OpenRouterClient(configStore, secretStore, logger);
+    this.codexClient = new CodexClient(secretStore, logger);
     this.modelCatalog = new AgentModelCatalog(this.openRouterClient, this.codexClient, logger, () => this.sendState());
     this.runService = new AgentRunService({
       chats: this.chats,

@@ -9,6 +9,7 @@ Core не импортирует `vscode`: этот пакет доступен 
 - `src/core/**` хранит editor-agnostic типы и будущую переносимую runtime-логику.
 - `src/core/types.ts` хранит Node-safe runtime contracts для chat history, model transport, runs, tools, approvals и client events.
 - `src/core/storage.ts` хранит Node-safe path policy и файловые primitives для будущих CLI/backend stores.
+- `src/core/config.ts` хранит Node-safe config/secret store contracts и file-backed adapters.
 - `src/cli/**` хранит будущий CLI entrypoint и может зависеть от `src/core/**`, но не публикует бинарь в рамках текущего scaffold.
 - `src/extension/**` и `src/extension.ts` остаются текущим VS Code adapter/runtime путём и могут импортировать `vscode`.
 

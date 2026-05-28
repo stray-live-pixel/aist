@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { createVscodeConfigStore, createVscodeSecretStore } from '../adapters/vscodeStores';
 import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
 import type { AistLogger } from '../shared/logger';
@@ -35,8 +36,10 @@ export class AutonomousController implements vscode.Disposable {
     private readonly context: vscode.ExtensionContext,
     private readonly logger: AistLogger
   ) {
-    this.openRouterClient = new OpenRouterClient(logger);
-    this.codexClient = new CodexClient(context, logger);
+    const configStore = createVscodeConfigStore();
+    const secretStore = createVscodeSecretStore(context.secrets);
+    this.openRouterClient = new OpenRouterClient(configStore, secretStore, logger);
+    this.codexClient = new CodexClient(secretStore, logger);
   }
 
   open(): void {

@@ -3,6 +3,7 @@ import { type Server, createServer } from 'node:http';
 import * as os from 'node:os';
 import * as vscode from 'vscode';
 
+import type { SecretStore } from '../../core/config';
 import type {
   CodexServiceTier,
   ModelRequestLifecycleCallbacks,
@@ -121,7 +122,7 @@ export class CodexClient {
   private readonly sessionId = randomUUID();
 
   constructor(
-    private readonly context: vscode.ExtensionContext,
+    private readonly secretStore: SecretStore,
     private readonly logger: AistLogger
   ) {}
 
@@ -143,7 +144,7 @@ export class CodexClient {
   }
 
   async logout(): Promise<void> {
-    await this.context.secrets.delete(AUTH_SECRET_KEY);
+    await this.secretStore.delete(AUTH_SECRET_KEY);
     this.logger.info('ChatGPT Codex auth cleared');
     vscode.window.setStatusBarMessage(t('status.codexAuthCleared'), 2400);
   }
@@ -309,7 +310,7 @@ export class CodexClient {
   }
 
   private async readAuth(): Promise<CodexAuth | undefined> {
-    const raw = await this.context.secrets.get(AUTH_SECRET_KEY);
+    const raw = await this.secretStore.get(AUTH_SECRET_KEY);
     if (!raw) {
       return undefined;
     }
@@ -327,7 +328,7 @@ export class CodexClient {
   }
 
   private async saveAuth(auth: CodexAuth): Promise<void> {
-    await this.context.secrets.store(AUTH_SECRET_KEY, JSON.stringify(auth));
+    await this.secretStore.store(AUTH_SECRET_KEY, JSON.stringify(auth));
   }
 }
 
