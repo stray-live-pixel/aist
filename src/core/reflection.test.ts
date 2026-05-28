@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Chat } from '../../chats/types';
 import { buildRunReflectionPrompt, buildRunReflectionTrace, validateReflectionCandidates } from './reflection';
+import type { Chat } from './types';
 
 describe('post-run reflection trace', () => {
   it('builds a compact trace without raw tool output', () => {

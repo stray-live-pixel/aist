@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as vscode from 'vscode';
 
+import type { AgentInstructionSource } from '../../../core/systemPrompt';
 import { getWorkspaceFolder } from '../../shared/workspace';
 import type { CompactionSettings } from './compaction';
 import type { AgentMode } from './settings';
@@ -51,14 +52,7 @@ export type AgentPromptConfig = {
   activePresetId?: string;
 };
 
-export type AgentInstructionSource = {
-  id: string;
-  title: string;
-  content: string;
-  priority: number;
-  kind: 'base' | 'file' | 'declarative' | 'mode' | 'custom' | 'skills';
-  source?: string;
-};
+export type { AgentInstructionSource };
 
 type StoredInstructionItem = {
   id: string;

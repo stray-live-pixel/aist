@@ -3,7 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { Chat } from '../../chats/types';
 import {
   type AgentRunTelemetryRecord,
   aggregateTelemetry,
@@ -23,6 +22,7 @@ import {
   recordToolCalls,
   recordToolStarted
 } from './telemetry';
+import type { Chat } from './types';
 
 const tempRoots: string[] = [];
 

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { OpenRouterMessage } from '../../../core/types';
-import { classifyContextTask, governModelContext } from './contextGovernor';
-import type { EditorContextInput } from './editorContextBuilder';
+import { type EditorContextInput, classifyContextTask, governModelContext } from './contextGovernor';
+import type { OpenRouterMessage } from './types';
 
 const baseEditorContext: EditorContextInput = {
   fileName: '/workspace/src/example.ts',
