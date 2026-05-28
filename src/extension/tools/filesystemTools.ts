@@ -3,7 +3,7 @@ import path from 'node:path';
 import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
-import type { OpenRouterTool } from '../../core/types';
+import type { OpenRouterTool, ToolApprovalRequest } from '../../core/types';
 import { getRepoMap } from '../shared/repoMap';
 import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';
@@ -427,6 +427,16 @@ export async function previewFilesystemTool(
   }
 
   return undefined;
+}
+
+export async function previewFilesystemApprovalRequest(
+  request: ToolApprovalRequest
+): Promise<FilesystemToolPreview | undefined> {
+  if (request.previewKind !== 'vscode-editable-diff') {
+    return undefined;
+  }
+
+  return previewFilesystemTool(request.toolName, request.args);
 }
 
 function getWorkspaceInfo(): Record<string, unknown> {

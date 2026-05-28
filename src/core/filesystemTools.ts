@@ -26,7 +26,7 @@ type Workspace = {
   rootPath: string;
 };
 
-type ResolvedWorkspacePath = {
+export type ResolvedWorkspacePath = {
   absolutePath: string;
   relativePath: string;
 };
@@ -316,6 +316,26 @@ export function createNodeFilesystemToolRunner(
   context: NodeFilesystemToolContext
 ): (toolName: string, args: Record<string, unknown>) => Promise<Record<string, unknown>> {
   return (toolName, args) => runNodeFilesystemTool(context, toolName, args);
+}
+
+export function getNodeFilesystemChangedLineRange(beforeContent: string, afterContent: string): Record<string, number> {
+  return getChangedLineRange(beforeContent, afterContent);
+}
+
+export function requireNodeFilesystemString(value: unknown, name: string): string {
+  return requireString(value, name);
+}
+
+export async function resolveNodeWorkspacePath(
+  context: NodeFilesystemToolContext,
+  relativePath: string,
+  options: { allowMissing: boolean }
+): Promise<ResolvedWorkspacePath> {
+  return resolveWorkspacePath(context, relativePath, options);
+}
+
+export async function readNodeTextFileIfExists(filePath: string): Promise<string | undefined> {
+  return readFileIfExists(filePath);
 }
 
 export async function runNodeFilesystemTool(

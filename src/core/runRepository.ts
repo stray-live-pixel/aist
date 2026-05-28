@@ -20,7 +20,8 @@ import type {
   RuntimeEvent,
   RuntimeToolCallSnapshot,
   RuntimeToolResult,
-  ToolApprovalDecision
+  ToolApprovalDecision,
+  ToolApprovalRequest
 } from './types';
 
 const RUN_SCHEMA_VERSION = 1;
@@ -64,7 +65,8 @@ export type RunApprovalLogEntry = {
   chatId?: string;
   approvalId?: string;
   messageId?: string;
-  status?: 'requested' | 'approved' | 'denied';
+  status?: 'requested' | ToolApprovalRequest['status'];
+  approval?: ToolApprovalRequest;
   toolCall?: RuntimeToolCallSnapshot;
   decision?: ToolApprovalDecision;
   createdAt: number;

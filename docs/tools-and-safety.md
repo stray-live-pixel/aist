@@ -25,7 +25,7 @@ AIST exposes workspace tools to the model. Each tool call is shown in chat with 
 When a tool permission is `ask`, AIST adds an inline approval card to chat and waits for the user decision.
 
 - Approving runs the tool.
-- Denying returns a denied result to the agent.
+- Denying with continue returns a denied result to the agent; denying with stop aborts the current run.
 - Stopping the request denies pending approvals and aborts the current run.
 
 Read-only tools use `auto` by default. Shell commands and file mutations use `ask` by default.
@@ -40,6 +40,9 @@ Before mutating file tools write changes, AIST opens a VS Code-native diff previ
 - The approval card stays in chat while the diff editor remains open in parallel.
 
 Only after approval does the tool write the changes.
+
+The backend/CLI protocol is documented in [Backend approval protocol](approval-protocol.md). It preserves editable
+VS Code preview edits by applying the final approved content returned from the preview, not the original model proposal.
 
 ## Workspace boundaries
 

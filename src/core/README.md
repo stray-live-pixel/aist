@@ -15,6 +15,8 @@ Core не импортирует `vscode`: этот пакет доступен 
 - `src/core/filesystemTools.ts`, `tools/applyPatch.ts`, `tools/semanticEdit.ts`, `repoMap.ts` и `toolErrors.ts`
   хранят Node-safe filesystem tools core: реальные операции идут через Node `fs`/`spawn`, workspace guard не даёт
   выйти за корень проекта, а VS Code preview/document-symbol capabilities остаются adapter-specific.
+- `src/core/approvalProtocol.ts` хранит backend approval protocol: JSONL-friendly approval requests,
+  tool execution classes, VS Code editable diff preview handoff and headless diff artifact fallback.
 - `src/cli/**` хранит будущий CLI entrypoint и может зависеть от `src/core/**`, но не публикует бинарь в рамках текущего scaffold.
 - `src/extension/**` и `src/extension.ts` остаются текущим VS Code adapter/runtime путём и могут импортировать `vscode`.
 

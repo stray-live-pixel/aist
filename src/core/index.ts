@@ -2,6 +2,7 @@ import type { CoreRuntimeBoundary } from './types';
 
 export * from './storage';
 export * from './chatRepository';
+export * from './approvalProtocol';
 export * from './config';
 export * from './codexAuth';
 export * from './codexTransport';

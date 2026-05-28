@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { normalizeToolApprovalDecision } from '../../../core/approvalProtocol';
 import type { Chat, OpenRouterMessage, ToolCall } from '../../../core/types';
 import type { ChatStore } from '../../chats/chatStore';
 import { t } from '../../shared/i18n';
@@ -166,7 +167,7 @@ async function waitForToolApproval(params: ApprovalParams): Promise<{ approved: 
   params.sendState();
 
   recordApprovalRequested(params.run.telemetry);
-  const decision = await params.askToolPermission(params.toolMessageId, params.run);
+  const decision = normalizeToolApprovalDecision(await params.askToolPermission(params.toolMessageId, params.run));
   recordApprovalDecision(params.run.telemetry, decision.approved);
   await saveApprovalMemory(decision);
   params.sendState();

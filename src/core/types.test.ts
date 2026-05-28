@@ -1,6 +1,13 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { JsonObject, RuntimeEvent, RuntimeEventType } from './types';
+import type {
+  ApprovalResolveRequest,
+  JsonObject,
+  RuntimeEvent,
+  RuntimeEventType,
+  ToolApprovalRequest,
+  ToolExecutionRequirement
+} from './types';
 
 const runtimeEventTypes = [
   'run.started',
@@ -26,8 +33,15 @@ describe('core runtime contracts', () => {
     expectTypeOf<Extract<RuntimeEvent, { type: 'tool.call.approvalRequested' }>>().toMatchTypeOf<{
       approvalId: string;
       messageId: string;
+      approval: ToolApprovalRequest;
       toolCall: { args: JsonObject };
     }>();
+    expectTypeOf<ApprovalResolveRequest>().toMatchTypeOf<{
+      decision: 'approve' | 'deny-stop' | 'deny-continue';
+    }>();
+    expectTypeOf<ToolExecutionRequirement>().toMatchTypeOf<
+      { mode: 'auto' } | { mode: 'approval' } | { mode: 'ui-assisted-preview' }
+    >();
     expectTypeOf<Extract<RuntimeEvent, { type: 'model.request.updated' }>>().toMatchTypeOf<{
       request: { requestNumber: number; phase: string };
     }>();
