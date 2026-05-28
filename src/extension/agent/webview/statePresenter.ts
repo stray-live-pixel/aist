@@ -1,5 +1,5 @@
-import { getTelemetryDashboardState } from '../../../core/telemetry';
-import type { OpenRouterModelOption } from '../../../core/types';
+import { getTelemetryDashboardState } from '../../../core/features/telemetry/telemetry';
+import type { OpenRouterModelOption } from '../../../core/shared/types/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
 import { getWorkspaceName } from '../../shared/workspace';

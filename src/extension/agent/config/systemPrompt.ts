@@ -2,7 +2,7 @@ import {
   buildAgentSystemPrompt as buildCoreAgentSystemPrompt,
   createBaseAgentInstructionSource,
   sortAgentInstructionSources
-} from '../../../core/systemPrompt';
+} from '../../../core/features/system-prompt/systemPrompt';
 import { getAgentSkills } from '../../skills/skills';
 import { type AgentInstructionSource, getExternalInstructionSources, getPromptConfig } from './agentConfigStore';
 import { getAgentLanguage } from './settings';

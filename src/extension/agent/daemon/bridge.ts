@@ -22,7 +22,7 @@ import type {
   DaemonModelsResult,
   DaemonState
 } from '../../../cli/daemonProtocol';
-import type { JsonObject, OpenRouterModelOption, ToolApprovalDecision } from '../../../core/types';
+import type { JsonObject, OpenRouterModelOption, ToolApprovalDecision } from '../../../core/shared/types/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { Chat } from '../../chats/types';
 import type { AistLogger } from '../../shared/logger';

@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
-import type { AgentRuntimeLogger } from '../../../core/agentRuntime';
-import type { EditorContextInput } from '../../../core/contextGovernor';
-import type { ApprovalPreviewKind, ToolApprovalRequest } from '../../../core/types';
+import type { AgentRuntimeLogger } from '../../../core/app/runtime/agentRuntime';
+import type { EditorContextInput } from '../../../core/features/context/contextGovernor';
+import type { ApprovalPreviewKind, ToolApprovalRequest } from '../../../core/shared/types/types';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import type { FilesystemToolPreview } from '../../tools/previewEdits';

@@ -1,1 +1,1 @@
-export * from '../../../core/prompts';
+export * from '../../../core/features/system-prompt/prompts';

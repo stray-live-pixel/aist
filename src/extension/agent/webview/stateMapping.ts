@@ -1,5 +1,5 @@
-import type { OpenRouterModelOption } from '../../../core/types';
-import { createEmptyUsage, getChatContextEstimate } from '../../../core/usage';
+import { createEmptyUsage, getChatContextEstimate } from '../../../core/features/context/usage';
+import type { OpenRouterModelOption } from '../../../core/shared/types/types';
 import type { Chat } from '../../chats/types';
 
 export type WebviewActiveChat = Omit<Chat, 'history'> & {

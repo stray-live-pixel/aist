@@ -4,12 +4,43 @@ import path from 'node:path';
 
 import packageJson from '../../package.json';
 import {
+  type ConfigScope,
+  FileBackedConfigStore,
+  FileSecretStore,
+  OPENROUTER_API_KEY_SECRET_KEY
+} from '../core/app/config/config';
+import {
   type AgentRuntimeChatRepository,
   type AgentRuntimeConfigSnapshot,
   AgentRuntimeService,
   type AgentRuntimeToolCallHandler
-} from '../core/agentRuntime';
-import { getToolExecutionRequirement } from '../core/approvalProtocol';
+} from '../core/app/runtime/agentRuntime';
+import { ChatRepository } from '../core/entities/chat/chatRepository';
+import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/entities/memory/memory';
+import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
+import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
+import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/entities/model/modelDefaults';
+import type { FetchLike, ModelClient } from '../core/entities/model/modelTransport';
+import { OpenRouterTransport } from '../core/entities/model/openrouterTransport';
+import { RunRepository } from '../core/entities/run/runRepository';
+import {
+  globalAistRoot,
+  globalMemoryFile,
+  globalSettingsFile,
+  globalToolsDir,
+  globalWorkspaceChatsDir,
+  globalWorkspaceRunsDir,
+  globalWorkspaceTelemetryDir,
+  safeMkdir,
+  workspaceAistRoot,
+  workspaceSettingsFile,
+  workspaceToolsDir
+} from '../core/entities/storage/storage';
+import { getToolExecutionRequirement } from '../core/features/approval/approvalProtocol';
+import { createNodeFilesystemToolRunner } from '../core/features/filesystem-tools/filesystemTools';
+import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
+import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
+import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/features/tool-execution/toolRunner';
 import {
   AutonomousBackend,
   type AutonomousBackendEvent,
@@ -18,39 +49,8 @@ import {
   type AutonomousLaunchOptions,
   type AutonomousSessionView,
   type AutonomousState
-} from '../core/autonomous';
-import { ChatRepository } from '../core/chatRepository';
-import { CodexAuthSessionProvider } from '../core/codexAuth';
-import { CodexResponsesTransport } from '../core/codexTransport';
-import {
-  type ConfigScope,
-  FileBackedConfigStore,
-  FileSecretStore,
-  OPENROUTER_API_KEY_SECRET_KEY
-} from '../core/config';
-import { createNodeFilesystemToolRunner } from '../core/filesystemTools';
-import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/memory';
-import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/modelDefaults';
-import type { FetchLike, ModelClient } from '../core/modelTransport';
-import { OpenRouterTransport } from '../core/openrouterTransport';
-import { type AgentLanguage, getSystemPrompt } from '../core/prompts';
-import { getRepoVerificationContextNote } from '../core/repoMap';
-import { RunRepository } from '../core/runRepository';
-import {
-  globalAistRoot,
-  globalMemoryFile,
-  globalSettingsFile,
-  globalToolsDir,
-  safeMkdir,
-  workspaceAistRoot,
-  workspaceChatsDir,
-  workspaceRunsDir,
-  workspaceSettingsFile,
-  workspaceTelemetryDir,
-  workspaceToolsDir
-} from '../core/storage';
-import { DefaultToolRegistry, type ToolRegistry } from '../core/toolRegistry';
-import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/toolRunner';
+} from '../core/processes/autonomous';
+import { getRepoVerificationContextNote } from '../core/shared/lib/repoMap';
 import type {
   Chat,
   ChatMessage,
@@ -64,7 +64,7 @@ import type {
   RuntimeEvent,
   ToolApprovalDecision,
   ToolPermissionMode
-} from '../core/types';
+} from '../core/shared/types/types';
 import { AistDaemonServer } from './daemon';
 import { DaemonJsonRpcClient } from './daemonClient';
 import { type DaemonAutonomousStopResult, getDaemonSocketPath } from './daemonProtocol';
@@ -484,9 +484,9 @@ export function resolveCliPaths(
     workspaceRoot,
     workspaceAistRoot: workspaceAistRoot(workspaceRoot),
     workspaceSettingsFile: workspaceSettingsFile(workspaceRoot),
-    workspaceChatsDir: workspaceChatsDir(workspaceRoot),
-    workspaceRunsDir: workspaceRunsDir(workspaceRoot),
-    workspaceTelemetryDir: workspaceTelemetryDir(workspaceRoot),
+    workspaceChatsDir: globalWorkspaceChatsDir(workspaceRoot, homeDir),
+    workspaceRunsDir: globalWorkspaceRunsDir(workspaceRoot, homeDir),
+    workspaceTelemetryDir: globalWorkspaceTelemetryDir(workspaceRoot, homeDir),
     workspaceToolsDir: workspaceToolsDir(workspaceRoot),
     globalAistRoot: globalAistRoot(homeDir),
     globalSettingsFile: globalSettingsFile(homeDir),
@@ -500,9 +500,9 @@ export function formatPathsOutput(paths: CliPaths): string {
 Workspace root: ${paths.workspaceRoot}
 Workspace AIST root: ${paths.workspaceAistRoot}
 Workspace settings: ${paths.workspaceSettingsFile}
-Workspace chats: ${paths.workspaceChatsDir}
-Workspace runs: ${paths.workspaceRunsDir}
-Workspace telemetry: ${paths.workspaceTelemetryDir}
+Personal chats: ${paths.workspaceChatsDir}
+Personal runs: ${paths.workspaceRunsDir}
+Personal telemetry: ${paths.workspaceTelemetryDir}
 Workspace tools: ${paths.workspaceToolsDir}
 Global AIST root: ${paths.globalAistRoot}
 Global settings: ${paths.globalSettingsFile}
@@ -717,7 +717,7 @@ async function createChatCommandResult(
   options: RunCliOptions
 ): Promise<ChatCommandResult> {
   const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
-  const repository = new ChatRepository({ workspaceRoot });
+  const repository = new ChatRepository({ workspaceRoot, homeDir: options.homeDir });
   const model = command.model || (await resolveChatModel(workspaceRoot, options));
   const chat = await repository.create({ model });
   return toChatCommandResult(workspaceRoot, chat);
@@ -728,7 +728,7 @@ async function listChatsCommandResult(
   options: RunCliOptions
 ): Promise<ChatListCommandResult> {
   const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
-  const repository = new ChatRepository({ workspaceRoot });
+  const repository = new ChatRepository({ workspaceRoot, homeDir: options.homeDir });
   const chats = await repository.list();
   return {
     workspaceRoot,
@@ -741,7 +741,7 @@ async function getChatCommandResult(
   options: RunCliOptions
 ): Promise<ChatCommandResult> {
   const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
-  const repository = new ChatRepository({ workspaceRoot });
+  const repository = new ChatRepository({ workspaceRoot, homeDir: options.homeDir });
   const chat = await requireChat(repository, command.chatId);
   return toChatCommandResult(workspaceRoot, chat);
 }
@@ -751,7 +751,7 @@ async function clearChatCommandResult(
   options: RunCliOptions
 ): Promise<ChatCommandResult> {
   const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
-  const repository = new ChatRepository({ workspaceRoot });
+  const repository = new ChatRepository({ workspaceRoot, homeDir: options.homeDir });
   await requireChat(repository, command.chatId);
   const chat = await repository.clear(command.chatId);
   return toChatCommandResult(workspaceRoot, chat);
@@ -762,7 +762,7 @@ async function setChatModelCommandResult(
   options: RunCliOptions
 ): Promise<ChatCommandResult> {
   const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
-  const repository = new ChatRepository({ workspaceRoot });
+  const repository = new ChatRepository({ workspaceRoot, homeDir: options.homeDir });
   await requireChat(repository, command.chatId);
   const chat = await repository.update(command.chatId, { model: command.model });
   return toChatCommandResult(workspaceRoot, chat);
@@ -775,7 +775,7 @@ async function runChatAskCommand(
   stderr: CliWriter
 ): Promise<number> {
   const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
-  const chatRepository = new ChatRepository({ workspaceRoot });
+  const chatRepository = new ChatRepository({ workspaceRoot, homeDir: options.homeDir });
   const chat = await requireChat(chatRepository, command.chatId);
   if (chat.busy) {
     throw new CliCommandError('run.busy', `Chat already has an active run: ${chat.id}`, {
@@ -790,7 +790,7 @@ async function runChatAskCommand(
 
   const configStore = new FileBackedConfigStore({ workspaceRoot, homeDir: options.homeDir, logger: silentLogger });
   const modelClient = options.modelClient || (await createHeadlessModelClient(chat.model, configStore, options));
-  const runRepository = new RunRepository({ workspaceRoot });
+  const runRepository = new RunRepository({ workspaceRoot, homeDir: options.homeDir });
   const toolRegistry = options.toolRegistry || new DefaultToolRegistry();
   const memoryStore = new AgentMemoryStore(createMemoryStorePaths({ workspaceRoot, homeDir: options.homeDir }));
   const runState: {
@@ -1296,7 +1296,6 @@ function formatChatNewOutput(result: ChatCommandResult, json: boolean): string {
   return `Created chat ${result.chat.id}
 Workspace: ${result.workspaceRoot}
 Model: ${result.chat.model}
-Storage: ${path.join(workspaceChatsDir(result.workspaceRoot), result.chat.id)}
 `;
 }
 

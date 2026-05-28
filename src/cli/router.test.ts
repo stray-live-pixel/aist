@@ -5,18 +5,18 @@ import { Readable } from 'node:stream';
 import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ChatRepository } from '../core/chatRepository';
-import type { ModelClient } from '../core/modelTransport';
-import { RunRepository } from '../core/runRepository';
+import { ChatRepository } from '../core/entities/chat/chatRepository';
+import type { ModelClient } from '../core/entities/model/modelTransport';
+import { RunRepository } from '../core/entities/run/runRepository';
 import {
   globalSecretsFile,
   globalSettingsFile,
-  workspaceAutonomousSessionsDir,
-  workspaceChatsDir,
-  workspaceRunsDir,
+  globalWorkspaceAutonomousSessionsDir,
+  globalWorkspaceChatsDir,
+  globalWorkspaceRunsDir,
   workspaceSettingsFile
-} from '../core/storage';
-import type { OpenRouterMessage, RuntimeEvent, ToolCall } from '../core/types';
+} from '../core/entities/storage/storage';
+import type { OpenRouterMessage, RuntimeEvent, ToolCall } from '../core/shared/types/types';
 import { CliUsageError, formatHelpOutput, parseCliArgs, resolveCliPaths, runCli } from './router';
 
 const tempDirs: string[] = [];
@@ -344,7 +344,7 @@ describe('CLI commands', () => {
       workspaceRoot,
       chats: []
     });
-    expect(fs.existsSync(workspaceChatsDir(workspaceRoot))).toBe(false);
+    expect(fs.existsSync(globalWorkspaceChatsDir(workspaceRoot, homeDir))).toBe(false);
 
     const newOutput = createCliOutput();
     expect(
@@ -367,15 +367,16 @@ describe('CLI commands', () => {
         messages: []
       }
     });
-    const chatStorageRoot = path.join(workspaceChatsDir(workspaceRoot), created.chat.id);
+    const chatStorageDir = globalWorkspaceChatsDir(workspaceRoot, homeDir);
+    const chatStorageRoot = path.join(chatStorageDir, created.chat.id);
     expect(fs.statSync(chatStorageRoot).isDirectory()).toBe(true);
-    expect(fs.existsSync(path.join(workspaceChatsDir(workspaceRoot), 'index.json'))).toBe(true);
+    expect(fs.existsSync(path.join(chatStorageDir, 'index.json'))).toBe(true);
     expect(fs.existsSync(path.join(chatStorageRoot, 'meta.json'))).toBe(true);
     expect(fs.existsSync(path.join(chatStorageRoot, 'state.json'))).toBe(true);
     expect(fs.existsSync(path.join(chatStorageRoot, 'messages.jsonl'))).toBe(true);
     expect(fs.existsSync(path.join(chatStorageRoot, 'history.jsonl'))).toBe(true);
 
-    const repository = new ChatRepository({ workspaceRoot });
+    const repository = new ChatRepository({ workspaceRoot, homeDir });
     await repository.appendMessage(created.chat.id, { role: 'user', content: 'Hello from CLI' });
     await repository.appendMessage(created.chat.id, { role: 'assistant', content: 'Stored answer' });
 
@@ -455,7 +456,10 @@ describe('CLI commands', () => {
       }
     });
     expect(
-      fs.readFileSync(path.join(workspaceChatsDir(workspaceRoot), created.chat.id, 'messages.jsonl'), 'utf8')
+      fs.readFileSync(
+        path.join(globalWorkspaceChatsDir(workspaceRoot, homeDir), created.chat.id, 'messages.jsonl'),
+        'utf8'
+      )
     ).toBe('');
   });
 
@@ -516,6 +520,7 @@ describe('CLI commands', () => {
     const homeDir = createTempDir('aist-cli-home-');
     const chat = await new ChatRepository({
       workspaceRoot,
+      homeDir,
       idFactory: createIdFactory(['chat-ask'])
     }).create({ model: 'fake-model' });
     const modelClient = createQueuedModelClient([
@@ -573,10 +578,12 @@ describe('CLI commands', () => {
       }
     });
 
-    const restoredRun = await new RunRepository({ workspaceRoot }).get(started!.run.id);
+    const restoredRun = await new RunRepository({ workspaceRoot, homeDir }).get(started!.run.id);
     expect(restoredRun?.meta).toMatchObject({ chatId: chat.id, status: 'completed' });
     expect(restoredRun?.events.map((event) => event.type)).toEqual(events.map((event) => event.type));
-    expect(fs.existsSync(path.join(workspaceRunsDir(workspaceRoot), started!.run.id, 'events.jsonl'))).toBe(true);
+    expect(
+      fs.existsSync(path.join(globalWorkspaceRunsDir(workspaceRoot, homeDir), started!.run.id, 'events.jsonl'))
+    ).toBe(true);
   });
 
   it('runs a fake read-only tool in auto-readonly mode and saves tool history and events', async () => {
@@ -584,6 +591,7 @@ describe('CLI commands', () => {
     const homeDir = createTempDir('aist-cli-home-');
     const chat = await new ChatRepository({
       workspaceRoot,
+      homeDir,
       idFactory: createIdFactory(['chat-tool'])
     }).create({ model: 'fake-model' });
     const toolCall = createToolCall('read_file', { path: 'fake.txt' });
@@ -634,13 +642,13 @@ describe('CLI commands', () => {
     const started = events.find((event): event is Extract<RuntimeEvent, { type: 'run.started' }> => {
       return event.type === 'run.started';
     });
-    const restoredRun = await new RunRepository({ workspaceRoot }).get(started!.run.id);
+    const restoredRun = await new RunRepository({ workspaceRoot, homeDir }).get(started!.run.id);
     expect(restoredRun?.toolResults[0]).toMatchObject({
       chatId: chat.id,
       toolCall: { name: 'read_file', args: { path: 'fake.txt' } },
       result: { ok: true, path: 'fake.txt', content: 'fake content' }
     });
-    const restoredChat = await new ChatRepository({ workspaceRoot }).get(chat.id);
+    const restoredChat = await new ChatRepository({ workspaceRoot, homeDir }).get(chat.id);
     expect(restoredChat?.messages).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -660,6 +668,7 @@ describe('CLI commands', () => {
     const homeDir = createTempDir('aist-cli-home-');
     const chat = await new ChatRepository({
       workspaceRoot,
+      homeDir,
       idFactory: createIdFactory(['chat-approval'])
     }).create({ model: 'fake-model' });
     const modelClient = createQueuedModelClient([
@@ -697,6 +706,7 @@ describe('CLI commands', () => {
     const homeDir = createTempDir('aist-cli-home-');
     const chat = await new ChatRepository({
       workspaceRoot,
+      homeDir,
       idFactory: createIdFactory(['chat-error'])
     }).create({ model: 'fake-model' });
     const output = createCliOutput();
@@ -718,7 +728,7 @@ describe('CLI commands', () => {
     const started = events.find((event): event is Extract<RuntimeEvent, { type: 'run.started' }> => {
       return event.type === 'run.started';
     });
-    expect(await new RunRepository({ workspaceRoot }).get(started!.run.id)).toMatchObject({
+    expect(await new RunRepository({ workspaceRoot, homeDir }).get(started!.run.id)).toMatchObject({
       meta: {
         status: 'failed',
         error: { message: 'fake model boom' }
@@ -731,6 +741,7 @@ describe('CLI commands', () => {
     const homeDir = createTempDir('aist-cli-home-');
     const chat = await new ChatRepository({
       workspaceRoot,
+      homeDir,
       idFactory: createIdFactory(['chat-auth'])
     }).create({ model: 'openrouter/test-model' });
     const output = createCliOutput();
@@ -753,7 +764,7 @@ describe('CLI commands', () => {
         exitCode: 1
       }
     });
-    expect(fs.existsSync(workspaceRunsDir(workspaceRoot))).toBe(false);
+    expect(fs.existsSync(globalWorkspaceRunsDir(workspaceRoot, homeDir))).toBe(false);
   });
 
   it('keeps the documented chat ask JSONL fixture parseable', () => {
@@ -787,7 +798,7 @@ describe('CLI commands', () => {
     expect(JSON.parse(listOutput.stdoutText())).toMatchObject({
       workspaceRoot,
       state: {
-        storageRoot: workspaceAutonomousSessionsDir(workspaceRoot),
+        storageRoot: globalWorkspaceAutonomousSessionsDir(workspaceRoot, homeDir),
         definitions: {
           flows: [
             {
@@ -825,9 +836,9 @@ describe('CLI commands', () => {
     const completed = events.find((event) => event.type === 'autonomous.completed');
     expect(completed).toMatchObject({ status: 'finished', kind: 'flow', targetId: 'demo-flow' });
     const sessionId = completed?.sessionId as string;
-    expect(fs.existsSync(path.join(workspaceAutonomousSessionsDir(workspaceRoot), sessionId, 'events.jsonl'))).toBe(
-      true
-    );
+    expect(
+      fs.existsSync(path.join(globalWorkspaceAutonomousSessionsDir(workspaceRoot, homeDir), sessionId, 'events.jsonl'))
+    ).toBe(true);
 
     const exportOutput = createCliOutput();
     expect(

@@ -1,4 +1,4 @@
-import type { EditorContextMode } from '../../../core/types';
+import type { EditorContextMode } from '../../../core/shared/types/types';
 
 export type EditorContextInput = {
   fileName: string;

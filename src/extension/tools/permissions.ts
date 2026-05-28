@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
-import { nodeFilesystemTools } from '../../core/filesystemTools';
-import { planningTools } from '../../core/planningTools';
-import type { ToolPermissionMode } from '../../core/types';
+import { nodeFilesystemTools } from '../../core/features/filesystem-tools/filesystemTools';
+import { planningTools } from '../../core/features/planning/planningTools';
+import type { ToolPermissionMode } from '../../core/shared/types/types';
 import { getDaemonToolCatalog } from '../agent/daemon/toolCatalog';
 
 export type { ToolPermissionMode };

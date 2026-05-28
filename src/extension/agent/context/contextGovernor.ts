@@ -1,1 +1,1 @@
-export * from '../../../core/contextGovernor';
+export * from '../../../core/features/context/contextGovernor';

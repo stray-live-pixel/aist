@@ -4,13 +4,13 @@ import {
   createMemoryStorePaths,
   formatMemoryPromptBlock,
   sanitizeMemoryNote
-} from '../../../core/memory';
+} from '../../../core/entities/memory/memory';
 import type {
   AgentMemoryCandidate,
   AgentMemoryItem,
   AgentMemoryScope,
   AgentMemoryStorePaths
-} from '../../../core/memory';
+} from '../../../core/entities/memory/memory';
 import { getWorkspaceFolder } from '../../shared/workspace';
 
 export type { AgentMemoryCandidate, AgentMemoryItem, AgentMemoryScope, AgentMemoryStorePaths };

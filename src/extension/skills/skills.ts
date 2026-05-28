@@ -1,4 +1,4 @@
-import { runNodeSkillTool, runSkillTool } from '../../core/skills';
+import { runNodeSkillTool, runSkillTool } from '../../core/features/skills/skills';
 import {
   type AgentItemScope,
   readAgentConfig,

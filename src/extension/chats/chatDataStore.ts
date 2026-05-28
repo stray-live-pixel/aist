@@ -1,3 +1,5 @@
+import type * as vscode from 'vscode';
+
 import type {
   AgentReflectionCandidate,
   AgentReflectionCandidateStatus,
@@ -9,6 +11,7 @@ import type {
 } from './types';
 
 export type AgentChatStore = {
+  onDidChange: vscode.Event<void>;
   createChat(model?: string): Chat;
   compactChat(chatId: string, summary: string, tail?: { messages?: ChatMessage[]; history?: Chat['history'] }): Chat;
   duplicateChat(chatId: string): Chat;

@@ -1,11 +1,11 @@
 import path from 'node:path';
 import * as vscode from 'vscode';
 
-import { CodexAuthSessionProvider } from '../../core/codexAuth';
-import { FileSecretStore, OPENROUTER_API_KEY_SECRET_KEY } from '../../core/config';
-import { FALLBACK_MODEL_OPTIONS } from '../../core/modelDefaults';
-import { initializeTelemetryStore } from '../../core/telemetry';
-import type { OpenRouterModelOption, ToolApprovalDecision } from '../../core/types';
+import { FileSecretStore, OPENROUTER_API_KEY_SECRET_KEY } from '../../core/app/config/config';
+import { CodexAuthSessionProvider } from '../../core/entities/model/codexAuth';
+import { FALLBACK_MODEL_OPTIONS } from '../../core/entities/model/modelDefaults';
+import { initializeTelemetryStore } from '../../core/features/telemetry/telemetry';
+import type { OpenRouterModelOption, ToolApprovalDecision } from '../../core/shared/types/types';
 import type { AgentChatStore } from '../chats/chatDataStore';
 import { VscodeCodexLoginAdapter } from '../codex/vscodeLogin';
 import { getErrorMessage } from '../shared/errors';
@@ -52,13 +52,13 @@ export class AgentController {
   ) {
     initializeAgentConfigStore(context);
     initializeTelemetryStore({
-      workspaceRoot: daemonRuntime.workspaceRoot,
-      fallbackRoot: (context.storageUri || context.globalStorageUri).fsPath
+      fallbackRoot: context.globalStorageUri.fsPath
     });
     this.secretStore = new FileSecretStore({
       logger: { warn: (message, details) => this.logger.info(message, details) }
     });
     this.codexAuthProvider = new CodexAuthSessionProvider(this.secretStore, { logger });
+    this.context.subscriptions.push(this.chats.onDidChange(() => this.sendState()));
 
     void this.syncLegacyOpenRouterApiKey().catch((error) =>
       this.logger.error('Failed to sync legacy VS Code OpenRouter API key setting', error)

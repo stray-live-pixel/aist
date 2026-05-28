@@ -5,36 +5,54 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
-  type AgentRuntimeChatRepository,
-  type AgentRuntimeConfigSnapshot,
-  AgentRuntimeService,
-  type AgentRuntimeToolCallHandler
-} from '../core/agentRuntime';
-import { getToolExecutionRequirement, normalizeToolApprovalDecision } from '../core/approvalProtocol';
-import { AutonomousBackend, type AutonomousExportFormat, type AutonomousLaunchOptions } from '../core/autonomous';
-import { ChatRepository } from '../core/chatRepository';
-import { CodexAuthSessionProvider } from '../core/codexAuth';
-import { CodexResponsesTransport } from '../core/codexTransport';
-import { createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory } from '../core/compaction';
-import {
   type ConfigScope,
   FileBackedConfigStore,
   FileSecretStore,
   OPENROUTER_API_KEY_SECRET_KEY
-} from '../core/config';
-import type { EditorContextInput } from '../core/contextGovernor';
-import { createNodeFilesystemToolRunner } from '../core/filesystemTools';
-import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/memory';
-import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/modelDefaults';
-import type { FetchLike, ModelClient } from '../core/modelTransport';
-import { OpenRouterTransport } from '../core/openrouterTransport';
-import { type AgentLanguage, getSystemPrompt } from '../core/prompts';
-import { getRepoVerificationContextNote } from '../core/repoMap';
-import { RunRepository } from '../core/runRepository';
-import { type AgentSkill, runNodeSkillTool } from '../core/skills';
-import { globalSettingsFile, safeMkdir, workspaceAistRoot, workspaceSettingsFile } from '../core/storage';
-import { DefaultToolRegistry, type ToolRegistry } from '../core/toolRegistry';
-import { type ToolExecutionPreview, ToolRunner, type ToolRunnerExecutionAdapter } from '../core/toolRunner';
+} from '../core/app/config/config';
+import {
+  type AgentRuntimeChatRepository,
+  type AgentRuntimeConfigSnapshot,
+  AgentRuntimeService,
+  type AgentRuntimeToolCallHandler
+} from '../core/app/runtime/agentRuntime';
+import { ChatRepository } from '../core/entities/chat/chatRepository';
+import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/entities/memory/memory';
+import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
+import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
+import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/entities/model/modelDefaults';
+import type { FetchLike, ModelClient } from '../core/entities/model/modelTransport';
+import { OpenRouterTransport } from '../core/entities/model/openrouterTransport';
+import { RunRepository } from '../core/entities/run/runRepository';
+import {
+  globalSettingsFile,
+  globalWorkspaceRoot,
+  safeMkdir,
+  workspaceAistRoot,
+  workspaceSettingsFile
+} from '../core/entities/storage/storage';
+import { getToolExecutionRequirement, normalizeToolApprovalDecision } from '../core/features/approval/approvalProtocol';
+import {
+  createCompactionMessages,
+  selectCompactionTailMessages,
+  splitCompactionHistory
+} from '../core/features/compaction/compaction';
+import type { EditorContextInput } from '../core/features/context/contextGovernor';
+import { createNodeFilesystemToolRunner } from '../core/features/filesystem-tools/filesystemTools';
+import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
+import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
+import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
+import {
+  type ToolExecutionPreview,
+  ToolRunner,
+  type ToolRunnerExecutionAdapter
+} from '../core/features/tool-execution/toolRunner';
+import {
+  AutonomousBackend,
+  type AutonomousExportFormat,
+  type AutonomousLaunchOptions
+} from '../core/processes/autonomous';
+import { getRepoVerificationContextNote } from '../core/shared/lib/repoMap';
 import type {
   Chat,
   CodexServiceTier,
@@ -46,7 +64,7 @@ import type {
   RuntimeEvent,
   ToolApprovalDecision,
   ToolPermissionMode
-} from '../core/types';
+} from '../core/shared/types/types';
 import {
   DAEMON_BUSY_ERROR_CODE,
   DAEMON_EVENT_METHOD,
@@ -175,10 +193,10 @@ export class AistDaemonServer {
     this.now = options.now || Date.now;
     this.idFactory = options.idFactory || randomUUID;
     this.socketPath = options.socketPath || getDaemonSocketPath(this.workspaceRoot);
-    this.logFilePath = path.join(workspaceAistRoot(this.workspaceRoot), 'daemon.log');
+    this.logFilePath = path.join(globalWorkspaceRoot(this.workspaceRoot, this.homeDir), 'daemon.log');
     this.logger = new DaemonFileLogger(this.logFilePath);
-    this.chatRepository = new ChatRepository({ workspaceRoot: this.workspaceRoot });
-    this.runRepository = new RunRepository({ workspaceRoot: this.workspaceRoot });
+    this.chatRepository = new ChatRepository({ workspaceRoot: this.workspaceRoot, homeDir: this.homeDir });
+    this.runRepository = new RunRepository({ workspaceRoot: this.workspaceRoot, homeDir: this.homeDir });
     this.configStore = new FileBackedConfigStore({
       workspaceRoot: this.workspaceRoot,
       homeDir: this.homeDir,

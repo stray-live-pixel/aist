@@ -1,4 +1,4 @@
-import type { CodexServiceTier, EditorContextMode, ReasoningEffort } from '../../../core/types';
+import type { CodexServiceTier, EditorContextMode, ReasoningEffort } from '../../../core/shared/types/types';
 
 /**
  * Приводит значение reasoning effort из VS Code settings/webview к безопасному enum.

@@ -4,7 +4,7 @@ import type {
   AutonomousState,
   CreateAutonomousFlowInput,
   EditableAutonomousFlowDefinition
-} from '../../core/autonomous';
+} from '../../core/processes/autonomous';
 
 export type AutonomousExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }

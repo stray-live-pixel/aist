@@ -2,12 +2,12 @@ import { Buffer } from 'node:buffer';
 import { TextDecoder } from 'node:util';
 import * as vscode from 'vscode';
 
-import { createToolError } from '../../core/toolErrors';
+import { createToolError } from '../../core/shared/lib/toolErrors';
+import type { ToolApprovalRequest } from '../../core/shared/types/types';
 import type { AppliedPatch } from '../../core/tools/applyPatch';
 import { applyUnifiedPatchToContents, parseUnifiedPatch } from '../../core/tools/applyPatch';
 import type { SemanticEditPlan } from '../../core/tools/semanticEdit';
 import { changedRangesFromLineRange, selectSemanticEdit } from '../../core/tools/semanticEdit';
-import type { ToolApprovalRequest } from '../../core/types';
 import { resolveWorkspacePath } from '../shared/workspace';
 import { type EditableDiffPreview, showEditableFileDiff } from './editableDiffPreview';
 

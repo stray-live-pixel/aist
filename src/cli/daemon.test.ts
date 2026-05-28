@@ -3,8 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { ModelClient } from '../core/modelTransport';
-import type { OpenRouterMessage } from '../core/types';
+import type { ModelClient } from '../core/entities/model/modelTransport';
+import { globalWorkspaceAutonomousSessionsDir } from '../core/entities/storage/storage';
+import type { OpenRouterMessage } from '../core/shared/types/types';
 import { AistDaemonServer } from './daemon';
 import { DaemonJsonRpcClient, DaemonJsonRpcError } from './daemonClient';
 import {
@@ -243,7 +244,7 @@ describe('AIST daemon JSON-RPC local socket', () => {
   });
 
   it('serves autonomous state and dry-run flow events without changing chat activeRun', async () => {
-    const { server, workspaceRoot } = await startDaemon(createQueuedModelClient([]));
+    const { server, workspaceRoot, homeDir } = await startDaemon(createQueuedModelClient([]));
     createNativeAutonomousFlow(workspaceRoot, 'demo-flow');
     const client = await connectClient(server);
     const events = createEventCollector(client);
@@ -251,7 +252,7 @@ describe('AIST daemon JSON-RPC local socket', () => {
 
     const state = await client.request<DaemonAutonomousStateResult>('autonomous.state');
     expect(state.state.definitions.flows.map((flow) => flow.id)).toContain('demo-flow');
-    expect(state.state.storageRoot).toBe(path.join(workspaceRoot, '.aist-agent', 'autonomous', 'sessions'));
+    expect(state.state.storageRoot).toBe(globalWorkspaceAutonomousSessionsDir(workspaceRoot, homeDir));
 
     const start = await client.request<DaemonAutonomousStartResult>('autonomous.flow.start', {
       flowId: 'demo-flow',
@@ -290,13 +291,15 @@ describe('AIST daemon JSON-RPC local socket', () => {
   });
 });
 
-async function startDaemon(modelClient: ModelClient): Promise<{ server: AistDaemonServer; workspaceRoot: string }> {
+async function startDaemon(
+  modelClient: ModelClient
+): Promise<{ server: AistDaemonServer; workspaceRoot: string; homeDir: string }> {
   const workspaceRoot = createTempDir('aist-daemon-workspace-');
   const homeDir = createTempDir('aist-daemon-home-');
   const server = new AistDaemonServer({ workspaceRoot, homeDir, modelClient });
   await server.start();
   servers.push(server);
-  return { server, workspaceRoot };
+  return { server, workspaceRoot, homeDir };
 }
 
 async function connectClient(server: AistDaemonServer): Promise<DaemonJsonRpcClient> {

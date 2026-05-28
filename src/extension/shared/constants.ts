@@ -5,4 +5,4 @@ export {
   FALLBACK_MODEL_OPTIONS,
   OPENROUTER_MODELS_URL,
   OPENROUTER_URL
-} from '../../core/modelDefaults';
+} from '../../core/entities/model/modelDefaults';

@@ -9,8 +9,8 @@ import {
   buildAuthorizeUrl,
   exchangeCodeForTokens,
   generatePKCE
-} from '../../core/codexAuth';
-import type { FetchLike, ModelTransportLogger } from '../../core/modelTransport';
+} from '../../core/entities/model/codexAuth';
+import type { FetchLike, ModelTransportLogger } from '../../core/entities/model/modelTransport';
 import { t } from '../shared/i18n';
 
 export type VscodeCodexLoginAdapterOptions = {

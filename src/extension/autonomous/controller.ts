@@ -12,7 +12,7 @@ import {
   type AutonomousExportFormat,
   type AutonomousLaunchOptions,
   AutonomousSessionStore
-} from '../../core/autonomous';
+} from '../../core/processes/autonomous';
 import type { VscodeDaemonRuntimeBridge } from '../agent/daemon/bridge';
 import type { AistLogger } from '../shared/logger';
 import { getWebviewHtml } from '../shared/webviewHtml';

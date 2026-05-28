@@ -1,1 +1,1 @@
-export { getErrorMessage } from '../../core/toolErrors';
+export { getErrorMessage } from '../../core/shared/lib/toolErrors';

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as vscode from 'vscode';
 
-import type { AgentInstructionSource } from '../../../core/systemPrompt';
+import type { AgentInstructionSource } from '../../../core/features/system-prompt/systemPrompt';
 import { getWorkspaceFolder } from '../../shared/workspace';
 import type { CompactionSettings } from './compaction';
 import type { AgentMode } from './settings';

@@ -11,3 +11,7 @@ storybook-static/
 # AIST workspace storage can contain commit-worthy project artifacts, but secrets stay global.
 **/.aist-agent/secrets*.json
 **/.aist-agent/**/secrets*.json
+**/.aist-agent/chats
+**/.aist-agent/runs
+**/.aist-agent/telemetry
+**/.aist-agent/daemon.log

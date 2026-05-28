@@ -1,1 +1,1 @@
-export * from '../../core/repoMap';
+export * from '../../core/shared/lib/repoMap';

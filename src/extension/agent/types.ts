@@ -1,7 +1,12 @@
 import type * as vscode from 'vscode';
 
-import type { AgentRunTelemetryDraft } from '../../core/telemetry';
-import type { CodexServiceTier, AgentRun as CoreAgentRun, EditorContextMode, ReasoningEffort } from '../../core/types';
+import type { AgentRunTelemetryDraft } from '../../core/features/telemetry/telemetry';
+import type {
+  CodexServiceTier,
+  AgentRun as CoreAgentRun,
+  EditorContextMode,
+  ReasoningEffort
+} from '../../core/shared/types/types';
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
@@ -15,7 +20,7 @@ export type {
   ReasoningEffort,
   RepeatedToolCall,
   ToolApprovalDecision
-} from '../../core/types';
+} from '../../core/shared/types/types';
 
 /**
  * Хранит состояние одного активного запуска агента.

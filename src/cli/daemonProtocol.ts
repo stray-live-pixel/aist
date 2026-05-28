@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { ConfigScope } from '../core/app/config/config';
+import type { EditorContextInput } from '../core/features/context/contextGovernor';
 import type {
   AutonomousBackendEvent,
   AutonomousExportFormat,
@@ -9,9 +11,7 @@ import type {
   AutonomousStartResult,
   AutonomousState,
   AutonomousStopResult
-} from '../core/autonomous';
-import type { ConfigScope } from '../core/config';
-import type { EditorContextInput } from '../core/contextGovernor';
+} from '../core/processes/autonomous';
 import type {
   ApprovalPreviewResolution,
   ApprovalResolveRequest,
@@ -21,7 +21,7 @@ import type {
   JsonValue,
   OpenRouterModelOption,
   RuntimeEvent
-} from '../core/types';
+} from '../core/shared/types/types';
 
 export const DAEMON_PROTOCOL_VERSION = 1;
 export const DAEMON_EVENT_METHOD = 'event';

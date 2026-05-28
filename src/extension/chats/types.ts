@@ -14,4 +14,4 @@ export type {
   ChatPlanItemStatus,
   ChatSummary,
   ChatUsageEstimate
-} from '../../core/types';
+} from '../../core/shared/types/types';

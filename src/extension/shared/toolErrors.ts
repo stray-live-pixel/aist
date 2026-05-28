@@ -1,1 +1,1 @@
-export * from '../../core/toolErrors';
+export * from '../../core/shared/lib/toolErrors';

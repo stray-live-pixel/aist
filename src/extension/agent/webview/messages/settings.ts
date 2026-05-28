@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { validateReflectionCandidates } from '../../../../core/reflection';
+import { validateReflectionCandidates } from '../../../../core/features/reflection/reflection';
 import { getErrorMessage } from '../../../shared/errors';
 import { t } from '../../../shared/i18n';
 import {
