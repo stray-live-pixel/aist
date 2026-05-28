@@ -1,0 +1,236 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import type { ModelClient } from '../core/modelTransport';
+import type { OpenRouterMessage } from '../core/types';
+import { AistDaemonServer } from './daemon';
+import { DaemonJsonRpcClient, DaemonJsonRpcError } from './daemonClient';
+import {
+  DAEMON_BUSY_ERROR_CODE,
+  type DaemonChatAskResult,
+  type DaemonChatCreateResult,
+  type DaemonChatGetResult,
+  type DaemonEvent,
+  type DaemonState
+} from './daemonProtocol';
+
+const tempDirs: string[] = [];
+const servers: AistDaemonServer[] = [];
+const clients: DaemonJsonRpcClient[] = [];
+
+afterEach(async () => {
+  for (const client of clients.splice(0)) {
+    client.close();
+  }
+
+  for (const server of servers.splice(0)) {
+    await server.close();
+  }
+
+  for (const tempDir of tempDirs.splice(0)) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+describe('AIST daemon JSON-RPC local socket', () => {
+  it('serves state.get and chat.ask while streaming subscribed events', async () => {
+    const { server } = await startDaemon(
+      createQueuedModelClient([
+        {
+          role: 'assistant',
+          content: 'Daemon final answer.',
+          usage: { promptTokens: 3, completionTokens: 4, totalTokens: 7 }
+        }
+      ])
+    );
+    const client = await connectClient(server);
+    const events = createEventCollector(client);
+    await client.subscribe();
+
+    const initialState = await client.request<DaemonState>('state.get');
+    expect(initialState.chats).toEqual([]);
+    expect(initialState.transport).toMatchObject({
+      kind: 'local-socket',
+      framing: 'json-rpc-2.0-newline-delimited',
+      socketPath: server.socketPath
+    });
+
+    const created = await client.request<DaemonChatCreateResult>('chat.create', { model: 'fake-model' });
+    const ask = await client.request<DaemonChatAskResult>('chat.ask', {
+      chatId: created.chat.id,
+      prompt: 'Hello daemon'
+    });
+
+    expect(ask).toMatchObject({
+      chatId: created.chat.id,
+      accepted: true
+    });
+    expect(ask.runId).toEqual(expect.any(String));
+
+    const finished = await events.waitFor((event) => event.type === 'run.finished' && event.run.id === ask.runId);
+    expect(finished).toMatchObject({ type: 'run.finished', status: 'completed' });
+    expect(events.items.map((event) => event.type)).toEqual(
+      expect.arrayContaining(['state.changed', 'run.started', 'message.appended', 'run.finished'])
+    );
+
+    const restored = await client.request<DaemonChatGetResult>('chat.get', { chatId: created.chat.id });
+    expect(restored.chat).toMatchObject({
+      id: created.chat.id,
+      lastAnswer: 'Daemon final answer.',
+      busy: false,
+      messages: [
+        { role: 'user', content: 'Hello daemon' },
+        { role: 'assistant', content: 'Daemon final answer.' }
+      ]
+    });
+    expect((await client.request<DaemonState>('state.get')).activeRun).toBeNull();
+  });
+
+  it('rejects a second writer run while a reconnected client can read state', async () => {
+    const deferredResponse = createDeferred<OpenRouterMessage>();
+    const { server } = await startDaemon({
+      chat: async () => deferredResponse.promise
+    });
+    const firstClient = await connectClient(server);
+    const firstEvents = createEventCollector(firstClient);
+    await firstClient.subscribe();
+    const firstChat = await firstClient.request<DaemonChatCreateResult>('chat.create', { model: 'fake-model' });
+    const secondChat = await firstClient.request<DaemonChatCreateResult>('chat.create', { model: 'fake-model' });
+
+    const ask = await firstClient.request<DaemonChatAskResult>('chat.ask', {
+      chatId: firstChat.chat.id,
+      prompt: 'Keep running'
+    });
+    expect(ask.runId).toEqual(expect.any(String));
+
+    const secondClient = await connectClient(server);
+    const activeState = await secondClient.request<DaemonState>('state.get');
+    expect(activeState.activeRun).toEqual({ runId: ask.runId, chatId: firstChat.chat.id });
+
+    await expect(
+      secondClient.request('chat.ask', {
+        chatId: secondChat.chat.id,
+        prompt: 'Concurrent prompt'
+      })
+    ).rejects.toMatchObject({
+      data: {
+        code: DAEMON_BUSY_ERROR_CODE
+      }
+    } satisfies Partial<DaemonJsonRpcError>);
+
+    secondClient.close();
+    const reconnectedClient = await connectClient(server);
+    const reconnectedState = await reconnectedClient.request<DaemonState>('state.get');
+    expect(reconnectedState.activeRun).toEqual({ runId: ask.runId, chatId: firstChat.chat.id });
+    expect(reconnectedState.chats.map((chat) => chat.id)).toEqual(
+      expect.arrayContaining([firstChat.chat.id, secondChat.chat.id])
+    );
+
+    deferredResponse.resolve({ role: 'assistant', content: 'Finished after reconnect.' });
+    await firstEvents.waitFor((event) => event.type === 'run.finished' && event.run.id === ask.runId);
+    const finalState = await reconnectedClient.request<DaemonState>('state.get');
+    expect(finalState.activeRun).toBeNull();
+  });
+});
+
+async function startDaemon(modelClient: ModelClient): Promise<{ server: AistDaemonServer; workspaceRoot: string }> {
+  const workspaceRoot = createTempDir('aist-daemon-workspace-');
+  const homeDir = createTempDir('aist-daemon-home-');
+  const server = new AistDaemonServer({ workspaceRoot, homeDir, modelClient });
+  await server.start();
+  servers.push(server);
+  return { server, workspaceRoot };
+}
+
+async function connectClient(server: AistDaemonServer): Promise<DaemonJsonRpcClient> {
+  const client = await DaemonJsonRpcClient.connect({ socketPath: server.socketPath });
+  clients.push(client);
+  return client;
+}
+
+function createTempDir(prefix: string): string {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(tempDir);
+  return tempDir;
+}
+
+function createQueuedModelClient(responses: OpenRouterMessage[]): ModelClient {
+  const queue = [...responses];
+  return {
+    chat: async () => {
+      const next = queue.shift();
+      if (!next) {
+        throw new Error('Unexpected fake model request.');
+      }
+      return next;
+    }
+  };
+}
+
+function createDeferred<T>(): {
+  readonly promise: Promise<T>;
+  resolve(value: T): void;
+  reject(error: unknown): void;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
+function createEventCollector(client: DaemonJsonRpcClient): {
+  readonly items: DaemonEvent[];
+  waitFor<T extends DaemonEvent>(predicate: (event: DaemonEvent) => event is T): Promise<T>;
+  waitFor(predicate: (event: DaemonEvent) => boolean): Promise<DaemonEvent>;
+} {
+  const items: DaemonEvent[] = [];
+  const waiters: Array<{
+    predicate(event: DaemonEvent): boolean;
+    resolve(event: DaemonEvent): void;
+    reject(error: unknown): void;
+    timeout: NodeJS.Timeout;
+  }> = [];
+
+  client.onEvent((event) => {
+    items.push(event);
+    for (const waiter of [...waiters]) {
+      if (!waiter.predicate(event)) {
+        continue;
+      }
+
+      clearTimeout(waiter.timeout);
+      waiters.splice(waiters.indexOf(waiter), 1);
+      waiter.resolve(event);
+    }
+  });
+
+  return {
+    items,
+    waitFor(predicate: (event: DaemonEvent) => boolean): Promise<DaemonEvent> {
+      const existing = items.find(predicate);
+      if (existing) {
+        return Promise.resolve(existing);
+      }
+
+      return new Promise<DaemonEvent>((resolve, reject) => {
+        const waiter = {
+          predicate,
+          resolve,
+          reject,
+          timeout: setTimeout(() => {
+            waiters.splice(waiters.indexOf(waiter), 1);
+            reject(
+              new Error(`Timed out waiting for daemon event. Seen: ${items.map((event) => event.type).join(', ')}`)
+            );
+          }, 3000)
+        };
+        waiters.push(waiter);
+      });
+    }
+  };
+}

@@ -220,6 +220,31 @@ export class AgentRuntimeService {
   }
 
   async ask(chatId: string, prompt: string): Promise<AgentRuntimeRunResult> {
+    const acceptedRun = await this.acceptRun(chatId, prompt);
+    if (!acceptedRun.accepted) {
+      return acceptedRun;
+    }
+
+    await acceptedRun.done;
+    return { accepted: true, runId: acceptedRun.runId };
+  }
+
+  async startAsk(chatId: string, prompt: string): Promise<AgentRuntimeRunResult> {
+    const acceptedRun = await this.acceptRun(chatId, prompt);
+    if (!acceptedRun.accepted) {
+      return acceptedRun;
+    }
+
+    void acceptedRun.done.catch((error) => {
+      this.deps.logger.error?.('Agent background run failed outside runtime handler', error);
+    });
+    return { accepted: true, runId: acceptedRun.runId };
+  }
+
+  private async acceptRun(
+    chatId: string,
+    prompt: string
+  ): Promise<{ accepted: true; runId: string; done: Promise<void> } | { accepted: false; error: RuntimeErrorInfo }> {
     const cleanPrompt = String(prompt || '').trim();
     if (!cleanPrompt) {
       return { accepted: false, error: { message: 'Prompt is empty.', code: 'run.emptyPrompt' } };
@@ -246,6 +271,19 @@ export class AgentRuntimeService {
     this.activeRunsByChat.set(chat.id, activeRun);
     this.activeRunsById.set(runId, activeRun);
 
+    return {
+      accepted: true,
+      runId,
+      done: scheduleRunExecution(() => this.executeAcceptedRun(chat, runId, run, cleanPrompt))
+    };
+  }
+
+  private async executeAcceptedRun(
+    chat: Chat,
+    runId: string,
+    run: AgentRun<unknown>,
+    cleanPrompt: string
+  ): Promise<void> {
     let reflectionOutcome: RunReflectionOutcome = { status: 'stopped' };
     let telemetryStatus: AgentRuntimeTelemetryStatus = 'success';
     try {
@@ -275,8 +313,6 @@ export class AgentRuntimeService {
       this.activeRunsById.delete(runId);
       this.schedulePostRunReflection(chat.id, runId, run, reflectionOutcome);
     }
-
-    return { accepted: true, runId };
   }
 
   stop(runId?: string): void {
@@ -1027,6 +1063,14 @@ export function isRetryableModelRequestError(error: unknown): boolean {
 
 function createWorkingMessages(systemPrompt: string, initialHistory: OpenRouterMessage[]): OpenRouterMessage[] {
   return [{ role: 'system', content: systemPrompt }, ...initialHistory.filter((message) => message.role !== 'system')];
+}
+
+function scheduleRunExecution(task: () => Promise<void>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      void task().then(resolve, reject);
+    }, 0);
+  });
 }
 
 function getContextBytes(messages: OpenRouterMessage[]): number {

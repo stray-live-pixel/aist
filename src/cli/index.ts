@@ -24,6 +24,24 @@ export type {
   DoctorResult,
   RunCliOptions
 } from './router';
+export {
+  AistDaemonServer,
+  DaemonJsonRpcClient,
+  DaemonJsonRpcError,
+  DAEMON_BUSY_ERROR_CODE,
+  DAEMON_EVENT_METHOD,
+  DAEMON_PROTOCOL_VERSION,
+  getDaemonSocketPath
+} from './daemonIndex';
+export type {
+  AistDaemonServerOptions,
+  DaemonActiveRun,
+  DaemonChat,
+  DaemonChatAskParams,
+  DaemonChatAskResult,
+  DaemonEvent,
+  DaemonState
+} from './daemonIndex';
 
 export interface CliEntrypointMetadata {
   readonly name: 'aist-cli';

@@ -56,6 +56,7 @@ import type {
   ToolApprovalDecision,
   ToolPermissionMode
 } from '../core/types';
+import { AistDaemonServer } from './daemon';
 
 export const CLI_NAME = 'aist';
 export const CLI_VERSION = packageJson.version;
@@ -66,6 +67,7 @@ export type CliApprovalMode = 'ask' | 'auto-readonly' | 'auto-all' | 'deny';
 export type CliCommand =
   | { readonly kind: 'help' }
   | { readonly kind: 'version' }
+  | { readonly kind: 'daemon'; readonly workspace?: string; readonly socket?: string }
   | { readonly kind: 'doctor'; readonly workspace?: string }
   | { readonly kind: 'paths'; readonly workspace?: string }
   | { readonly kind: 'chatNew'; readonly workspace?: string; readonly model?: string; readonly json: boolean }
@@ -197,6 +199,10 @@ export function parseCliArgs(args: readonly string[]): CliCommand {
     return { kind: command, workspace: options.workspace };
   }
 
+  if (command === 'daemon') {
+    return parseDaemonCommand(rest);
+  }
+
   if (command === 'config') {
     return parseConfigCommand(rest);
   }
@@ -253,6 +259,10 @@ export async function runCli(args: readonly string[], options: RunCliOptions = {
       }
 
       return 0;
+    }
+
+    if (command.kind === 'daemon') {
+      return await runDaemonCommand(command, options, stderr);
     }
 
     if (command.kind === 'chatNew') {
@@ -353,6 +363,7 @@ Usage:
   aist --version
   aist paths [--workspace <path>]
   aist doctor [--workspace <path>]
+  aist daemon --workspace <path> [--socket <path>]
   aist chat new [--workspace <path>] [--model <model>] [--json]
   aist chat list [--workspace <path>] [--json]
   aist chat get <chatId> [--workspace <path>] [--json]
@@ -370,6 +381,7 @@ Usage:
 Commands:
   paths     Print workspace and global AIST paths.
   doctor    Check workspace and global AIST storage paths.
+  daemon    Start the local-socket JSON-RPC backend for one workspace.
   chat      Create, list, inspect and update file-backed chats.
   config    Read or write non-secret CLI/backend settings.
   auth      Manage model provider auth status and global secrets.
@@ -377,6 +389,7 @@ Commands:
 
 Options:
   --workspace <path>  Workspace root. Defaults to the current directory.
+  --socket <path>     Override daemon local socket path.
   --model <model>     Model id for chat creation.
   --scope <scope>     Config write scope: global or workspace.
   --provider <name>   Model provider: openrouter, codex, or all.
@@ -470,6 +483,47 @@ Global AIST root: ${result.paths.globalAistRoot}
 
 ${checkLines}
 `;
+}
+
+async function runDaemonCommand(
+  command: Extract<CliCommand, { kind: 'daemon' }>,
+  options: RunCliOptions,
+  stderr: CliWriter
+): Promise<number> {
+  const paths = resolveCliPaths({ ...options, workspace: command.workspace });
+  const server = new AistDaemonServer({
+    workspaceRoot: paths.workspaceRoot,
+    homeDir: options.homeDir,
+    env: getCliEnv(options),
+    socketPath: command.socket,
+    fetch: options.fetch,
+    modelClient: options.modelClient,
+    toolRegistry: options.toolRegistry,
+    filesystemToolRunner: options.filesystemToolRunner
+  });
+
+  await server.start();
+  stderr(`${CLI_NAME} daemon listening on ${server.socketPath}\n`);
+
+  return new Promise<number>((resolve) => {
+    let shuttingDown = false;
+    const shutdown = (signal: NodeJS.Signals) => {
+      if (shuttingDown) {
+        return;
+      }
+
+      shuttingDown = true;
+      stderr(`${CLI_NAME} daemon shutting down after ${signal}.\n`);
+      void server.close().finally(() => {
+        process.off('SIGINT', shutdown);
+        process.off('SIGTERM', shutdown);
+        resolve(0);
+      });
+    };
+
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+  });
 }
 
 const OPENROUTER_ENV_KEY = 'OPENROUTER_API_KEY';
@@ -1674,6 +1728,46 @@ type WorkspaceOptions = {
   readonly showHelp: boolean;
 };
 
+function parseDaemonCommand(args: readonly string[]): CliCommand {
+  let workspace: string | undefined;
+  let socket: string | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { kind: 'help' };
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken('daemon', args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    const socketResult = parseSocketOptionToken('daemon', args, index, socket);
+    if (socketResult.matched) {
+      socket = socketResult.socket;
+      index = socketResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for 'daemon': ${token}`);
+    }
+
+    throw new CliUsageError(`Unexpected argument for 'daemon': ${token}`);
+  }
+
+  if (!workspace) {
+    throw new CliUsageError(`'daemon' requires --workspace <path>.`);
+  }
+
+  return { kind: 'daemon', workspace, socket };
+}
+
 function parseChatCommand(args: readonly string[]): CliCommand {
   const [subcommand, ...rest] = args;
   if (!subcommand || subcommand === '--help' || subcommand === '-h') {
@@ -2317,6 +2411,43 @@ function parseWorkspaceOptionToken(
   }
 
   return { matched: false, workspace: current, index };
+}
+
+function parseSocketOptionToken(
+  command: string,
+  args: readonly string[],
+  index: number,
+  current: string | undefined
+): { readonly matched: boolean; readonly socket?: string; readonly index: number } {
+  const token = args[index];
+
+  if (token === '--socket') {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option --socket was provided more than once for '${command}'.`);
+    }
+
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) {
+      throw new CliUsageError(`Option --socket for '${command}' requires a path.`);
+    }
+
+    return { matched: true, socket: value, index: index + 1 };
+  }
+
+  if (token.startsWith('--socket=')) {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option --socket was provided more than once for '${command}'.`);
+    }
+
+    const value = token.slice('--socket='.length);
+    if (value.trim() === '') {
+      throw new CliUsageError(`Option --socket for '${command}' requires a path.`);
+    }
+
+    return { matched: true, socket: value, index };
+  }
+
+  return { matched: false, socket: current, index };
 }
 
 function parseScopeOptionToken(

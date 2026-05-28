@@ -36,6 +36,7 @@ describe('CLI help and parser', () => {
         aist --version
         aist paths [--workspace <path>]
         aist doctor [--workspace <path>]
+        aist daemon --workspace <path> [--socket <path>]
         aist chat new [--workspace <path>] [--model <model>] [--json]
         aist chat list [--workspace <path>] [--json]
         aist chat get <chatId> [--workspace <path>] [--json]
@@ -53,6 +54,7 @@ describe('CLI help and parser', () => {
       Commands:
         paths     Print workspace and global AIST paths.
         doctor    Check workspace and global AIST storage paths.
+        daemon    Start the local-socket JSON-RPC backend for one workspace.
         chat      Create, list, inspect and update file-backed chats.
         config    Read or write non-secret CLI/backend settings.
         auth      Manage model provider auth status and global secrets.
@@ -60,6 +62,7 @@ describe('CLI help and parser', () => {
 
       Options:
         --workspace <path>  Workspace root. Defaults to the current directory.
+        --socket <path>     Override daemon local socket path.
         --model <model>     Model id for chat creation.
         --scope <scope>     Config write scope: global or workspace.
         --provider <name>   Model provider: openrouter, codex, or all.
@@ -78,6 +81,11 @@ describe('CLI help and parser', () => {
     expect(parseCliArgs([])).toEqual({ kind: 'help' });
     expect(parseCliArgs(['--version'])).toEqual({ kind: 'version' });
     expect(parseCliArgs(['paths', '--workspace=repo'])).toEqual({ kind: 'paths', workspace: 'repo' });
+    expect(parseCliArgs(['daemon', '--workspace=repo', '--socket', '/tmp/aist-daemon.sock'])).toEqual({
+      kind: 'daemon',
+      workspace: 'repo',
+      socket: '/tmp/aist-daemon.sock'
+    });
     expect(parseCliArgs(['doctor', '--workspace', '/tmp/workspace'])).toEqual({
       kind: 'doctor',
       workspace: '/tmp/workspace'
@@ -159,6 +167,7 @@ describe('CLI help and parser', () => {
 
   it('reports command usage errors without running commands', () => {
     expect(() => parseCliArgs(['doctor', '--workspace'])).toThrow(CliUsageError);
+    expect(() => parseCliArgs(['daemon'])).toThrow("'daemon' requires --workspace <path>.");
     expect(() => parseCliArgs(['chat', 'ask'])).toThrow("'chat ask' requires a chat id.");
     expect(() => parseCliArgs(['chat', 'ask', 'chat-1', '--prompt', 'Hello'])).toThrow(
       "'chat ask' currently requires --jsonl."

@@ -11,6 +11,7 @@ AIST is a VS Code extension that adds a coding-agent chat to the editor. It can 
 - [Configuration](configuration.md)
 - [Tools, approvals, and safety](tools-and-safety.md)
 - [Backend approval protocol](approval-protocol.md)
+- [Daemon JSON-RPC MVP](daemon-json-rpc.md)
 - [Agent instructions, modes, and skills](agent-customization.md)
 - [Development and release](development.md)
 
