@@ -34,6 +34,8 @@ export type ChatSummary = {
   messageCount: number;
   lastUserMessage: string;
   busy: boolean;
+  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'answering' | 'stopping';
+  activityDetail?: string;
   lastMessageAt: number;
   updatedAt: number;
 };
@@ -585,7 +587,7 @@ export type WebviewToExtensionMessage =
       rememberProject?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
-  | { type: 'stop' }
+  | { type: 'stop'; chatId?: string }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string }
   | { type: 'autonomous.refresh' }

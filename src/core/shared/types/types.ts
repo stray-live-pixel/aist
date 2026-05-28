@@ -234,6 +234,8 @@ export type ChatSummary = {
   messageCount: number;
   lastUserMessage: string;
   busy: boolean;
+  activity?: AgentRunActivity;
+  activityDetail?: string;
   lastMessageAt: number;
   updatedAt: number;
 };

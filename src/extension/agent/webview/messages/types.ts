@@ -19,5 +19,5 @@ export type AgentWebviewMessageDeps = {
   logoutCodex(): Promise<void>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   openWorkspaceFile(path: string, line?: number, column?: number, endLine?: number, endColumn?: number): Promise<void>;
-  stopCurrentRun(): Promise<void>;
+  stopCurrentRun(chatId?: string): Promise<void>;
 };

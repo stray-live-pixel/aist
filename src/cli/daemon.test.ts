@@ -89,13 +89,23 @@ describe('AIST daemon JSON-RPC local socket', () => {
         { role: 'assistant', content: 'Daemon final answer.' }
       ]
     });
-    expect((await client.request<DaemonState>('state.get')).activeRun).toBeNull();
+    const finalState = await client.request<DaemonState>('state.get');
+    expect(finalState.activeRun).toBeNull();
+    expect(finalState.activeRuns).toEqual([]);
   });
 
-  it('rejects a second writer run while a reconnected client can read state', async () => {
-    const deferredResponse = createDeferred<OpenRouterMessage>();
+  it('runs chats in parallel while a reconnected client can read active runs', async () => {
+    const firstResponse = createDeferred<OpenRouterMessage>();
+    const secondResponse = createDeferred<OpenRouterMessage>();
+    const responses = [firstResponse, secondResponse];
     const { server } = await startDaemon({
-      chat: async () => deferredResponse.promise
+      chat: async () => {
+        const next = responses.shift();
+        if (!next) {
+          throw new Error('Unexpected fake model request.');
+        }
+        return next.promise;
+      }
     });
     const firstClient = await connectClient(server);
     const firstEvents = createEventCollector(firstClient);
@@ -103,20 +113,28 @@ describe('AIST daemon JSON-RPC local socket', () => {
     const firstChat = await firstClient.request<DaemonChatCreateResult>('chat.create', { model: 'fake-model' });
     const secondChat = await firstClient.request<DaemonChatCreateResult>('chat.create', { model: 'fake-model' });
 
-    const ask = await firstClient.request<DaemonChatAskResult>('chat.ask', {
+    const firstAsk = await firstClient.request<DaemonChatAskResult>('chat.ask', {
       chatId: firstChat.chat.id,
       prompt: 'Keep running'
     });
-    expect(ask.runId).toEqual(expect.any(String));
+    expect(firstAsk.runId).toEqual(expect.any(String));
 
     const secondClient = await connectClient(server);
     const activeState = await secondClient.request<DaemonState>('state.get');
-    expect(activeState.activeRun).toEqual({ runId: ask.runId, chatId: firstChat.chat.id });
+    expect(activeState.activeRun).toEqual({ runId: firstAsk.runId, chatId: firstChat.chat.id });
+    expect(activeState.activeRuns).toEqual([{ runId: firstAsk.runId, chatId: firstChat.chat.id }]);
+
+    const secondAsk = await secondClient.request<DaemonChatAskResult>('chat.ask', {
+      chatId: secondChat.chat.id,
+      prompt: 'Concurrent prompt'
+    });
+    expect(secondAsk.runId).toEqual(expect.any(String));
+    expect(secondAsk.runId).not.toBe(firstAsk.runId);
 
     await expect(
       secondClient.request('chat.ask', {
-        chatId: secondChat.chat.id,
-        prompt: 'Concurrent prompt'
+        chatId: firstChat.chat.id,
+        prompt: 'Same chat prompt'
       })
     ).rejects.toMatchObject({
       data: {
@@ -127,15 +145,26 @@ describe('AIST daemon JSON-RPC local socket', () => {
     secondClient.close();
     const reconnectedClient = await connectClient(server);
     const reconnectedState = await reconnectedClient.request<DaemonState>('state.get');
-    expect(reconnectedState.activeRun).toEqual({ runId: ask.runId, chatId: firstChat.chat.id });
+    expect(reconnectedState.activeRuns).toEqual(
+      expect.arrayContaining([
+        { runId: firstAsk.runId, chatId: firstChat.chat.id },
+        { runId: secondAsk.runId, chatId: secondChat.chat.id }
+      ])
+    );
     expect(reconnectedState.chats.map((chat) => chat.id)).toEqual(
       expect.arrayContaining([firstChat.chat.id, secondChat.chat.id])
     );
 
-    deferredResponse.resolve({ role: 'assistant', content: 'Finished after reconnect.' });
-    await firstEvents.waitFor((event) => event.type === 'run.finished' && event.run.id === ask.runId);
+    firstResponse.resolve({ role: 'assistant', content: 'First finished after reconnect.' });
+    await firstEvents.waitFor((event) => event.type === 'run.finished' && event.run.id === firstAsk.runId);
+    const oneStillRunning = await reconnectedClient.request<DaemonState>('state.get');
+    expect(oneStillRunning.activeRuns).toEqual([{ runId: secondAsk.runId, chatId: secondChat.chat.id }]);
+
+    secondResponse.resolve({ role: 'assistant', content: 'Second finished after reconnect.' });
+    await firstEvents.waitFor((event) => event.type === 'run.finished' && event.run.id === secondAsk.runId);
     const finalState = await reconnectedClient.request<DaemonState>('state.get');
     expect(finalState.activeRun).toBeNull();
+    expect(finalState.activeRuns).toEqual([]);
   });
 
   it('uses registered client capabilities for editable diff approvals', async () => {
@@ -287,7 +316,9 @@ describe('AIST daemon JSON-RPC local socket', () => {
         status: 'finished'
       }
     });
-    expect((await client.request<DaemonState>('state.get')).activeRun).toBeNull();
+    const finalState = await client.request<DaemonState>('state.get');
+    expect(finalState.activeRun).toBeNull();
+    expect(finalState.activeRuns).toEqual([]);
   });
 });
 

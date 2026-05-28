@@ -285,7 +285,7 @@ export class AgentController {
       resolveToolCall: (messageId, decision) => this.daemonRuntime.resolveToolCall(messageId, decision),
       openWorkspaceFile: (filePath, line, column, endLine, endColumn) =>
         this.openWorkspaceFile(filePath, line, column, endLine, endColumn),
-      stopCurrentRun: () => this.daemonRuntime.stop().then(() => this.sendState())
+      stopCurrentRun: (chatId) => this.daemonRuntime.stop(chatId).then(() => this.sendState())
     });
   }
 
@@ -336,7 +336,7 @@ export class AgentController {
         await this.daemonRuntime.resolveToolCall(message.messageId, toToolApprovalDecision(message));
         return true;
       case 'stop':
-        await this.daemonRuntime.stop();
+        await this.daemonRuntime.stop(message.chatId || surface.getChatId());
         this.sendState();
         return true;
       case 'duplicateChat':

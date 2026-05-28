@@ -70,7 +70,9 @@ export type DaemonState = {
   readonly workspaceRoot: string;
   readonly protocolVersion: number;
   readonly transport: DaemonTransportInfo;
+  /** @deprecated Use activeRuns for parallel chat execution state. */
   readonly activeRun: DaemonActiveRun | null;
+  readonly activeRuns: readonly DaemonActiveRun[];
   readonly chats: readonly ChatSummary[];
 };
 
@@ -78,7 +80,9 @@ export type DaemonStateChangedEvent = {
   readonly type: 'state.changed';
   readonly workspaceRoot: string;
   readonly reason?: string;
+  /** @deprecated Use activeRuns for parallel chat execution state. */
   readonly activeRun: DaemonActiveRun | null;
+  readonly activeRuns: readonly DaemonActiveRun[];
   readonly at: number;
 };
 
@@ -128,6 +132,7 @@ export type DaemonChatAskResult = {
 
 export type DaemonChatStopParams = {
   readonly runId?: string;
+  readonly chatId?: string;
 };
 
 export type DaemonChatStopResult = {

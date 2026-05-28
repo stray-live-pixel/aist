@@ -106,8 +106,11 @@ const ChatRow = memo(function ChatRow(props: ChatRowProps) {
       <button className={styles.chatRowButton} onClick={props.onSelect}>
         {active ? <Check size={14} /> : <MessageSquare size={14} className={styles.chatRowIconMuted} />}
         <span className={styles.chatRowContent}>
-          <span className={styles.chatRowTitle} title={chat.title}>
-            {chat.title}
+          <span className={styles.chatRowTitleLine}>
+            <span className={styles.chatRowTitle} title={chat.title}>
+              {chat.title}
+            </span>
+            <ChatStatusLabel chat={chat} language={language} />
           </span>
           {chat.lastUserMessage ? (
             <span
@@ -130,6 +133,29 @@ const ChatRow = memo(function ChatRow(props: ChatRowProps) {
         <RowActions disabled={chat.busy} onDuplicate={props.onDuplicate} onDelete={props.onAskDelete} />
       )}
     </div>
+  );
+});
+
+const ChatStatusLabel = memo(function ChatStatusLabel({
+  chat,
+  language
+}: {
+  chat: ChatSummary;
+  language: AgentLanguage;
+}) {
+  if (!chat.busy) {
+    return null;
+  }
+
+  const status = getChatStatus(chat, language);
+  return (
+    <span
+      className={`${styles.chatStatusLabel} ${styles[status.className]}`}
+      title={chat.activityDetail || status.label}
+    >
+      <span className={styles.chatStatusDot} />
+      {status.label}
+    </span>
   );
 });
 
@@ -170,6 +196,23 @@ const DeleteActions = memo(function DeleteActions({ onCancel, onDelete }: { onCa
     </>
   );
 });
+
+function getChatStatus(chat: ChatSummary, language: AgentLanguage): { label: string; className: string } {
+  if (chat.activity === 'waitingForApproval') {
+    return { label: language === 'ru' ? 'Ждёт подтверждение' : 'Approval needed', className: 'chatStatusApproval' };
+  }
+  if (chat.activity === 'runningTool') {
+    return { label: language === 'ru' ? 'Инструмент' : 'Tool', className: 'chatStatusTool' };
+  }
+  if (chat.activity === 'stopping') {
+    return { label: language === 'ru' ? 'Останавливается' : 'Stopping', className: 'chatStatusStopping' };
+  }
+  if (chat.activity === 'answering') {
+    return { label: language === 'ru' ? 'Отвечает' : 'Answering', className: 'chatStatusBusy' };
+  }
+
+  return { label: language === 'ru' ? 'Работает' : 'Running', className: 'chatStatusBusy' };
+}
 
 function formatChatMeta(chat: ChatSummary, language: AgentLanguage): string {
   const messageLabel = translateChatMetaMessage(language, chat.messageCount);

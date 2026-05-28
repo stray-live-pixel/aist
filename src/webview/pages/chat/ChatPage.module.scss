@@ -281,6 +281,59 @@
   font-weight: 600;
 }
 
+.chatRowTitleLine {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.chatRowTitleLine .chatRowTitle {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.chatStatusLabel {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.chatStatusDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.chatStatusBusy {
+  color: #38bdf8;
+  background: color-mix(in srgb, #38bdf8 14%, transparent);
+}
+
+.chatStatusTool {
+  color: #a78bfa;
+  background: color-mix(in srgb, #a78bfa 14%, transparent);
+}
+
+.chatStatusApproval {
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 16%, transparent);
+}
+
+.chatStatusStopping {
+  color: #f87171;
+  background: color-mix(in srgb, #f87171 14%, transparent);
+}
+
 .chatRowMessage,
 .chatRowMeta {
   font-size: 11px;

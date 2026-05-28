@@ -181,8 +181,9 @@ export class AistDaemonServer {
   private readonly pendingApprovalsByMessageId = new Map<string, PendingApproval>();
 
   private server: net.Server | undefined;
-  private activeRun: DaemonActiveRun | null = null;
-  private startingRun = false;
+  private readonly activeRunsById = new Map<string, DaemonActiveRun>();
+  private readonly activeRunsByChat = new Map<string, DaemonActiveRun>();
+  private readonly startingRunsByChat = new Set<string>();
   private nextClientRequestId = 1;
   private cachedToolPermissions: Record<string, ToolPermissionMode> = {};
 
@@ -477,11 +478,11 @@ export class AistDaemonServer {
     const chatId = requireString(input, 'chatId');
     const prompt = requireString(input, 'prompt');
     await this.requireChat(chatId);
-    if (this.activeRun || this.startingRun) {
-      throw this.createBusyError();
+    if (this.activeRunsByChat.has(chatId) || this.startingRunsByChat.has(chatId)) {
+      throw this.createBusyError(chatId);
     }
 
-    this.startingRun = true;
+    this.startingRunsByChat.add(chatId);
     try {
       const result = await this.runtime.startAsk(chatId, prompt);
       if (!result.accepted) {
@@ -491,7 +492,7 @@ export class AistDaemonServer {
         });
       }
 
-      this.activeRun = { runId: result.runId, chatId };
+      this.registerActiveRun({ runId: result.runId, chatId });
       await this.broadcastStateChanged('chat.ask');
       return {
         operationId: this.idFactory(),
@@ -500,17 +501,23 @@ export class AistDaemonServer {
         accepted: true
       };
     } finally {
-      this.startingRun = false;
+      this.startingRunsByChat.delete(chatId);
     }
   }
 
   private async chatStop(params: unknown): Promise<DaemonChatStopResult> {
     const input = asOptionalRecord(params);
     const requestedRunId = optionalString(input, 'runId');
-    const runId = requestedRunId || this.activeRun?.runId;
-    const stopped = Boolean(runId && this.activeRun && (!requestedRunId || requestedRunId === this.activeRun.runId));
-    if (runId) {
-      this.runtime.stop(runId);
+    const requestedChatId = optionalString(input, 'chatId');
+    const activeRun = requestedRunId
+      ? this.activeRunsById.get(requestedRunId)
+      : requestedChatId
+        ? this.activeRunsByChat.get(requestedChatId)
+        : this.getActiveRuns()[0];
+    const runId = activeRun?.runId || requestedRunId;
+    const stopped = Boolean(activeRun);
+    if (activeRun) {
+      this.runtime.stop(activeRun.runId);
     }
 
     await this.broadcastStateChanged('chat.stop');
@@ -525,7 +532,7 @@ export class AistDaemonServer {
     const input = requireRecord(params, 'chat.delete params');
     const chatId = requireString(input, 'chatId');
     const chat = await this.requireChat(chatId);
-    if (chat.busy || this.activeRun?.chatId === chat.id) {
+    if (chat.busy || this.activeRunsByChat.has(chat.id)) {
       throw this.createBusyError();
     }
 
@@ -542,7 +549,7 @@ export class AistDaemonServer {
   private async chatClear(params: unknown): Promise<DaemonChatClearResult> {
     const input = requireRecord(params, 'chat.clear params');
     const chat = await this.requireChat(requireString(input, 'chatId'));
-    if (chat.busy || this.activeRun?.chatId === chat.id) {
+    if (chat.busy || this.activeRunsByChat.has(chat.id)) {
       throw this.createBusyError();
     }
 
@@ -559,7 +566,7 @@ export class AistDaemonServer {
     const chatId = requireString(input, 'chatId');
     const model = requireString(input, 'model');
     const chat = await this.requireChat(chatId);
-    if (chat.busy || this.activeRun?.chatId === chat.id) {
+    if (chat.busy || this.activeRunsByChat.has(chat.id)) {
       throw this.createBusyError();
     }
 
@@ -574,7 +581,7 @@ export class AistDaemonServer {
   private async chatCompact(params: unknown): Promise<DaemonChatCompactResult> {
     const input = requireRecord(params, 'chat.compact params');
     const chat = await this.requireChat(requireString(input, 'chatId'));
-    if (chat.busy || this.activeRun?.chatId === chat.id || this.startingRun) {
+    if (chat.busy || this.activeRunsByChat.has(chat.id) || this.startingRunsByChat.has(chat.id)) {
       throw this.createBusyError();
     }
 
@@ -800,15 +807,13 @@ export class AistDaemonServer {
         emit: (event) => this.handleRuntimeEvent(event)
       },
       logger: this.logger,
-      concurrencyScope: 'workspace',
+      concurrencyScope: 'chat',
       reflection: {
         enabled: false
       },
       hooks: {
         onRunFinished: ({ runId }) => {
-          if (this.activeRun?.runId === runId) {
-            this.activeRun = null;
-          }
+          this.unregisterActiveRun(runId);
           this.clearApprovalsForRun(runId);
           return this.broadcastStateChanged('run.finished');
         }
@@ -868,6 +873,29 @@ export class AistDaemonServer {
     };
   }
 
+  private registerActiveRun(activeRun: DaemonActiveRun): void {
+    this.activeRunsById.set(activeRun.runId, activeRun);
+    this.activeRunsByChat.set(activeRun.chatId, activeRun);
+  }
+
+  private unregisterActiveRun(runId: string): void {
+    const activeRun = this.activeRunsById.get(runId);
+    if (!activeRun) {
+      return;
+    }
+
+    this.activeRunsById.delete(runId);
+    this.activeRunsByChat.delete(activeRun.chatId);
+  }
+
+  private getActiveRuns(): DaemonActiveRun[] {
+    return [...this.activeRunsById.values()];
+  }
+
+  private getPrimaryActiveRun(): DaemonActiveRun | null {
+    return this.getActiveRuns()[0] || null;
+  }
+
   private async handleRuntimeEvent(event: RuntimeEvent): Promise<void> {
     if (event.type === 'tool.call.approvalRequested') {
       const pending = {
@@ -892,7 +920,8 @@ export class AistDaemonServer {
       type: 'state.changed',
       workspaceRoot: this.workspaceRoot,
       reason,
-      activeRun: this.activeRun,
+      activeRun: this.getPrimaryActiveRun(),
+      activeRuns: this.getActiveRuns(),
       at: this.now()
     });
   }
@@ -915,7 +944,8 @@ export class AistDaemonServer {
         framing: 'json-rpc-2.0-newline-delimited',
         socketPath: this.socketPath
       },
-      activeRun: this.activeRun,
+      activeRun: this.getPrimaryActiveRun(),
+      activeRuns: this.getActiveRuns(),
       chats: await this.chatRepository.list()
     };
   }
@@ -1285,10 +1315,13 @@ export class AistDaemonServer {
     }
   }
 
-  private createBusyError(): DaemonRpcError {
-    return new DaemonRpcError(-32010, DAEMON_BUSY_ERROR_CODE, 'Workspace already has an active run.', {
+  private createBusyError(chatId?: string): DaemonRpcError {
+    const activeRun = chatId ? this.activeRunsByChat.get(chatId) : this.getPrimaryActiveRun();
+    const message = chatId ? 'Chat already has an active run.' : 'Workspace already has active runs.';
+    return new DaemonRpcError(-32010, DAEMON_BUSY_ERROR_CODE, message, {
       code: DAEMON_BUSY_ERROR_CODE,
-      activeRun: this.activeRun ?? undefined
+      activeRun: activeRun ?? undefined,
+      activeRuns: this.getActiveRuns()
     });
   }
 

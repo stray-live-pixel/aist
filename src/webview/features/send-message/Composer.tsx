@@ -21,7 +21,7 @@ type SentComposerSnapshot = {
  * Что это: нижний composer для отправки prompt или остановки текущей генерации.
  * Зачем нужно: компонент инкапсулирует правила пустого prompt, shortcut и autosize textarea, а весь UI собирает из shared-компонентов.
  */
-export function Composer({ busy, floating = false, settings, footer, notice }: ComposerProps) {
+export function Composer({ chatId, busy, floating = false, settings, footer, notice }: ComposerProps) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState('');
   const [sentComposer, setSentComposer] = useState<SentComposerSnapshot | null>(null);
@@ -61,7 +61,7 @@ export function Composer({ busy, floating = false, settings, footer, notice }: C
         leadingIcon={busy ? <Square size={12} /> : <SendHorizontal size={15} />}
         title={busy ? t('composer.stop') : t('composer.send')}
         aria-label={busy ? t('composer.stopGeneration') : t('composer.sendMessage')}
-        onClick={busy ? agentActions.stop : sendPrompt}
+        onClick={busy ? () => agentActions.stop(chatId) : sendPrompt}
       />
     </>
   );

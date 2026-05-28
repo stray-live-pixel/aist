@@ -50,7 +50,7 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   clearChat(chatId: string): Promise<void>;
   setModel(chatId: string, model: string): Promise<void>;
   ask(chatId: string, prompt: string): Promise<void>;
-  stop(): Promise<void>;
+  stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   refreshModels(force?: boolean): Promise<readonly OpenRouterModelOption[]>;
@@ -157,9 +157,9 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     await this.refreshChat(chatId);
   }
 
-  async stop(): Promise<void> {
+  async stop(chatId?: string): Promise<void> {
     const client = await this.getClient();
-    await client.request<DaemonChatStopResult>('chat.stop');
+    await client.request<DaemonChatStopResult>('chat.stop', chatId ? { chatId } : undefined);
     await this.refreshState();
   }
 

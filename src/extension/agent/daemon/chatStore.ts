@@ -165,6 +165,8 @@ export class DaemonChatStore implements AgentChatStore {
       messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
       lastUserMessage: getLastUserMessage(chat),
       busy: chat.busy,
+      activity: chat.activity,
+      activityDetail: chat.activityDetail,
       lastMessageAt: getLastMessageAt(chat),
       updatedAt: chat.updatedAt
     }));

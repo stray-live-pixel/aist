@@ -39,8 +39,8 @@ export const agentActions = {
     post({ type: 'ask', prompt });
   },
 
-  stop(): void {
-    post({ type: 'stop' });
+  stop(chatId?: string): void {
+    post({ type: 'stop', chatId });
   },
 
   clear(): void {

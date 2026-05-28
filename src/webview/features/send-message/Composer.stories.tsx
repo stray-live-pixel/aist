@@ -8,6 +8,9 @@ const meta = {
   component: Composer,
   parameters: {
     layout: 'padded'
+  },
+  args: {
+    chatId: 'storybook-chat'
   }
 } satisfies Meta<typeof Composer>;
 

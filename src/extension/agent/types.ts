@@ -131,7 +131,7 @@ export type WebviewMessage =
       rememberProject?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
-  | { type: 'stop' }
+  | { type: 'stop'; chatId?: string }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string };
 

@@ -73,6 +73,7 @@ export function ChatPage() {
         resolvedApprovalId={resolvedApprovalId}
       />
       <Composer
+        chatId={state.activeChat.id}
         busy={state.activeChat.busy}
         floating
         settings={
