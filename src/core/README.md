@@ -8,8 +8,16 @@ Core не импортирует `vscode`: этот пакет доступен 
 
 - `src/core/**` хранит editor-agnostic типы и будущую переносимую runtime-логику.
 - `src/core/types.ts` хранит Node-safe runtime contracts для chat history, model transport, runs, tools, approvals и client events.
+- `src/core/storage.ts` хранит Node-safe path policy и файловые primitives для будущих CLI/backend stores.
 - `src/cli/**` хранит будущий CLI entrypoint и может зависеть от `src/core/**`, но не публикует бинарь в рамках текущего scaffold.
 - `src/extension/**` и `src/extension.ts` остаются текущим VS Code adapter/runtime путём и могут импортировать `vscode`.
+
+Storage policy:
+
+- Workspace artifacts live under `<workspace>/.aist-agent`: chats, runs, project memory, telemetry, declarative tools and autonomous sessions.
+- User defaults and temporary secret fallback live under `~/.aist-agent`, not under the workspace.
+- Secrets must not be written to workspace `.aist-agent`. Projects should keep gitignore safeguards for `.aist-agent/secrets*.json` and nested secret files while allowing non-secret project artifacts to be committed when desired.
+- Workspace-relative paths must pass the core storage guard before joining with either the workspace root or workspace `.aist-agent` root.
 
 Guard:
 
