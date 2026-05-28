@@ -11,6 +11,7 @@ import {
   type AgentRuntimeToolCallHandler
 } from '../core/agentRuntime';
 import { getToolExecutionRequirement, normalizeToolApprovalDecision } from '../core/approvalProtocol';
+import { AutonomousBackend, type AutonomousExportFormat, type AutonomousLaunchOptions } from '../core/autonomous';
 import { ChatRepository } from '../core/chatRepository';
 import { CodexAuthSessionProvider } from '../core/codexAuth';
 import { CodexResponsesTransport } from '../core/codexTransport';
@@ -53,6 +54,10 @@ import {
   type DaemonActiveRun,
   type DaemonApprovalResolveParams,
   type DaemonApprovalResolveResult,
+  type DaemonAutonomousExportResult,
+  type DaemonAutonomousStartResult,
+  type DaemonAutonomousStateResult,
+  type DaemonAutonomousStopResult,
   type DaemonChat,
   type DaemonChatAskResult,
   type DaemonChatClearResult,
@@ -152,6 +157,7 @@ export class AistDaemonServer {
   private readonly memoryStore: AgentMemoryStore;
   private readonly toolRegistry: ToolRegistry;
   private readonly runtime: AgentRuntimeService;
+  private readonly autonomousBackend: AutonomousBackend;
   private readonly connections = new Set<DaemonConnection>();
   private readonly pendingApprovalsById = new Map<string, PendingApproval>();
   private readonly pendingApprovalsByMessageId = new Map<string, PendingApproval>();
@@ -183,6 +189,17 @@ export class AistDaemonServer {
     );
     this.toolRegistry = options.toolRegistry || new DefaultToolRegistry();
     this.runtime = this.createRuntime();
+    this.autonomousBackend = new AutonomousBackend({
+      workspaceRoot: this.workspaceRoot,
+      homeDir: this.homeDir,
+      env: this.env,
+      fetch: this.options.fetch,
+      modelClient: this.options.modelClient,
+      logger: this.logger,
+      now: this.now,
+      idFactory: this.idFactory
+    });
+    this.autonomousBackend.onEvent((event) => this.broadcastEvent(event));
   }
 
   async start(): Promise<void> {
@@ -222,6 +239,8 @@ export class AistDaemonServer {
     if (process.platform !== 'win32') {
       await fs.promises.rm(this.socketPath, { force: true }).catch(() => undefined);
     }
+
+    this.autonomousBackend.dispose();
   }
 
   getState(): Promise<DaemonState> {
@@ -352,6 +371,16 @@ export class AistDaemonServer {
         return this.modelsList(params, false);
       case 'models.refresh':
         return this.modelsList(params, true);
+      case 'autonomous.state':
+        return this.autonomousState();
+      case 'autonomous.flow.start':
+        return this.autonomousFlowStart(params);
+      case 'autonomous.run.start':
+        return this.autonomousRunStart(params);
+      case 'autonomous.stop':
+        return this.autonomousStop(params);
+      case 'autonomous.export':
+        return this.autonomousExport(params);
       default:
         throw new DaemonRpcError(-32601, 'method.notFound', `Method not found: ${method}`);
     }
@@ -689,6 +718,36 @@ export class AistDaemonServer {
       errors,
       models: dedupeAndSortModels(models)
     };
+  }
+
+  private async autonomousState(): Promise<DaemonAutonomousStateResult> {
+    return {
+      operationId: this.idFactory(),
+      state: await this.autonomousBackend.getState()
+    };
+  }
+
+  private async autonomousFlowStart(params: unknown): Promise<DaemonAutonomousStartResult> {
+    const input = requireRecord(params, 'autonomous.flow.start params');
+    return this.autonomousBackend.startFlow(requireString(input, 'flowId'), parseAutonomousLaunch(input.launch));
+  }
+
+  private async autonomousRunStart(params: unknown): Promise<DaemonAutonomousStartResult> {
+    const input = requireRecord(params, 'autonomous.run.start params');
+    return this.autonomousBackend.startRun(requireString(input, 'runId'), parseAutonomousLaunch(input.launch));
+  }
+
+  private async autonomousStop(params: unknown): Promise<DaemonAutonomousStopResult> {
+    const input = requireRecord(params, 'autonomous.stop params');
+    return this.autonomousBackend.stop(requireString(input, 'sessionId'));
+  }
+
+  private async autonomousExport(params: unknown): Promise<DaemonAutonomousExportResult> {
+    const input = requireRecord(params, 'autonomous.export params');
+    return this.autonomousBackend.exportSession(
+      requireString(input, 'sessionId'),
+      normalizeAutonomousExportFormat(optionalString(input, 'format') || 'markdown')
+    );
   }
 
   private createRuntime(): AgentRuntimeService {
@@ -1536,6 +1595,37 @@ function normalizeModelProvider(value: string): ModelProvider | 'all' {
 
   throw new DaemonRpcError(-32602, 'params.invalid', 'Model provider must be openrouter, codex, or all.', {
     provider: value
+  });
+}
+
+function parseAutonomousLaunch(value: unknown): AutonomousLaunchOptions {
+  const input = asOptionalRecord(value);
+  const engineId = optionalString(input, 'engineId') || 'dry-run';
+  if (
+    engineId !== 'claude-cli' &&
+    engineId !== 'codex-cli' &&
+    engineId !== 'openrouter-api' &&
+    engineId !== 'codex-api' &&
+    engineId !== 'dry-run'
+  ) {
+    throw new DaemonRpcError(-32602, 'params.invalid', 'Autonomous engine id is invalid.', { engineId });
+  }
+
+  return {
+    engineId,
+    dryRun: typeof input.dryRun === 'boolean' ? input.dryRun : true,
+    workDir: optionalString(input, 'workDir'),
+    extraPrompt: optionalString(input, 'extraPrompt')
+  };
+}
+
+function normalizeAutonomousExportFormat(value: string): AutonomousExportFormat {
+  if (value === 'markdown' || value === 'json') {
+    return value;
+  }
+
+  throw new DaemonRpcError(-32602, 'params.invalid', 'Autonomous export format must be markdown or json.', {
+    format: value
   });
 }
 

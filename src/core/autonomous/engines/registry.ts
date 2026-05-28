@@ -1,5 +1,4 @@
-import type { CodexClient } from '../../codex/client';
-import type { OpenRouterClient } from '../../openrouter/client';
+import type { ModelClient } from '../../modelTransport';
 import type { AutonomousEngineDescriptor, AutonomousEngineId } from '../types';
 import { createCodexApiEngine, createOpenRouterApiEngine } from './apiEngines';
 import { createClaudeCliEngine } from './claudeCliEngine';
@@ -8,8 +7,8 @@ import { createDryRunEngine } from './dryRunEngine';
 import type { AutonomousEngine, AutonomousEngineRegistry } from './types';
 
 export type AutonomousEngineRegistryDeps = {
-  openRouterClient?: OpenRouterClient;
-  codexClient?: CodexClient;
+  openRouterClient?: ModelClient;
+  codexClient?: ModelClient;
 };
 
 const API_PLACEHOLDERS: AutonomousEngineDescriptor[] = [

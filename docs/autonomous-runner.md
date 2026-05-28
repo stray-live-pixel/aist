@@ -1,6 +1,6 @@
 # AIST Autonomous Runner
 
-Autonomous runner — нативная TypeScript/Node реализация бывшего `prompt/agent-auto` внутри VS Code extension. Shell/Python orchestration удалён из runtime: flow/run discovery, execution, monitoring и storage выполняются кодом `src/extension/autonomous`.
+Autonomous runner — нативная TypeScript/Node реализация бывшего `prompt/agent-auto`, вынесенная в общий backend слой. Shell/Python orchestration удалён из runtime: flow/run discovery, execution, monitoring и storage выполняются кодом `src/core/autonomous`, а VS Code extension и CLI используют его как thin clients.
 
 ## Storage
 
@@ -57,7 +57,7 @@ CLI engines могут запускать инструменты с bypass-фл�
 
 ## UI
 
-Команда `aist: Autonomous Runner` открывает React dashboard. UI построен на shared components из `src/webview/shared/ui` и не использует standalone HTML/CSS/JS старого monitor.
+Команда `aist: Autonomous Runner` открывает React dashboard. UI построен на shared components из `src/webview/shared/ui` и не использует standalone HTML/CSS/JS старого monitor. В daemon mode dashboard читает state/events через daemon API; без daemon mode он использует тот же shared backend напрямую.
 
 Dashboard умеет:
 

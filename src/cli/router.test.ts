@@ -11,6 +11,7 @@ import { RunRepository } from '../core/runRepository';
 import {
   globalSecretsFile,
   globalSettingsFile,
+  workspaceAutonomousSessionsDir,
   workspaceChatsDir,
   workspaceRunsDir,
   workspaceSettingsFile
@@ -50,6 +51,11 @@ describe('CLI help and parser', () => {
         aist auth codex status [--json]
         aist models list [--provider openrouter|codex|all] [--json]
         aist models refresh [--provider openrouter|codex|all] [--json]
+        aist autonomous list [--workspace <path>] [--json]
+        aist autonomous flow start <flowId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
+        aist autonomous run start <runId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
+        aist autonomous stop <sessionId> [--workspace <path>] [--json]
+        aist autonomous export <sessionId> [--workspace <path>] [--format markdown|json]
 
       Commands:
         paths     Print workspace and global AIST paths.
@@ -59,6 +65,8 @@ describe('CLI help and parser', () => {
         config    Read or write non-secret CLI/backend settings.
         auth      Manage model provider auth status and global secrets.
         models    List model options from provider adapters or safe fallbacks.
+        autonomous
+                  Inspect and run native autonomous flows and batch runs.
 
       Options:
         --workspace <path>  Workspace root. Defaults to the current directory.
@@ -66,8 +74,12 @@ describe('CLI help and parser', () => {
         --model <model>     Model id for chat creation.
         --scope <scope>     Config write scope: global or workspace.
         --provider <name>   Model provider: openrouter, codex, or all.
+        --engine <id>       Autonomous engine id: dry-run, openrouter-api, codex-api, claude-cli, or codex-cli.
+        --format <format>   Export format: markdown or json.
         --approval-mode <mode>
                             Headless tool policy: ask, auto-readonly, auto-all, or deny.
+        --dry-run           Force autonomous dry-run mode (default for autonomous start).
+        --no-dry-run        Execute the selected autonomous engine instead of dry-run.
         --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
         --json              Print machine-readable JSON.
         --jsonl             Print newline-delimited runtime events.
@@ -163,6 +175,62 @@ describe('CLI help and parser', () => {
       provider: 'codex',
       json: true
     });
+    expect(parseCliArgs(['autonomous', 'list', '--workspace=repo', '--json'])).toEqual({
+      kind: 'autonomousList',
+      workspace: 'repo',
+      json: true
+    });
+    expect(
+      parseCliArgs([
+        'autonomous',
+        'flow',
+        'start',
+        'demo-flow',
+        '--workspace',
+        'repo',
+        '--jsonl',
+        '--engine',
+        'openrouter-api',
+        '--no-dry-run',
+        '--extra-prompt',
+        'extra'
+      ])
+    ).toEqual({
+      kind: 'autonomousFlowStart',
+      flowId: 'demo-flow',
+      workspace: 'repo',
+      launch: {
+        engineId: 'openrouter-api',
+        dryRun: false,
+        workDir: undefined,
+        extraPrompt: 'extra'
+      },
+      jsonl: true
+    });
+    expect(parseCliArgs(['autonomous', 'run', 'start', 'demo-run', '--jsonl'])).toEqual({
+      kind: 'autonomousRunStart',
+      runId: 'demo-run',
+      workspace: undefined,
+      launch: {
+        engineId: 'dry-run',
+        dryRun: true,
+        workDir: undefined,
+        extraPrompt: undefined
+      },
+      jsonl: true
+    });
+    expect(parseCliArgs(['autonomous', 'stop', 'session-1', '--json'])).toEqual({
+      kind: 'autonomousStop',
+      sessionId: 'session-1',
+      workspace: undefined,
+      json: true
+    });
+    expect(parseCliArgs(['autonomous', 'export', 'session-1', '--format=json'])).toEqual({
+      kind: 'autonomousExport',
+      sessionId: 'session-1',
+      workspace: undefined,
+      format: 'json'
+    });
   });
 
   it('reports command usage errors without running commands', () => {
@@ -183,6 +251,15 @@ describe('CLI help and parser', () => {
     );
     expect(() => parseCliArgs(['models', 'list', '--provider', 'other'])).toThrow(
       "Option --provider for 'models list' must be openrouter, codex, or all."
+    );
+    expect(() => parseCliArgs(['autonomous', 'flow', 'start', 'demo-flow'])).toThrow(
+      "'autonomous flow start' currently requires --jsonl."
+    );
+    expect(() => parseCliArgs(['autonomous', 'run', 'start', '--jsonl'])).toThrow(
+      "'autonomous run start' requires a run id."
+    );
+    expect(() => parseCliArgs(['autonomous', 'export', 'session-1', '--format=xml'])).toThrow(
+      "Option --format for 'autonomous export' must be markdown or json."
     );
   });
 });
@@ -694,6 +771,80 @@ describe('CLI commands', () => {
     ]);
   });
 
+  it('lists and runs autonomous flow dry-run through shared backend storage', async () => {
+    const workspaceRoot = createTempDir('aist-cli-autonomous-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    createNativeAutonomousFlow(workspaceRoot, 'demo-flow');
+
+    const listOutput = createCliOutput();
+    expect(
+      await runCli(['autonomous', 'list', '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: listOutput.stdout,
+        stderr: listOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(listOutput.stdoutText())).toMatchObject({
+      workspaceRoot,
+      state: {
+        storageRoot: workspaceAutonomousSessionsDir(workspaceRoot),
+        definitions: {
+          flows: [
+            {
+              id: 'demo-flow',
+              stages: [{ title: 'Stage one' }]
+            }
+          ]
+        },
+        sessions: []
+      }
+    });
+
+    const startOutput = createCliOutput();
+    const exitCode = await runCli(
+      ['autonomous', 'flow', 'start', 'demo-flow', '--workspace', workspaceRoot, '--jsonl'],
+      {
+        homeDir,
+        stdout: startOutput.stdout,
+        stderr: startOutput.stderr
+      }
+    );
+
+    expect(exitCode).toBe(0);
+    expect(startOutput.stderrText()).toBe('');
+    const events = parseJsonl<Record<string, unknown>>(startOutput.stdoutText());
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        'autonomous.session.started',
+        'autonomous.event',
+        'autonomous.session.finished',
+        'autonomous.completed'
+      ])
+    );
+    expect(events.some((event) => (event as { event?: { action?: string } }).event?.action === 'DRY')).toBe(true);
+    const completed = events.find((event) => event.type === 'autonomous.completed');
+    expect(completed).toMatchObject({ status: 'finished', kind: 'flow', targetId: 'demo-flow' });
+    const sessionId = completed?.sessionId as string;
+    expect(fs.existsSync(path.join(workspaceAutonomousSessionsDir(workspaceRoot), sessionId, 'events.jsonl'))).toBe(
+      true
+    );
+
+    const exportOutput = createCliOutput();
+    expect(
+      await runCli(['autonomous', 'export', sessionId, '--workspace', workspaceRoot, '--format', 'json'], {
+        homeDir,
+        stdout: exportOutput.stdout,
+        stderr: exportOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(exportOutput.stdoutText())).toMatchObject({
+      meta: {
+        id: sessionId,
+        status: 'finished'
+      }
+    });
+  });
+
   it('sets and reads config with workspace values taking precedence over global defaults', async () => {
     const workspaceRoot = createTempDir('aist-cli-workspace-');
     const homeDir = createTempDir('aist-cli-home-');
@@ -947,6 +1098,21 @@ function createTempDir(prefix: string): string {
 function createIdFactory(ids: string[]): () => string {
   let index = 0;
   return () => ids[index++] || `generated-${index}`;
+}
+
+function createNativeAutonomousFlow(workspaceRoot: string, flowId: string): void {
+  const flowRoot = path.join(workspaceRoot, '.aist-agent', 'autonomous', 'flows', flowId);
+  fs.mkdirSync(flowRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(flowRoot, '.index.md'),
+    ['---', 'title: Demo flow', 'stages:', '  - 1-stage.md', '---', '', '# Demo flow', ''].join('\n'),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(flowRoot, '1-stage.md'),
+    ['---', 'title: Stage one', 'contexts: []', '---', '', '# Stage one', '', 'Say hello.', ''].join('\n'),
+    'utf8'
+  );
 }
 
 type QueuedModelClient = ModelClient & {

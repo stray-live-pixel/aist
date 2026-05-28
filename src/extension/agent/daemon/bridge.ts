@@ -234,6 +234,10 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       return;
     }
 
+    if (event.type.startsWith('autonomous.')) {
+      return;
+    }
+
     this.refreshQueue = this.refreshQueue
       .then(() => {
         if ('chatId' in event && typeof event.chatId === 'string') {

@@ -4,6 +4,7 @@ export * from './storage';
 export * from './agentRuntime';
 export * from './chatRepository';
 export * from './approvalProtocol';
+export * from './autonomous';
 export * from './config';
 export * from './codexAuth';
 export * from './codexTransport';

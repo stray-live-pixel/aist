@@ -10,6 +10,15 @@ import {
   type AgentRuntimeToolCallHandler
 } from '../core/agentRuntime';
 import { getToolExecutionRequirement } from '../core/approvalProtocol';
+import {
+  AutonomousBackend,
+  type AutonomousBackendEvent,
+  type AutonomousEngineId,
+  type AutonomousExportFormat,
+  type AutonomousLaunchOptions,
+  type AutonomousSessionView,
+  type AutonomousState
+} from '../core/autonomous';
 import { ChatRepository } from '../core/chatRepository';
 import { CodexAuthSessionProvider } from '../core/codexAuth';
 import { CodexResponsesTransport } from '../core/codexTransport';
@@ -57,6 +66,8 @@ import type {
   ToolPermissionMode
 } from '../core/types';
 import { AistDaemonServer } from './daemon';
+import { DaemonJsonRpcClient } from './daemonClient';
+import { type DaemonAutonomousStopResult, getDaemonSocketPath } from './daemonProtocol';
 
 export const CLI_NAME = 'aist';
 export const CLI_VERSION = packageJson.version;
@@ -103,7 +114,29 @@ export type CliCommand =
   | { readonly kind: 'authOpenRouterStatus'; readonly json: boolean }
   | { readonly kind: 'authCodexStatus'; readonly json: boolean }
   | { readonly kind: 'modelsList'; readonly provider: CliModelProvider; readonly json: boolean }
-  | { readonly kind: 'modelsRefresh'; readonly provider: CliModelProvider; readonly json: boolean };
+  | { readonly kind: 'modelsRefresh'; readonly provider: CliModelProvider; readonly json: boolean }
+  | { readonly kind: 'autonomousList'; readonly workspace?: string; readonly json: boolean }
+  | {
+      readonly kind: 'autonomousFlowStart';
+      readonly flowId: string;
+      readonly workspace?: string;
+      readonly launch: AutonomousLaunchOptions;
+      readonly jsonl: boolean;
+    }
+  | {
+      readonly kind: 'autonomousRunStart';
+      readonly runId: string;
+      readonly workspace?: string;
+      readonly launch: AutonomousLaunchOptions;
+      readonly jsonl: boolean;
+    }
+  | { readonly kind: 'autonomousStop'; readonly sessionId: string; readonly workspace?: string; readonly json: boolean }
+  | {
+      readonly kind: 'autonomousExport';
+      readonly sessionId: string;
+      readonly workspace?: string;
+      readonly format: AutonomousExportFormat;
+    };
 
 export type CliModelProvider = ModelProvider | 'all';
 
@@ -217,6 +250,10 @@ export function parseCliArgs(args: readonly string[]): CliCommand {
 
   if (command === 'models') {
     return parseModelsCommand(rest);
+  }
+
+  if (command === 'autonomous') {
+    return parseAutonomousCommand(rest);
   }
 
   if (command.startsWith('-')) {
@@ -335,6 +372,28 @@ export async function runCli(args: readonly string[], options: RunCliOptions = {
       return 0;
     }
 
+    if (command.kind === 'autonomousList') {
+      const result = await getAutonomousStateCommandResult(command, options);
+      stdout(formatAutonomousListOutput(result, command.json));
+      return 0;
+    }
+
+    if (command.kind === 'autonomousFlowStart' || command.kind === 'autonomousRunStart') {
+      return await runAutonomousStartCommand(command, options, stdout);
+    }
+
+    if (command.kind === 'autonomousStop') {
+      const result = await stopAutonomousSessionCommandResult(command, options);
+      stdout(formatAutonomousStopOutput(result, command.json));
+      return 0;
+    }
+
+    if (command.kind === 'autonomousExport') {
+      const result = await exportAutonomousSessionCommandResult(command, options);
+      stdout(result.content);
+      return 0;
+    }
+
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -377,6 +436,11 @@ Usage:
   aist auth codex status [--json]
   aist models list [--provider openrouter|codex|all] [--json]
   aist models refresh [--provider openrouter|codex|all] [--json]
+  aist autonomous list [--workspace <path>] [--json]
+  aist autonomous flow start <flowId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
+  aist autonomous run start <runId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
+  aist autonomous stop <sessionId> [--workspace <path>] [--json]
+  aist autonomous export <sessionId> [--workspace <path>] [--format markdown|json]
 
 Commands:
   paths     Print workspace and global AIST paths.
@@ -386,6 +450,8 @@ Commands:
   config    Read or write non-secret CLI/backend settings.
   auth      Manage model provider auth status and global secrets.
   models    List model options from provider adapters or safe fallbacks.
+  autonomous
+            Inspect and run native autonomous flows and batch runs.
 
 Options:
   --workspace <path>  Workspace root. Defaults to the current directory.
@@ -393,8 +459,12 @@ Options:
   --model <model>     Model id for chat creation.
   --scope <scope>     Config write scope: global or workspace.
   --provider <name>   Model provider: openrouter, codex, or all.
+  --engine <id>       Autonomous engine id: dry-run, openrouter-api, codex-api, claude-cli, or codex-cli.
+  --format <format>   Export format: markdown or json.
   --approval-mode <mode>
                       Headless tool policy: ask, auto-readonly, auto-all, or deny.
+  --dry-run           Force autonomous dry-run mode (default for autonomous start).
+  --no-dry-run        Execute the selected autonomous engine instead of dry-run.
   --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
   --json              Print machine-readable JSON.
   --jsonl             Print newline-delimited runtime events.
@@ -576,6 +646,24 @@ type ModelsListResult = {
   readonly fallbackUsed: boolean;
   readonly errors: readonly string[];
   readonly models: readonly OpenRouterModelOption[];
+};
+
+type AutonomousStateCommandResult = {
+  readonly workspaceRoot: string;
+  readonly state: AutonomousState;
+};
+
+type AutonomousStopCommandResult = {
+  readonly workspaceRoot: string;
+  readonly sessionId: string;
+  readonly stopped: boolean;
+};
+
+type AutonomousExportCommandResult = {
+  readonly workspaceRoot: string;
+  readonly sessionId: string;
+  readonly format: AutonomousExportFormat;
+  readonly content: string;
 };
 
 type ChatSummaryJson = {
@@ -797,6 +885,121 @@ async function runChatAskCommand(
   }
 
   return 0;
+}
+
+async function getAutonomousStateCommandResult(
+  command: Extract<CliCommand, { kind: 'autonomousList' }>,
+  options: RunCliOptions
+): Promise<AutonomousStateCommandResult> {
+  const backend = await createAutonomousBackend(command.workspace, options);
+  try {
+    return {
+      workspaceRoot: backend.workspaceRoot,
+      state: await backend.getState()
+    };
+  } finally {
+    backend.dispose();
+  }
+}
+
+async function runAutonomousStartCommand(
+  command: Extract<CliCommand, { kind: 'autonomousFlowStart' | 'autonomousRunStart' }>,
+  options: RunCliOptions,
+  stdout: CliWriter
+): Promise<number> {
+  const backend = await createAutonomousBackend(command.workspace, options);
+  const unsubscribe = backend.onEvent((event: AutonomousBackendEvent) => {
+    stdout(`${JSON.stringify(event)}\n`);
+  });
+
+  try {
+    const result =
+      command.kind === 'autonomousFlowStart'
+        ? await backend.startFlow(command.flowId, command.launch)
+        : await backend.startRun(command.runId, command.launch);
+    stdout(`${JSON.stringify({ type: 'autonomous.accepted', ...result })}\n`);
+    const session = await backend.waitForSession(result.sessionId);
+    stdout(`${JSON.stringify(toAutonomousCompletedEvent(session))}\n`);
+    return session.meta.status === 'finished' ? 0 : 1;
+  } finally {
+    unsubscribe();
+    backend.dispose();
+  }
+}
+
+async function stopAutonomousSessionCommandResult(
+  command: Extract<CliCommand, { kind: 'autonomousStop' }>,
+  options: RunCliOptions
+): Promise<AutonomousStopCommandResult> {
+  const backend = await createAutonomousBackend(command.workspace, options);
+  try {
+    const daemonResult = await tryStopAutonomousSessionViaDaemon(backend.workspaceRoot, command.sessionId);
+    if (daemonResult) {
+      return {
+        workspaceRoot: backend.workspaceRoot,
+        sessionId: daemonResult.sessionId,
+        stopped: daemonResult.stopped
+      };
+    }
+
+    const result = backend.stop(command.sessionId);
+    return {
+      workspaceRoot: backend.workspaceRoot,
+      sessionId: result.sessionId,
+      stopped: result.stopped
+    };
+  } finally {
+    backend.dispose();
+  }
+}
+
+async function tryStopAutonomousSessionViaDaemon(
+  workspaceRoot: string,
+  sessionId: string
+): Promise<DaemonAutonomousStopResult | undefined> {
+  let client: DaemonJsonRpcClient | undefined;
+  try {
+    client = await DaemonJsonRpcClient.connect({ socketPath: getDaemonSocketPath(workspaceRoot) });
+    return await client.request<DaemonAutonomousStopResult>('autonomous.stop', { sessionId });
+  } catch {
+    return undefined;
+  } finally {
+    client?.close();
+  }
+}
+
+async function exportAutonomousSessionCommandResult(
+  command: Extract<CliCommand, { kind: 'autonomousExport' }>,
+  options: RunCliOptions
+): Promise<AutonomousExportCommandResult> {
+  const backend = await createAutonomousBackend(command.workspace, options);
+  try {
+    const result = await backend.exportSession(command.sessionId, command.format);
+    return {
+      workspaceRoot: backend.workspaceRoot,
+      sessionId: result.sessionId,
+      format: result.format,
+      content: result.content
+    };
+  } finally {
+    backend.dispose();
+  }
+}
+
+async function createAutonomousBackend(
+  workspace: string | undefined,
+  options: RunCliOptions
+): Promise<AutonomousBackend> {
+  const workspaceRoot = await resolveCommandWorkspaceRoot(workspace, options);
+  return new AutonomousBackend({
+    workspaceRoot,
+    workspaceName: path.basename(workspaceRoot),
+    homeDir: options.homeDir,
+    env: getCliEnv(options),
+    fetch: options.fetch,
+    modelClient: options.modelClient,
+    logger: silentLogger
+  });
 }
 
 function createFileBackedRuntimeChatRepository(repository: ChatRepository): AgentRuntimeChatRepository {
@@ -1036,6 +1239,10 @@ async function getFirstConfigSetting(
 }
 
 async function resolveChatWorkspaceRoot(workspace: string | undefined, options: RunCliOptions): Promise<string> {
+  return resolveCommandWorkspaceRoot(workspace, options);
+}
+
+async function resolveCommandWorkspaceRoot(workspace: string | undefined, options: RunCliOptions): Promise<string> {
   const paths = resolveCliPaths({ ...options, workspace });
 
   try {
@@ -1149,6 +1356,57 @@ function formatChatSetModelOutput(result: ChatCommandResult, json: boolean): str
   }
 
   return `Set chat ${result.chat.id} model to ${result.chat.model}.\n`;
+}
+
+function formatAutonomousListOutput(result: AutonomousStateCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput(result);
+  }
+
+  const flowLines = result.state.definitions.flows.map(
+    (flow) => `- ${flow.id}  stages: ${flow.stages.length}  source: ${flow.sourceKind}`
+  );
+  const runLines = result.state.definitions.runs.map(
+    (run) => `- ${run.id}  tasks: ${run.tasks.length}  repeat: ${run.repeat}  source: ${run.sourceKind}`
+  );
+  const sessionLines = result.state.sessions.map(
+    (session) => `- ${session.meta.id}  ${session.meta.kind}:${session.meta.targetId || '-'}  ${session.meta.status}`
+  );
+
+  return `AIST autonomous
+Workspace: ${result.workspaceRoot}
+Storage: ${result.state.storageRoot}
+
+Flows (${result.state.definitions.flows.length})
+${flowLines.length ? flowLines.join('\n') : '(none)'}
+
+Runs (${result.state.definitions.runs.length})
+${runLines.length ? runLines.join('\n') : '(none)'}
+
+Sessions (${result.state.sessions.length})
+${sessionLines.length ? sessionLines.join('\n') : '(none)'}
+`;
+}
+
+function formatAutonomousStopOutput(result: AutonomousStopCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput(result);
+  }
+
+  return result.stopped
+    ? `Stopped autonomous session ${result.sessionId}.\n`
+    : `Autonomous session ${result.sessionId} was not running.\n`;
+}
+
+function toAutonomousCompletedEvent(session: AutonomousSessionView): Record<string, unknown> {
+  return {
+    type: 'autonomous.completed',
+    sessionId: session.meta.id,
+    kind: session.meta.kind,
+    targetId: session.meta.targetId,
+    status: session.meta.status,
+    error: session.meta.error
+  };
 }
 
 function toChatJson(chat: Chat): ChatJson {
@@ -2376,6 +2634,276 @@ function parseModelsOptions(
   return { provider, json, showHelp: false };
 }
 
+function parseAutonomousCommand(args: readonly string[]): CliCommand {
+  const [subcommand, ...rest] = args;
+  if (!subcommand || subcommand === '--help' || subcommand === '-h') {
+    assertNoExtraArgs(rest, subcommand || 'autonomous');
+    return { kind: 'help' };
+  }
+
+  if (subcommand === 'list') {
+    const options = parseChatWorkspaceJsonOptions('autonomous list', rest);
+    if (options.showHelp) {
+      return { kind: 'help' };
+    }
+    return { kind: 'autonomousList', workspace: options.workspace, json: options.json };
+  }
+
+  if (subcommand === 'flow') {
+    const [flowCommand, ...flowRest] = rest;
+    if (flowCommand === 'start') {
+      const options = parseAutonomousStartOptions('autonomous flow start', flowRest, 'flow');
+      if (options.showHelp) {
+        return { kind: 'help' };
+      }
+      return {
+        kind: 'autonomousFlowStart',
+        flowId: options.targetId,
+        workspace: options.workspace,
+        launch: options.launch,
+        jsonl: options.jsonl
+      };
+    }
+    if (!flowCommand || flowCommand === '--help' || flowCommand === '-h') {
+      assertNoExtraArgs(flowRest, flowCommand || 'autonomous flow');
+      return { kind: 'help' };
+    }
+    throw new CliUsageError(`Unknown autonomous flow command: ${flowCommand}`);
+  }
+
+  if (subcommand === 'run') {
+    const [runCommand, ...runRest] = rest;
+    if (runCommand === 'start') {
+      const options = parseAutonomousStartOptions('autonomous run start', runRest, 'run');
+      if (options.showHelp) {
+        return { kind: 'help' };
+      }
+      return {
+        kind: 'autonomousRunStart',
+        runId: options.targetId,
+        workspace: options.workspace,
+        launch: options.launch,
+        jsonl: options.jsonl
+      };
+    }
+    if (!runCommand || runCommand === '--help' || runCommand === '-h') {
+      assertNoExtraArgs(runRest, runCommand || 'autonomous run');
+      return { kind: 'help' };
+    }
+    throw new CliUsageError(`Unknown autonomous run command: ${runCommand}`);
+  }
+
+  if (subcommand === 'stop') {
+    const options = parseAutonomousSessionOptions('autonomous stop', rest);
+    if (options.showHelp) {
+      return { kind: 'help' };
+    }
+    return { kind: 'autonomousStop', sessionId: options.sessionId, workspace: options.workspace, json: options.json };
+  }
+
+  if (subcommand === 'export') {
+    const options = parseAutonomousExportOptions(rest);
+    if (options.showHelp) {
+      return { kind: 'help' };
+    }
+    return {
+      kind: 'autonomousExport',
+      sessionId: options.sessionId,
+      workspace: options.workspace,
+      format: options.format
+    };
+  }
+
+  if (subcommand.startsWith('-')) {
+    throw new CliUsageError(`Unknown option for 'autonomous': ${subcommand}`);
+  }
+
+  throw new CliUsageError(`Unknown autonomous command: ${subcommand}`);
+}
+
+function parseAutonomousStartOptions(
+  command: string,
+  args: readonly string[],
+  targetLabel: 'flow' | 'run'
+): {
+  readonly targetId: string;
+  readonly workspace?: string;
+  readonly launch: AutonomousLaunchOptions;
+  readonly jsonl: boolean;
+  readonly showHelp: boolean;
+} {
+  let targetId: string | undefined;
+  let workspace: string | undefined;
+  let engineId: AutonomousEngineId = 'dry-run';
+  let dryRun = true;
+  let jsonl = false;
+  let workDir: string | undefined;
+  let extraPrompt: string | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { targetId: '', workspace, launch: { engineId, dryRun, workDir, extraPrompt }, jsonl, showHelp: true };
+    }
+
+    if (token === '--jsonl') {
+      jsonl = true;
+      continue;
+    }
+
+    if (token === '--dry-run') {
+      dryRun = true;
+      continue;
+    }
+
+    if (token === '--no-dry-run') {
+      dryRun = false;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken(command, args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    const engineResult = parseAutonomousEngineOptionToken(command, args, index, engineId);
+    if (engineResult.matched) {
+      engineId = engineResult.engineId;
+      index = engineResult.index;
+      continue;
+    }
+
+    const workDirResult = parseStringOptionToken(command, '--workdir', args, index, workDir);
+    if (workDirResult.matched) {
+      workDir = workDirResult.value;
+      index = workDirResult.index;
+      continue;
+    }
+
+    const extraPromptResult = parseStringOptionToken(command, '--extra-prompt', args, index, extraPrompt);
+    if (extraPromptResult.matched) {
+      extraPrompt = extraPromptResult.value;
+      index = extraPromptResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for '${command}': ${token}`);
+    }
+
+    if (targetId !== undefined) {
+      throw new CliUsageError(`Unexpected argument for '${command}': ${token}`);
+    }
+    targetId = token;
+  }
+
+  if (!targetId) {
+    throw new CliUsageError(`'${command}' requires a ${targetLabel} id.`);
+  }
+
+  if (!jsonl) {
+    throw new CliUsageError(`'${command}' currently requires --jsonl.`);
+  }
+
+  return { targetId, workspace, launch: { engineId, dryRun, workDir, extraPrompt }, jsonl, showHelp: false };
+}
+
+function parseAutonomousSessionOptions(
+  command: string,
+  args: readonly string[]
+): { readonly sessionId: string; readonly workspace?: string; readonly json: boolean; readonly showHelp: boolean } {
+  let sessionId: string | undefined;
+  let workspace: string | undefined;
+  let json = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { sessionId: '', workspace, json, showHelp: true };
+    }
+
+    if (token === '--json') {
+      json = true;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken(command, args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for '${command}': ${token}`);
+    }
+
+    if (sessionId !== undefined) {
+      throw new CliUsageError(`Unexpected argument for '${command}': ${token}`);
+    }
+    sessionId = token;
+  }
+
+  if (!sessionId) {
+    throw new CliUsageError(`'${command}' requires a session id.`);
+  }
+
+  return { sessionId, workspace, json, showHelp: false };
+}
+
+function parseAutonomousExportOptions(args: readonly string[]): {
+  readonly sessionId: string;
+  readonly workspace?: string;
+  readonly format: AutonomousExportFormat;
+  readonly showHelp: boolean;
+} {
+  let sessionId: string | undefined;
+  let workspace: string | undefined;
+  let format: AutonomousExportFormat = 'markdown';
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { sessionId: '', workspace, format, showHelp: true };
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken('autonomous export', args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    const formatResult = parseAutonomousFormatOptionToken(args, index, format);
+    if (formatResult.matched) {
+      format = formatResult.format;
+      index = formatResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for 'autonomous export': ${token}`);
+    }
+
+    if (sessionId !== undefined) {
+      throw new CliUsageError(`Unexpected argument for 'autonomous export': ${token}`);
+    }
+    sessionId = token;
+  }
+
+  if (!sessionId) {
+    throw new CliUsageError(`'autonomous export' requires a session id.`);
+  }
+
+  return { sessionId, workspace, format, showHelp: false };
+}
+
 function parseWorkspaceOptionToken(
   command: string,
   args: readonly string[],
@@ -2448,6 +2976,80 @@ function parseSocketOptionToken(
   }
 
   return { matched: false, socket: current, index };
+}
+
+function parseAutonomousEngineOptionToken(
+  command: string,
+  args: readonly string[],
+  index: number,
+  current: AutonomousEngineId
+): { readonly matched: boolean; readonly engineId: AutonomousEngineId; readonly index: number } {
+  const token = args[index];
+
+  if (token === '--engine') {
+    const value = args[index + 1];
+    return { matched: true, engineId: parseAutonomousEngineId(command, value), index: index + 1 };
+  }
+
+  if (token.startsWith('--engine=')) {
+    return {
+      matched: true,
+      engineId: parseAutonomousEngineId(command, token.slice('--engine='.length)),
+      index
+    };
+  }
+
+  return { matched: false, engineId: current, index };
+}
+
+function parseStringOptionToken(
+  command: string,
+  option: string,
+  args: readonly string[],
+  index: number,
+  current: string | undefined
+): { readonly matched: boolean; readonly value?: string; readonly index: number } {
+  const token = args[index];
+
+  if (token === option) {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option ${option} was provided more than once for '${command}'.`);
+    }
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) {
+      throw new CliUsageError(`Option ${option} for '${command}' requires a value.`);
+    }
+    return { matched: true, value, index: index + 1 };
+  }
+
+  if (token.startsWith(`${option}=`)) {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option ${option} was provided more than once for '${command}'.`);
+    }
+    const value = token.slice(option.length + 1);
+    if (value.trim() === '') {
+      throw new CliUsageError(`Option ${option} for '${command}' requires a value.`);
+    }
+    return { matched: true, value, index };
+  }
+
+  return { matched: false, value: current, index };
+}
+
+function parseAutonomousFormatOptionToken(
+  args: readonly string[],
+  index: number,
+  current: AutonomousExportFormat
+): { readonly matched: boolean; readonly format: AutonomousExportFormat; readonly index: number } {
+  const token = args[index];
+  if (token === '--format') {
+    const value = args[index + 1];
+    return { matched: true, format: parseAutonomousExportFormat(value), index: index + 1 };
+  }
+  if (token.startsWith('--format=')) {
+    return { matched: true, format: parseAutonomousExportFormat(token.slice('--format='.length)), index };
+  }
+  return { matched: false, format: current, index };
 }
 
 function parseScopeOptionToken(
@@ -2596,6 +3198,30 @@ function parseCliModelProvider(command: string, value: string | undefined): CliM
   }
 
   throw new CliUsageError(`Option --provider for '${command}' must be openrouter, codex, or all.`);
+}
+
+function parseAutonomousEngineId(command: string, value: string | undefined): AutonomousEngineId {
+  if (
+    value === 'dry-run' ||
+    value === 'openrouter-api' ||
+    value === 'codex-api' ||
+    value === 'claude-cli' ||
+    value === 'codex-cli'
+  ) {
+    return value;
+  }
+
+  throw new CliUsageError(
+    `Option --engine for '${command}' must be dry-run, openrouter-api, codex-api, claude-cli, or codex-cli.`
+  );
+}
+
+function parseAutonomousExportFormat(value: string | undefined): AutonomousExportFormat {
+  if (value === 'markdown' || value === 'json') {
+    return value;
+  }
+
+  throw new CliUsageError(`Option --format for 'autonomous export' must be markdown or json.`);
 }
 
 function parseChatModel(command: string, value: string | undefined): string {

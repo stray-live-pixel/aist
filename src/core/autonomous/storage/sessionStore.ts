@@ -13,6 +13,10 @@ import type {
 
 export const AUTONOMOUS_SESSIONS_RELATIVE_PATH = path.join('.aist-agent', 'autonomous', 'sessions');
 
+export type AutonomousSessionStoreOptions = {
+  onEvent?(sessionId: string, event: AutonomousEvent): void;
+};
+
 /**
  * Что это: файловое хранилище autonomous sessions.
  * Почему здесь сосредоточен fs: controller/orchestrator должны работать с
@@ -20,7 +24,10 @@ export const AUTONOMOUS_SESSIONS_RELATIVE_PATH = path.join('.aist-agent', 'auton
  * файлов и правила atomic write. Это понадобится и для будущего desktop app.
  */
 export class AutonomousSessionStore {
-  constructor(private readonly workspaceRoot: string) {
+  constructor(
+    private readonly workspaceRoot: string,
+    private readonly options: AutonomousSessionStoreOptions = {}
+  ) {
     if (!workspaceRoot) {
       throw new AutonomousStorageError('Open a workspace before creating autonomous sessions.', 'workspace.missing');
     }
@@ -54,6 +61,7 @@ export class AutonomousSessionStore {
     const sessionPath = this.getSessionPath(sessionId);
     await fs.mkdir(sessionPath, { recursive: true });
     await fs.appendFile(path.join(sessionPath, 'events.jsonl'), `${JSON.stringify(event)}\n`, 'utf8');
+    this.options.onEvent?.(sessionId, event);
   }
 
   async listSessions(limit = 20, tailEvents = 300): Promise<AutonomousSessionView[]> {

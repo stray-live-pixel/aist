@@ -9,6 +9,10 @@ export {
 } from './daemonProtocol';
 export type {
   DaemonActiveRun,
+  DaemonAutonomousExportResult,
+  DaemonAutonomousStartResult,
+  DaemonAutonomousStateResult,
+  DaemonAutonomousStopResult,
   DaemonChat,
   DaemonChatAskParams,
   DaemonChatAskResult,

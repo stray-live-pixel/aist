@@ -25,7 +25,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const coreRuntime = daemonRuntime ? undefined : await maybeCreateCoreRuntimeBridge(context, logger, configModel);
   const chats = daemonRuntime?.chats || coreRuntime?.chats || new ChatStore(context.workspaceState, configModel);
   const agent = new AgentController(context, chats, logger, { coreRuntime, daemonRuntime });
-  const autonomous = new AutonomousController(context, logger);
+  const autonomous = new AutonomousController(context, logger, { daemonRuntime });
 
   logger.info('Registering WebviewViewProvider', { viewId: 'openrouterAgent.chats' });
 

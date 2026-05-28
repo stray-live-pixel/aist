@@ -36,6 +36,10 @@ export {
 export type {
   AistDaemonServerOptions,
   DaemonActiveRun,
+  DaemonAutonomousExportResult,
+  DaemonAutonomousStartResult,
+  DaemonAutonomousStateResult,
+  DaemonAutonomousStopResult,
   DaemonChat,
   DaemonChatAskParams,
   DaemonChatAskResult,

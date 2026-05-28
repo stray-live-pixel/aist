@@ -1,15 +1,14 @@
-import type { ModelStreamCallbacks, OpenRouterMessage } from '../../../core/types';
-import type { CodexClient } from '../../codex/client';
-import type { OpenRouterClient } from '../../openrouter/client';
+import type { ModelClient } from '../../modelTransport';
+import type { ModelStreamCallbacks, OpenRouterMessage } from '../../types';
 import { createAutonomousEvent } from '../storage/sessionStore';
 import type { AutonomousEngine } from './types';
 
 export type ApiEngineDeps = {
-  openRouterClient: OpenRouterClient;
-  codexClient: CodexClient;
+  openRouterClient: ModelClient;
+  codexClient: ModelClient;
 };
 
-export function createOpenRouterApiEngine(client: OpenRouterClient): AutonomousEngine {
+export function createOpenRouterApiEngine(client: ModelClient): AutonomousEngine {
   return createApiEngine({
     id: 'openrouter-api',
     label: 'OpenRouter API',
@@ -17,7 +16,7 @@ export function createOpenRouterApiEngine(client: OpenRouterClient): AutonomousE
   });
 }
 
-export function createCodexApiEngine(client: CodexClient): AutonomousEngine {
+export function createCodexApiEngine(client: ModelClient): AutonomousEngine {
   return createApiEngine({
     id: 'codex-api',
     label: 'ChatGPT Codex API',

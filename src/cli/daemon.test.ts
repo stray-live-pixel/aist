@@ -9,6 +9,9 @@ import { AistDaemonServer } from './daemon';
 import { DaemonJsonRpcClient, DaemonJsonRpcError } from './daemonClient';
 import {
   DAEMON_BUSY_ERROR_CODE,
+  type DaemonAutonomousExportResult,
+  type DaemonAutonomousStartResult,
+  type DaemonAutonomousStateResult,
   type DaemonChatAskResult,
   type DaemonChatCreateResult,
   type DaemonChatGetResult,
@@ -238,6 +241,53 @@ describe('AIST daemon JSON-RPC local socket', () => {
     expect(clientRequests.some((item) => item.startsWith('cleanup:'))).toBe(true);
     expect(clientRequests).toContain('notification');
   });
+
+  it('serves autonomous state and dry-run flow events without changing chat activeRun', async () => {
+    const { server, workspaceRoot } = await startDaemon(createQueuedModelClient([]));
+    createNativeAutonomousFlow(workspaceRoot, 'demo-flow');
+    const client = await connectClient(server);
+    const events = createEventCollector(client);
+    await client.subscribe();
+
+    const state = await client.request<DaemonAutonomousStateResult>('autonomous.state');
+    expect(state.state.definitions.flows.map((flow) => flow.id)).toContain('demo-flow');
+    expect(state.state.storageRoot).toBe(path.join(workspaceRoot, '.aist-agent', 'autonomous', 'sessions'));
+
+    const start = await client.request<DaemonAutonomousStartResult>('autonomous.flow.start', {
+      flowId: 'demo-flow',
+      launch: { engineId: 'dry-run', dryRun: true }
+    });
+    expect(start).toMatchObject({
+      accepted: true,
+      kind: 'flow',
+      targetId: 'demo-flow'
+    });
+
+    await events.waitFor(
+      (event) =>
+        event.type === 'autonomous.session.finished' &&
+        event.sessionId === start.sessionId &&
+        event.status === 'finished'
+    );
+    expect(
+      events.items.some(
+        (event) =>
+          event.type === 'autonomous.event' && event.sessionId === start.sessionId && event.event.action === 'DRY'
+      )
+    ).toBe(true);
+
+    const exported = await client.request<DaemonAutonomousExportResult>('autonomous.export', {
+      sessionId: start.sessionId,
+      format: 'json'
+    });
+    expect(JSON.parse(exported.content)).toMatchObject({
+      meta: {
+        id: start.sessionId,
+        status: 'finished'
+      }
+    });
+    expect((await client.request<DaemonState>('state.get')).activeRun).toBeNull();
+  });
 });
 
 async function startDaemon(modelClient: ModelClient): Promise<{ server: AistDaemonServer; workspaceRoot: string }> {
@@ -259,6 +309,21 @@ function createTempDir(prefix: string): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   tempDirs.push(tempDir);
   return tempDir;
+}
+
+function createNativeAutonomousFlow(workspaceRoot: string, flowId: string): void {
+  const flowRoot = path.join(workspaceRoot, '.aist-agent', 'autonomous', 'flows', flowId);
+  fs.mkdirSync(flowRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(flowRoot, '.index.md'),
+    ['---', 'title: Demo flow', 'stages:', '  - 1-stage.md', '---', '', '# Demo flow', ''].join('\n'),
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(flowRoot, '1-stage.md'),
+    ['---', 'title: Stage one', 'contexts: []', '---', '', '# Stage one', '', 'Say hello.', ''].join('\n'),
+    'utf8'
+  );
 }
 
 function createQueuedModelClient(responses: OpenRouterMessage[]): ModelClient {

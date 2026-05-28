@@ -1,15 +1,13 @@
-import type { CodexClient } from '../codex/client';
-import type { OpenRouterClient } from '../openrouter/client';
 import { discoverAutonomousDefinitions } from './discovery';
 import { createAutonomousEngineRegistry } from './engines/registry';
+import type { AutonomousEngineRegistry } from './engines/types';
 import { AutonomousSessionStore } from './storage/sessionStore';
 import type { AutonomousState } from './types';
 
 export type BuildAutonomousStateOptions = {
   workspaceRoot: string;
   workspaceName: string;
-  openRouterClient?: OpenRouterClient;
-  codexClient?: CodexClient;
+  engineRegistry?: AutonomousEngineRegistry;
 };
 
 /**
@@ -19,10 +17,7 @@ export type BuildAutonomousStateOptions = {
  */
 export async function buildAutonomousState(options: BuildAutonomousStateOptions): Promise<AutonomousState> {
   const definitions = await discoverAutonomousDefinitions({ workspaceRoot: options.workspaceRoot });
-  const registry = createAutonomousEngineRegistry({
-    openRouterClient: options.openRouterClient,
-    codexClient: options.codexClient
-  });
+  const registry = options.engineRegistry || createAutonomousEngineRegistry();
   const sessionStore = new AutonomousSessionStore(options.workspaceRoot);
   const sessions = await sessionStore.listSessions();
 
