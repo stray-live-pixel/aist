@@ -73,19 +73,15 @@ export function ChatPage() {
         resolvedApprovalId={resolvedApprovalId}
       />
       <Composer
+        chatId={state.activeChat.id}
         busy={state.activeChat.busy}
         floating
-        settings={
-          <AgentSettingsSummary
-            state={state}
-            onOpen={openSettings}
-            actions={
-              <FloatingChatActions
-                extensionVersion={state.extensionVersion}
-                onOpenChats={() => setChatsOpen(true)}
-                activeChatId={state.activeChat.id}
-              />
-            }
+        settings={<AgentSettingsSummary state={state} onOpen={openSettings} />}
+        headerActions={
+          <FloatingChatActions
+            extensionVersion={state.extensionVersion}
+            onOpenChats={() => setChatsOpen(true)}
+            activeChatId={state.activeChat.id}
           />
         }
         footer={<ComposerContextSummary state={state} />}

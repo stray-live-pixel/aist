@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { validateReflectionCandidates } from '../../../../core/features/reflection/reflection';
 import { getErrorMessage } from '../../../shared/errors';
 import { t } from '../../../shared/i18n';
 import {
@@ -13,8 +14,9 @@ import {
   upsertPromptItem,
   upsertPromptPreset
 } from '../../config/agentConfigStore';
+import { setAuxiliaryModelSettings, setAuxiliaryToolModelOverrides } from '../../config/auxiliaryModelSettings';
 import { setCompactionSettings } from '../../config/compaction';
-import { normalizeCodexServiceTier, normalizeReasoningEffort } from '../../config/config';
+import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
 import {
   addAgentMode,
@@ -23,6 +25,7 @@ import {
   setAgentMode,
   setAgentModeInstructions
 } from '../../config/settings';
+import { type AgentMemoryScope, addAgentMemory, deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -31,7 +34,10 @@ type SettingsMessage = Extract<
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
   | { type: 'setCodexServiceTier' }
+  | { type: 'setEditorContextMode' }
   | { type: 'setStreamingEnabled' }
+  | { type: 'setAuxiliaryModelSettings' }
+  | { type: 'setAuxiliaryToolModelOverrides' }
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
   | { type: 'setAgentLanguage' }
@@ -48,6 +54,10 @@ type SettingsMessage = Extract<
   | { type: 'applyPromptPreset' }
   | { type: 'upsertPromptPreset' }
   | { type: 'deletePromptPreset' }
+  | { type: 'setMemoryEnabled' }
+  | { type: 'deleteMemory' }
+  | { type: 'saveReflectionCandidate' }
+  | { type: 'rejectReflectionCandidate' }
 >;
 
 export function isSettingsMessage(message: WebviewMessage): message is SettingsMessage {
@@ -55,7 +65,10 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setMaxToolIterations',
     'setReasoningEffort',
     'setCodexServiceTier',
+    'setEditorContextMode',
     'setStreamingEnabled',
+    'setAuxiliaryModelSettings',
+    'setAuxiliaryToolModelOverrides',
     'setCompactionSettings',
     'setApprovalNotificationSettings',
     'setAgentLanguage',
@@ -71,7 +84,11 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setActivePromptConfig',
     'applyPromptPreset',
     'upsertPromptPreset',
-    'deletePromptPreset'
+    'deletePromptPreset',
+    'setMemoryEnabled',
+    'deleteMemory',
+    'saveReflectionCandidate',
+    'rejectReflectionCandidate'
   ].includes(message.type);
 }
 
@@ -102,8 +119,20 @@ export async function handleWebviewSettingsMessage(
       await updateWorkspaceSetting('codexServiceTier', normalizeCodexServiceTier(message.codexServiceTier));
       deps.sendState();
       return;
+    case 'setEditorContextMode':
+      await updateWorkspaceSetting('editorContextMode', normalizeEditorContextMode(message.editorContextMode));
+      deps.sendState();
+      return;
     case 'setStreamingEnabled':
       await updateWorkspaceSetting('streamingEnabled', message.streamingEnabled === true);
+      deps.sendState();
+      return;
+    case 'setAuxiliaryModelSettings':
+      await setAuxiliaryModelSettings(message.id, message.settings);
+      deps.sendState();
+      return;
+    case 'setAuxiliaryToolModelOverrides':
+      await setAuxiliaryToolModelOverrides(message.overrides);
       deps.sendState();
       return;
     case 'setCompactionSettings':
@@ -170,7 +199,63 @@ export async function handleWebviewSettingsMessage(
       await deletePromptPreset(message.presetId);
       deps.sendState();
       return;
+    case 'setMemoryEnabled':
+      await setAgentMemoryEnabled(message.scope, message.id, message.enabled);
+      deps.sendState();
+      return;
+    case 'deleteMemory':
+      await deleteAgentMemory(message.scope, message.id);
+      deps.sendState();
+      return;
+    case 'saveReflectionCandidate':
+      await saveReflectionCandidate(message.chatId, message.candidateId, deps);
+      deps.sendState();
+      return;
+    case 'rejectReflectionCandidate':
+      deps.chats.setReflectionCandidateStatus(message.chatId, message.candidateId, 'rejected');
+      deps.sendState();
+      return;
   }
+}
+
+async function saveReflectionCandidate(
+  chatId: string,
+  candidateId: string,
+  deps: AgentWebviewMessageDeps
+): Promise<void> {
+  const chat = deps.chats.getChat(chatId);
+  const candidate = chat?.reflectionCandidates?.find((item) => item.id === candidateId && item.status === 'pending');
+  const validated = validateReflectionCandidates(candidate ? [candidate] : [])[0];
+  if (!candidate || !validated) {
+    deps.chats.setReflectionCandidateStatus(chatId, candidateId, 'rejected');
+    return;
+  }
+
+  await addAgentMemory({
+    scope: getReflectionMemoryScope(validated),
+    note: getReflectionMemoryNote(validated)
+  });
+
+  deps.chats.setReflectionCandidateStatus(chatId, candidateId, 'saved');
+}
+
+function getReflectionMemoryScope(
+  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
+): AgentMemoryScope {
+  return candidate.kind === 'memory_preference' && candidate.scope === 'global' ? 'global' : 'project';
+}
+
+function getReflectionMemoryNote(
+  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
+): string {
+  if (candidate.kind === 'verification_command') {
+    return `Verification command: ${candidate.content}`;
+  }
+  if (candidate.kind === 'declarative_definition') {
+    return `Possible declarative definition: ${candidate.content}`;
+  }
+
+  return candidate.content;
 }
 
 function updateWorkspaceSetting(key: string, value: unknown): Thenable<void> {

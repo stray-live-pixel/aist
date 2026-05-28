@@ -12,7 +12,7 @@ Available commands:
 - `aist: New Chat` — creates a new chat.
 - `aist: Open Chat in Editor` — opens the current or selected chat as an editor panel.
 - `aist: Settings` — opens the AIST settings UI.
-- `aist: Open Extension Storage` — opens extension storage on disk.
+- `aist: Open AIST Storage` — opens the workspace `.aist-agent` daemon storage on disk.
 - `aist: Edit Selection` — asks for an instruction and replaces the current selection with model output.
 - `aist: Show Logs` — opens the extension log output.
 - `aist: Login ChatGPT Codex` / `aist: Logout ChatGPT Codex` — manages Codex authorization.

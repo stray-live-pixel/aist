@@ -8,8 +8,11 @@ export type ChatMessage = {
   status?: 'waiting' | 'running' | 'done' | 'error' | 'denied';
   approval?: 'pending' | 'approved' | 'denied';
   reason?: string;
+  nextStep?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  modelResult?: Record<string, unknown>;
+  userApprovalComment?: string;
   userComment?: string;
   usage?: ChatMessageUsageEstimate;
   marker?: string;
@@ -32,6 +35,8 @@ export type ChatSummary = {
   messageCount: number;
   lastUserMessage: string;
   busy: boolean;
+  activity?: 'thinking' | 'waitingForApproval' | 'runningTool' | 'answering' | 'stopping';
+  activityDetail?: string;
   lastMessageAt: number;
   updatedAt: number;
 };
@@ -110,6 +115,7 @@ export type Chat = {
   context?: ChatContextEstimate;
   contextLength?: number;
   activePlan?: ChatPlan;
+  reflectionCandidates?: AgentReflectionCandidate[];
   usage: ChatUsageEstimate;
   createdAt: number;
   updatedAt: number;
@@ -132,7 +138,24 @@ export type ModelOption = {
 export type ToolPermissionMode = 'ask' | 'auto';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type CodexServiceTier = 'auto' | 'priority';
+export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 export type AgentLanguage = 'ru' | 'en';
+export type AuxiliaryModelId = 'compaction' | 'tool';
+export type AuxiliaryModelSettings = {
+  model: string;
+  reasoningEffort: ReasoningEffort;
+  allowTools: boolean;
+};
+export type AuxiliaryToolModelOverride = AuxiliaryModelSettings & {
+  toolName: string;
+};
+export type AuxiliaryToolModelSettings = AuxiliaryModelSettings & {
+  overrides: AuxiliaryToolModelOverride[];
+};
+export type AuxiliaryModelsSettings = {
+  compaction: AuxiliaryModelSettings;
+  tool: AuxiliaryToolModelSettings;
+};
 export type AgentModeId = string;
 export type ToolPermissionPresetId = string;
 
@@ -154,6 +177,7 @@ export type AgentSkill = {
 export type AgentConfigScope = 'workspace' | 'user';
 export type AgentItemScope = 'global' | 'local';
 export type AgentInstructionKind = 'instruction' | 'mode';
+export type AgentMemoryScope = 'global' | 'project';
 
 export type AgentItemRef = {
   scope: AgentItemScope;
@@ -200,14 +224,54 @@ export type AgentInstructionSource = {
   title: string;
   content: string;
   priority: number;
-  kind: 'base' | 'file' | 'mode' | 'custom' | 'skills';
+  kind: 'base' | 'file' | 'declarative' | 'mode' | 'custom' | 'skills';
+  source?: string;
+};
+
+export type AgentMemoryItem = {
+  id: string;
+  scope: AgentMemoryScope;
+  note: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type AgentReflectionCandidateKind =
+  | 'memory_preference'
+  | 'project_lesson'
+  | 'verification_command'
+  | 'declarative_definition';
+
+export type AgentReflectionCandidateStatus = 'pending' | 'saved' | 'rejected';
+
+export type AgentReflectionCandidate = {
+  id: string;
+  kind: AgentReflectionCandidateKind;
+  title: string;
+  content: string;
+  reason?: string;
+  scope?: 'global' | 'project' | 'local';
+  status: AgentReflectionCandidateStatus;
+  createdAt: number;
 };
 
 export type ToolPermissionItem = {
   name: string;
+  label?: string;
   description: string;
   permission: ToolPermissionMode;
   defaultPermission: ToolPermissionMode;
+  source?: 'builtin' | 'skill' | 'project';
+  enabled?: boolean;
+  version?: string;
+};
+
+export type ProjectToolDiagnostic = {
+  code: string;
+  message: string;
+  path?: string;
+  toolId?: string;
 };
 
 export type ToolPermissionPreset = {
@@ -221,6 +285,9 @@ export type CompactionSettings = {
   enabled: boolean;
   thresholdPercent: number;
   keepLastMessages: number;
+  model: string;
+  reasoningEffort: ReasoningEffort;
+  allowTools: boolean;
 };
 
 export type ApprovalNotificationSettings = {
@@ -229,6 +296,62 @@ export type ApprovalNotificationSettings = {
   sound: boolean;
   volume: number;
   durationSeconds: number;
+};
+
+export type RunTelemetryStatus = 'success' | 'error' | 'stopped';
+
+export type RunTelemetryApprovals = {
+  requested: number;
+  approved: number;
+  denied: number;
+};
+
+export type AgentRunTelemetryRecord = {
+  schemaVersion: number;
+  runId: string;
+  chatId: string;
+  model: string;
+  startedAt: number;
+  finishedAt: number;
+  durationMs: number;
+  status: RunTelemetryStatus;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  modelRequestCount: number;
+  toolCallCount: number;
+  toolCallsByType: Record<string, number>;
+  repeatedToolCalls: number;
+  firstEditLatencyMs?: number;
+  failedEdits: number;
+  approvals: RunTelemetryApprovals;
+  contextBytes: number;
+};
+
+export type AgentTelemetryAggregates = {
+  runCount: number;
+  successCount: number;
+  errorCount: number;
+  stoppedCount: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  toolCallCount: number;
+  repeatedToolCalls: number;
+  failedEdits: number;
+  approvals: RunTelemetryApprovals;
+  contextBytes: number;
+  averageDurationMs: number;
+  averageFirstEditLatencyMs?: number;
+  toolCallsByType: Record<string, number>;
+};
+
+export type AgentTelemetryDashboard = {
+  storagePath?: string;
+  recentRuns: AgentRunTelemetryRecord[];
+  aggregates: AgentTelemetryAggregates;
+  jsonExport: string;
+  markdownExport: string;
 };
 
 export type AutonomousSourceKind = 'native' | 'legacy';
@@ -370,22 +493,27 @@ export type AgentState = {
   reasoningEffort: ReasoningEffort;
   /** Управляет ChatGPT Codex service_tier; auto не отправляет поле, priority просит ускоренную обработку. */
   codexServiceTier: CodexServiceTier;
+  editorContextMode: EditorContextMode;
   /** Включает live streaming ответа; по умолчанию false, потому что non-streaming устойчивее к обрывам SSE. */
   streamingEnabled: boolean;
+  auxiliaryModels: AuxiliaryModelsSettings;
   compactionSettings: CompactionSettings;
   approvalNotificationSettings: ApprovalNotificationSettings;
+  telemetry: AgentTelemetryDashboard;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];
   agentConfigScope: AgentConfigScope;
   projectInstructions: string;
   promptConfig: AgentPromptConfig;
+  memoryItems: AgentMemoryItem[];
   instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];
   codexAuthenticated: boolean;
   toolPermissions: ToolPermissionItem[];
   toolPermissionPresets: ToolPermissionPreset[];
   activeToolPermissionPresetId: ToolPermissionPresetId | 'custom';
+  projectToolDiagnostics: ProjectToolDiagnostic[];
 };
 
 export type ExtensionToWebviewMessage =
@@ -400,7 +528,7 @@ export type ExtensionToWebviewMessage =
 
 export type WebviewToExtensionMessage =
   | { type: 'webviewReady' }
-  | { type: 'ask'; prompt: string }
+  | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }
   | { type: 'deleteChat'; chatId: string }
@@ -410,12 +538,16 @@ export type WebviewToExtensionMessage =
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
+  | { type: 'setProjectToolEnabled'; toolId: string; enabled: boolean }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
+  | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }
+  | { type: 'setAuxiliaryModelSettings'; id: AuxiliaryModelId; settings: Partial<AuxiliaryModelSettings> }
+  | { type: 'setAuxiliaryToolModelOverrides'; overrides: AuxiliaryToolModelOverride[] }
   | { type: 'setApprovalNotificationSettings'; settings: Partial<ApprovalNotificationSettings> }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
@@ -445,6 +577,10 @@ export type WebviewToExtensionMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
+  | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
+  | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
+  | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }
+  | { type: 'rejectReflectionCandidate'; chatId: string; candidateId: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;
@@ -470,9 +606,11 @@ export type WebviewToExtensionMessage =
       messageId: string;
       decision: 'approve' | 'deny-stop' | 'deny-continue';
       comment?: string;
+      rememberGlobal?: string;
+      rememberProject?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
-  | { type: 'stop' }
+  | { type: 'stop'; chatId?: string }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string }
   | { type: 'autonomous.refresh' }

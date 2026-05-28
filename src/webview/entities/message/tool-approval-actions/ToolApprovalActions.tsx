@@ -1,4 +1,4 @@
-import { Check, MessageSquareText, Play, Square } from 'lucide-react';
+import { Check, Database, MessageSquareText, Play, Square } from 'lucide-react';
 import { useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
@@ -20,10 +20,18 @@ export function ToolApprovalActions({
 }: ToolApprovalActionsProps) {
   const { t } = useI18n();
   const [comment, setComment] = useState('');
+  const [rememberGlobal, setRememberGlobal] = useState('');
+  const [rememberProject, setRememberProject] = useState('');
   const cleanComment = comment.trim();
+  const cleanRememberGlobal = rememberGlobal.trim();
+  const cleanRememberProject = rememberProject.trim();
 
   function resolve(decision: 'approve' | 'deny-stop' | 'deny-continue') {
-    agentActions.resolveToolCall(messageId, decision, cleanComment || undefined);
+    agentActions.resolveToolCall(messageId, decision, {
+      comment: cleanComment || undefined,
+      rememberGlobal: cleanRememberGlobal || undefined,
+      rememberProject: cleanRememberProject || undefined
+    });
     onResolved?.();
   }
 
@@ -42,6 +50,34 @@ export function ToolApprovalActions({
           onChange={(event) => setComment(event.target.value)}
         />
       </label>
+      <div className={styles.memoryGrid}>
+        <label className={styles.comment}>
+          <span className={styles.commentLabel}>
+            <Database size={13} />
+            {t('tool.rememberGlobalLabel')}
+          </span>
+          <textarea
+            className={styles.textarea}
+            value={rememberGlobal}
+            rows={compact ? 2 : 3}
+            placeholder={t('tool.rememberGlobalPlaceholder')}
+            onChange={(event) => setRememberGlobal(event.target.value)}
+          />
+        </label>
+        <label className={styles.comment}>
+          <span className={styles.commentLabel}>
+            <Database size={13} />
+            {t('tool.rememberProjectLabel')}
+          </span>
+          <textarea
+            className={styles.textarea}
+            value={rememberProject}
+            rows={compact ? 2 : 3}
+            placeholder={t('tool.rememberProjectPlaceholder')}
+            onChange={(event) => setRememberProject(event.target.value)}
+          />
+        </label>
+      </div>
       <div className={styles.buttonRow}>
         <Button
           className={styles.approveButton}

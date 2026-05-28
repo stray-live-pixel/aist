@@ -3,10 +3,15 @@ import type {
   AgentItemRef,
   AgentItemScope,
   AgentLanguage,
+  AgentMemoryScope,
   AgentModeId,
   ApprovalNotificationSettings,
+  AuxiliaryModelId,
+  AuxiliaryModelSettings,
+  AuxiliaryToolModelOverride,
   CodexServiceTier,
   CompactionSettings,
+  EditorContextMode,
   ReasoningEffort,
   ToolPermissionMode,
   ToolPermissionPresetId,
@@ -33,12 +38,12 @@ export const agentActions = {
     post({ type: 'webviewReady' });
   },
 
-  ask(prompt: string): void {
-    post({ type: 'ask', prompt });
+  ask(prompt: string, options: { continueWithoutUserPrompt?: boolean } = {}): void {
+    post({ type: 'ask', prompt, continueWithoutUserPrompt: options.continueWithoutUserPrompt });
   },
 
-  stop(): void {
-    post({ type: 'stop' });
+  stop(chatId?: string): void {
+    post({ type: 'stop', chatId });
   },
 
   clear(): void {
@@ -81,6 +86,10 @@ export const agentActions = {
     post({ type: 'setToolPermissionPreset', presetId });
   },
 
+  setProjectToolEnabled(toolId: string, enabled: boolean): void {
+    post({ type: 'setProjectToolEnabled', toolId, enabled });
+  },
+
   setMaxToolIterations(maxToolIterations: number): void {
     post({ type: 'setMaxToolIterations', maxToolIterations });
   },
@@ -93,6 +102,10 @@ export const agentActions = {
     post({ type: 'setCodexServiceTier', codexServiceTier });
   },
 
+  setEditorContextMode(editorContextMode: EditorContextMode): void {
+    post({ type: 'setEditorContextMode', editorContextMode });
+  },
+
   setStreamingEnabled(streamingEnabled: boolean): void {
     post({ type: 'setStreamingEnabled', streamingEnabled });
   },
@@ -103,6 +116,14 @@ export const agentActions = {
 
   setCompactionSettings(settings: Partial<CompactionSettings>): void {
     post({ type: 'setCompactionSettings', settings });
+  },
+
+  setAuxiliaryModelSettings(id: AuxiliaryModelId, settings: Partial<AuxiliaryModelSettings>): void {
+    post({ type: 'setAuxiliaryModelSettings', id, settings });
+  },
+
+  setAuxiliaryToolModelOverrides(overrides: AuxiliaryToolModelOverride[]): void {
+    post({ type: 'setAuxiliaryToolModelOverrides', overrides });
   },
 
   setApprovalNotificationSettings(settings: Partial<ApprovalNotificationSettings>): void {
@@ -177,6 +198,22 @@ export const agentActions = {
     post({ type: 'deletePromptPreset', presetId });
   },
 
+  setMemoryEnabled(scope: AgentMemoryScope, id: string, enabled: boolean): void {
+    post({ type: 'setMemoryEnabled', scope, id, enabled });
+  },
+
+  deleteMemory(scope: AgentMemoryScope, id: string): void {
+    post({ type: 'deleteMemory', scope, id });
+  },
+
+  saveReflectionCandidate(chatId: string, candidateId: string): void {
+    post({ type: 'saveReflectionCandidate', chatId, candidateId });
+  },
+
+  rejectReflectionCandidate(chatId: string, candidateId: string): void {
+    post({ type: 'rejectReflectionCandidate', chatId, candidateId });
+  },
+
   addSkill(
     scope: AgentItemScope,
     label: string,
@@ -210,8 +247,12 @@ export const agentActions = {
     post({ type: 'codexLogout' });
   },
 
-  resolveToolCall(messageId: string, decision: 'approve' | 'deny-stop' | 'deny-continue', comment?: string): void {
-    post({ type: 'resolveToolCall', messageId, decision, comment });
+  resolveToolCall(
+    messageId: string,
+    decision: 'approve' | 'deny-stop' | 'deny-continue',
+    payload?: { comment?: string; rememberGlobal?: string; rememberProject?: string }
+  ): void {
+    post({ type: 'resolveToolCall', messageId, decision, ...payload });
   },
 
   openWorkspaceFile(file: {

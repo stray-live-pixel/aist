@@ -1,5 +1,7 @@
 import {
+  BarChart3,
   BellRing,
+  Brain,
   FileText,
   Gauge,
   KeyRound,
@@ -40,6 +42,12 @@ export const BEHAVIOR_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'settings.nav.presets',
     icon: <Zap size={15} />,
     descriptionKey: 'settings.nav.presetsDescription'
+  },
+  {
+    id: 'memory',
+    labelKey: 'settings.nav.memory',
+    icon: <Brain size={15} />,
+    descriptionKey: 'settings.nav.memoryDescription'
   }
 ];
 
@@ -65,6 +73,12 @@ export const GENERAL_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'settings.nav.notifications',
     icon: <BellRing size={15} />,
     descriptionKey: 'settings.nav.notificationsDescription'
+  },
+  {
+    id: 'telemetry',
+    labelKey: 'settings.nav.telemetry',
+    icon: <BarChart3 size={15} />,
+    descriptionKey: 'settings.nav.telemetryDescription'
   },
   {
     id: 'compaction',

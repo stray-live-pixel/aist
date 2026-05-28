@@ -89,7 +89,9 @@ const InstructionSourceList = memo(function InstructionSourceList({ sources }: {
         <Card
           key={source.id}
           title={source.title}
-          description={t('settings.instructions.priority', { priority: source.priority })}
+          description={[source.source, t('settings.instructions.priority', { priority: source.priority })]
+            .filter(Boolean)
+            .join(' · ')}
         >
           <p className={styles.clampedSourceText}>{source.content}</p>
         </Card>

@@ -1,19 +1,45 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_BRANCH="${BASE_BRANCH:-optimization_feature}"
+TASK_STREAM="${TASK_STREAM:-optimization}"
+
+# Первый аргумент — короткий выбор набора задач: так старый запуск без аргументов
+# остаётся optimization, а CLI можно стартовать симметрично через `...sh cli`.
+if [[ $# -gt 0 ]]; then
+  TASK_STREAM="$1"
+  shift
+fi
+
+BASE_BRANCH="${BASE_BRANCH:-}"
 MAIN_BRANCH="${MAIN_BRANCH:-main}"
-ISSUES_DIR="${ISSUES_DIR:-product/optimization/issues}"
+ISSUES_DIR="${ISSUES_DIR:-}"
 PROMPT_TEMPLATE="${PROMPT_TEMPLATE:-scripts/optimization-task-prompt.md}"
 AGENT_CMD="${AGENT_CMD:-codex exec --dangerously-bypass-approvals-and-sandbox}"
 REMOTE="${REMOTE:-origin}"
+PUSH_AFTER_EACH="${PUSH_AFTER_EACH:-1}"
+MAX_TASKS="${MAX_TASKS:-0}"
+
+case "$TASK_STREAM" in
+  optimization)
+    BASE_BRANCH="${BASE_BRANCH:-optimization_feature}"
+    ISSUES_DIR="${ISSUES_DIR:-product/optimization/issues}"
+    ;;
+  cli)
+    BASE_BRANCH="${BASE_BRANCH:-cli_feature}"
+    ISSUES_DIR="${ISSUES_DIR:-product/cli/issues}"
+    ;;
+  *)
+    BASE_BRANCH="${BASE_BRANCH:-${TASK_STREAM}_feature}"
+    ISSUES_DIR="${ISSUES_DIR:-product/$TASK_STREAM/issues}"
+    ;;
+esac
 
 log() {
-  printf '[optimize:next] %s\n' "$*"
+  printf '[%s:cycle] %s\n' "$TASK_STREAM" "$*"
 }
 
 fail() {
-  printf '[optimize:next] ERROR: %s\n' "$*" >&2
+  printf '[%s:cycle] ERROR: %s\n' "$TASK_STREAM" "$*" >&2
   exit 1
 }
 
@@ -24,7 +50,7 @@ require_command() {
 ensure_clean_workspace() {
   local status
   status="$(git status --porcelain)"
-  [[ -z "$status" ]] || fail "Workspace must be clean before autonomous run. Current changes:\n$status"
+  [[ -z "$status" ]] || fail "Workspace must be clean before continuing autonomous cycle. Current changes:\n$status"
 }
 
 ensure_base_branch() {
@@ -53,19 +79,14 @@ find_next_issue() {
   find "$ISSUES_DIR" -maxdepth 1 -type f -name '[0-9][0-9][0-9]-*.md' | sort | head -n 1
 }
 
-branch_name_for_issue() {
-  local issue_path issue_base issue_slug
-  issue_path="$1"
-  issue_base="$(basename "$issue_path" .md)"
-  issue_slug="$(printf '%s' "$issue_base" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._/-' '-')"
-  printf 'optimization/%s' "$issue_slug"
-}
-
 render_prompt() {
   local issue_path issue_content template
   issue_path="$1"
   issue_content="$(cat "$issue_path")"
   template="$(cat "$PROMPT_TEMPLATE")"
+  template="${template//'{{TASK_STREAM}}'/$TASK_STREAM}"
+  template="${template//'{{BASE_BRANCH}}'/$BASE_BRANCH}"
+  template="${template//'{{ISSUES_DIR}}'/$ISSUES_DIR}"
   template="${template//'{{ISSUE_PATH}}'/$issue_path}"
   template="${template//'{{ISSUE_CONTENT}}'/$issue_content}"
   printf '%s\n' "$template"
@@ -78,7 +99,7 @@ run_agent() {
   render_prompt "$issue_path" >"$prompt_file"
   log "Running agent command: $AGENT_CMD"
   # AGENT_CMD намеренно строка: пользователю удобно подменить engine с аргументами,
-  # например `AGENT_CMD='claude -p' npm run optimize:next`.
+  # например `AGENT_CMD='claude -p' npm run optimize:cycle`.
   bash -lc "$AGENT_CMD < \"$prompt_file\""
   rm -f "$prompt_file"
 }
@@ -97,34 +118,37 @@ assert_new_commit() {
   [[ "$before_head" != "$after_head" ]] || fail "Agent finished without creating a commit."
 }
 
-push_and_create_pr() {
-  local branch issue_path title body pr_url
-  branch="$1"
-  issue_path="$2"
-  title="$(basename "$issue_path" .md | sed -E 's/^[0-9]+-//; s/-/ /g; s/.*/Optimization: &/')"
-  body="$(cat <<BODY
-## Summary
-Autonomous implementation for \`$issue_path\`.
+verify_after_task() {
+  log "Running supervisor verification."
+  npm run typecheck
+  npm run test
+}
 
-## Verification
-Supervisor required and/or pre-commit checks:
-- npm run typecheck
-- npm run test
+push_base_branch() {
+  if [[ "$PUSH_AFTER_EACH" == "1" ]]; then
+    git push -u "$REMOTE" "$BASE_BRANCH"
+  fi
+}
 
-Base branch: \`$BASE_BRANCH\`.
-BODY
-)"
+run_one_issue() {
+  local issue_path before_head
+  issue_path="$1"
+  before_head="$(git rev-parse HEAD)"
 
-  git push -u "$REMOTE" "$branch"
-  pr_url="$(gh pr create --base "$BASE_BRANCH" --head "$branch" --title "$title" --body "$body")"
-  log "Created PR: $pr_url"
+  log "Selected issue: $issue_path"
+  run_agent "$issue_path"
+
+  assert_new_commit "$before_head"
+  assert_done_issue_exists "$issue_path"
+  ensure_clean_workspace
+  verify_after_task
+  push_base_branch
+  log "Issue completed: $issue_path"
 }
 
 main() {
   require_command git
-  require_command gh
   require_command bash
-  gh auth status >/dev/null || fail "GitHub CLI is not authenticated. Run: gh auth login"
   [[ -f "$PROMPT_TEMPLATE" ]] || fail "Prompt template not found: $PROMPT_TEMPLATE"
 
   local agent_binary
@@ -135,32 +159,27 @@ main() {
   ensure_base_branch
   ensure_clean_workspace
 
-  local issue_path branch before_head
-  issue_path="$(find_next_issue)"
-  [[ -n "$issue_path" ]] || fail "No pending optimization issues found in $ISSUES_DIR"
+  local completed issue_path
+  completed=0
+  while true; do
+    issue_path="$(find_next_issue)"
+    if [[ -z "$issue_path" ]]; then
+      log "No pending $TASK_STREAM issues found in $ISSUES_DIR. Cycle finished."
+      break
+    fi
 
-  branch="$(branch_name_for_issue "$issue_path")"
-  if git show-ref --verify --quiet "refs/heads/$branch" || git ls-remote --exit-code --heads "$REMOTE" "$branch" >/dev/null 2>&1; then
-    fail "Task branch already exists: $branch"
-  fi
+    if [[ "$MAX_TASKS" != "0" && "$completed" -ge "$MAX_TASKS" ]]; then
+      log "MAX_TASKS=$MAX_TASKS reached. Stop before next issue: $issue_path"
+      break
+    fi
 
-  git checkout -b "$branch"
-  before_head="$(git rev-parse HEAD)"
-  log "Selected issue: $issue_path"
-  log "Task branch: $branch"
+    run_one_issue "$issue_path"
+    completed=$((completed + 1))
+  done
 
-  run_agent "$issue_path"
-
-  assert_new_commit "$before_head"
-  assert_done_issue_exists "$issue_path"
-  ensure_clean_workspace
-
-  log "Running supervisor verification."
-  npm run typecheck
-  npm run test
-
-  push_and_create_pr "$branch" "$issue_path"
-  log "Done. Merge the PR into $BASE_BRANCH, then run this command again for the next issue."
+  log "Completed tasks in this run: $completed"
+  log "Current branch: $(git branch --show-current)"
+  log "Tip: $(git rev-parse --short HEAD)"
 }
 
 main "$@"

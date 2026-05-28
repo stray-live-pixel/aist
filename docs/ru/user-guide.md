@@ -12,7 +12,7 @@
 - `aist: New Chat` — создать новый чат.
 - `aist: Open Chat in Editor` — открыть текущий или выбранный чат в editor panel.
 - `aist: Settings` — открыть настройки AIST.
-- `aist: Open Extension Storage` — открыть хранилище расширения на диске.
+- `aist: Open AIST Storage` — открыть daemon-хранилище workspace `.aist-agent` на диске.
 - `aist: Edit Selection` — запросить инструкцию и заменить текущее выделение ответом модели.
 - `aist: Show Logs` — открыть логи расширения.
 - `aist: Login ChatGPT Codex` / `aist: Logout ChatGPT Codex` — управлять авторизацией Codex.

@@ -109,13 +109,35 @@
   white-space: nowrap;
 }
 
-.reasonRow {
+.intentSummary {
+  display: grid;
   grid-column: 2;
+  min-width: 0;
+  gap: 3px;
+}
+
+.intentRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
   min-width: 0;
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
   font-weight: 500;
   line-height: 1.35;
+}
+
+.intentLabel {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 78%, var(--tool-tone-strong));
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.intentText {
+  min-width: 0;
   white-space: normal;
   word-break: break-word;
 }
@@ -171,6 +193,50 @@
 .statusError {
   border-color: var(--vscode-errorForeground);
   color: var(--vscode-errorForeground);
+}
+
+/* Approval feedback is separate from result JSON so user instructions stay visible. */
+.approvalFeedback {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: 32px;
+  border: 1px solid color-mix(in srgb, #4ade80 52%, var(--agent-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, #4ade80 8%, var(--vscode-editor-background));
+  padding: 6px 8px;
+}
+
+.approvalDenied {
+  border-color: color-mix(in srgb, var(--vscode-errorForeground) 58%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-errorForeground) 8%, var(--vscode-editor-background));
+}
+
+.approvalDecision {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 76%, var(--tool-tone));
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.approvalComment {
+  min-width: 0;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.approvalComment strong {
+  margin-right: 5px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  text-transform: uppercase;
 }
 
 /* Tone modifiers. */

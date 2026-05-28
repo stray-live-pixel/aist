@@ -13,6 +13,7 @@ const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: To
   get_workspace_info: { actionKey: 'tool.action.get_workspace_info', tone: 'slate' },
   list_files: { actionKey: 'tool.action.list_files', tone: 'blue' },
   read_file: { actionKey: 'tool.action.read_file', tone: 'green' },
+  read_file_range: { actionKey: 'tool.action.read_file_range', tone: 'green' },
   grep_search: { actionKey: 'tool.action.grep_search', tone: 'purple' },
   run_bash_script: { actionKey: 'tool.action.run_bash_script', tone: 'slate' },
   run_skill: { actionKey: 'tool.action.run_skill', tone: 'green' },
@@ -22,6 +23,7 @@ const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: To
   set_plan_item_status: { actionKey: 'tool.action.set_plan_item_status', tone: 'purple' },
   write_file: { actionKey: 'tool.action.write_file', tone: 'amber' },
   replace_in_file: { actionKey: 'tool.action.replace_in_file', tone: 'cyan' },
+  apply_patch: { actionKey: 'tool.action.apply_patch', tone: 'cyan' },
   create_directory: { actionKey: 'tool.action.create_directory', tone: 'blue' },
   delete_path: { actionKey: 'tool.action.delete_path', tone: 'rose' }
 };
@@ -90,8 +92,15 @@ function getResultFileReferences(message: ChatMessage): FileReference[] {
   const result = getToolResult(message);
   const entries = arrayValue(result?.entries);
   const matches = arrayValue(result?.matches);
+  const changedFiles = arrayValue(result?.changedFiles);
+  const files = arrayValue(result?.files);
 
-  return [...entries.map(fileFromPathValue), ...matches.map(fileFromSearchMatch)].filter(Boolean) as FileReference[];
+  return [
+    ...entries.map(fileFromPathValue),
+    ...matches.map(fileFromSearchMatch),
+    ...changedFiles.map(fileFromChangedFile),
+    ...files.map(fileFromChangedFile)
+  ].filter(Boolean) as FileReference[];
 }
 
 function fileFromPathValue(value: unknown): FileReference | undefined {
@@ -109,6 +118,24 @@ function fileFromSearchMatch(value: unknown): FileReference | undefined {
     path: filePath,
     line: typeof item?.line === 'number' ? item.line : undefined,
     column: typeof item?.column === 'number' ? item.column : undefined
+  };
+}
+
+function fileFromChangedFile(value: unknown): FileReference | undefined {
+  const item = asRecord(value);
+  const filePath = asString(item?.path);
+  if (!filePath) return undefined;
+
+  const line = typeof item?.changedStartLine === 'number' ? item.changedStartLine : undefined;
+  const endLine = typeof item?.changedEndLine === 'number' ? item.changedEndLine : undefined;
+
+  return {
+    path: filePath,
+    line,
+    column: typeof item?.changedStartColumn === 'number' ? item.changedStartColumn : undefined,
+    endLine,
+    endColumn: typeof item?.changedEndColumn === 'number' ? item.changedEndColumn : undefined,
+    label: line && endLine && endLine !== line ? `changed lines ${line}-${endLine}` : undefined
   };
 }
 
@@ -156,8 +183,12 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
   if (!result && message.name === 'run_skill')
     return t('tool.summary.skill', { skill: asString(message.args?.skillId) || '' }).trim();
   if (!result) return message.status || t('message.tool').toLowerCase();
+  if (result.decision === 'denied') return asString(result.comment) || t('tool.status.denied');
   if (asString(result.error)) return asString(result.error) || t('tool.summary.toolError');
-  if (message.name === 'grep_search') return t('tool.summary.matches', { count: arrayValue(result.matches).length });
+  if (message.name === 'grep_search') {
+    const count = typeof result.totalMatches === 'number' ? result.totalMatches : arrayValue(result.matches).length;
+    return t('tool.summary.matches', { count });
+  }
   if (message.name === 'run_bash_script') return getBashSummary(result, t);
   if (message.name === 'run_skill') return getBashSummary(result, t);
   if (message.name === 'compact_chat') {
@@ -176,6 +207,7 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
   if (message.name === 'list_files') return t('tool.summary.entries', { count: arrayValue(result.entries).length });
   if (message.name === 'replace_in_file')
     return t('tool.summary.replacements', { count: Number(result.replacements || 0) });
+  if (message.name === 'apply_patch') return t('tool.summary.changedFiles', { count: arrayValue(result.files).length });
   if (message.name === 'write_file' && typeof result.bytes === 'number')
     return t('tool.summary.bytes', { count: result.bytes });
   return message.status || t('message.tool').toLowerCase();

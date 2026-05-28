@@ -50,6 +50,21 @@
   outline: none;
 }
 
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.enableToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
 .select:focus {
   border-color: var(--vscode-focusBorder);
 }

@@ -5,7 +5,8 @@ import { getPromptConfig } from '../../config/agentConfigStore';
 import { getAgentLanguage } from '../../config/settings';
 import { getAgentSettingsSnapshot, getConfiguredModel } from '../../config/settingsSnapshot';
 import { buildAgentSystemPrompt, getAgentInstructionSources } from '../../config/systemPrompt';
-import { getEditorContext } from '../../context/editorContext';
+import { governModelContext } from '../../context/contextGovernor';
+import { getEditorContextSnapshot } from '../../context/editorContext';
 import type { WebviewMessage, WebviewSurface } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -93,9 +94,8 @@ export async function handleWebviewChatMessage(
 /**
  * Открывает snapshot чата как untitled JSON-документ VS Code.
  *
- * История сейчас живёт в workspaceState, поэтому не даём пользователю псевдо-файл из storage, который нельзя безопасно
- * редактировать. Untitled JSON лучше отражает сценарий «посмотреть/сохранить при необходимости» и всегда открывается
- * штатным редактором VS Code без привязки к внутренней БД Memento.
+ * История принадлежит daemon storage, поэтому экспорт открывается как read-only snapshot
+ * в untitled JSON-документе без прямой привязки к backend-файлам.
  */
 async function openChatJson(surface: WebviewSurface, chatId: string, deps: AgentWebviewMessageDeps): Promise<void> {
   const chat = deps.chats.getChat(chatId);
@@ -128,19 +128,15 @@ function buildChatJsonExport(
   surface: WebviewSurface
 ) {
   const systemPrompt = buildAgentSystemPrompt();
-  const editorContext = getEditorContext();
+  const governedContext = governModelContext({
+    prompt: '<next user prompt will be inserted here>',
+    history: chat.history,
+    editorContext: getEditorContextSnapshot()
+  });
   const settings = getAgentSettingsSnapshot();
   const promptConfig = getPromptConfig();
   const nextUserPromptPlaceholder = '<next user prompt will be inserted here>';
-  const nextUserContent = [
-    nextUserPromptPlaceholder,
-    editorContext ? `\n\nActive editor context:\n${editorContext}` : ''
-  ].join('');
-  const messagesSentToModel = [
-    { role: 'system' as const, content: systemPrompt },
-    ...chat.history.filter((message) => message.role !== 'system'),
-    { role: 'user' as const, content: nextUserContent }
-  ];
+  const messagesSentToModel = [{ role: 'system' as const, content: systemPrompt }, ...governedContext.messages];
 
   return {
     exportedAt: new Date().toISOString(),
@@ -165,8 +161,15 @@ function buildChatJsonExport(
         activeModeRef: promptConfig.activeModeRef,
         activePresetId: promptConfig.activePresetId
       },
-      activeEditorContext: editorContext || null,
-      persistedHistorySentToModel: chat.history.filter((message) => message.role !== 'system'),
+      contextGovernor: {
+        taskType: governedContext.taskType,
+        contextNote: governedContext.contextNote,
+        keptHistoryMessages: governedContext.keptHistoryMessages,
+        omittedHistoryMessages: governedContext.omittedHistoryMessages,
+        recentToolSummaries: governedContext.recentToolSummaries
+      },
+      activeEditorContext: governedContext.editorContextBlock || null,
+      persistedHistorySentToModel: governedContext.messages.slice(0, -1),
       nextUserPromptPlaceholder,
       messagesSentToModel
     }

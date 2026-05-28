@@ -28,6 +28,9 @@
     "onView:openrouterAgent.chats"
   ],
   "main": "./dist/extension.js",
+  "bin": {
+    "aist": "./dist/cli/main.js"
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -79,7 +82,7 @@
       },
       {
         "command": "openrouterAgent.openStorage",
-        "title": "aist: Open Extension Storage",
+        "title": "aist: Open AIST Storage",
         "icon": "$(folder-opened)"
       },
       {
@@ -131,11 +134,6 @@
     "configuration": {
       "title": "aist",
       "properties": {
-        "openrouterAgent.apiKey": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "OpenRouter API key. You can also set the `OPENROUTER_API_KEY` environment variable."
-        },
         "openrouterAgent.model": {
           "type": "string",
           "default": "openai/gpt-4o-mini",
@@ -156,6 +154,23 @@
           "default": 12000,
           "minimum": 1000,
           "description": "Maximum characters from the active file sent as context."
+        },
+        "openrouterAgent.editorContextMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "selection",
+            "file",
+            "off"
+          ],
+          "default": "auto",
+          "enumDescriptions": [
+            "Send selected code; include a short full file only when nothing is selected.",
+            "Send only selected code and file metadata.",
+            "Send selected code, or the active file content when nothing is selected.",
+            "Do not automatically send active editor context."
+          ],
+          "description": "Controls how AIST automatically adds active editor context to chat requests."
         },
         "openrouterAgent.maxToolIterations": {
           "type": "number",
@@ -187,6 +202,110 @@
           "type": "boolean",
           "default": false,
           "description": "Stream model responses while they are generated. Disabled by default because non-streaming requests are usually more resilient to interrupted SSE connections."
+        },
+        "openrouterAgent.auxiliaryModels": {
+          "type": "object",
+          "default": {
+            "compaction": {
+              "model": "",
+              "reasoningEffort": "auto",
+              "allowTools": false
+            },
+            "tool": {
+              "model": "",
+              "reasoningEffort": "auto",
+              "allowTools": false,
+              "overrides": []
+            }
+          },
+          "markdownDescription": "Optional lightweight AI models for non-primary tasks. `compaction` is used when summarizing old context; `tool` configures the default `invoke_model` model; `tool.overrides` can assign different models to individual tools.",
+          "properties": {
+            "compaction": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "default": ""
+                },
+                "reasoningEffort": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "default": "auto"
+                },
+                "allowTools": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            },
+            "tool": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "default": ""
+                },
+                "reasoningEffort": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "default": "auto"
+                },
+                "allowTools": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "overrides": {
+                  "type": "array",
+                  "default": [],
+                  "markdownDescription": "Per-tool model overrides for `invoke_model`. Use toolName `invoke_model` for the built-in model-calling tool, or any future/project tool id that delegates to auxiliary models.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "toolName"
+                    ],
+                    "properties": {
+                      "toolName": {
+                        "type": "string"
+                      },
+                      "model": {
+                        "type": "string",
+                        "default": ""
+                      },
+                      "reasoningEffort": {
+                        "type": "string",
+                        "enum": [
+                          "auto",
+                          "low",
+                          "medium",
+                          "high"
+                        ],
+                        "default": "auto"
+                      },
+                      "allowTools": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "openrouterAgent.daemonBinaryPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to an `aist` executable or bundled CLI JavaScript file used by the required daemon backend. Empty means the extension searches bundled, workspace-local, and PATH candidates."
         },
         "openrouterAgent.language": {
           "type": "string",
@@ -324,10 +443,13 @@
             "get_workspace_info": "auto",
             "list_files": "auto",
             "read_file": "auto",
+            "read_file_range": "auto",
+            "outline_file": "auto",
             "grep_search": "auto",
             "run_bash_script": "ask",
             "write_file": "ask",
             "replace_in_file": "ask",
+            "apply_patch": "ask",
             "create_directory": "ask",
             "delete_path": "ask",
             "create_plan": "ask",
@@ -335,16 +457,26 @@
             "set_plan_item_status": "auto"
           },
           "markdownDescription": "Per-tool permission mode. Use `ask` to require confirmation or `auto` to run automatically. File-reading tools default to `auto`; mutating tools default to `ask`."
+        },
+        "openrouterAgent.projectToolDisabledIds": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Project declarative tool IDs disabled for this workspace. Project tools are loaded from `.aist-agent/tools/*.md`."
         }
       }
     }
   },
   "scripts": {
     "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
+    "build:cli": "tsc --noEmit --project tsconfig.cli.json && esbuild src/cli/main.ts --bundle --platform=node --format=cjs --outfile=dist/cli/main.js",
     "build:webview": "node scripts/build-webview.mjs",
     "build:component-screenshots": "esbuild tests/component-screenshots/harness.tsx --bundle --format=iife --outfile=tests/component-screenshots/harness.js --loader:.css=css --loader:.scss=local-css",
     "build:e2e": "npm run build:extension && npm run build:webview",
-    "build": "npm run typecheck && npm run build:extension && npm run build:webview",
+    "build": "npm run typecheck && npm run build:cli && npm run build:extension && npm run build:webview",
+    "aist": "node dist/cli/main.js",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "typecheck": "tsc --noEmit",
@@ -356,7 +488,8 @@
     "test:components:screenshots:update": "npm run build:component-screenshots && playwright test -c playwright.component-screenshots.config.ts --update-snapshots",
     "test:e2e:debug": "npm run build:e2e && playwright test --debug",
     "test:e2e:ui": "npm run build:e2e && playwright test --ui",
-    "optimize:next": "bash scripts/run-optimization-next.sh",
+    "optimize:next": "MAX_TASKS=1 bash scripts/run-optimization-next.sh",
+    "optimize:cycle": "bash scripts/run-optimization-next.sh",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "package": "npm run build && vsce package --no-dependencies",

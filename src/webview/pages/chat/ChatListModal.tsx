@@ -1,4 +1,4 @@
-import { Check, Copy, MessageSquare, Plus, Trash2, X } from 'lucide-react';
+import { Check, Copy, ExternalLink, MessageSquare, Plus, Trash2, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
 import { pluralKey, translate, useI18n } from '../../shared/i18n';
@@ -42,6 +42,11 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
     onClose();
   }
 
+  function openChatInEditor(chatId: string) {
+    agentActions.openChatInEditor(chatId);
+    onClose();
+  }
+
   function deleteChat(chatId: string) {
     agentActions.deleteChat(chatId);
     onClose();
@@ -75,6 +80,7 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
               language={language}
               onSelect={() => selectChat(chat.id)}
               onDuplicate={() => duplicateChat(chat.id)}
+              onOpenInEditor={() => openChatInEditor(chat.id)}
               onAskDelete={() => setDeleteTargetId(chat.id)}
               onCancelDelete={() => setDeleteTargetId(undefined)}
               onDelete={() => deleteChat(chat.id)}
@@ -93,6 +99,7 @@ type ChatRowProps = {
   language: AgentLanguage;
   onSelect(): void;
   onDuplicate(): void;
+  onOpenInEditor(): void;
   onAskDelete(): void;
   onCancelDelete(): void;
   onDelete(): void;
@@ -106,8 +113,11 @@ const ChatRow = memo(function ChatRow(props: ChatRowProps) {
       <button className={styles.chatRowButton} onClick={props.onSelect}>
         {active ? <Check size={14} /> : <MessageSquare size={14} className={styles.chatRowIconMuted} />}
         <span className={styles.chatRowContent}>
-          <span className={styles.chatRowTitle} title={chat.title}>
-            {chat.title}
+          <span className={styles.chatRowTitleLine}>
+            <span className={styles.chatRowTitle} title={chat.title}>
+              {chat.title}
+            </span>
+            <ChatStatusLabel chat={chat} language={language} />
           </span>
           {chat.lastUserMessage ? (
             <span
@@ -124,28 +134,63 @@ const ChatRow = memo(function ChatRow(props: ChatRowProps) {
           </span>
         </span>
       </button>
-      {confirmingDelete ? (
-        <DeleteActions onCancel={props.onCancelDelete} onDelete={props.onDelete} />
-      ) : (
-        <RowActions disabled={chat.busy} onDuplicate={props.onDuplicate} onDelete={props.onAskDelete} />
-      )}
+      <div className={styles.chatRowActions}>
+        {confirmingDelete ? (
+          <DeleteActions onCancel={props.onCancelDelete} onDelete={props.onDelete} />
+        ) : (
+          <RowActions
+            disabled={chat.busy}
+            onDuplicate={props.onDuplicate}
+            onOpenInEditor={props.onOpenInEditor}
+            onDelete={props.onAskDelete}
+          />
+        )}
+      </div>
     </div>
+  );
+});
+
+const ChatStatusLabel = memo(function ChatStatusLabel({
+  chat,
+  language
+}: {
+  chat: ChatSummary;
+  language: AgentLanguage;
+}) {
+  if (!chat.busy) {
+    return null;
+  }
+
+  const status = getChatStatus(chat, language);
+  return (
+    <span
+      className={`${styles.chatStatusLabel} ${styles[status.className]}`}
+      title={chat.activityDetail || status.label}
+    >
+      <span className={styles.chatStatusDot} />
+      {status.label}
+    </span>
   );
 });
 
 const RowActions = memo(function RowActions({
   disabled,
   onDuplicate,
+  onOpenInEditor,
   onDelete
 }: {
   disabled: boolean;
   onDuplicate(): void;
+  onOpenInEditor(): void;
   onDelete(): void;
 }) {
   const { t } = useI18n();
 
   return (
     <>
+      <IconButton title={t('chat.openInEditor')} onClick={onOpenInEditor}>
+        <ExternalLink size={14} />
+      </IconButton>
       <IconButton title={t('chatList.duplicate')} disabled={disabled} onClick={onDuplicate}>
         <Copy size={14} />
       </IconButton>
@@ -170,6 +215,23 @@ const DeleteActions = memo(function DeleteActions({ onCancel, onDelete }: { onCa
     </>
   );
 });
+
+function getChatStatus(chat: ChatSummary, language: AgentLanguage): { label: string; className: string } {
+  if (chat.activity === 'waitingForApproval') {
+    return { label: language === 'ru' ? 'Ждёт подтверждение' : 'Approval needed', className: 'chatStatusApproval' };
+  }
+  if (chat.activity === 'runningTool') {
+    return { label: language === 'ru' ? 'Инструмент' : 'Tool', className: 'chatStatusTool' };
+  }
+  if (chat.activity === 'stopping') {
+    return { label: language === 'ru' ? 'Останавливается' : 'Stopping', className: 'chatStatusStopping' };
+  }
+  if (chat.activity === 'answering') {
+    return { label: language === 'ru' ? 'Отвечает' : 'Answering', className: 'chatStatusBusy' };
+  }
+
+  return { label: language === 'ru' ? 'Работает' : 'Running', className: 'chatStatusBusy' };
+}
 
 function formatChatMeta(chat: ChatSummary, language: AgentLanguage): string {
   const messageLabel = translateChatMetaMessage(language, chat.messageCount);

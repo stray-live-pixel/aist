@@ -1,6 +1,6 @@
 # AIST Autonomous Runner
 
-Autonomous runner — нативная TypeScript/Node реализация бывшего `prompt/agent-auto` внутри VS Code extension. Shell/Python orchestration удалён из runtime: flow/run discovery, execution, monitoring и storage выполняются кодом `src/extension/autonomous`.
+Autonomous runner — нативная TypeScript/Node реализация бывшего `prompt/agent-auto`, вынесенная в общий backend слой. Shell/Python orchestration удалён из runtime: flow/run discovery, execution, monitoring и storage выполняются кодом `src/core/autonomous`, а VS Code extension и CLI используют его как thin clients.
 
 ## Storage
 
@@ -50,14 +50,14 @@ Run `.index.md` поддерживает:
 - `dry-run` — безопасная synthetic execution без внешних зависимостей.
 - `claude-cli` — запускает `claude` напрямую через argv и `--output-format stream-json`.
 - `codex-cli` — запускает `codex exec --json` напрямую через argv.
-- `openrouter-api` — использует существующий `OpenRouterClient`.
-- `codex-api` — использует существующий `CodexClient` и текущий login flow.
+- `openrouter-api` — использует core `OpenRouterTransport` через daemon/backend config и global secret store.
+- `codex-api` — использует core `CodexResponsesTransport` и global Codex auth из daemon/backend secret store.
 
 CLI engines могут запускать инструменты с bypass-флагами. Dashboard показывает это через engine capabilities; используйте dry-run для безопасной проверки definitions.
 
 ## UI
 
-Команда `aist: Autonomous Runner` открывает React dashboard. UI построен на shared components из `src/webview/shared/ui` и не использует standalone HTML/CSS/JS старого monitor.
+Команда `aist: Autonomous Runner` открывает React dashboard. UI построен на shared components из `src/webview/shared/ui` и не использует standalone HTML/CSS/JS старого monitor. Dashboard читает state/events через daemon API; отдельного in-extension backend path больше нет.
 
 Dashboard умеет:
 

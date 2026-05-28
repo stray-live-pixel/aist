@@ -1,15 +1,21 @@
 import * as vscode from 'vscode';
 
-import { filesystemTools } from './filesystemTools';
-import { planningTools } from './planningTools';
+import { nodeFilesystemTools } from '../../core/features/filesystem-tools/filesystemTools';
+import { planningTools } from '../../core/features/planning/planningTools';
+import type { ToolPermissionMode } from '../../core/shared/types/types';
+import { getDaemonToolCatalog } from '../agent/daemon/toolCatalog';
 
-export type ToolPermissionMode = 'ask' | 'auto';
+export type { ToolPermissionMode };
 
 export type ToolPermissionItem = {
   name: string;
+  label?: string;
   description: string;
   permission: ToolPermissionMode;
   defaultPermission: ToolPermissionMode;
+  source?: 'builtin' | 'skill' | 'project';
+  enabled?: boolean;
+  version?: string;
 };
 
 export type ToolPermissionPreset = {
@@ -23,10 +29,14 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   get_workspace_info: 'auto',
   list_files: 'auto',
   read_file: 'auto',
+  read_file_range: 'auto',
+  outline_file: 'auto',
   grep_search: 'auto',
   run_bash_script: 'ask',
   write_file: 'ask',
   replace_in_file: 'ask',
+  edit_file: 'ask',
+  apply_patch: 'ask',
   create_directory: 'ask',
   delete_path: 'ask',
   create_plan: 'ask',
@@ -34,7 +44,7 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   set_plan_item_status: 'auto'
 };
 
-const permissionTools = [...filesystemTools, ...planningTools];
+const permissionTools = [...nodeFilesystemTools, ...planningTools];
 
 export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
   {
@@ -45,10 +55,14 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       get_workspace_info: 'ask',
       list_files: 'ask',
       read_file: 'ask',
+      read_file_range: 'ask',
+      outline_file: 'ask',
       grep_search: 'ask',
       run_bash_script: 'ask',
       write_file: 'ask',
       replace_in_file: 'ask',
+      edit_file: 'ask',
+      apply_patch: 'ask',
       create_directory: 'ask',
       delete_path: 'ask',
       create_plan: 'ask',
@@ -70,10 +84,14 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
+      outline_file: 'auto',
       grep_search: 'auto',
       run_bash_script: 'ask',
       write_file: 'auto',
       replace_in_file: 'auto',
+      edit_file: 'ask',
+      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'ask',
       create_plan: 'ask',
@@ -89,10 +107,14 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
+      outline_file: 'auto',
       grep_search: 'auto',
       run_bash_script: 'auto',
       write_file: 'auto',
       replace_in_file: 'auto',
+      edit_file: 'ask',
+      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'auto',
       create_plan: 'auto',
@@ -107,9 +129,8 @@ export function getToolPermissions(): Record<string, ToolPermissionMode> {
     vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {};
   const permissions: Record<string, ToolPermissionMode> = {};
 
-  for (const tool of permissionTools) {
-    const name = tool.function.name;
-    permissions[name] = normalizePermission(configured[name], DEFAULT_TOOL_PERMISSIONS[name] || 'ask');
+  for (const item of getPermissionToolMetadata()) {
+    permissions[item.name] = normalizePermission(configured[item.name], item.defaultPermission);
   }
 
   return permissions;
@@ -122,11 +143,9 @@ export function getToolPermission(toolName: string): ToolPermissionMode {
 export function getToolPermissionItems(): ToolPermissionItem[] {
   const permissions = getToolPermissions();
 
-  return permissionTools.map((tool) => ({
-    name: tool.function.name,
-    description: tool.function.description,
-    permission: permissions[tool.function.name] || 'ask',
-    defaultPermission: DEFAULT_TOOL_PERMISSIONS[tool.function.name] || 'ask'
+  return getPermissionToolMetadata().map((tool) => ({
+    ...tool,
+    permission: permissions[tool.name] || tool.defaultPermission
   }));
 }
 
@@ -172,12 +191,30 @@ export async function setToolPermissionPreset(presetId: string): Promise<boolean
   return true;
 }
 
+export function getDisabledProjectToolIds(): string[] {
+  const configured =
+    vscode.workspace.getConfiguration('openrouterAgent').get<unknown[]>('projectToolDisabledIds') || [];
+  return configured.filter((item): item is string => typeof item === 'string');
+}
+
+export async function setProjectToolEnabled(toolId: string, enabled: boolean): Promise<void> {
+  const disabled = new Set(getDisabledProjectToolIds());
+  if (enabled) {
+    disabled.delete(toolId);
+  } else {
+    disabled.add(toolId);
+  }
+
+  await vscode.workspace
+    .getConfiguration('openrouterAgent')
+    .update('projectToolDisabledIds', [...disabled].sort(), vscode.ConfigurationTarget.Workspace);
+}
+
 function normalizePermissionMap(source: Record<string, unknown>): Record<string, ToolPermissionMode> {
   const permissions: Record<string, ToolPermissionMode> = {};
 
-  for (const tool of permissionTools) {
-    const name = tool.function.name;
-    permissions[name] = normalizePermission(source[name], DEFAULT_TOOL_PERMISSIONS[name] || 'ask');
+  for (const tool of getPermissionToolMetadata()) {
+    permissions[tool.name] = normalizePermission(source[tool.name], tool.defaultPermission);
   }
 
   return permissions;
@@ -187,12 +224,43 @@ function permissionMapsEqual(
   left: Record<string, ToolPermissionMode>,
   right: Record<string, ToolPermissionMode>
 ): boolean {
-  return permissionTools.every((tool) => {
-    const name = tool.function.name;
-    return left[name] === right[name];
-  });
+  return getPermissionToolMetadata().every((tool) => left[tool.name] === right[tool.name]);
 }
 
 function normalizePermission(value: unknown, fallback: ToolPermissionMode): ToolPermissionMode {
   return value === 'auto' || value === 'ask' ? value : fallback;
+}
+
+function getPermissionToolMetadata(): Omit<ToolPermissionItem, 'permission'>[] {
+  const builtIns = permissionTools.map((tool) => ({
+    name: tool.function.name,
+    description: tool.function.description,
+    defaultPermission: DEFAULT_TOOL_PERMISSIONS[tool.function.name] || 'ask',
+    source: 'builtin' as const,
+    enabled: true
+  }));
+  const snapshot = getDaemonToolCatalog().snapshot();
+  const hasRunSkill = snapshot.tools.some((tool) => tool.function.name === 'run_skill');
+  const skillTools = hasRunSkill
+    ? [
+        {
+          name: 'run_skill',
+          description: 'Run a user-defined custom skill by ID.',
+          defaultPermission: 'ask' as const,
+          source: 'skill' as const,
+          enabled: true
+        }
+      ]
+    : [];
+  const projectTools = snapshot.projectTools.map((tool) => ({
+    name: tool.id,
+    label: tool.label,
+    description: tool.description,
+    defaultPermission: tool.permission,
+    source: 'project' as const,
+    enabled: tool.enabled,
+    version: tool.version
+  }));
+
+  return [...builtIns, ...skillTools, ...projectTools];
 }

@@ -12,6 +12,8 @@ import { formatPermission } from './utils';
  */
 export function ToolPermissionSelect({ item }: ToolPermissionSelectProps) {
   const { t } = useI18n();
+  const label = item.label || t(`tool.label.${item.name}` as never);
+  const description = item.source === 'project' ? item.description : t(`tool.description.${item.name}` as never);
 
   return (
     <article className={styles.root}>
@@ -19,21 +21,37 @@ export function ToolPermissionSelect({ item }: ToolPermissionSelectProps) {
         <div className={styles.content}>
           <div className={styles.title}>
             <ToolIcon name={item.name} />
-            <span>{t(`tool.label.${item.name}` as never)}</span>
+            <span>{label}</span>
           </div>
-          <p className={styles.description}>{t(`tool.description.${item.name}` as never)}</p>
+          <p className={styles.description}>{description}</p>
           <p className={styles.defaultPermission}>
             {t('settings.permission.default', { permission: formatPermission(item.defaultPermission, t) })}
+            {item.source === 'project' && item.version ? ` - ${item.version}` : ''}
           </p>
         </div>
-        <select
-          className={styles.select}
-          value={item.permission}
-          onChange={(event) => agentActions.setToolPermission(item.name, event.target.value as ToolPermissionMode)}
-        >
-          <option value="ask">{t('settings.permission.ask')}</option>
-          <option value="auto">{t('settings.permission.auto')}</option>
-        </select>
+        <div className={styles.controls}>
+          {item.source === 'project' ? (
+            <label className={styles.enableToggle}>
+              <input
+                type="checkbox"
+                checked={item.enabled !== false}
+                onChange={(event) => agentActions.setProjectToolEnabled(item.name, event.target.checked)}
+              />
+              <span>
+                {t(item.enabled === false ? 'settings.projectTools.disabled' : 'settings.projectTools.enabled')}
+              </span>
+            </label>
+          ) : null}
+          <select
+            className={styles.select}
+            value={item.permission}
+            disabled={item.source === 'project' && item.enabled === false}
+            onChange={(event) => agentActions.setToolPermission(item.name, event.target.value as ToolPermissionMode)}
+          >
+            <option value="ask">{t('settings.permission.ask')}</option>
+            <option value="auto">{t('settings.permission.auto')}</option>
+          </select>
+        </div>
       </div>
     </article>
   );

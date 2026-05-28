@@ -1,27 +1,26 @@
-# Native autonomous runner architecture
+# Native autonomous runner extension shell
 
 ## Статус
 
-Планируемый домен. Этот каталог резервирует целевую архитектуру перед переносом `prompt/` в TypeScript/Node.
+Этот каталог теперь содержит только VS Code shell autonomous dashboard: controller и IPC message types. Core runtime, storage, discovery, engines и tests живут в `src/core/autonomous`.
 
 ## Решение
 
-`prompt/` считается миграционным источником форматов и поведения, а не runtime-зависимостью расширения. Shell/Python orchestration (`agent-auto.sh`, `run_flow.py`, `run_batch.py`, `server.py`) должен быть заменён нативными TypeScript/Node модулями внутри AIST.
+`prompt/` считается миграционным источником форматов и поведения, а не runtime-зависимостью расширения. Shell/Python orchestration (`agent-auto.sh`, `run_flow.py`, `run_batch.py`, `server.py`) заменён нативными TypeScript/Node модулями внутри AIST.
 
 ## Цели домена
 
 - Исполнять multi-stage flows и batch runs без `python3` и shell launcher.
 - Поддерживать engines `claude-cli`, `codex-cli`, `openrouter-api`, `codex-api` через единый interface.
-- Переиспользовать существующие `OpenRouterClient` и `CodexClient` как API adapters.
+- Переиспользовать core `ModelClient` transports и global secret store как API adapters.
 - Хранить definitions, sessions, events и artifacts в workspace-native каталоге `.aist-agent/autonomous/`.
 - Отдавать состояние в React webview через typed IPC и presenter.
-- Оставаться пригодным для будущего desktop/standalone приложения: core orchestration не должен зависеть от VS Code API.
+- Оставаться пригодным для CLI/daemon/desktop: core orchestration не зависит от VS Code API.
 
 ## Целевая раскладка
 
 ```text
-src/extension/autonomous/
-├── controller.ts
+src/core/autonomous/
 ├── discovery.ts
 ├── frontmatter.ts
 ├── engines/
@@ -37,13 +36,13 @@ src/extension/autonomous/
 ├── batch/
 │   └── runBatch.ts
 ├── storage/
-│   ├── runStorage.ts
-│   └── eventLog.ts
+│   └── sessionStore.ts
 ├── presenter.ts
-├── messages.ts
 ├── types.ts
 └── errors.ts
 ```
+
+Extension-specific files remain in `src/extension/autonomous/controller.ts` and `messages.ts`.
 
 ## Workspace storage
 
@@ -66,11 +65,11 @@ src/extension/autonomous/
         └── artifacts/
 ```
 
-`settings.json` остаётся в ведении существующего agent config store. Все autonomous filesystem operations должны быть сосредоточены в будущем `storage/` и `discovery.ts`, а не размазаны по controller/UI.
+`settings.json` остаётся в ведении существующего agent config store. Autonomous filesystem operations сосредоточены в core `storage/`, `discovery.ts` и `flowDefinitionWriter.ts`, а не размазаны по controller/UI.
 
 ## Отношение к текущему chat agent
 
-- `AgentController`, `AgentRunService` и `ChatStore` не становятся частью autonomous runtime.
+- `AgentController` и VS Code daemon/webview adapters не становятся частью autonomous runtime.
 - Chat stop и autonomous stop — разные команды и разные lifecycle.
 - Ошибки autonomous runner не append-ятся в активный чат.
 - Chat webview state не должен зависеть от discovery или active autonomous sessions.
@@ -90,3 +89,4 @@ Autonomous dashboard строится на `src/webview/shared/ui`. Если н�
 6. Реализовать native session store и event stream.
 7. Добавить React dashboard.
 8. Удалить shell/python runtime после прохождения parity и regression checks.
+9. Подключить CLI/daemon API к shared backend.

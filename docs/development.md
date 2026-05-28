@@ -69,6 +69,19 @@ npm run format:check
 
 E2E tests build the extension and webview before running Playwright.
 
+Prompt contract snapshots live next to their focused Vitest spec:
+`src/extension/agent/config/__tests__/prompts.test.ts`. Run the focused check with:
+
+```bash
+npm run test -- src/extension/agent/config/__tests__/prompts.test.ts
+```
+
+When a prompt contract change is intentional, update and review the snapshots with:
+
+```bash
+npm run test -- src/extension/agent/config/__tests__/prompts.test.ts -u
+```
+
 ## Storybook
 
 ```bash
@@ -137,7 +150,11 @@ VSCODE_CLI=code-insiders npm run install:extension
 
 ## Logging
 
-Run `aist: Show Logs` to open extension logs. Useful events include chat creation, webview resolution, model refresh, agent run start/finish, tool execution, Codex auth state, and compaction failures.
+Run `aist: Show Logs` to open extension logs. Useful events include daemon startup, chat creation, webview resolution, model refresh, Codex auth state, and daemon state refresh failures.
+
+## VS Code Daemon Backend
+
+The extension always starts or connects to `aist daemon --workspace <root>`. The daemon is the source of truth for chats, runs, approvals, tools, model requests, auth, memory, compaction, reflection, telemetry, and autonomous sessions. VS Code code should stay limited to webview hosting, process management, editable diff previews, active editor context, file opening, notifications, and status.
 
 ## UI theme integration
 

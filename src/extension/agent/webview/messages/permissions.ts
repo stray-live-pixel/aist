@@ -1,16 +1,27 @@
-import { setToolPermission, setToolPermissionPreset } from '../../../tools/permissions';
+import { getAgentSkills } from '../../../skills/skills';
+import {
+  getDisabledProjectToolIds,
+  setProjectToolEnabled,
+  setToolPermission,
+  setToolPermissionPreset
+} from '../../../tools/permissions';
+import { refreshDaemonToolCatalog } from '../../daemon/toolCatalog';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
 type PermissionMessage = Extract<
   WebviewMessage,
-  { type: 'setToolPermission' } | { type: 'setToolPermissionPreset' } | { type: 'resolveToolCall' }
+  | { type: 'setToolPermission' }
+  | { type: 'setToolPermissionPreset' }
+  | { type: 'setProjectToolEnabled' }
+  | { type: 'resolveToolCall' }
 >;
 
 export function isPermissionMessage(message: WebviewMessage): message is PermissionMessage {
   return (
     message.type === 'setToolPermission' ||
     message.type === 'setToolPermissionPreset' ||
+    message.type === 'setProjectToolEnabled' ||
     message.type === 'resolveToolCall'
   );
 }
@@ -35,21 +46,31 @@ export async function handleWebviewPermissionMessage(
       await applyPermissionPreset(message.presetId, deps);
       deps.sendState();
       return;
+    case 'setProjectToolEnabled':
+      await setProjectToolEnabled(message.toolId, message.enabled);
+      await refreshDaemonToolCatalog({
+        skills: getAgentSkills(),
+        disabledProjectToolIds: getDisabledProjectToolIds()
+      });
+      deps.sendState();
+      return;
     case 'resolveToolCall':
-      deps.resolveToolCall(message.messageId, toApprovalDecision(message));
+      await deps.resolveToolCall(message.messageId, toApprovalDecision(message));
       return;
   }
 }
 
 /**
  * UI отправляет продуктовые действия кнопок, а runtime нужен компактный объект решения.
- * Комментарий прикладывается к любому решению: approve запускает инструмент, deny-continue возвращает отказ модели, deny-stop останавливает цикл.
+ * Комментарий прикладывается к любому решению и дальше становится userApprovalComment в tool result.
  */
 function toApprovalDecision(message: Extract<PermissionMessage, { type: 'resolveToolCall' }>) {
   return {
     approved: message.decision === 'approve',
     continueAfterDeny: message.decision === 'deny-continue',
-    comment: message.comment?.trim() || undefined
+    comment: message.comment?.trim() || undefined,
+    rememberGlobal: message.rememberGlobal?.trim() || undefined,
+    rememberProject: message.rememberProject?.trim() || undefined
   };
 }
 

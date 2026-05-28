@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useAgentState } from '../../../shared/lib/agentState';
 import styles from '../PermissionsPage.module.scss';
 import { CompactionSettingsPage } from './compaction-settings-page';
+import { MemorySettingsPage } from './memory-settings-page';
 import { NotificationSettingsPage } from './notification-settings-page';
 import { OverviewPage } from './overview-page';
 import { PermissionsSettingsPage } from './permissions-settings-page';
@@ -10,6 +11,7 @@ import { InstructionsSettingsPage, PresetsSettingsPage, RolesSettingsPage } from
 import { SettingsHeader, SettingsSidebar } from './settings-navigation';
 import { SkillsSettingsPage } from './skills-settings-page';
 import { SystemSettingsPage } from './system-settings-page';
+import { TelemetrySettingsPage } from './telemetry-settings-page';
 import type { PermissionsPageProps, SettingsPageId } from './types';
 
 /**
@@ -22,6 +24,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
   const {
     toolPermissions,
     maxToolIterations,
+    auxiliaryModels,
     compactionSettings,
     approvalNotificationSettings,
     agentLanguage,
@@ -29,11 +32,16 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     agentModes,
     agentConfigScope,
     promptConfig,
+    memoryItems,
+    activeChat,
+    models,
     instructionSources,
     customSkills,
     codexAuthenticated,
     toolPermissionPresets,
-    activeToolPermissionPresetId
+    activeToolPermissionPresetId,
+    projectToolDiagnostics,
+    telemetry
   } = state;
   const activeMode = useMemo(
     () => agentModes.find((mode) => mode.id === agentMode) || agentModes[0],
@@ -62,16 +70,27 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           {activePage === 'instructions' ? <InstructionsSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'modes' ? <RolesSettingsPage promptConfig={promptConfig} /> : null}
           {activePage === 'presets' ? <PresetsSettingsPage promptConfig={promptConfig} /> : null}
+          {activePage === 'memory' ? (
+            <MemorySettingsPage
+              chatId={activeChat.id}
+              memoryItems={memoryItems}
+              reflectionCandidates={activeChat.reflectionCandidates || []}
+            />
+          ) : null}
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}
           {activePage === 'permissions' ? (
             <PermissionsSettingsPage
               tools={toolPermissions}
+              projectToolDiagnostics={projectToolDiagnostics}
               permissionPresets={toolPermissionPresets}
               activePermissionPresetId={activeToolPermissionPresetId}
             />
           ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
-          {activePage === 'compaction' ? <CompactionSettingsPage settings={compactionSettings} /> : null}
+          {activePage === 'telemetry' ? <TelemetrySettingsPage telemetry={telemetry} /> : null}
+          {activePage === 'compaction' ? (
+            <CompactionSettingsPage settings={compactionSettings} auxiliaryModels={auxiliaryModels} models={models} />
+          ) : null}
           {activePage === 'system' ? (
             <SystemSettingsPage
               agentLanguage={agentLanguage}

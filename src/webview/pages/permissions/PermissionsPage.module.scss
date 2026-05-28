@@ -192,6 +192,13 @@
   gap: 10px;
 }
 
+.diagnostics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 10px;
+}
+
 .empty {
   border: 1px dashed var(--agent-border);
   border-radius: 16px;
@@ -233,6 +240,140 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
+}
+
+.mutedBlock {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metricTile {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 56%, transparent);
+  padding: 10px;
+}
+
+.metricValue {
+  overflow: hidden;
+  color: var(--vscode-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.metricLabel {
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.telemetryStatusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.telemetryToolList,
+.telemetryRunList {
+  display: grid;
+  gap: 8px;
+}
+
+.telemetryToolRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 52%, transparent);
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.telemetryToolRow > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.telemetryRunRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 10px;
+  align-items: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 52%, transparent);
+  padding: 10px;
+}
+
+.telemetryRunMain {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.telemetryRunTime,
+.telemetryRunModel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.telemetryRunTime {
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.telemetryRunModel {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.telemetryRunBadges {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.telemetryCopyButton {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  cursor: pointer;
+}
+
+.telemetryCopyButton:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
 }
 
 .markdownPreview {
@@ -332,6 +473,43 @@
   color: var(--vscode-foreground);
 }
 
+.memoryScope {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 14%, transparent);
+  padding: 10px;
+}
+
+.memoryItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 58%, transparent);
+  padding: 10px;
+}
+
+.reflectionCandidate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--vscode-focusBorder) 44%, var(--agent-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-focusBorder) 8%, var(--vscode-input-background));
+  padding: 10px;
+}
+
+.memoryItemBody {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
 @media (max-width: 760px) {
   .shell {
     grid-template-columns: 1fr;
@@ -345,4 +523,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .memoryItem,
+  .reflectionCandidate {
+    grid-template-columns: 1fr;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

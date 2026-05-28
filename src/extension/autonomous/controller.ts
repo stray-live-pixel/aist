@@ -1,43 +1,39 @@
 import * as vscode from 'vscode';
 
-import { CodexClient } from '../codex/client';
-import { OpenRouterClient } from '../openrouter/client';
+import type {
+  DaemonAutonomousExportResult,
+  DaemonAutonomousStartResult,
+  DaemonAutonomousStateResult,
+  DaemonAutonomousStopResult,
+  DaemonEvent
+} from '../../cli/daemonProtocol';
+import {
+  AutonomousBackend,
+  type AutonomousExportFormat,
+  type AutonomousLaunchOptions,
+  AutonomousSessionStore
+} from '../../core/processes/autonomous';
+import type { VscodeDaemonRuntimeBridge } from '../agent/daemon/bridge';
 import type { AistLogger } from '../shared/logger';
 import { getWebviewHtml } from '../shared/webviewHtml';
 import { getWorkspaceFolder, getWorkspaceName } from '../shared/workspace';
-import { runAutonomousBatch } from './batch/runBatch';
-import { discoverAutonomousDefinitions, importLegacyDefinitions } from './discovery';
-import { createAutonomousEngineRegistry } from './engines/registry';
-import { createSessionId, runAutonomousFlow } from './flow/orchestrator';
-import {
-  createAutonomousFlowDefinition,
-  deleteAutonomousFlowDefinition,
-  saveAutonomousFlowDefinition
-} from './flowDefinitionWriter';
 import type { AutonomousWebviewToExtensionMessage } from './messages';
-import { buildAutonomousState } from './presenter';
-import { AutonomousSessionStore } from './storage/sessionStore';
-import type { AutonomousLaunchOptions } from './types';
 
 /**
- * VS Code shell для autonomous runner. Бизнес-логика остаётся в discovery,
- * orchestrator и storage; controller только открывает panel, маршрутизирует IPC
- * и хранит AbortController активных sessions.
+ * VS Code shell для autonomous runner. Бизнес-логика живёт в core backend или
+ * daemon; controller только открывает panel и маршрутизирует webview IPC.
  */
 export class AutonomousController implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
-  private readonly runningSessions = new Map<string, AbortController>();
-  private readonly openRouterClient: OpenRouterClient;
-  private readonly codexClient: CodexClient;
-  private readonly disposables: vscode.Disposable[] = [];
+  private backend: AutonomousBackend | undefined;
+  private backendUnsubscribe: (() => void) | undefined;
+  private daemonUnsubscribe: (() => void) | undefined;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly logger: AistLogger
-  ) {
-    this.openRouterClient = new OpenRouterClient(logger);
-    this.codexClient = new CodexClient(context, logger);
-  }
+    private readonly logger: AistLogger,
+    private readonly options: { daemonRuntime?: VscodeDaemonRuntimeBridge } = {}
+  ) {}
 
   open(): void {
     if (this.panel) {
@@ -67,13 +63,14 @@ export class AutonomousController implements vscode.Disposable {
       void this.handleMessage(message);
     });
     void this.postPage();
+    void this.ensureDaemonEventSubscription();
     void this.sendState();
   }
 
   dispose(): void {
-    for (const disposable of this.disposables) {
-      disposable.dispose();
-    }
+    this.daemonUnsubscribe?.();
+    this.backendUnsubscribe?.();
+    this.backend?.dispose();
   }
 
   private async handleMessage(message: AutonomousWebviewToExtensionMessage): Promise<void> {
@@ -84,22 +81,22 @@ export class AutonomousController implements vscode.Disposable {
       } else if (message.type === 'autonomous.refresh') {
         await this.sendState();
       } else if (message.type === 'autonomous.importLegacy') {
-        await importLegacyDefinitions(getWorkspaceFolder().uri.fsPath);
+        await this.getBackend().importLegacyDefinitions();
         await this.sendState();
       } else if (message.type === 'autonomous.createFlow') {
-        await createAutonomousFlowDefinition(getWorkspaceFolder().uri.fsPath, message.flow);
+        await this.getBackend().createFlow(message.flow);
         await this.sendState();
       } else if (message.type === 'autonomous.deleteFlow') {
         await this.deleteFlow(message.flowId);
       } else if (message.type === 'autonomous.saveFlow') {
-        await saveAutonomousFlowDefinition(getWorkspaceFolder().uri.fsPath, message.flow);
+        await this.getBackend().saveFlow(message.flow);
         await this.sendState();
       } else if (message.type === 'autonomous.startFlow') {
         await this.startFlow(message.flowId, message.launch);
       } else if (message.type === 'autonomous.startRun') {
         await this.startRun(message.runId, message.launch);
       } else if (message.type === 'autonomous.stopSession') {
-        this.runningSessions.get(message.sessionId)?.abort();
+        await this.stopSession(message.sessionId);
       } else if (message.type === 'autonomous.revealSession') {
         await this.revealSession(message.sessionId);
       } else if (message.type === 'autonomous.exportSession') {
@@ -115,70 +112,32 @@ export class AutonomousController implements vscode.Disposable {
   }
 
   private async startFlow(flowId: string, launch: AutonomousLaunchOptions): Promise<void> {
-    const workspaceRoot = getWorkspaceFolder().uri.fsPath;
-    const definitions = await discoverAutonomousDefinitions({ workspaceRoot });
-    const flow = definitions.flows.find((candidate) => candidate.id === flowId);
-    if (!flow) {
-      throw new Error(`Unknown autonomous flow: ${flowId}`);
+    if (this.options.daemonRuntime) {
+      const client = await this.options.daemonRuntime.processManager.getClient();
+      await client.request<DaemonAutonomousStartResult>('autonomous.flow.start', { flowId, launch });
+    } else {
+      await this.getBackend().startFlow(flowId, launch);
     }
-
-    const sessionId = createSessionId('flow');
-    const abortController = new AbortController();
-    this.runningSessions.set(sessionId, abortController);
-    const sessionStore = new AutonomousSessionStore(workspaceRoot);
-    const engineRegistry = this.createEngineRegistry();
-    const workDir = launch.workDir || workspaceRoot;
-    const running = runAutonomousFlow({
-      flow,
-      workspaceRoot,
-      workDir,
-      launch,
-      sessionStore,
-      engineRegistry,
-      signal: abortController.signal,
-      sessionId
-    });
-
-    void running.finally(() => {
-      this.runningSessions.delete(sessionId);
-      void this.sendState();
-    });
     await this.sendState();
   }
 
   private async startRun(runId: string, launch: AutonomousLaunchOptions): Promise<void> {
-    const workspaceRoot = getWorkspaceFolder().uri.fsPath;
-    const definitions = await discoverAutonomousDefinitions({ workspaceRoot });
-    const run = definitions.runs.find((candidate) => candidate.id === runId);
-    if (!run) {
-      throw new Error(`Unknown autonomous run: ${runId}`);
+    if (this.options.daemonRuntime) {
+      const client = await this.options.daemonRuntime.processManager.getClient();
+      await client.request<DaemonAutonomousStartResult>('autonomous.run.start', { runId, launch });
+    } else {
+      await this.getBackend().startRun(runId, launch);
     }
-
-    const sessionId = createSessionId('run');
-    const abortController = new AbortController();
-    this.runningSessions.set(sessionId, abortController);
-    const sessionStore = new AutonomousSessionStore(workspaceRoot);
-    const engineRegistry = this.createEngineRegistry();
-    const running = runAutonomousBatch({
-      run,
-      definitions,
-      workspaceRoot,
-      launch,
-      sessionStore,
-      engineRegistry,
-      signal: abortController.signal,
-      sessionId
-    });
-
-    void running.finally(() => {
-      this.runningSessions.delete(sessionId);
-      void this.sendState();
-    });
     await this.sendState();
   }
 
-  private createEngineRegistry() {
-    return createAutonomousEngineRegistry({ openRouterClient: this.openRouterClient, codexClient: this.codexClient });
+  private async stopSession(sessionId: string): Promise<void> {
+    if (this.options.daemonRuntime) {
+      const client = await this.options.daemonRuntime.processManager.getClient();
+      await client.request<DaemonAutonomousStopResult>('autonomous.stop', { sessionId });
+    } else {
+      this.getBackend().stop(sessionId);
+    }
   }
 
   private async deleteFlow(flowId: string): Promise<void> {
@@ -194,7 +153,7 @@ export class AutonomousController implements vscode.Disposable {
       return;
     }
 
-    await deleteAutonomousFlowDefinition(getWorkspaceFolder().uri.fsPath, flowId);
+    await this.getBackend().deleteFlow(flowId);
     await this.sendState();
   }
 
@@ -206,13 +165,10 @@ export class AutonomousController implements vscode.Disposable {
   }
 
   private async exportSession(sessionId: string, format: 'markdown' | 'json'): Promise<void> {
-    const store = new AutonomousSessionStore(getWorkspaceFolder().uri.fsPath);
+    const result = await this.exportSessionDocument(sessionId, format);
     const document = await vscode.workspace.openTextDocument({
       language: format === 'markdown' ? 'markdown' : 'json',
-      content:
-        format === 'markdown'
-          ? await store.exportMarkdown(sessionId)
-          : JSON.stringify(await store.readSession(sessionId), null, 2)
+      content: result
     });
     await vscode.window.showTextDocument(document);
   }
@@ -226,12 +182,61 @@ export class AutonomousController implements vscode.Disposable {
       return;
     }
 
-    const state = await buildAutonomousState({
-      workspaceRoot: getWorkspaceFolder().uri.fsPath,
-      workspaceName: getWorkspaceName(),
-      openRouterClient: this.openRouterClient,
-      codexClient: this.codexClient
-    });
+    const state = this.options.daemonRuntime
+      ? (
+          await (
+            await this.options.daemonRuntime.processManager.getClient()
+          ).request<DaemonAutonomousStateResult>('autonomous.state')
+        ).state
+      : await this.getBackend().getState();
     await this.panel.webview.postMessage({ type: 'autonomous.state', state });
+  }
+
+  private getBackend(): AutonomousBackend {
+    const workspaceRoot = getWorkspaceFolder().uri.fsPath;
+    if (this.backend?.workspaceRoot === workspaceRoot) {
+      return this.backend;
+    }
+
+    this.backendUnsubscribe?.();
+    this.backend?.dispose();
+    this.backend = new AutonomousBackend({
+      workspaceRoot,
+      workspaceName: getWorkspaceName(),
+      logger: {
+        info: (message, details) => this.logger.info(message, details),
+        warn: (message, details) => this.logger.info(message, details),
+        error: (message, error) => this.logger.error(message, error)
+      },
+      env: process.env
+    });
+    this.backendUnsubscribe = this.backend.onEvent(() => {
+      void this.sendState();
+    });
+    return this.backend;
+  }
+
+  private async ensureDaemonEventSubscription(): Promise<void> {
+    if (!this.options.daemonRuntime || this.daemonUnsubscribe) {
+      return;
+    }
+
+    const client = await this.options.daemonRuntime.processManager.getClient();
+    this.daemonUnsubscribe = client.onEvent((event: DaemonEvent) => {
+      if (event.type.startsWith('autonomous.')) {
+        void this.sendState();
+      }
+    });
+    await client.subscribe();
+  }
+
+  private async exportSessionDocument(sessionId: string, format: AutonomousExportFormat): Promise<string> {
+    if (this.options.daemonRuntime) {
+      const client = await this.options.daemonRuntime.processManager.getClient();
+      const result = await client.request<DaemonAutonomousExportResult>('autonomous.export', { sessionId, format });
+      return result.content;
+    }
+
+    return (await this.getBackend().exportSession(sessionId, format)).content;
   }
 }

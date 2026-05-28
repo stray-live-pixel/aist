@@ -17,10 +17,12 @@ export const storyTools = [
   'get_workspace_info',
   'list_files',
   'read_file',
+  'read_file_range',
   'grep_search',
   'run_bash_script',
   'write_file',
   'replace_in_file',
+  'apply_patch',
   'create_directory',
   'delete_path'
 ];
@@ -49,21 +51,24 @@ export const storyInstructionSources = [
     title: 'AIST base system prompt',
     content: 'Core coding-agent rules, language policy and tool usage rules.',
     priority: 0,
-    kind: 'base' as const
+    kind: 'base' as const,
+    source: 'immutable kernel'
   },
   {
     id: 'AGENTS.md',
     title: 'AGENTS.md',
     content: 'Follow Feature-Sliced Design and keep files small.',
     priority: 20,
-    kind: 'file' as const
+    kind: 'file' as const,
+    source: 'AGENTS.md'
   },
   {
-    id: 'project-instructions',
+    id: '.aist-agent/instructions/project.md',
     title: '.aist-agent project instructions',
     content: 'Prefer simple implementations and run typecheck after edits.',
-    priority: 40,
-    kind: 'custom' as const
+    priority: 12,
+    kind: 'declarative' as const,
+    source: '.aist-agent/instructions/project.md'
   },
   {
     id: 'mode:frontend',
@@ -184,6 +189,12 @@ export const storyToolPermissions: ToolPermissionItem[] = [
     defaultPermission: 'auto'
   },
   {
+    name: 'read_file_range',
+    description: 'Read a bounded line range from a workspace file.',
+    permission: 'auto',
+    defaultPermission: 'auto'
+  },
+  {
     name: 'grep_search',
     description: 'Search the repository with ripgrep and show matching files.',
     permission: 'auto',
@@ -200,6 +211,12 @@ export const storyToolPermissions: ToolPermissionItem[] = [
     description: 'Replace a range or matching text inside an existing file.',
     permission: 'ask',
     defaultPermission: 'ask'
+  },
+  {
+    name: 'apply_patch',
+    description: 'Apply a unified diff patch to workspace files.',
+    permission: 'ask',
+    defaultPermission: 'ask'
   }
 ];
 
@@ -212,10 +229,12 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'ask',
       list_files: 'ask',
       read_file: 'ask',
+      read_file_range: 'ask',
       grep_search: 'ask',
       run_bash_script: 'ask',
       write_file: 'ask',
       replace_in_file: 'ask',
+      apply_patch: 'ask',
       create_directory: 'ask',
       delete_path: 'ask'
     }
@@ -228,10 +247,12 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
       grep_search: 'auto',
       run_bash_script: 'ask',
       write_file: 'ask',
       replace_in_file: 'ask',
+      apply_patch: 'ask',
       create_directory: 'ask',
       delete_path: 'ask'
     }
@@ -244,10 +265,12 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
       grep_search: 'auto',
       run_bash_script: 'ask',
       write_file: 'auto',
       replace_in_file: 'auto',
+      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'ask'
     }
@@ -260,10 +283,12 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       get_workspace_info: 'auto',
       list_files: 'auto',
       read_file: 'auto',
+      read_file_range: 'auto',
       grep_search: 'auto',
       run_bash_script: 'auto',
       write_file: 'auto',
       replace_in_file: 'auto',
+      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'auto'
     }
@@ -341,6 +366,7 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     status: 'waiting',
     approval: 'pending',
     reason: 'Need permission before changing source files.',
+    nextStep: 'If approved, apply the replacement and inspect the changed CSS block.',
     args: { path: 'src/webview/app/styles.css', search: '.message-card', replace: '.message-card' },
     result: { preview: { path: 'src/webview/app/styles.css', replacements: 3 } },
     createdAt: storyNow - 1000 * 90
@@ -352,6 +378,7 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     status: 'running',
     args: { script: 'npm run typecheck' },
     reason: 'Verifying TypeScript after Storybook setup.',
+    nextStep: 'Use the compiler output to fix any remaining type errors.',
     createdAt: storyNow - 1000 * 70
   },
   finishedBash: {
@@ -378,7 +405,26 @@ export const storyToolMessages: Record<string, ChatMessage> = {
       stderrTruncated: false
     },
     reason: 'Checking the parser helpers still behave correctly.',
+    nextStep: 'Keep the change if tests pass, otherwise inspect the failing assertions.',
     createdAt: storyNow - 1000 * 55
+  },
+  approvedWithComment: {
+    id: 'tool-approved-comment',
+    role: 'tool',
+    name: 'replace_in_file',
+    status: 'done',
+    approval: 'approved',
+    reason: 'Apply the user-approved wording change.',
+    nextStep: 'Verify the replacement count and preserve the public API name.',
+    userApprovalComment: 'Keep the public API name unchanged.',
+    args: { path: 'src/core/toolRunner.ts', search: 'userComment', replace: 'userApprovalComment' },
+    result: {
+      ok: true,
+      path: 'src/core/toolRunner.ts',
+      replacements: 3,
+      userApprovalComment: 'Keep the public API name unchanged.'
+    },
+    createdAt: storyNow - 1000 * 50
   },
   errored: {
     id: 'tool-error',
@@ -475,8 +521,20 @@ export const storyAgentState: AgentState = {
   maxToolIterations: 6,
   reasoningEffort: 'medium',
   codexServiceTier: 'priority',
+  editorContextMode: 'auto',
   streamingEnabled: false,
-  compactionSettings: { enabled: true, thresholdPercent: 70, keepLastMessages: 0 },
+  auxiliaryModels: {
+    compaction: { model: '', reasoningEffort: 'auto', allowTools: false },
+    tool: { model: '', reasoningEffort: 'auto', allowTools: false, overrides: [] }
+  },
+  compactionSettings: {
+    enabled: true,
+    thresholdPercent: 70,
+    keepLastMessages: 0,
+    model: '',
+    reasoningEffort: 'auto',
+    allowTools: false
+  },
   approvalNotificationSettings: {
     enabled: true,
     systemNotifications: true,
@@ -490,10 +548,43 @@ export const storyAgentState: AgentState = {
   agentConfigScope: 'workspace',
   projectInstructions: 'Prefer simple implementations and run typecheck after edits.',
   promptConfig: storyPromptConfig,
+  memoryItems: [
+    {
+      id: 'prefer-focused-tests',
+      scope: 'project',
+      note: 'Prefer focused Vitest coverage for the changed extension layer before broader checks.',
+      enabled: true,
+      createdAt: storyNow - 1000 * 60 * 60 * 24,
+      updatedAt: storyNow - 1000 * 60 * 30
+    }
+  ],
   instructionSources: storyInstructionSources,
   customSkills: storyCustomSkills,
   codexAuthenticated: true,
   toolPermissions: storyToolPermissions,
   toolPermissionPresets: storyToolPermissionPresets,
-  activeToolPermissionPresetId: 'balanced'
+  activeToolPermissionPresetId: 'balanced',
+  telemetry: {
+    storagePath: '/workspace/.aist-agent/telemetry',
+    recentRuns: [],
+    aggregates: {
+      runCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      stoppedCount: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      toolCallCount: 0,
+      repeatedToolCalls: 0,
+      failedEdits: 0,
+      approvals: { requested: 0, approved: 0, denied: 0 },
+      contextBytes: 0,
+      averageDurationMs: 0,
+      toolCallsByType: {}
+    },
+    jsonExport: '{}\n',
+    markdownExport: '# AIST Telemetry\n'
+  },
+  projectToolDiagnostics: []
 };

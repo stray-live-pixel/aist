@@ -1,6 +1,8 @@
 import path from 'node:path';
 import * as vscode from 'vscode';
 
+import { createToolError } from './toolErrors';
+
 export function getWorkspaceFolder(): vscode.WorkspaceFolder {
   const folders = vscode.workspace.workspaceFolders || [];
   if (!folders.length) {
@@ -23,7 +25,9 @@ export function resolveWorkspacePath(relativePath: string): vscode.Uri {
   const relativeToRoot = path.relative(rootPath, targetPath);
 
   if (relativeToRoot === '..' || relativeToRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToRoot)) {
-    throw new Error(`Path is outside the workspace: ${relativePath}`);
+    throw createToolError('PATH_OUTSIDE_WORKSPACE', `Path is outside the workspace: ${relativePath}`, {
+      path: relativePath
+    });
   }
 
   return vscode.Uri.file(targetPath);

@@ -5,8 +5,10 @@
   "openrouterAgent.reasoningEffort": "high",
   "openrouterAgent.toolPermissions": {
     "get_workspace_info": "auto",
+    "outline_file": "auto",
     "list_files": "auto",
     "read_file": "auto",
+    "read_file_range": "auto",
     "grep_search": "auto",
     "run_bash_script": "auto",
     "write_file": "auto",

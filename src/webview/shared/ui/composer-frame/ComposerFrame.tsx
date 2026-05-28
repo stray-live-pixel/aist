@@ -10,6 +10,8 @@ export type ComposerFrameProps = {
   notice?: ReactNode;
   /** Верхняя строка быстрых настроек; fallback остаётся внутри shared, чтобы фича не рисовала собственный текстовый UI. */
   header: ReactNode;
+  /** Правая часть верхней строки с быстрыми действиями composer. */
+  headerActions?: ReactNode;
   /** Основное поле ввода или другой центральный интерактивный элемент. */
   input: ReactNode;
   /** Левая часть нижней строки с метаданными и controls. */
@@ -29,6 +31,7 @@ export const ComposerFrame = memo(function ComposerFrame({
   floating = false,
   notice,
   header,
+  headerActions,
   input,
   footer,
   actions,
@@ -39,7 +42,10 @@ export const ComposerFrame = memo(function ComposerFrame({
     <footer className={classNames(styles.root, floating && styles.floating, className)}>
       {notice ? <div className={styles.notice}>{notice}</div> : null}
       <div className={styles.panel}>
-        <div className={styles.header}>{header || <span className={styles.fallback}>{fallback}</span>}</div>
+        <div className={styles.header}>
+          <div className={styles.headerContent}>{header || <span className={styles.fallback}>{fallback}</span>}</div>
+          {headerActions ? <div className={styles.headerActions}>{headerActions}</div> : null}
+        </div>
         <ComposerFrameDivider />
         {input}
         <ComposerFrameDivider />

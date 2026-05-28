@@ -32,7 +32,8 @@ export function getFallbackSources(
       title: mode?.label ? t('systemInstructions.mode', { mode: mode.label }) : t('systemInstructions.fallbackTitle'),
       content: mode?.instructions.trim() || t('systemInstructions.noAdditional'),
       priority: 50,
-      kind: 'mode'
+      kind: 'mode',
+      source: 'fallback'
     }
   ];
 }

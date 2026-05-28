@@ -10,15 +10,10 @@ import remarkGfm from 'remark-gfm';
 
 import { useI18n } from '../../../shared/i18n';
 import { AistAnimatedLogo } from '../../../shared/ui/AistLogo';
+import { ModelRequestStatus } from '../../../shared/ui/model-request-status';
 import styles from './AgentActivityStatus.module.scss';
 import type { AgentActivityStatusProps } from './types';
-import {
-  formatActivity,
-  formatDuration,
-  formatModelRequestPhase,
-  formatModelRequestProvider,
-  getDefaultDetail
-} from './utils';
+import { formatActivity, getDefaultDetail } from './utils';
 
 export function AgentActivityStatus({ activity, detail, modelRequest }: AgentActivityStatusProps) {
   const { t } = useI18n();
@@ -33,56 +28,10 @@ export function AgentActivityStatus({ activity, detail, modelRequest }: AgentAct
         <div className={styles.detail}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{secondaryText}</ReactMarkdown>
         </div>
-        {modelRequest ? <ModelRequestDetails request={modelRequest} elapsedMs={elapsedMs} /> : null}
+        {modelRequest ? (
+          <ModelRequestStatus request={modelRequest} elapsedMs={elapsedMs} className={styles.request} />
+        ) : null}
       </div>
-    </div>
-  );
-}
-
-function ModelRequestDetails({
-  request,
-  elapsedMs
-}: {
-  request: NonNullable<AgentActivityStatusProps['modelRequest']>;
-  elapsedMs: number;
-}) {
-  const { t } = useI18n();
-  const statusText =
-    request.httpStatus !== undefined
-      ? t('modelRequest.httpStatus', {
-          status: request.httpStatus,
-          statusText: request.httpStatusText || ''
-        }).trim()
-      : undefined;
-
-  return (
-    <div className={styles.request}>
-      <div className={styles.requestMeta}>
-        <span>{formatModelRequestPhase(request.phase, t)}</span>
-        <span>{formatModelRequestProvider(request.provider, t)}</span>
-        <span title={request.model}>{request.model}</span>
-        <span>{t('modelRequest.requestNumber', { number: request.requestNumber })}</span>
-        <span>{t('modelRequest.attempt', { attempt: request.attempt, max: request.maxAttempts })}</span>
-        <span>{t('modelRequest.elapsed', { duration: formatDuration(elapsedMs) })}</span>
-        {request.stream ? <span>{t('modelRequest.streaming')}</span> : null}
-        {request.retryable ? <span>{t('modelRequest.retryable')}</span> : null}
-      </div>
-      {statusText ? <div className={styles.requestLine}>{statusText}</div> : null}
-      {request.endpoint ? (
-        <div className={styles.requestLine}>
-          {t('modelRequest.endpoint', {
-            method: request.method || 'POST',
-            endpoint: request.endpoint
-          })}
-        </div>
-      ) : null}
-      {request.error ? <div className={styles.requestError}>{request.error}</div> : null}
-      {request.responseBody ? (
-        <details className={styles.responseBody}>
-          <summary>{t('modelRequest.responseBody')}</summary>
-          <pre>{request.responseBody}</pre>
-        </details>
-      ) : null}
     </div>
   );
 }

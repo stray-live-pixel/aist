@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 
-import type { ChatStore } from '../../chats/chatStore';
+import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { WebviewSurface } from '../types';
 
 /**
@@ -11,7 +11,7 @@ import type { WebviewSurface } from '../types';
  */
 export function createSidebarSurface(params: {
   webview: vscode.Webview;
-  chats: ChatStore;
+  chats: AgentChatStore;
   getSidebarChatId(): string | undefined;
   setSidebarChatId(chatId: string): void;
 }): WebviewSurface {

@@ -66,10 +66,26 @@
 }
 
 .header {
+  display: flex;
   min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 8px 12px;
   color: var(--vscode-descriptionForeground);
   font-size: 10px;
+}
+
+.headerContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.headerActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
 }
 
 .fallback {

@@ -8,7 +8,6 @@
 
 ```json
 {
-  "openrouterAgent.apiKey": "sk-or-...",
   "openrouterAgent.model": "openai/gpt-4o-mini",
   "openrouterAgent.language": "en"
 }
@@ -16,18 +15,24 @@
 
 | Настройка                           | Значение по умолчанию  | Описание                                                                                       |
 | ----------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `openrouterAgent.apiKey`            | `""`                   | OpenRouter API key. Также можно использовать `OPENROUTER_API_KEY`.                             |
 | `openrouterAgent.model`             | `"openai/gpt-4o-mini"` | ID активной модели. OpenRouter ID используются как есть; Codex ID используют префикс `codex:`. |
 | `openrouterAgent.siteUrl`           | `""`                   | Опциональный site URL для OpenRouter rankings headers.                                         |
 | `openrouterAgent.siteName`          | `"aist"`               | Опциональное site name для OpenRouter rankings headers.                                        |
 | `openrouterAgent.maxContextChars`   | `12000`                | Максимум символов активного файла, добавляемых как editor context.                             |
 | `openrouterAgent.maxToolIterations` | `0`                    | Максимум циклов model/tool-call на запрос. `0` — без настроенного лимита.                      |
 | `openrouterAgent.reasoningEffort`   | `"auto"`               | Reasoning effort для OpenRouter: `auto`, `low`, `medium`, `high`.                              |
+| `openrouterAgent.daemonBinaryPath`  | `""`                   | Опциональный путь к `aist` binary или bundled CLI JavaScript для daemon backend.               |
 | `openrouterAgent.language`          | `"en"`                 | Язык ответов агента и `reason` у tool calls: `en` или `ru`.                                    |
 | `openrouterAgent.agentMode`         | `"default"`            | ID активного режима агента.                                                                    |
 | `openrouterAgent.agentConfigScope`  | `"workspace"`          | Где хранятся project instructions, custom modes, skills и compaction settings.                 |
 
 > Если workspace уже содержит старую пользовательскую настройку языка, задайте `openrouterAgent.language` явно.
+
+## Backend
+
+VS Code extension — thin client. История чатов, runs, approvals, tools, model requests, auth, memory, telemetry, compaction и reflection обрабатываются через `aist daemon --workspace <root>`.
+
+Для OpenRouter используйте `aist auth openrouter set-key` или `OPENROUTER_API_KEY`. Удалённая legacy-настройка VS Code `openrouterAgent.apiKey` только импортируется в global daemon secret store для совместимости.
 
 ## Agent config scope
 
@@ -48,6 +53,7 @@
     "run_bash_script": "ask",
     "write_file": "ask",
     "replace_in_file": "ask",
+    "apply_patch": "ask",
     "create_directory": "ask",
     "delete_path": "ask"
   }

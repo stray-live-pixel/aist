@@ -1,5 +1,10 @@
-import type { CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from './flowDefinitionWriter';
-import type { AutonomousEngineId, AutonomousLaunchOptions, AutonomousState } from './types';
+import type {
+  AutonomousEngineId,
+  AutonomousLaunchOptions,
+  AutonomousState,
+  CreateAutonomousFlowInput,
+  EditableAutonomousFlowDefinition
+} from '../../core/processes/autonomous';
 
 export type AutonomousExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }

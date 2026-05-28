@@ -15,6 +15,7 @@ AIST exposes workspace tools to the model. Each tool call is shown in chat with 
 | `run_bash_script`    | Runs a focused Bash script from inside the workspace.                          | `ask`                                |
 | `write_file`         | Creates or overwrites a UTF-8 file.                                            | `ask`                                |
 | `replace_in_file`    | Replaces exact text in an existing UTF-8 file.                                 | `ask`                                |
+| `apply_patch`        | Applies a unified diff patch to workspace text files.                          | `ask`                                |
 | `create_directory`   | Creates a directory, including parents.                                        | `ask`                                |
 | `delete_path`        | Deletes a file or directory using trash; directories require `recursive=true`. | `ask`                                |
 | `run_skill`          | Runs a user-defined custom skill.                                              | Per-skill permission, default `ask`. |
@@ -24,7 +25,7 @@ AIST exposes workspace tools to the model. Each tool call is shown in chat with 
 When a tool permission is `ask`, AIST adds an inline approval card to chat and waits for the user decision.
 
 - Approving runs the tool.
-- Denying returns a denied result to the agent.
+- Denying with continue returns a denied result to the agent; denying with stop aborts the current run.
 - Stopping the request denies pending approvals and aborts the current run.
 
 Read-only tools use `auto` by default. Shell commands and file mutations use `ask` by default.
@@ -35,9 +36,13 @@ Before mutating file tools write changes, AIST opens a VS Code-native diff previ
 
 - `write_file` previews the full target content.
 - `replace_in_file` previews the generated replacement.
+- `apply_patch` previews every changed file from the unified diff.
 - The approval card stays in chat while the diff editor remains open in parallel.
 
 Only after approval does the tool write the changes.
+
+The backend/CLI protocol is documented in [Backend approval protocol](approval-protocol.md). It preserves editable
+VS Code preview edits by applying the final approved content returned from the preview, not the original model proposal.
 
 ## Workspace boundaries
 
@@ -75,7 +80,11 @@ Search options:
 - `regex` — treat `query` as JavaScript regex;
 - `caseSensitive` — case-sensitive matching;
 - `contextLines` — 0 to 5 context lines;
-- `maxResults` — 1 to 1000;
+- `beforeLines` / `afterLines` — 0 to 5 asymmetric context lines, defaulting to `contextLines`;
+- `filesOnly` — return only unique matching paths;
+- `countOnly` — return matching paths with counts and no line text;
+- `exclude` — additional glob pattern combined with standard ignored directories;
+- `maxResults` — 1 to 1000 matches, or paths in compact modes;
 - `maxFiles` — 1 to 10000.
 
 Binary files and files larger than 1 MiB are skipped.

@@ -13,6 +13,7 @@
 | `run_bash_script`    | Запускает focused Bash script внутри workspace.                                 | `ask`                             |
 | `write_file`         | Создает или перезаписывает UTF-8 файл.                                          | `ask`                             |
 | `replace_in_file`    | Заменяет точный текст в существующем UTF-8 файле.                               | `ask`                             |
+| `apply_patch`        | Применяет unified diff patch к текстовым файлам workspace.                      | `ask`                             |
 | `create_directory`   | Создает директорию, включая родителей.                                          | `ask`                             |
 | `delete_path`        | Удаляет файл или директорию через trash; для директорий нужен `recursive=true`. | `ask`                             |
 | `run_skill`          | Запускает пользовательский custom skill.                                        | Права навыка, по умолчанию `ask`. |
@@ -33,6 +34,7 @@ Read-only инструменты по умолчанию `auto`. Shell-кома�
 
 - `write_file` показывает полный целевой content;
 - `replace_in_file` показывает generated replacement;
+- `apply_patch` показывает каждый измененный файл из unified diff;
 - карточка подтверждения остается в чате, пока diff editor открыт параллельно.
 
 Файл изменяется только после подтверждения.
@@ -71,7 +73,11 @@ Shell execution предназначен для тестов, сборок, ди
 - `regex` — воспринимать `query` как JavaScript regex;
 - `caseSensitive` — учитывать регистр;
 - `contextLines` — от 0 до 5 строк контекста;
-- `maxResults` — от 1 до 1000;
+- `beforeLines` / `afterLines` — от 0 до 5 строк асимметричного контекста, по умолчанию `contextLines`;
+- `filesOnly` — вернуть только уникальные paths с совпадениями;
+- `countOnly` — вернуть paths с количеством совпадений без текста строк;
+- `exclude` — дополнительный glob pattern вместе со стандартными ignored директориями;
+- `maxResults` — от 1 до 1000 совпадений или paths в compact-режимах;
 - `maxFiles` — от 1 до 10000.
 
 Binary files и файлы больше 1 MiB пропускаются.

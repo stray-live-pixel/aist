@@ -55,7 +55,7 @@ export async function handleAgentWebviewMessage(
   }
 
   if (message.type === 'stop') {
-    deps.stopCurrentRun();
+    await deps.stopCurrentRun();
   }
 }
 

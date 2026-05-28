@@ -1,13 +1,26 @@
 import type * as vscode from 'vscode';
 
-import type { ChatUsageEstimate } from '../chats/types';
-import type { ModelStreamCallbacks, OpenRouterMessage } from '../openrouter/types';
+import type { AgentRunTelemetryDraft } from '../../core/features/telemetry/telemetry';
+import type {
+  CodexServiceTier,
+  AgentRun as CoreAgentRun,
+  EditorContextMode,
+  ReasoningEffort
+} from '../../core/shared/types/types';
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
+import type { AgentMemoryScope } from './memory/memory';
 
-export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
-export type CodexServiceTier = 'auto' | 'priority';
+export type {
+  AgentActivityStream,
+  AgentLoopResult,
+  CodexServiceTier,
+  EditorContextMode,
+  ReasoningEffort,
+  RepeatedToolCall,
+  ToolApprovalDecision
+} from '../../core/shared/types/types';
 
 /**
  * Хранит состояние одного активного запуска агента.
@@ -16,54 +29,7 @@ export type CodexServiceTier = 'auto' | 'priority';
  * управлялись из одного места. Создается в AgentController.ask и передается
  * в agent loop/tool calls вместо набора разрозненных флагов.
  */
-export type AgentRun = {
-  chatId: string;
-  abortController: AbortController;
-  stopRequested: boolean;
-  activityStream?: AgentActivityStream;
-  permissionResolvers: Map<string, (decision: ToolApprovalDecision) => void>;
-};
-
-/**
- * Решение пользователя по tool approval.
- * approved запускает инструмент и может передать комментарий модели после результата;
- * отказ может либо остановить текущий агентский цикл, либо вернуться в модель как результат tool-call.
- */
-export type ToolApprovalDecision = {
-  approved: boolean;
-  continueAfterDeny: boolean;
-  comment?: string;
-};
-
-export type AgentActivityStream = ModelStreamCallbacks & {
-  reset(): void;
-  hasContent(): boolean;
-};
-
-/**
- * Результат полного agent loop после всех вызовов модели и инструментов.
- *
- * Контроллер использует его как единый commit-point: сохраняет историю,
- * последний ответ и usage только после успешного завершения цикла.
- */
-export type AgentLoopResult = {
-  answer: string;
-  history: OpenRouterMessage[];
-  usage: ChatUsageEstimate;
-};
-
-/**
- * Описание повторяющегося tool call, из-за которого agent loop останавливается.
- *
- * Сигнатура строится без поля reason, потому что reason может меняться текстово,
- * хотя сам инструмент и его существенные аргументы остаются теми же.
- */
-export type RepeatedToolCall = {
-  signature: string;
-  count: number;
-  toolName: string;
-  args: Record<string, unknown>;
-};
+export type AgentRun = CoreAgentRun<AgentRunTelemetryDraft>;
 
 /**
  * Входящие сообщения из webview UI.
@@ -73,7 +39,7 @@ export type RepeatedToolCall = {
  */
 export type WebviewMessage =
   | { type: 'webviewReady' }
-  | { type: 'ask'; prompt: string }
+  | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }
   | { type: 'deleteChat'; chatId: string }
@@ -83,10 +49,21 @@ export type WebviewMessage =
   | { type: 'setModel'; model: string }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: string }
+  | { type: 'setProjectToolEnabled'; toolId: string; enabled: boolean }
   | { type: 'setMaxToolIterations'; maxToolIterations: number }
   | { type: 'setReasoningEffort'; reasoningEffort: ReasoningEffort }
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
+  | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
+  | {
+      type: 'setAuxiliaryModelSettings';
+      id: 'compaction' | 'tool';
+      settings: Partial<{ model: string; reasoningEffort: ReasoningEffort; allowTools: boolean }>;
+    }
+  | {
+      type: 'setAuxiliaryToolModelOverrides';
+      overrides: Array<{ toolName: string; model: string; reasoningEffort: ReasoningEffort; allowTools: boolean }>;
+    }
   | { type: 'compactChat'; chatId?: string }
   | {
       type: 'setCompactionSettings';
@@ -130,6 +107,10 @@ export type WebviewMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
+  | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
+  | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
+  | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }
+  | { type: 'rejectReflectionCandidate'; chatId: string; candidateId: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;
@@ -155,9 +136,11 @@ export type WebviewMessage =
       messageId: string;
       decision: 'approve' | 'deny-stop' | 'deny-continue';
       comment?: string;
+      rememberGlobal?: string;
+      rememberProject?: string;
     }
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
-  | { type: 'stop' }
+  | { type: 'stop'; chatId?: string }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string };
 

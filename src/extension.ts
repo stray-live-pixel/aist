@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 
 import { AgentController } from './extension/agent/agentController';
+import { type VscodeDaemonRuntimeBridge, createVscodeDaemonRuntimeBridge } from './extension/agent/daemon/bridge';
 import { AutonomousController } from './extension/autonomous/controller';
-import { ChatStore } from './extension/chats/chatStore';
 import { DEFAULT_MODEL } from './extension/shared/constants';
 import { createLogger } from './extension/shared/logger';
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const logger = createLogger();
   const viewContribution = getViewContribution(context, 'openrouterAgent.chats');
 
@@ -19,9 +19,9 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const configModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
-  const chats = new ChatStore(context.workspaceState, configModel);
-  const agent = new AgentController(context, chats, logger);
-  const autonomous = new AutonomousController(context, logger);
+  const daemonRuntime = await createRequiredDaemonRuntimeBridge(context, logger, configModel);
+  const agent = new AgentController(context, daemonRuntime.chats, logger, daemonRuntime);
+  const autonomous = new AutonomousController(context, logger, { daemonRuntime });
 
   logger.info('Registering WebviewViewProvider', { viewId: 'openrouterAgent.chats' });
 
@@ -48,6 +48,22 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {}
+
+async function createRequiredDaemonRuntimeBridge(
+  context: vscode.ExtensionContext,
+  logger: ReturnType<typeof createLogger>,
+  configModel: string
+): Promise<VscodeDaemonRuntimeBridge> {
+  try {
+    return await createVscodeDaemonRuntimeBridge(context, logger, configModel);
+  } catch (error) {
+    logger.error('Failed to initialize required VS Code daemon runtime bridge', error);
+    void vscode.window.showErrorMessage(
+      'AIST daemon is required and could not start. Fix daemon diagnostics or configure openrouterAgent.daemonBinaryPath, then reload the window.'
+    );
+    throw error;
+  }
+}
 
 function getViewContribution(context: vscode.ExtensionContext, viewId: string): unknown {
   const views = context.extension.packageJSON?.contributes?.views;

@@ -49,4 +49,52 @@ describe('toolMessageModel', () => {
       ).summary
     ).toBe('exit 0 · 1.5s');
   });
+
+  it('summarizes grep_search by totalMatches when compact results are returned', () => {
+    expect(
+      buildToolDisplayModel(
+        {
+          id: 'tool-grep',
+          role: 'tool',
+          name: 'grep_search',
+          status: 'done',
+          args: { query: 'target' },
+          result: {
+            ok: true,
+            totalMatches: 3,
+            matches: [
+              { path: 'src/one.ts', count: 2 },
+              { path: 'src/two.ts', count: 1 }
+            ]
+          },
+          createdAt: 0
+        },
+        t
+      ).summary
+    ).toBe('3 matches');
+  });
+
+  it('summarizes structured approval denials without treating them as normal tool results', () => {
+    expect(
+      buildToolDisplayModel(
+        {
+          id: 'tool-denied',
+          role: 'tool',
+          name: 'create_plan',
+          status: 'denied',
+          approval: 'denied',
+          args: { title: 'Old plan' },
+          result: {
+            ok: false,
+            decision: 'denied',
+            comment: 'Revise the approach first.',
+            continueAfterDeny: true,
+            userApprovalComment: 'Revise the approach first.'
+          },
+          createdAt: 0
+        },
+        t
+      ).summary
+    ).toBe('Revise the approach first.');
+  });
 });

@@ -39,13 +39,14 @@ function renderPrimaryResult(
   preview?: Record<string, unknown>
 ) {
   if (message.name === 'run_bash_script') return <BashScriptResult message={message} result={result} />;
+  if (result?.decision === 'denied') return <DeniedResult result={result} />;
   if (message.name === 'create_plan' || message.name === 'update_plan') return <PlanChangePreview message={message} />;
   if (message.name === 'set_plan_item_status') return <PlanStatusPreview message={message} result={result} />;
   if (!result && preview) return <CompactFacts result={preview} />;
   if (!result) return null;
   if (asString(result.error)) return <ErrorText text={asString(result.error) || ''} />;
 
-  if (message.name === 'read_file') return <CodePreview result={result} />;
+  if (message.name === 'read_file' || message.name === 'read_file_range') return <CodePreview result={result} />;
   if (message.name === 'list_files') return <EntriesList result={result} />;
   if (message.name === 'grep_search') return <SearchFiles result={result} />;
 
@@ -94,13 +95,14 @@ function CodePreview({ result }: { result: Record<string, unknown> }) {
   const { t } = useI18n();
   const content = asString(result.content) || '';
   const isLong = content.length > CODE_PREVIEW_LIMIT;
+  const isTruncated = Boolean(result.truncated) || Boolean(result.truncatedRange) || isLong;
   const preview = isLong ? `${content.slice(0, CODE_PREVIEW_LIMIT)}\n…` : content;
 
   return (
     <details className={styles.details} open={!isLong}>
       <summary>
         <ChevronRight size={13} />
-        {t('tool.preview.code')} {Boolean(result.truncated) || isLong ? `· ${t('tool.preview.truncated')}` : ''}
+        {t('tool.preview.code')} {isTruncated ? `· ${t('tool.preview.truncated')}` : ''}
       </summary>
       <pre className={styles.codePreview}>{preview || t('tool.preview.emptyFile')}</pre>
     </details>
@@ -236,6 +238,14 @@ function CompactFacts({ result }: { result: Record<string, unknown> }) {
     .filter(([, value]) => typeof value !== 'object')
     .map(([key, value]) => `${key}: ${String(value)}`);
 
+  return <p className={styles.compactFacts}>{facts.join(' · ')}</p>;
+}
+
+function DeniedResult({ result }: { result: Record<string, unknown> }) {
+  const facts = [
+    `decision: ${String(result.decision)}`,
+    `continueAfterDeny: ${String(Boolean(result.continueAfterDeny))}`
+  ];
   return <p className={styles.compactFacts}>{facts.join(' · ')}</p>;
 }
 

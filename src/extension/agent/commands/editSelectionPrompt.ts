@@ -1,11 +1,10 @@
 import type * as vscode from 'vscode';
 
 /**
- * Собирает prompt для inline-редактирования выделения в активном редакторе.
+ * Builds the daemon prompt for the VS Code "Edit Selection" command.
  *
- * Отдельная функция нужна, чтобы команда editSelection отвечала только за VS Code
- * workflow: ввод инструкции, вызов модели и замену текста. Prompt остается рядом
- * с правилами своей задачи и его проще менять без риска затронуть контроллер.
+ * The extension keeps only the editor workflow locally; model execution remains
+ * inside the CLI daemon.
  */
 export function buildEditSelectionPrompt(editor: vscode.TextEditor, instruction: string): string {
   const selectedText = editor.document.getText(editor.selection);
@@ -14,6 +13,7 @@ export function buildEditSelectionPrompt(editor: vscode.TextEditor, instruction:
     'You are editing code in VS Code.',
     'Return only the final code that should replace the current selection.',
     'Do not include markdown fences, explanations, or commentary.',
+    'Do not call tools or modify files; only answer with the replacement text.',
     '',
     `File: ${editor.document.fileName}`,
     `Language: ${editor.document.languageId}`,

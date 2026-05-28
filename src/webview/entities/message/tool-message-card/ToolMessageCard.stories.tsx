@@ -29,6 +29,11 @@ export const FinishedBash: Story = {
   args: { message: storyToolMessages.finishedBash }
 };
 
+/** Карточка tool-call с комментарием approval. */
+export const ApprovedWithComment: Story = {
+  args: { message: storyToolMessages.approvedWithComment }
+};
+
 /** Карточка tool-call с ошибкой. */
 export const Errored: Story = {
   args: { message: storyToolMessages.errored }

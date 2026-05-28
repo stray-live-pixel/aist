@@ -5,12 +5,16 @@ import type { ReactNode } from 'react';
  * Зачем нужно: composer сам держит текст prompt и IPC-отправку, а родитель передаёт только состояние выполнения и слотные элементы окружения.
  */
 export type ComposerProps = {
+  /** Идентификатор чата, для которого composer отправляет prompt и stop. */
+  chatId: string;
   /** Идёт ли сейчас генерация; в этом режиме кнопка отправляет stop вместо ask. */
   busy: boolean;
   /** Включает sticky/floating layout для закрепления у нижнего края webview. */
   floating?: boolean;
   /** Слот кратких настроек агента над textarea. */
   settings?: ReactNode;
+  /** Слот дополнительных действий справа в верхней строке composer. */
+  headerActions?: ReactNode;
   /** Слот дополнительных действий/метаданных слева в нижней строке. */
   footer?: ReactNode;
   /** Слот предупреждения над composer, например про недоступные настройки. */

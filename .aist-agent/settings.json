@@ -31,5 +31,42 @@
         "id": "coder"
       }
     }
-  ]
+  ],
+  "model": "codex:gpt-5.5",
+  "maxToolIterations": 600,
+  "reasoningEffort": "high",
+  "codexServiceTier": "priority",
+  "streamingEnabled": false,
+  "language": "ru",
+  "toolPermissions": {
+    "get_workspace_info": "auto",
+    "list_files": "auto",
+    "read_file": "auto",
+    "read_file_range": "auto",
+    "outline_file": "auto",
+    "grep_search": "auto",
+    "run_bash_script": "auto",
+    "write_file": "auto",
+    "replace_in_file": "auto",
+    "apply_patch": "ask",
+    "create_directory": "auto",
+    "delete_path": "auto",
+    "create_plan": "auto",
+    "update_plan": "auto",
+    "set_plan_item_status": "auto"
+  },
+  "projectToolDisabledIds": [],
+  "auxiliaryModels": {
+    "compaction": {
+      "model": "",
+      "reasoningEffort": "auto",
+      "allowTools": false
+    },
+    "tool": {
+      "model": "codex:gpt-5.3-codex-spark",
+      "reasoningEffort": "medium",
+      "allowTools": false,
+      "overrides": []
+    }
+  }
 }

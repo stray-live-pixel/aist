@@ -44,59 +44,5 @@
 }
 
 .request {
-  display: grid;
-  gap: 6px;
   margin-top: 8px;
-  border-top: 1px solid var(--agent-border);
-  padding-top: 8px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.requestMeta {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-}
-
-.requestMeta span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.requestLine,
-.requestError {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.requestError {
-  color: var(--vscode-errorForeground);
-}
-
-.responseBody {
-  min-width: 0;
-}
-
-.responseBody summary {
-  cursor: pointer;
-  color: var(--vscode-foreground);
-}
-
-.responseBody pre {
-  max-height: 220px;
-  overflow: auto;
-  border: 1px solid var(--agent-border);
-  border-radius: 4px;
-  margin: 6px 0 0;
-  background: var(--vscode-textCodeBlock-background);
-  padding: 8px;
-  color: var(--vscode-editor-foreground);
-  font-family: var(--vscode-editor-font-family);
-  font-size: 11px;
-  white-space: pre-wrap;
 }

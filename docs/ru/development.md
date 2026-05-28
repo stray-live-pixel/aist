@@ -69,6 +69,19 @@ npm run format:check
 
 E2E tests сначала собирают extension и webview, затем запускают Playwright.
 
+Prompt contract snapshots лежат рядом с focused Vitest spec:
+`src/extension/agent/config/__tests__/prompts.test.ts`. Запустить focused check:
+
+```bash
+npm run test -- src/extension/agent/config/__tests__/prompts.test.ts
+```
+
+Если изменение prompt contract осознанное, обновите и проверьте snapshots:
+
+```bash
+npm run test -- src/extension/agent/config/__tests__/prompts.test.ts -u
+```
+
 ## Storybook
 
 ```bash
@@ -134,3 +147,7 @@ VSCODE_CLI=code-insiders npm run install:extension
    ```bash
    bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
    ```
+
+## VS Code Daemon Backend
+
+Extension всегда запускает или подключается к `aist daemon --workspace <root>`. Daemon является source of truth для chats, runs, approvals, tools, model requests, auth, memory, compaction, reflection, telemetry и autonomous sessions. Код VS Code должен оставаться thin-client слоем: webview host, process manager/client, editable diff preview, active editor context, openWorkspaceFile, notifications/status.

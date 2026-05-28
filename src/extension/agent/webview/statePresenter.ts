@@ -1,5 +1,6 @@
-import type { ChatStore } from '../../chats/chatStore';
-import type { OpenRouterModelOption } from '../../openrouter/types';
+import { getTelemetryDashboardState } from '../../../core/features/telemetry/telemetry';
+import type { OpenRouterModelOption } from '../../../core/shared/types/types';
+import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
 import { getWorkspaceName } from '../../shared/workspace';
 import { getAgentSkills } from '../../skills/skills';
@@ -9,21 +10,23 @@ import {
   getToolPermissionPresets
 } from '../../tools/permissions';
 import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '../config/agentConfigStore';
+import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
 import { getCompactionSettings } from '../config/compaction';
 import { getApprovalNotificationSettings } from '../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
+import { getDaemonToolCatalog, getDaemonTools } from '../daemon/toolCatalog';
+import { getAgentMemoryItems } from '../memory/memory';
 import { mergeModels } from '../models/models';
-import { getAgentTools } from '../runtime/tools';
-import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
 import type { WebviewSurface } from '../types';
+import { mapChatToWebviewActiveChat } from './stateMapping';
 
 export type SendAgentStateParams = {
   /** Версия берётся из ExtensionContext.packageJSON: это установленный VSIX, а не исходный package.json в workspace. */
   extensionVersion: string;
   surfaces: WebviewSurface[];
-  chats: ChatStore;
+  chats: AgentChatStore;
   logger: AistLogger;
   modelOptions: OpenRouterModelOption[];
   codexAuthenticated: boolean;
@@ -43,19 +46,23 @@ export function sendAgentState(params: SendAgentStateParams): void {
     return;
   }
 
-  const { configuredModel, maxToolIterations, reasoningEffort, codexServiceTier, streamingEnabled } =
+  const { configuredModel, maxToolIterations, reasoningEffort, codexServiceTier, editorContextMode, streamingEnabled } =
     getAgentSettingsSnapshot();
   const language = getAgentLanguage();
   const activeMode = getActiveAgentMode();
   const agentModes = getAgentModes();
   const customSkills = getAgentSkills();
-  const tools = getAgentTools(customSkills);
+  const tools = getDaemonTools(customSkills);
   const agentConfigScope = getAgentConfigScope();
   const projectInstructions = getProjectInstructions();
   const instructionSources = getAgentInstructionSources();
   const promptConfig = getPromptConfig();
+  const memoryItems = getAgentMemoryItems();
   const compactionSettings = getCompactionSettings();
+  const auxiliaryModels = getAuxiliaryModelsSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
+  const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
+  const telemetry = getTelemetryDashboardState();
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -64,6 +71,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       maxToolIterations,
       reasoningEffort,
       codexServiceTier,
+      editorContextMode,
       streamingEnabled,
       language,
       activeMode,
@@ -73,9 +81,13 @@ export function sendAgentState(params: SendAgentStateParams): void {
       agentConfigScope,
       projectInstructions,
       promptConfig,
+      memoryItems,
       instructionSources,
+      auxiliaryModels,
       compactionSettings,
-      approvalNotificationSettings
+      approvalNotificationSettings,
+      telemetry,
+      projectToolDiagnostics
     });
   }
 }
@@ -85,41 +97,36 @@ type StateContext = SendAgentStateParams & {
   maxToolIterations: number;
   reasoningEffort: string;
   codexServiceTier: string;
+  editorContextMode: string;
   streamingEnabled: boolean;
   language: string;
   activeMode: { id: string };
   agentModes: unknown;
   customSkills: unknown;
-  tools: ReturnType<typeof getAgentTools>;
+  tools: ReturnType<typeof getDaemonTools>;
   agentConfigScope: string;
   projectInstructions: string;
   promptConfig: unknown;
+  memoryItems: unknown;
   instructionSources: unknown;
+  auxiliaryModels: unknown;
   compactionSettings: unknown;
   approvalNotificationSettings: unknown;
+  telemetry: unknown;
+  projectToolDiagnostics: unknown;
 };
-
-function omitHistory<T extends { history?: unknown }>(chat: T): Omit<T, 'history'> {
-  const { history: _history, ...rest } = chat;
-  return rest;
-}
 
 function postStateToSurface(surface: WebviewSurface, context: StateContext): void {
   const activeChat = context.chats.getChat(surface.getChatId()) || context.chats.getActiveChat();
   const models = mergeModels(context.modelOptions, context.configuredModel, activeChat.model);
   const activeModel = models.find((model) => model.id === activeChat.model);
-  const chatContext =
-    activeChat.context ||
-    getChatContextEstimate(activeChat.history, context.getSystemPrompt(), activeModel, activeChat.usage);
   const previousChat = activeChat.previousChatId ? context.chats.getChat(activeChat.previousChatId) : undefined;
-  const { history: _history, ...webviewChat } = activeChat;
-  const webviewActiveChat = {
-    ...webviewChat,
-    previousChat: previousChat ? omitHistory(previousChat) : undefined,
-    context: chatContext,
-    contextLength: chatContext.tokens,
-    usage: activeChat.usage || createEmptyUsage()
-  };
+  const webviewActiveChat = mapChatToWebviewActiveChat({
+    chat: activeChat,
+    previousChat,
+    systemPrompt: context.getSystemPrompt(),
+    activeModel
+  });
 
   const stateMessage = {
     type: 'state',
@@ -133,15 +140,20 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     maxToolIterations: context.maxToolIterations,
     reasoningEffort: context.reasoningEffort,
     codexServiceTier: context.codexServiceTier,
+    editorContextMode: context.editorContextMode,
     streamingEnabled: context.streamingEnabled,
+    auxiliaryModels: context.auxiliaryModels,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,
+    telemetry: context.telemetry,
+    projectToolDiagnostics: context.projectToolDiagnostics,
     agentLanguage: context.language,
     agentMode: context.activeMode.id,
     agentModes: context.agentModes,
     agentConfigScope: context.agentConfigScope,
     projectInstructions: context.projectInstructions,
     promptConfig: context.promptConfig,
+    memoryItems: context.memoryItems,
     instructionSources: context.instructionSources,
     customSkills: context.customSkills,
     codexAuthenticated: context.codexAuthenticated,

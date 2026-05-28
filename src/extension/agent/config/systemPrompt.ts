@@ -1,6 +1,10 @@
+import {
+  buildAgentSystemPrompt as buildCoreAgentSystemPrompt,
+  createBaseAgentInstructionSource,
+  sortAgentInstructionSources
+} from '../../../core/features/system-prompt/systemPrompt';
 import { getAgentSkills } from '../../skills/skills';
 import { type AgentInstructionSource, getExternalInstructionSources, getPromptConfig } from './agentConfigStore';
-import { getSystemPrompt } from './prompts';
 import { getAgentLanguage } from './settings';
 
 /**
@@ -21,7 +25,8 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
         title: `${item.scope === 'global' ? 'Global' : 'Project'} instruction: ${item.label}`,
         content: item.content,
         priority: item.scope === 'global' ? 40 + index : 70 + index,
-        kind: 'custom' as const
+        kind: 'custom' as const,
+        source: `${item.scope}:instruction:${item.id}`
       };
     })
     .filter(Boolean) as AgentInstructionSource[];
@@ -32,13 +37,7 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
     : undefined;
 
   const sources: AgentInstructionSource[] = [
-    {
-      id: 'base',
-      title: 'AIST base system prompt',
-      content: 'Core coding-agent rules, language policy and tool usage rules.',
-      priority: 0,
-      kind: 'base'
-    },
+    createBaseAgentInstructionSource(),
     ...getExternalInstructionSources(),
     ...activeInstructions,
     ...(activeMode
@@ -48,7 +47,8 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
             title: `${activeMode.scope === 'global' ? 'Global' : 'Project'} mode: ${activeMode.label}`,
             content: activeMode.instructions,
             priority: activeMode.scope === 'global' ? 100 : 120,
-            kind: 'mode' as const
+            kind: 'mode' as const,
+            source: `${activeMode.scope}:mode:${activeMode.id}`
           }
         ]
       : []),
@@ -61,13 +61,14 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
               .map((skill) => `${skill.id}: ${skill.label} — ${skill.description || skill.command}`)
               .join('\n'),
             priority: 140,
-            kind: 'skills' as const
+            kind: 'skills' as const,
+            source: 'skills'
           }
         ]
       : [])
   ];
 
-  return sources.sort((left, right) => left.priority - right.priority);
+  return sortAgentInstructionSources(sources);
 }
 
 /**
@@ -75,14 +76,9 @@ export function getAgentInstructionSources(): AgentInstructionSource[] {
  * режима и skills. Prompt нельзя кешировать.
  */
 export function buildAgentSystemPrompt(): string {
-  const instructions = getAgentInstructionSources()
-    .filter((source) => source.kind !== 'base' && source.kind !== 'skills')
-    .map((source) => `## ${source.title}\n${source.content}`)
-    .join('\n\n');
-
-  return getSystemPrompt({
+  return buildCoreAgentSystemPrompt({
     language: getAgentLanguage(),
-    instructions,
+    instructionSources: getAgentInstructionSources(),
     skills: getAgentSkills().map(({ id, label, description }) => ({ id, label, description }))
   });
 }

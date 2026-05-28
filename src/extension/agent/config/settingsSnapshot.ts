@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { DEFAULT_MODEL } from '../../shared/constants';
-import { normalizeCodexServiceTier, normalizeReasoningEffort } from './config';
+import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from './config';
 
 /**
  * Возвращает модель по умолчанию из настроек VS Code.
@@ -24,6 +24,7 @@ export function getAgentSettingsSnapshot(): {
   maxToolIterations: number;
   reasoningEffort: ReturnType<typeof normalizeReasoningEffort>;
   codexServiceTier: ReturnType<typeof normalizeCodexServiceTier>;
+  editorContextMode: ReturnType<typeof normalizeEditorContextMode>;
   streamingEnabled: boolean;
 } {
   const config = vscode.workspace.getConfiguration('openrouterAgent');
@@ -33,6 +34,7 @@ export function getAgentSettingsSnapshot(): {
     maxToolIterations: Math.max(0, Math.floor(config.get<number>('maxToolIterations') || 0)),
     reasoningEffort: normalizeReasoningEffort(config.get<string>('reasoningEffort')),
     codexServiceTier: normalizeCodexServiceTier(config.get<string>('codexServiceTier')),
+    editorContextMode: normalizeEditorContextMode(config.get<string>('editorContextMode')),
     // По умолчанию используем non-streaming: он менее интерактивный, но устойчивее к оборванным SSE-соединениям.
     streamingEnabled: config.get<boolean>('streamingEnabled') === true
   };
