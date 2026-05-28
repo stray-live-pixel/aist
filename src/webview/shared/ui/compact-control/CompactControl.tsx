@@ -1,6 +1,8 @@
 import { type CSSProperties, type ReactNode, memo } from 'react';
 
+import { AnimatedNumber } from '../animated-number';
 import { classNames } from '../lib/classNames';
+import { Tooltip } from '../tooltip';
 import styles from './CompactControl.module.scss';
 
 export type CompactControlGroupProps = {
@@ -22,13 +24,15 @@ export type CompactNavigationButtonProps = {
   label?: string;
   title: string;
   disabled?: boolean;
+  className?: string;
   onClick(): void;
 };
 
 export type ContextUsageIndicatorProps = {
-  text: string;
-  title?: string;
+  value: number;
   percent: number;
+  tooltip: ReactNode;
+  formatter?: (value: number) => string;
 };
 
 /**
@@ -70,12 +74,13 @@ export const CompactNavigationButton = memo(function CompactNavigationButton({
   label,
   title,
   disabled,
+  className,
   onClick
 }: CompactNavigationButtonProps) {
   return (
     <button
       type="button"
-      className={classNames(styles.navigationButton, !label && styles.navigationButtonIconOnly)}
+      className={classNames(styles.navigationButton, !label && styles.navigationButtonIconOnly, className)}
       title={title}
       aria-label={title}
       disabled={disabled}
@@ -88,13 +93,14 @@ export const CompactNavigationButton = memo(function CompactNavigationButton({
 });
 
 /**
- * Что это: круговой индикатор заполненности контекста с текстовой подписью.
+ * Что это: круговой индикатор заполненности контекста с текущим числом токенов.
  * Зачем нужно: показатель контекста нужен composer, но сам rendering pie-индикатора является reusable UI и не должен жить на странице чата.
  */
 export const ContextUsageIndicator = memo(function ContextUsageIndicator({
-  text,
-  title,
-  percent
+  value,
+  percent,
+  tooltip,
+  formatter
 }: ContextUsageIndicatorProps) {
   const normalizedPercent = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0));
   const fillStyle: CSSProperties = {
@@ -102,15 +108,18 @@ export const ContextUsageIndicator = memo(function ContextUsageIndicator({
   };
 
   return (
-    <CompactControlItem
-      title={title || text}
-      icon={
-        <span className={styles.contextPie} aria-hidden="true">
-          <span className={styles.contextPieFill} style={fillStyle} />
-          <span className={styles.contextPieHole} />
+    <Tooltip content={tooltip}>
+      <span className={styles.item} tabIndex={0} aria-label={typeof tooltip === 'string' ? tooltip : undefined}>
+        <span className={styles.icon}>
+          <span className={styles.contextPie} aria-hidden="true">
+            <span className={styles.contextPieFill} style={fillStyle} />
+            <span className={styles.contextPieHole} />
+          </span>
         </span>
-      }
-      text={text}
-    />
+        <span className={styles.contextValue}>
+          <AnimatedNumber value={value} formatter={formatter} />
+        </span>
+      </span>
+    </Tooltip>
   );
 });

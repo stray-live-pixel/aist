@@ -38,7 +38,7 @@ import {
 } from '../core/entities/storage/storage';
 import { getToolExecutionRequirement } from '../core/features/approval/approvalProtocol';
 import { createNodeFilesystemToolRunner } from '../core/features/filesystem-tools/filesystemTools';
-import type { AgentSkill } from '../core/features/skills/skills';
+import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
 import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/features/tool-execution/toolRunner';
@@ -844,6 +844,7 @@ async function runChatAskCommand(
       },
       memoryStore,
       toolRegistry,
+      configStore,
       workspaceRoot
     }),
     configProvider: {
@@ -1052,6 +1053,7 @@ function createHeadlessToolCallHandler(input: {
   filesystem: ToolRunnerExecutionAdapter;
   memoryStore: AgentMemoryStore;
   toolRegistry: ToolRegistry;
+  configStore: FileBackedConfigStore;
   workspaceRoot: string;
 }): AgentRuntimeToolCallHandler {
   return async (params) => {
@@ -1079,6 +1081,14 @@ function createHeadlessToolCallHandler(input: {
       filesystem: input.filesystem,
       projectTools: {
         execute: (toolName, args) => input.toolRegistry.runProjectTool(toolName, args, input.workspaceRoot)
+      },
+      skills: {
+        execute: async (_toolName, args) =>
+          runNodeSkillTool({
+            skills: await getHeadlessConfiguredSkills(input.configStore),
+            workspaceRoot: input.workspaceRoot,
+            args
+          })
       },
       memory: {
         add: (candidate) => input.memoryStore.add(candidate)

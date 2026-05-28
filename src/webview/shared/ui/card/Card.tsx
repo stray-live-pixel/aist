@@ -5,7 +5,7 @@ import styles from './Card.module.scss';
 
 export type CardTone = 'default' | 'elevated' | 'accent';
 
-export type CardProps = HTMLAttributes<HTMLElement> & {
+export type CardProps = Omit<HTMLAttributes<HTMLElement>, 'title'> & {
   tone?: CardTone;
   title?: ReactNode;
   description?: ReactNode;

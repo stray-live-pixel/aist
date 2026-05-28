@@ -6,7 +6,9 @@ import {
   GitMerge,
   GitPullRequestCreate,
   MessageSquare,
-  RefreshCw
+  Plus,
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 
@@ -34,6 +36,7 @@ export function ChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
   const [approvalMinimized, setApprovalMinimized] = useState(false);
+  const [vcsPanelOpen, setVcsPanelOpen] = useState(false);
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
   const chats = useSortedChats(state);
@@ -63,6 +66,13 @@ export function ChatPage() {
   }, []);
 
   useEffect(() => {
+    if (!state.activeChat.vcs?.branch) {
+      agentActions.refreshVcs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.activeChat.id]);
+
+  useEffect(() => {
     /**
      * Системная view/title-кнопка живёт вне React-дерева, поэтому открытие списка чатов
      * приходит отдельным IPC-событием и переиспользует локальное состояние модалки.
@@ -80,6 +90,13 @@ export function ChatPage() {
   function openSettings(page: SettingsPageId = 'overview') {
     setSettingsInitialPage(page);
     setSettingsOpen(true);
+  }
+
+  function toggleVcsPanel() {
+    if (!state.activeChat.vcs?.branch) {
+      agentActions.refreshVcs();
+    }
+    setVcsPanelOpen((current) => !current);
   }
 
   const composerMinimized = state.activeChat.busy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
@@ -108,25 +125,32 @@ export function ChatPage() {
         settings={<AgentSettingsSummary state={state} onOpen={openSettings} />}
         headerActions={
           <>
-            <VcsControls state={state} />
+            <VcsToggleButton state={state} open={vcsPanelOpen} onToggle={toggleVcsPanel} />
             <FloatingChatActions
               extensionVersion={state.extensionVersion}
+              onNewChat={() => agentActions.newChat()}
               onOpenChats={() => setChatsOpen(true)}
+              onOpenSettings={() => openSettings('overview')}
               activeChatId={state.activeChat.id}
             />
           </>
         }
         footer={<ComposerContextSummary state={state} />}
         notice={
-          pendingApproval && approvalMinimized ? (
-            <ApprovalPromptModal
-              message={pendingApproval}
-              settings={state.approvalNotificationSettings}
-              minimized
-              onMinimize={() => setApprovalMinimized(true)}
-              onRestore={() => setApprovalMinimized(false)}
-              onResolved={() => setResolvedApprovalId(pendingApproval.id)}
-            />
+          vcsPanelOpen || (pendingApproval && approvalMinimized) ? (
+            <div className={styles.composerNoticeStack}>
+              {vcsPanelOpen ? <VcsControls state={state} minimized={composerMinimized} /> : null}
+              {pendingApproval && approvalMinimized ? (
+                <ApprovalPromptModal
+                  message={pendingApproval}
+                  settings={state.approvalNotificationSettings}
+                  minimized
+                  onMinimize={() => setApprovalMinimized(true)}
+                  onRestore={() => setApprovalMinimized(false)}
+                  onResolved={() => setResolvedApprovalId(pendingApproval.id)}
+                />
+              ) : null}
+            </div>
           ) : undefined
         }
       />
@@ -155,13 +179,34 @@ export function ChatPage() {
   );
 }
 
-const VcsControls = memo(function VcsControls({ state }: { state: AgentState }) {
-  const vcs = state.activeChat.vcs;
-  const branchLabel = vcs?.branch || 'branch?';
-  const disabled = state.activeChat.busy;
+const VcsToggleButton = memo(function VcsToggleButton({
+  state,
+  open,
+  onToggle
+}: {
+  state: AgentState;
+  open: boolean;
+  onToggle(): void;
+}) {
+  const branch = state.activeChat.vcs?.branch;
+  const shortBranch = branch ? (branch.length > 8 ? branch.slice(-8) : branch) : 'VCS';
+  const title = branch ? (open ? `Hide VCS controls: ${branch}` : `Show VCS controls: ${branch}`) : 'Show VCS controls';
 
   return (
-    <div className={styles.vcsControls} aria-label="VCS controls">
+    <CompactNavigationButton icon={<GitBranch size={12} />} label={shortBranch} title={title} onClick={onToggle} />
+  );
+});
+
+const VcsControls = memo(function VcsControls({ state, minimized }: { state: AgentState; minimized: boolean }) {
+  const vcs = state.activeChat.vcs;
+  const branchLabel = vcs?.branch || 'VCS';
+  const disabled = state.activeChat.busy;
+  const className = [styles.vcsControlsFloat, minimized ? styles.vcsControlsFloatCollapsed : undefined]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div className={className} aria-label="VCS controls" aria-hidden={minimized}>
       <button
         type="button"
         className={styles.vcsBranchButton}
@@ -196,12 +241,16 @@ const VcsControls = memo(function VcsControls({ state }: { state: AgentState }) 
 
 const FloatingChatActions = memo(function FloatingChatActions({
   extensionVersion,
+  onNewChat,
   onOpenChats,
+  onOpenSettings,
   activeChatId
 }: {
   /** Версия остаётся рядом с навигацией: это metadata composer, но выглядит как control для единообразия панели. */
   extensionVersion: string;
+  onNewChat(): void;
   onOpenChats(): void;
+  onOpenSettings(): void;
   activeChatId: string;
 }) {
   const { t } = useI18n();
@@ -209,17 +258,27 @@ const FloatingChatActions = memo(function FloatingChatActions({
 
   return (
     <div className={styles.floatingActions}>
-      <CompactNavigationButton label={versionLabel} title={versionLabel} disabled onClick={() => undefined} />
       <CompactNavigationButton icon={<MessageSquare size={12} />} title={t('chat.openChats')} onClick={onOpenChats} />
       <CompactNavigationButton
+        className={styles.hideComposerNarrow}
         icon={<ExternalLink size={12} />}
         title={t('chat.openInEditor')}
         onClick={() => agentActions.openChatInEditor(activeChatId)}
       />
       <CompactNavigationButton
+        className={styles.hideComposerNarrow}
         icon={<Braces size={12} />}
         title={t('chat.openJson')}
         onClick={() => agentActions.openChatJson(activeChatId)}
+      />
+      <CompactNavigationButton icon={<Plus size={12} />} title={t('chat.newChat')} onClick={onNewChat} />
+      <CompactNavigationButton icon={<Settings size={12} />} title={t('chat.openSettings')} onClick={onOpenSettings} />
+      <CompactNavigationButton
+        className={styles.hideComposerNarrow}
+        label={versionLabel}
+        title={versionLabel}
+        disabled
+        onClick={() => undefined}
       />
     </div>
   );

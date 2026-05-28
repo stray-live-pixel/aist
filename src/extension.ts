@@ -29,6 +29,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     logger,
     autonomous,
     vscode.window.registerWebviewViewProvider('openrouterAgent.chats', agent),
+    vscode.window.registerWebviewPanelSerializer(agent.chatEditorViewType, {
+      deserializeWebviewPanel: (panel, state) => agent.deserializeWebviewPanel(panel, state)
+    }),
     vscode.commands.registerCommand('openrouterAgent.openChat', (chatId?: string) => agent.openChat(chatId)),
     vscode.commands.registerCommand('openrouterAgent.openChats', () => agent.openChats()),
     vscode.commands.registerCommand('openrouterAgent.openChatInEditor', (chatId?: string) =>

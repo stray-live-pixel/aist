@@ -79,10 +79,17 @@
   justify-content: center;
 }
 
-.text {
+.text,
+.contextValue {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.contextValue {
+  color: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .contextPie {

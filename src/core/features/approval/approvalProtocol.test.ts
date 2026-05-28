@@ -25,6 +25,7 @@ afterEach(() => {
 describe('approval protocol contracts', () => {
   it('classifies auto, approval and UI-assisted preview tools', () => {
     expect(getToolExecutionRequirement('read_file')).toEqual({ mode: 'auto' });
+    expect(getToolExecutionRequirement('run_skill')).toEqual({ mode: 'auto' });
     expect(getToolExecutionRequirement('run_bash_script')).toEqual({ mode: 'approval', previewKind: 'none' });
     expect(getToolExecutionRequirement('edit_file')).toEqual({
       mode: 'approval',

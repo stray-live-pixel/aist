@@ -68,8 +68,30 @@
   border-color: var(--vscode-focusBorder);
 }
 
+.textarea:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.spinner {
+  animation: approval-action-spin 850ms linear infinite;
+}
+
+@keyframes approval-action-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 620px) {
   .memoryGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
   }
 }

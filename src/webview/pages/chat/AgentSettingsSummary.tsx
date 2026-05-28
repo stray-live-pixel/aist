@@ -1,5 +1,5 @@
-import { Archive, Brain, Coins, FileText, Settings2, ShieldCheck, UserRound } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { Archive, Brain, Coins, FileText, LoaderCircle, Settings2, ShieldCheck } from 'lucide-react';
+import { memo, useEffect, useMemo, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
@@ -8,7 +8,8 @@ import type {
   ChatContextEstimate,
   CodexServiceTier,
   ModelOption,
-  ReasoningEffort
+  ReasoningEffort,
+  ToolPermissionPresetId
 } from '../../shared/types';
 import {
   CompactControlGroup,
@@ -28,6 +29,18 @@ type AgentSettingsSummaryProps = {
   onOpen(page?: SettingsPageId): void;
 };
 
+const REASONING_DISPLAY_LABELS: Record<ReasoningEffort, string> = {
+  auto: 'Auto',
+  low: 'Low',
+  medium: 'Med',
+  high: 'High'
+};
+
+const CODEX_TIER_DISPLAY_LABELS: Record<CodexServiceTier, string> = {
+  auto: '1×',
+  priority: '2×'
+};
+
 /**
  * Что это: компактная панель быстрых настроек над composer.
  * Зачем нужно: позволяет менять режим, preset доступа и reasoning без открытия полной модалки settings.
@@ -40,19 +53,20 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
   const { t } = useI18n();
   const activeRoleLabel = getActiveRoleLabel(state, t('systemInstructions.noRole'));
   const activePresetLabel = getActivePresetLabel(state, t('settings.promptManager.noActivePreset'));
+  const instructionCount = state.promptConfig.activeInstructionRefs.length;
+  const profileLabel = formatInstructionProfileLabel(activeRoleLabel, activePresetLabel, instructionCount);
+  const profileTitle = `${t('summary.agentMode')}: ${activeRoleLabel}\n${t(
+    'settings.promptManager.activePresetTitle'
+  )}: ${activePresetLabel}\n${t('common.instructions')}: ${instructionCount}`;
+
   return (
     <CompactControlGroup className={styles.summaryRoot}>
       <ComposerContextControls state={state} />
       <CompactNavigationButton
-        icon={<UserRound size={12} />}
-        title={t('summary.agentMode')}
-        label={activeRoleLabel}
-        onClick={() => onOpen('presets')}
-      />
-      <CompactNavigationButton
+        className={styles.profileSummaryButton}
         icon={<FileText size={12} />}
-        title={t('settings.promptManager.activePresetTitle')}
-        label={activePresetLabel}
+        title={profileTitle}
+        label={profileLabel}
         onClick={() => onOpen('presets')}
       />
       {actions ? <div className={styles.summaryActions}>{actions}</div> : null}
@@ -67,6 +81,7 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
 export const ComposerContextSummary = memo(function ComposerContextSummary({ state }: { state: AgentState }) {
   const { t } = useI18n();
   const modelOptions = useMemo(() => getModelOptions(state), [state.activeChat.model, state.models]);
+  const modelDisplayLabels = useMemo(() => getModelDisplayLabels(modelOptions), [modelOptions]);
   const modelCategories = useMemo(
     () => (state.models.length ? getModelCategories(state.models) : undefined),
     [state.models]
@@ -83,6 +98,10 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
     ],
     [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
   );
+  const permissionDisplayLabels = useMemo(
+    () => getPermissionDisplayLabels(permissionOptions, state.activeToolPermissionPresetId),
+    [permissionOptions, state.activeToolPermissionPresetId]
+  );
 
   return (
     <CompactControlGroup className={styles.contextSummaryRoot}>
@@ -97,6 +116,7 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         onChange={(event) => agentActions.setModel(event.target.value)}
         options={modelOptions}
         categories={modelCategories}
+        displayLabels={modelDisplayLabels}
       />
       <Select
         className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
@@ -108,10 +128,11 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         disabled={state.activeChat.busy}
         onChange={(event) => agentActions.setReasoningEffort(event.target.value as ReasoningEffort)}
         options={getReasoningOptions()}
+        displayLabels={REASONING_DISPLAY_LABELS}
       />
       {codexServiceTierOptions ? (
         <Select
-          className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
+          className={`${styles.compactSelect} ${styles.speedCompactSelect}`}
           size="sm"
           leadingIcon={<Settings2 size={12} />}
           aria-label="Codex speed"
@@ -120,6 +141,7 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
           disabled={state.activeChat.busy}
           onChange={(event) => agentActions.setCodexServiceTier(event.target.value as CodexServiceTier)}
           options={codexServiceTierOptions}
+          displayLabels={CODEX_TIER_DISPLAY_LABELS}
         />
       ) : null}
       <Select
@@ -132,6 +154,7 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         disabled={state.activeChat.busy}
         onChange={(event) => agentActions.setToolPermissionPreset(event.target.value)}
         options={permissionOptions}
+        displayLabels={permissionDisplayLabels}
       />
       {state.activeChat.usage.costUsd !== undefined ? (
         <CompactControlItem
@@ -145,17 +168,28 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
 
 const ComposerContextControls = memo(function ComposerContextControls({ state }: { state: AgentState }) {
   const { t } = useI18n();
+  const [compactingChatId, setCompactingChatId] = useState<string | undefined>();
+  const compacting = compactingChatId === state.activeChat.id;
+
+  useEffect(() => {
+    if (compactingChatId && state.activeChat.id !== compactingChatId) {
+      setCompactingChatId(undefined);
+    }
+  }, [compactingChatId, state.activeChat.id]);
 
   return (
     <CompactControlGroup inline>
-      <ContextUsage context={state.activeChat.context} />
       <CompactNavigationButton
-        icon={<Archive size={12} />}
-        label={t('summary.compact')}
+        className={styles.compactChatButton}
+        icon={compacting ? <LoaderCircle className={styles.compactionSpinner} size={12} /> : <Archive size={12} />}
         title={t('summary.compactTitle')}
-        disabled={state.activeChat.busy}
-        onClick={() => agentActions.compactChat(state.activeChat.id)}
+        disabled={state.activeChat.busy || compacting}
+        onClick={() => {
+          setCompactingChatId(state.activeChat.id);
+          agentActions.compactChat(state.activeChat.id);
+        }}
       />
+      <ContextUsage context={state.activeChat.context} />
     </CompactControlGroup>
   );
 });
@@ -163,7 +197,7 @@ const ComposerContextControls = memo(function ComposerContextControls({ state }:
 function getReasoningOptions(): SelectOption[] {
   return [
     { value: 'auto', label: 'auto' },
-    { value: 'low', label: 'slow' },
+    { value: 'low', label: 'low' },
     { value: 'medium', label: 'medium' },
     { value: 'high', label: 'high' }
   ];
@@ -180,7 +214,7 @@ function getCodexServiceTierOptions(model: ModelOption | undefined): SelectOptio
   }
 
   return [
-    { value: 'auto', label: 'auto' },
+    { value: 'auto', label: 'normal' },
     { value: 'priority', label: 'priority' }
   ];
 }
@@ -220,11 +254,29 @@ function getActivePresetLabel(state: AgentState, fallback: string): string {
   );
 }
 
+function formatInstructionProfileLabel(role: string, preset: string, instructionCount: number): string {
+  const normalizedPreset = preset.trim();
+  const suffix = instructionCount ? ` +${instructionCount}` : '';
+  if (!normalizedPreset || /^no preset|активный пресет не выбран/i.test(normalizedPreset)) {
+    return `${role}${suffix}`;
+  }
+
+  return `${role} / ${normalizedPreset}${suffix}`;
+}
+
 const ContextUsage = memo(function ContextUsage({ context }: { context: ChatContextEstimate | undefined }) {
   const { t } = useI18n();
-  const text = formatContextFill(context, t('common.notAvailable'));
+  const tokens = context?.tokens ?? 0;
+  const tooltip = formatContextTooltip(context, t('common.notAvailable'));
 
-  return <ContextUsageIndicator title={text} text={text} percent={clampPercent(context?.percent ?? 0)} />;
+  return (
+    <ContextUsageIndicator
+      value={tokens}
+      percent={clampPercent(context?.percent ?? 0)}
+      tooltip={tooltip}
+      formatter={formatTokens}
+    />
+  );
 });
 
 function clampPercent(value: number): number {
@@ -235,19 +287,60 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-function formatContextFill(context: ChatContextEstimate | undefined, fallback: string): string {
+function formatContextTooltip(context: ChatContextEstimate | undefined, fallback: string): string {
   if (!context?.tokens) {
     return fallback;
   }
 
   const tokens = formatTokens(context.tokens);
-  const percent = context.percent !== undefined ? ` (${Math.round(context.percent)}%)` : '';
+  const percent = context.percent !== undefined ? `${Math.round(context.percent)}%` : fallback;
 
   if (!context.maxTokens) {
-    return `${tokens}${percent}`;
+    return `${tokens} tokens · ${percent}`;
   }
 
-  return `${tokens}/${formatTokens(context.maxTokens)}${percent}`;
+  return `${tokens} of ${formatTokens(context.maxTokens)} tokens · ${percent}`;
+}
+
+function getModelDisplayLabels(options: SelectOption[]): Record<string, string> {
+  return Object.fromEntries(options.map((option) => [option.value, compactModelLabel(option.label)]));
+}
+
+function compactModelLabel(label: string): string {
+  return label
+    .replace(/^openrouter[:/]/i, '')
+    .replace(/^anthropic[:/]/i, '')
+    .replace(/^openai[:/]/i, '')
+    .replace(/^google[:/]/i, '')
+    .replace(/^meta-llama[:/]/i, '')
+    .replace(/^codex[:/]/i, '')
+    .replace(/\bchatgpt\b/gi, 'GPT')
+    .replace(/\bclaude\b/gi, 'Cl')
+    .replace(/\bgemini\b/gi, 'Gem')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getPermissionDisplayLabels(
+  options: SelectOption[],
+  activePresetId: ToolPermissionPresetId | 'custom'
+): Record<string, string> {
+  return Object.fromEntries(
+    options.map((option) => [option.value, compactPermissionLabel(option.value, option.label, activePresetId)])
+  );
+}
+
+function compactPermissionLabel(
+  value: string,
+  label: string,
+  activePresetId: ToolPermissionPresetId | 'custom'
+): string {
+  if (value === 'custom' || activePresetId === 'custom') return 'Custom';
+  if (value === 'confirm-all') return 'Ask';
+  if (value === 'balanced') return 'Safe';
+  if (value === 'fast-edit') return 'Edit';
+  if (value === 'autonomous') return 'Auto';
+  return label.replace(/\s+/g, '').slice(0, 5) || value.slice(0, 5);
 }
 
 function formatTokens(tokens: number): string {

@@ -590,25 +590,73 @@ export class AistDaemonServer {
     }
 
     const keepLastMessages = optionalNumber(input, 'keepLastMessages') ?? 0;
-    const summary = await this.createCompactionSummary(chat, optionalString(input, 'summary'), keepLastMessages);
-    const tailMessages = selectCompactionTailMessages(chat.messages, keepLastMessages);
-    const { tailHistory } = splitCompactionHistory(chat.history, keepLastMessages);
-    const compactedAt = this.now();
-    const compacted = await this.chatRepository.create({
-      title: `${chat.title} compacted`,
-      model: chat.model,
-      previousChatId: chat.id,
-      compactedAt,
-      lastAnswer: summary,
-      messages: [{ role: 'assistant', content: summary, createdAt: compactedAt }, ...tailMessages],
-      history: [{ role: 'assistant', content: summary }, ...tailHistory],
-      state: { busy: false }
+    const trigger = optionalString(input, 'trigger') || 'manual';
+    const compactionMessage = await this.chatRepository.appendMessage(chat.id, {
+      role: 'tool',
+      name: 'compact_chat',
+      status: 'running',
+      reason: 'Compact the current chat context before continuing work.',
+      nextStep: 'Create a concise summary and open the compacted chat copy.',
+      args: {
+        trigger,
+        keepLastMessages,
+        sourceChatId: chat.id
+      }
     });
-    await this.broadcastStateChanged('chat.compact');
-    return {
-      operationId: this.idFactory(),
-      chat: toDaemonChat(compacted)
-    };
+    await this.chatRepository.updateState(chat.id, {
+      activity: 'thinking',
+      activityDetail: 'Compacting context'
+    });
+    await this.broadcastStateChanged('chat.compact.started');
+
+    try {
+      const summary = await this.createCompactionSummary(chat, optionalString(input, 'summary'), keepLastMessages);
+      const tailMessages = selectCompactionTailMessages(chat.messages, keepLastMessages);
+      const { tailHistory } = splitCompactionHistory(chat.history, keepLastMessages);
+      const compactedAt = this.now();
+      const compacted = await this.chatRepository.create({
+        title: `${chat.title} compacted`,
+        model: chat.model,
+        previousChatId: chat.id,
+        compactedAt,
+        lastAnswer: summary,
+        messages: [{ role: 'assistant', content: summary, createdAt: compactedAt }, ...tailMessages],
+        history: [{ role: 'assistant', content: summary }, ...tailHistory],
+        state: { busy: false }
+      });
+      await this.chatRepository.updateMessage(chat.id, compactionMessage.id, {
+        status: 'done',
+        result: {
+          ok: true,
+          chatId: compacted.id,
+          sourceChatId: chat.id,
+          compactedAt
+        }
+      });
+      await this.chatRepository.updateState(chat.id, {
+        activity: undefined,
+        activityDetail: undefined
+      });
+      await this.broadcastStateChanged('chat.compact');
+      return {
+        operationId: this.idFactory(),
+        chat: toDaemonChat(compacted)
+      };
+    } catch (error) {
+      await this.chatRepository.updateMessage(chat.id, compactionMessage.id, {
+        status: 'error',
+        result: {
+          ok: false,
+          error: formatError(error)
+        }
+      });
+      await this.chatRepository.updateState(chat.id, {
+        activity: undefined,
+        activityDetail: undefined
+      });
+      await this.broadcastStateChanged('chat.compact.failed');
+      throw error;
+    }
   }
 
   private async approvalResolve(params: unknown): Promise<DaemonApprovalResolveResult> {

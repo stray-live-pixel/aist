@@ -28,9 +28,10 @@ export class DaemonChatStore implements AgentChatStore {
   readonly onDidChange = this.changedEmitter.event;
 
   replaceAll(chats: readonly DaemonChat[], activeChatId?: string): void {
+    const previousVcs = new Map([...this.chats.values()].map((chat) => [chat.id, chat.vcs]));
     this.chats.clear();
     for (const chat of chats) {
-      this.chats.set(chat.id, toExtensionChat(chat));
+      this.chats.set(chat.id, toExtensionChat(chat, previousVcs.get(chat.id)));
     }
 
     if (activeChatId && this.chats.has(activeChatId)) {
@@ -42,7 +43,7 @@ export class DaemonChatStore implements AgentChatStore {
   }
 
   upsert(chat: DaemonChat): Chat {
-    const next = toExtensionChat(chat);
+    const next = toExtensionChat(chat, this.chats.get(chat.id)?.vcs);
     this.chats.set(next.id, next);
     if (!this.activeChatId) {
       this.activeChatId = next.id;
@@ -339,14 +340,14 @@ export class DaemonChatStore implements AgentChatStore {
   }
 }
 
-function toExtensionChat(chat: DaemonChat): Chat {
+function toExtensionChat(chat: DaemonChat, fallbackVcs?: Chat['vcs']): Chat {
   return {
     id: chat.id,
     title: chat.title,
     model: chat.model,
     previousChatId: chat.previousChatId || undefined,
     compactedAt: chat.compactedAt || undefined,
-    vcs: chat.vcs,
+    vcs: chat.vcs || fallbackVcs,
     messages: chat.messages.map((message) => ({ ...message })),
     history: chat.history as Chat['history'],
     lastAnswer: chat.lastAnswer,

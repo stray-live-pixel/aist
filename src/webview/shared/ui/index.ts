@@ -1,3 +1,5 @@
+export { AnimatedNumber } from './animated-number';
+export type { AnimatedNumberProps } from './animated-number';
 export { Badge } from './badge';
 export type { BadgeProps, BadgeTone } from './badge';
 export { Button } from './button';
@@ -42,3 +44,5 @@ export { TextArea } from './text-area';
 export type { TextAreaProps, TextAreaVariant } from './text-area';
 export { TextField } from './text-field';
 export type { TextFieldProps } from './text-field';
+export { Tooltip } from './tooltip';
+export type { TooltipProps } from './tooltip';

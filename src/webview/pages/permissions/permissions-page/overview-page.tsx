@@ -6,9 +6,11 @@ import type {
   AgentInstructionSource,
   AgentMode,
   AgentSkill,
+  AgentState,
   ToolPermissionPresetId
 } from '../../../shared/types';
 import { Badge, Card } from '../../../shared/ui';
+import { RequestSettingsPanel } from '../../chat/RequestSettingsPanel';
 import styles from '../PermissionsPage.module.scss';
 
 /**
@@ -16,6 +18,7 @@ import styles from '../PermissionsPage.module.scss';
  * Зачем нужно: overview агрегирует ключевые факты, но не меняет состояние, поэтому memo уменьшает шум render при переключении дочерних форм.
  */
 export const OverviewPage = memo(function OverviewPage({
+  state,
   agentConfigScope,
   activePermissionPresetId,
   activeMode,
@@ -23,6 +26,7 @@ export const OverviewPage = memo(function OverviewPage({
   instructionSources,
   codexAuthenticated
 }: {
+  state: AgentState;
   agentConfigScope: AgentConfigScope;
   activePermissionPresetId: ToolPermissionPresetId | 'custom';
   activeMode: AgentMode | undefined;
@@ -33,6 +37,7 @@ export const OverviewPage = memo(function OverviewPage({
   const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
+      <RequestSettingsPanel state={state} />
       <Card
         tone="elevated"
         title={t('settings.overview.profileTitle')}

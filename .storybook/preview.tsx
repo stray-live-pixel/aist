@@ -20,7 +20,8 @@ Object.assign(globalThis, {
     logoAnimStep2: '/assets/logo-anim/2.svg',
     logoAnimStep3: '/assets/logo-anim/3.svg',
     logoAnimStep4: '/assets/logo-anim/4.svg',
-    logoAnimStep5: '/assets/logo-anim/5.svg'
+    logoAnimStep5: '/assets/logo-anim/5.svg',
+    logoAnimGif: '/assets/logo-anim/animation.gif'
   }
 });
 

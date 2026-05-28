@@ -7,6 +7,7 @@ import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 import { I18nProvider, translate } from '../shared/i18n';
 import { agentActions } from '../shared/lib/agentActions';
 import { AgentStateProvider } from '../shared/lib/agentState';
+import { vscode } from '../shared/lib/vscode';
 import type { AgentState, AutonomousState, ExtensionToWebviewMessage } from '../shared/types';
 import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../shared/ui';
 import { IconButton } from '../shared/ui/IconButton';
@@ -27,6 +28,9 @@ export function App() {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
       if (event.data.type === 'state') {
         setState(event.data);
+        if (event.data.viewKind === 'editor') {
+          vscode.setState({ chatId: event.data.activeChat.id });
+        }
       } else if (event.data.type === 'page') {
         setPage(event.data.page);
       } else if (event.data.type === 'errorModal') {

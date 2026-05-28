@@ -6,6 +6,12 @@ import { getWebviewHtml } from '../../shared/webviewHtml';
 import type { WebviewMessage, WebviewSurface } from '../types';
 import { createSidebarSurface } from './surfaces';
 
+export const AGENT_CHAT_EDITOR_VIEW_TYPE = 'openrouterAgentChat';
+
+export type AgentChatEditorWebviewState = {
+  readonly chatId?: string;
+};
+
 export type AgentWebviewHostDeps = {
   context: vscode.ExtensionContext;
   chats: AgentChatStore;
@@ -64,19 +70,44 @@ export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebvi
   const chat = deps.chats.getChat(requestedChatId);
   const fallbackChat = deps.chats.getActiveChat();
   const panelChatIdInitial = chat?.id || requestedChatId;
-  const surfaceId = `${panelChatIdInitial}:${Date.now()}`;
-  let panelChatId = panelChatIdInitial;
   const title = chat?.title || fallbackChat.title;
 
-  deps.logger.info('Opening chat in editor', { chatId: panelChatId, requestedChatId, surfaceId });
-  const panel = vscode.window.createWebviewPanel('openrouterAgentChat', `aist: ${title}`, vscode.ViewColumn.Beside, {
-    enableScripts: true,
-    retainContextWhenHidden: true,
-    localResourceRoots: [
-      vscode.Uri.joinPath(deps.context.extensionUri, 'dist'),
-      vscode.Uri.joinPath(deps.context.extensionUri, 'assets')
-    ]
+  deps.logger.info('Opening chat in editor', { chatId: panelChatIdInitial, requestedChatId });
+  const panel = vscode.window.createWebviewPanel(
+    AGENT_CHAT_EDITOR_VIEW_TYPE,
+    `aist: ${title}`,
+    vscode.ViewColumn.Beside,
+    getWebviewOptions(deps.context)
+  );
+
+  attachAgentChatEditor(panel, panelChatIdInitial, deps);
+}
+
+export function deserializeAgentChatEditor(
+  panel: vscode.WebviewPanel,
+  state: unknown,
+  deps: AgentWebviewHostDeps
+): void {
+  const chatId = getRestoredChatId(state) || deps.getSidebarChatId() || deps.chats.getActiveChat().id;
+  const chat = deps.chats.getChat(chatId) || deps.chats.getActiveChat();
+
+  deps.logger.info('Restoring chat editor webview', { chatId: chat.id, title: chat.title });
+  panel.title = `aist: ${chat.title}`;
+  attachAgentChatEditor(panel, chat.id, deps);
+}
+
+export function createSidebar(deps: AgentWebviewHostDeps, webview: vscode.Webview): WebviewSurface {
+  return createSidebarSurface({
+    webview,
+    chats: deps.chats,
+    getSidebarChatId: deps.getSidebarChatId,
+    setSidebarChatId: deps.setSidebarChatId
   });
+}
+
+function attachAgentChatEditor(panel: vscode.WebviewPanel, initialChatId: string, deps: AgentWebviewHostDeps): void {
+  const surfaceId = `${initialChatId}:${Date.now()}`;
+  let panelChatId = initialChatId;
 
   const surface: WebviewSurface = {
     id: surfaceId,
@@ -107,13 +138,15 @@ export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebvi
   deps.refreshModels();
 }
 
-export function createSidebar(deps: AgentWebviewHostDeps, webview: vscode.Webview): WebviewSurface {
-  return createSidebarSurface({
-    webview,
-    chats: deps.chats,
-    getSidebarChatId: deps.getSidebarChatId,
-    setSidebarChatId: deps.setSidebarChatId
-  });
+function getWebviewOptions(context: vscode.ExtensionContext): vscode.WebviewPanelOptions & vscode.WebviewOptions {
+  return {
+    enableScripts: true,
+    retainContextWhenHidden: true,
+    localResourceRoots: [
+      vscode.Uri.joinPath(context.extensionUri, 'dist'),
+      vscode.Uri.joinPath(context.extensionUri, 'assets')
+    ]
+  };
 }
 
 function configureWebview(
@@ -121,12 +154,11 @@ function configureWebview(
   context: vscode.ExtensionContext,
   _retainContextWhenHidden: boolean
 ): void {
-  webview.options = {
-    enableScripts: true,
-    localResourceRoots: [
-      vscode.Uri.joinPath(context.extensionUri, 'dist'),
-      vscode.Uri.joinPath(context.extensionUri, 'assets')
-    ]
-  };
+  webview.options = getWebviewOptions(context);
   webview.html = getWebviewHtml(webview, context.extensionUri);
+}
+
+function getRestoredChatId(state: unknown): string | undefined {
+  const candidate = state as AgentChatEditorWebviewState | undefined;
+  return typeof candidate?.chatId === 'string' && candidate.chatId.trim() ? candidate.chatId : undefined;
 }

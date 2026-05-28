@@ -23,7 +23,13 @@ import type { VscodeDaemonRuntimeBridge } from './daemon/bridge';
 import { refreshDaemonToolCatalog } from './daemon/toolCatalog';
 import type { WebviewMessage, WebviewSurface } from './types';
 import { type ChatVcsService, buildMergeToMainPrompt, createChatVcsService } from './vcs/chatVcs';
-import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from './webview/host';
+import {
+  AGENT_CHAT_EDITOR_VIEW_TYPE,
+  createSidebar,
+  deserializeAgentChatEditor,
+  openAgentChatEditor,
+  resolveAgentSidebarWebview
+} from './webview/host';
 import { handleAgentWebviewMessage } from './webview/messages';
 import { postWebviewPage } from './webview/page';
 import { sendAgentState } from './webview/statePresenter';
@@ -127,6 +133,14 @@ export class AgentController {
 
   openChatInEditor(chatId?: string): void {
     openAgentChatEditor(chatId, this.getWebviewHostDeps());
+  }
+
+  async deserializeWebviewPanel(panel: vscode.WebviewPanel, state: unknown): Promise<void> {
+    deserializeAgentChatEditor(panel, state, this.getWebviewHostDeps());
+  }
+
+  get chatEditorViewType(): string {
+    return AGENT_CHAT_EDITOR_VIEW_TYPE;
   }
 
   private getSurfaces(): WebviewSurface[] {

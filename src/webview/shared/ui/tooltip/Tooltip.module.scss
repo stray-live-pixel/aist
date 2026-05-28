@@ -1,0 +1,59 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.content {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(260px, 72vw);
+  border: 1px solid color-mix(in srgb, var(--agent-border) 84%, var(--vscode-focusBorder));
+  border-radius: 12px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 94%, var(--vscode-input-background));
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.24);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  transform: translate3d(0, 4px, 0) scale(0.98);
+  transform-origin: bottom right;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  white-space: normal;
+}
+
+.root:hover .content,
+.root:focus-within .content {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.content::after {
+  position: absolute;
+  right: 12px;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid color-mix(in srgb, var(--agent-border) 84%, var(--vscode-focusBorder));
+  border-bottom: 1px solid color-mix(in srgb, var(--agent-border) 84%, var(--vscode-focusBorder));
+  content: '';
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    transition-duration: 1ms;
+  }
+}

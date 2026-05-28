@@ -11,24 +11,16 @@ type AistLogoProps = {
 
 type AistAnimatedLogoProps = Omit<AistLogoProps, 'assetKey'> & {
   baseAssetKey?: string;
-  frameAssetKeys?: readonly string[];
+  animationAssetKey?: string;
 };
 
 type LogoStyle = CSSProperties & {
   '--aist-logo-uri': string;
 };
 
-type AnimatedLogoFrameStyle = CSSProperties & {
-  '--aist-logo-frame-uri': string;
+type AnimatedLogoStyle = CSSProperties & {
+  '--aist-logo-animation-uri': string;
 };
-
-const DEFAULT_ANIMATION_FRAME_ASSET_KEYS = [
-  'logoAnimStep1',
-  'logoAnimStep2',
-  'logoAnimStep3',
-  'logoAnimStep4',
-  'logoAnimStep5'
-] as const;
 
 /**
  * Рисует SVG-логотип как CSS-mask, чтобы он наследовал цвет текста VS Code.
@@ -52,36 +44,34 @@ export function AistLogo({ className = '', assetKey = 'logo', title = 'aist' }: 
 }
 
 /**
- * Проигрывает пять SVG-кадров вперед и назад за прежние 1800ms.
+ * Проигрывает готовую GIF-анимацию логотипа из общего webview asset manifest.
  *
  * Использование: <AistAnimatedLogo />.
- * Все пять картинок лежат отдельными mask-слоями и меняются только через
- * opacity: так виден честный cross-fade между кадрами, а браузеру не нужно
- * пересчитывать URL маски внутри keyframes.
+ * Если GIF недоступен, компонент возвращается к статичному SVG-логотипу.
  */
 export function AistAnimatedLogo({
   className = '',
   baseAssetKey = 'logo',
-  frameAssetKeys = DEFAULT_ANIMATION_FRAME_ASSET_KEYS,
+  animationAssetKey = 'logoAnimGif',
   title = 'aist'
 }: AistAnimatedLogoProps) {
-  const baseLogoUri = getWebviewAssetUri(baseAssetKey);
-  const frameLogoUris = frameAssetKeys.map((assetKey) => getWebviewAssetUri(assetKey));
+  const animationUri = getWebviewAssetUri(animationAssetKey);
 
-  if (!baseLogoUri || frameLogoUris.some((frameLogoUri) => !frameLogoUri)) {
+  if (!animationUri) {
     return <AistLogo className={className} assetKey={baseAssetKey} title={title} />;
   }
 
-  return (
-    <span className={`${styles.logo} ${styles.animated} ${className}`.trim()} role="img" aria-label={title}>
-      {frameLogoUris.map((frameLogoUri) => {
-        const style: AnimatedLogoFrameStyle = {
-          '--aist-logo-frame-uri': `url(${frameLogoUri})`
-        };
+  const style: AnimatedLogoStyle = {
+    '--aist-logo-animation-uri': `url(${animationUri})`
+  };
 
-        return <span aria-hidden="true" className={styles.animationFrame} key={frameLogoUri} style={style} />;
-      })}
-    </span>
+  return (
+    <span
+      className={`${styles.logo} ${styles.animated} ${className}`.trim()}
+      style={style}
+      role="img"
+      aria-label={title}
+    />
   );
 }
 

@@ -60,6 +60,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           />
           {activePage === 'overview' ? (
             <OverviewPage
+              state={state}
               agentConfigScope={agentConfigScope}
               activePermissionPresetId={activeToolPermissionPresetId}
               activeMode={activeMode}

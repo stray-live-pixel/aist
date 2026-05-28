@@ -1,0 +1,43 @@
+.cardCompact {
+  box-shadow: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.streamingSwitch {
+  min-height: 64px;
+}
+
+.streamingSummary {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  align-self: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--agent-border) 78%, transparent);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 22%, transparent);
+  padding: 6px 9px;
+}
+
+.streamingSummary svg {
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
