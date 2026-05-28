@@ -4,7 +4,8 @@ import path from 'node:path';
 import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { globalSecretsFile, globalSettingsFile, workspaceSettingsFile } from '../core/storage';
+import { ChatRepository } from '../core/chatRepository';
+import { globalSecretsFile, globalSettingsFile, workspaceChatsDir, workspaceSettingsFile } from '../core/storage';
 import { CliUsageError, formatHelpOutput, parseCliArgs, resolveCliPaths, runCli } from './router';
 
 const tempDirs: string[] = [];
@@ -25,6 +26,11 @@ describe('CLI help and parser', () => {
         aist --version
         aist paths [--workspace <path>]
         aist doctor [--workspace <path>]
+        aist chat new [--workspace <path>] [--model <model>] [--json]
+        aist chat list [--workspace <path>] [--json]
+        aist chat get <chatId> [--workspace <path>] [--json]
+        aist chat clear <chatId> [--workspace <path>] [--json]
+        aist chat set-model <chatId> <model> [--workspace <path>] [--json]
         aist config get [key] [--workspace <path>] [--json]
         aist config set <key> <value> --scope global|workspace [--workspace <path>] [--json]
         aist auth openrouter set-key [--from-env] [--json]
@@ -36,12 +42,14 @@ describe('CLI help and parser', () => {
       Commands:
         paths     Print workspace and global AIST paths.
         doctor    Check workspace and global AIST storage paths.
+        chat      Create, list, inspect and update file-backed chats.
         config    Read or write non-secret CLI/backend settings.
         auth      Manage model provider auth status and global secrets.
         models    List model options from provider adapters or safe fallbacks.
 
       Options:
         --workspace <path>  Workspace root. Defaults to the current directory.
+        --model <model>     Model id for chat creation.
         --scope <scope>     Config write scope: global or workspace.
         --provider <name>   Model provider: openrouter, codex, or all.
         --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
@@ -59,6 +67,25 @@ describe('CLI help and parser', () => {
     expect(parseCliArgs(['doctor', '--workspace', '/tmp/workspace'])).toEqual({
       kind: 'doctor',
       workspace: '/tmp/workspace'
+    });
+    expect(parseCliArgs(['chat', 'new', '--workspace=repo', '--model', 'codex:gpt-5.1-codex', '--json'])).toEqual({
+      kind: 'chatNew',
+      workspace: 'repo',
+      model: 'codex:gpt-5.1-codex',
+      json: true
+    });
+    expect(parseCliArgs(['chat', 'get', 'chat-1', '--workspace', '/tmp/workspace', '--json'])).toEqual({
+      kind: 'chatGet',
+      chatId: 'chat-1',
+      workspace: '/tmp/workspace',
+      json: true
+    });
+    expect(parseCliArgs(['chat', 'set-model', 'chat-1', 'model-b'])).toEqual({
+      kind: 'chatSetModel',
+      chatId: 'chat-1',
+      model: 'model-b',
+      workspace: undefined,
+      json: false
     });
     expect(parseCliArgs(['config', 'get', 'model', '--workspace=repo', '--json'])).toEqual({
       kind: 'configGet',
@@ -88,7 +115,9 @@ describe('CLI help and parser', () => {
 
   it('reports command usage errors without running commands', () => {
     expect(() => parseCliArgs(['doctor', '--workspace'])).toThrow(CliUsageError);
-    expect(() => parseCliArgs(['chat', 'ask'])).toThrow('Unknown command: chat');
+    expect(() => parseCliArgs(['chat', 'ask'])).toThrow('Unknown chat command: ask');
+    expect(() => parseCliArgs(['chat', 'clear'])).toThrow("'chat clear' requires a chat id.");
+    expect(() => parseCliArgs(['chat', 'new', '--model'])).toThrow("Option --model for 'chat new' requires a model.");
     expect(() => parseCliArgs(['paths', '--token', 'secret'])).toThrow("Unknown option for 'paths': --token");
     expect(() => parseCliArgs(['config', 'set', 'model', 'gpt'])).toThrow(
       "'config set' requires --scope global|workspace."
@@ -161,6 +190,189 @@ describe('CLI commands', () => {
     const cwd = createTempDir('aist-cli-cwd-');
 
     expect(resolveCliPaths({ cwd, workspace: 'project', homeDir: cwd }).workspaceRoot).toBe(path.join(cwd, 'project'));
+  });
+
+  it('creates, lists, reads, clears and changes file-backed chats from the CLI', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+
+    const emptyListOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'list', '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: emptyListOutput.stdout,
+        stderr: emptyListOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(emptyListOutput.stdoutText())).toEqual({
+      workspaceRoot,
+      chats: []
+    });
+    expect(fs.existsSync(workspaceChatsDir(workspaceRoot))).toBe(false);
+
+    const newOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'new', '--workspace', workspaceRoot, '--model', 'model-a', '--json'], {
+        homeDir,
+        stdout: newOutput.stdout,
+        stderr: newOutput.stderr
+      })
+    ).toBe(0);
+    expect(newOutput.stderrText()).toBe('');
+    const created = JSON.parse(newOutput.stdoutText()) as {
+      workspaceRoot: string;
+      chat: { id: string; model: string; title: string; messages: unknown[] };
+    };
+    expect(created).toMatchObject({
+      workspaceRoot,
+      chat: {
+        model: 'model-a',
+        title: 'New chat',
+        messages: []
+      }
+    });
+    const chatStorageRoot = path.join(workspaceChatsDir(workspaceRoot), created.chat.id);
+    expect(fs.statSync(chatStorageRoot).isDirectory()).toBe(true);
+    expect(fs.existsSync(path.join(workspaceChatsDir(workspaceRoot), 'index.json'))).toBe(true);
+    expect(fs.existsSync(path.join(chatStorageRoot, 'meta.json'))).toBe(true);
+    expect(fs.existsSync(path.join(chatStorageRoot, 'state.json'))).toBe(true);
+    expect(fs.existsSync(path.join(chatStorageRoot, 'messages.jsonl'))).toBe(true);
+    expect(fs.existsSync(path.join(chatStorageRoot, 'history.jsonl'))).toBe(true);
+
+    const repository = new ChatRepository({ workspaceRoot });
+    await repository.appendMessage(created.chat.id, { role: 'user', content: 'Hello from CLI' });
+    await repository.appendMessage(created.chat.id, { role: 'assistant', content: 'Stored answer' });
+
+    const listOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'list', '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: listOutput.stdout,
+        stderr: listOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(listOutput.stdoutText())).toMatchObject({
+      workspaceRoot,
+      chats: [
+        {
+          id: created.chat.id,
+          title: 'Hello from CLI',
+          model: 'model-a',
+          messageCount: 2,
+          lastUserMessage: 'Hello from CLI'
+        }
+      ]
+    });
+
+    const getOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'get', created.chat.id, '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: getOutput.stdout,
+        stderr: getOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(getOutput.stdoutText())).toMatchObject({
+      workspaceRoot,
+      chat: {
+        id: created.chat.id,
+        model: 'model-a',
+        messages: [
+          { role: 'user', content: 'Hello from CLI' },
+          { role: 'assistant', content: 'Stored answer' }
+        ]
+      }
+    });
+
+    const modelOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'set-model', created.chat.id, 'model-b', '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: modelOutput.stdout,
+        stderr: modelOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(modelOutput.stdoutText())).toMatchObject({
+      chat: {
+        id: created.chat.id,
+        model: 'model-b'
+      }
+    });
+
+    const clearOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'clear', created.chat.id, '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: clearOutput.stdout,
+        stderr: clearOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(clearOutput.stdoutText())).toMatchObject({
+      cleared: true,
+      chat: {
+        id: created.chat.id,
+        model: 'model-b',
+        title: 'New chat',
+        messages: [],
+        history: [],
+        lastAnswer: ''
+      }
+    });
+    expect(
+      fs.readFileSync(path.join(workspaceChatsDir(workspaceRoot), created.chat.id, 'messages.jsonl'), 'utf8')
+    ).toBe('');
+  });
+
+  it('uses configured model for new chats and returns structured JSON for missing chats', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    const setOutput = createCliOutput();
+
+    expect(
+      await runCli(
+        ['config', 'set', 'model', 'workspace-model', '--scope', 'workspace', '--workspace', workspaceRoot],
+        {
+          homeDir,
+          env: {},
+          stdout: setOutput.stdout,
+          stderr: setOutput.stderr
+        }
+      )
+    ).toBe(0);
+
+    const newOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'new', '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: newOutput.stdout,
+        stderr: newOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(newOutput.stdoutText())).toMatchObject({
+      chat: {
+        model: 'workspace-model'
+      }
+    });
+
+    const missingOutput = createCliOutput();
+    const exitCode = await runCli(['chat', 'get', 'missing-chat', '--workspace', workspaceRoot, '--json'], {
+      homeDir,
+      stdout: missingOutput.stdout,
+      stderr: missingOutput.stderr
+    });
+
+    expect(exitCode).toBe(1);
+    expect(missingOutput.stdoutText()).toBe('');
+    expect(JSON.parse(missingOutput.stderrText())).toEqual({
+      error: {
+        message: 'Chat not found: missing-chat',
+        code: 'chat.notFound',
+        exitCode: 1,
+        details: {
+          chatId: 'missing-chat'
+        }
+      }
+    });
   });
 
   it('sets and reads config with workspace values taking precedence over global defaults', async () => {

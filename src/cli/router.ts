@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import packageJson from '../../package.json';
+import { ChatRepository } from '../core/chatRepository';
 import { CodexAuthSessionProvider } from '../core/codexAuth';
 import { CodexResponsesTransport } from '../core/codexTransport';
 import {
@@ -11,7 +12,7 @@ import {
   FileSecretStore,
   OPENROUTER_API_KEY_SECRET_KEY
 } from '../core/config';
-import { FALLBACK_MODEL_OPTIONS } from '../core/modelDefaults';
+import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/modelDefaults';
 import type { FetchLike } from '../core/modelTransport';
 import { OpenRouterTransport } from '../core/openrouterTransport';
 import {
@@ -27,7 +28,15 @@ import {
   workspaceTelemetryDir,
   workspaceToolsDir
 } from '../core/storage';
-import type { JsonObject, JsonValue, ModelProvider, OpenRouterModelOption } from '../core/types';
+import type {
+  Chat,
+  ChatMessage,
+  ChatSummary,
+  JsonObject,
+  JsonValue,
+  ModelProvider,
+  OpenRouterModelOption
+} from '../core/types';
 
 export const CLI_NAME = 'aist';
 export const CLI_VERSION = packageJson.version;
@@ -37,6 +46,17 @@ export type CliCommand =
   | { readonly kind: 'version' }
   | { readonly kind: 'doctor'; readonly workspace?: string }
   | { readonly kind: 'paths'; readonly workspace?: string }
+  | { readonly kind: 'chatNew'; readonly workspace?: string; readonly model?: string; readonly json: boolean }
+  | { readonly kind: 'chatList'; readonly workspace?: string; readonly json: boolean }
+  | { readonly kind: 'chatGet'; readonly chatId: string; readonly workspace?: string; readonly json: boolean }
+  | { readonly kind: 'chatClear'; readonly chatId: string; readonly workspace?: string; readonly json: boolean }
+  | {
+      readonly kind: 'chatSetModel';
+      readonly chatId: string;
+      readonly model: string;
+      readonly workspace?: string;
+      readonly json: boolean;
+    }
   | { readonly kind: 'configGet'; readonly key?: string; readonly workspace?: string; readonly json: boolean }
   | {
       readonly kind: 'configSet';
@@ -60,6 +80,20 @@ export class CliUsageError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'CliUsageError';
+  }
+}
+
+export class CliCommandError extends Error {
+  readonly exitCode: number;
+  readonly code: string;
+  readonly details?: JsonObject;
+
+  constructor(code: string, message: string, options: { exitCode?: number; details?: JsonObject } = {}) {
+    super(message);
+    this.name = 'CliCommandError';
+    this.code = code;
+    this.exitCode = options.exitCode ?? 1;
+    this.details = options.details;
   }
 }
 
@@ -133,6 +167,10 @@ export function parseCliArgs(args: readonly string[]): CliCommand {
     return parseConfigCommand(rest);
   }
 
+  if (command === 'chat') {
+    return parseChatCommand(rest);
+  }
+
   if (command === 'auth') {
     return parseAuthCommand(rest);
   }
@@ -183,6 +221,36 @@ export async function runCli(args: readonly string[], options: RunCliOptions = {
       return 0;
     }
 
+    if (command.kind === 'chatNew') {
+      const result = await createChatCommandResult(command, options);
+      stdout(formatChatNewOutput(result, command.json));
+      return 0;
+    }
+
+    if (command.kind === 'chatList') {
+      const result = await listChatsCommandResult(command, options);
+      stdout(formatChatListOutput(result, command.json));
+      return 0;
+    }
+
+    if (command.kind === 'chatGet') {
+      const result = await getChatCommandResult(command, options);
+      stdout(formatChatGetOutput(result, command.json));
+      return 0;
+    }
+
+    if (command.kind === 'chatClear') {
+      const result = await clearChatCommandResult(command, options);
+      stdout(formatChatClearOutput(result, command.json));
+      return 0;
+    }
+
+    if (command.kind === 'chatSetModel') {
+      const result = await setChatModelCommandResult(command, options);
+      stdout(formatChatSetModelOutput(result, command.json));
+      return 0;
+    }
+
     if (command.kind === 'configGet') {
       const result = await getConfigCommandResult(command, options);
       stdout(formatConfigGetOutput(result, command.json));
@@ -222,7 +290,7 @@ export async function runCli(args: readonly string[], options: RunCliOptions = {
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const exitCode = error instanceof CliUsageError ? error.exitCode : 1;
+    const exitCode = error instanceof CliUsageError || error instanceof CliCommandError ? error.exitCode : 1;
     if (wantsJson) {
       stderr(formatCliErrorJson(error, message));
     } else {
@@ -247,6 +315,11 @@ Usage:
   aist --version
   aist paths [--workspace <path>]
   aist doctor [--workspace <path>]
+  aist chat new [--workspace <path>] [--model <model>] [--json]
+  aist chat list [--workspace <path>] [--json]
+  aist chat get <chatId> [--workspace <path>] [--json]
+  aist chat clear <chatId> [--workspace <path>] [--json]
+  aist chat set-model <chatId> <model> [--workspace <path>] [--json]
   aist config get [key] [--workspace <path>] [--json]
   aist config set <key> <value> --scope global|workspace [--workspace <path>] [--json]
   aist auth openrouter set-key [--from-env] [--json]
@@ -258,12 +331,14 @@ Usage:
 Commands:
   paths     Print workspace and global AIST paths.
   doctor    Check workspace and global AIST storage paths.
+  chat      Create, list, inspect and update file-backed chats.
   config    Read or write non-secret CLI/backend settings.
   auth      Manage model provider auth status and global secrets.
   models    List model options from provider adapters or safe fallbacks.
 
 Options:
   --workspace <path>  Workspace root. Defaults to the current directory.
+  --model <model>     Model id for chat creation.
   --scope <scope>     Config write scope: global or workspace.
   --provider <name>   Model provider: openrouter, codex, or all.
   --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
@@ -406,6 +481,308 @@ type ModelsListResult = {
   readonly errors: readonly string[];
   readonly models: readonly OpenRouterModelOption[];
 };
+
+type ChatSummaryJson = {
+  readonly id: string;
+  readonly title: string;
+  readonly model: string;
+  readonly previousChatId: string | null;
+  readonly compactedAt: number | null;
+  readonly messageCount: number;
+  readonly lastUserMessage: string;
+  readonly busy: boolean;
+  readonly lastMessageAt: number;
+  readonly updatedAt: number;
+};
+
+type ChatJson = {
+  readonly id: string;
+  readonly title: string;
+  readonly model: string;
+  readonly previousChatId: string | null;
+  readonly compactedAt: number | null;
+  readonly messages: readonly ChatMessage[];
+  readonly history: readonly JsonValue[];
+  readonly lastAnswer: string;
+  readonly busy: boolean;
+  readonly activity: string | null;
+  readonly activityDetail: string | null;
+  readonly modelRequest: JsonValue | null;
+  readonly context: JsonValue | null;
+  readonly contextLength: number | null;
+  readonly activePlan: JsonValue | null;
+  readonly reflectionCandidates: JsonValue[];
+  readonly usage: Chat['usage'];
+  readonly createdAt: number;
+  readonly updatedAt: number;
+};
+
+type ChatCommandResult = {
+  readonly workspaceRoot: string;
+  readonly chat: ChatJson;
+  readonly summary: ChatSummaryJson;
+};
+
+type ChatListCommandResult = {
+  readonly workspaceRoot: string;
+  readonly chats: readonly ChatSummaryJson[];
+};
+
+async function createChatCommandResult(
+  command: Extract<CliCommand, { kind: 'chatNew' }>,
+  options: RunCliOptions
+): Promise<ChatCommandResult> {
+  const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
+  const repository = new ChatRepository({ workspaceRoot });
+  const model = command.model || (await resolveChatModel(workspaceRoot, options));
+  const chat = await repository.create({ model });
+  return toChatCommandResult(workspaceRoot, chat);
+}
+
+async function listChatsCommandResult(
+  command: Extract<CliCommand, { kind: 'chatList' }>,
+  options: RunCliOptions
+): Promise<ChatListCommandResult> {
+  const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
+  const repository = new ChatRepository({ workspaceRoot });
+  const chats = await repository.list();
+  return {
+    workspaceRoot,
+    chats: chats.map(toChatSummaryJson)
+  };
+}
+
+async function getChatCommandResult(
+  command: Extract<CliCommand, { kind: 'chatGet' }>,
+  options: RunCliOptions
+): Promise<ChatCommandResult> {
+  const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
+  const repository = new ChatRepository({ workspaceRoot });
+  const chat = await requireChat(repository, command.chatId);
+  return toChatCommandResult(workspaceRoot, chat);
+}
+
+async function clearChatCommandResult(
+  command: Extract<CliCommand, { kind: 'chatClear' }>,
+  options: RunCliOptions
+): Promise<ChatCommandResult> {
+  const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
+  const repository = new ChatRepository({ workspaceRoot });
+  await requireChat(repository, command.chatId);
+  const chat = await repository.clear(command.chatId);
+  return toChatCommandResult(workspaceRoot, chat);
+}
+
+async function setChatModelCommandResult(
+  command: Extract<CliCommand, { kind: 'chatSetModel' }>,
+  options: RunCliOptions
+): Promise<ChatCommandResult> {
+  const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
+  const repository = new ChatRepository({ workspaceRoot });
+  await requireChat(repository, command.chatId);
+  const chat = await repository.update(command.chatId, { model: command.model });
+  return toChatCommandResult(workspaceRoot, chat);
+}
+
+async function resolveChatWorkspaceRoot(workspace: string | undefined, options: RunCliOptions): Promise<string> {
+  const paths = resolveCliPaths({ ...options, workspace });
+
+  try {
+    const stat = await fs.promises.stat(paths.workspaceRoot);
+    if (!stat.isDirectory()) {
+      throw new CliCommandError('workspace.invalid', `Workspace path is not a directory: ${paths.workspaceRoot}`, {
+        details: { workspaceRoot: paths.workspaceRoot }
+      });
+    }
+
+    return paths.workspaceRoot;
+  } catch (error) {
+    if (error instanceof CliCommandError) {
+      throw error;
+    }
+
+    throw new CliCommandError('workspace.invalid', `Workspace path is not accessible: ${paths.workspaceRoot}`, {
+      details: { workspaceRoot: paths.workspaceRoot }
+    });
+  }
+}
+
+async function resolveChatModel(workspaceRoot: string, options: RunCliOptions): Promise<string> {
+  const store = new FileBackedConfigStore({ workspaceRoot, homeDir: options.homeDir, logger: silentLogger });
+  const configuredModel = await store.get<JsonValue>('model', DEFAULT_MODEL);
+  return typeof configuredModel === 'string' && configuredModel.trim() ? configuredModel : DEFAULT_MODEL;
+}
+
+async function requireChat(repository: ChatRepository, chatId: string): Promise<Chat> {
+  const chat = await repository.get(chatId);
+  if (!chat) {
+    throw new CliCommandError('chat.notFound', `Chat not found: ${chatId}`, { details: { chatId } });
+  }
+
+  return chat;
+}
+
+function toChatCommandResult(workspaceRoot: string, chat: Chat): ChatCommandResult {
+  return {
+    workspaceRoot,
+    chat: toChatJson(chat),
+    summary: toChatSummaryJson(toChatSummary(chat))
+  };
+}
+
+function formatChatNewOutput(result: ChatCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput({ workspaceRoot: result.workspaceRoot, chat: result.chat });
+  }
+
+  return `Created chat ${result.chat.id}
+Workspace: ${result.workspaceRoot}
+Model: ${result.chat.model}
+Storage: ${path.join(workspaceChatsDir(result.workspaceRoot), result.chat.id)}
+`;
+}
+
+function formatChatListOutput(result: ChatListCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput(result);
+  }
+
+  if (result.chats.length === 0) {
+    return `AIST chats
+Workspace: ${result.workspaceRoot}
+(no chats)
+`;
+  }
+
+  const lines = result.chats.map((chat) => {
+    const updatedAt = formatTimestamp(chat.updatedAt);
+    return `- ${chat.id}  ${chat.title}  [${chat.model}]  messages: ${chat.messageCount}  updated: ${updatedAt}`;
+  });
+  return `AIST chats
+Workspace: ${result.workspaceRoot}
+${lines.join('\n')}
+`;
+}
+
+function formatChatGetOutput(result: ChatCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput({ workspaceRoot: result.workspaceRoot, chat: result.chat });
+  }
+
+  const messages =
+    result.chat.messages.length === 0
+      ? '(no messages)'
+      : result.chat.messages.map((message) => formatChatMessageLine(message)).join('\n');
+  return `AIST chat ${result.chat.id}
+Workspace: ${result.workspaceRoot}
+Title: ${result.chat.title}
+Model: ${result.chat.model}
+Messages: ${result.summary.messageCount}
+Updated: ${formatTimestamp(result.chat.updatedAt)}
+
+${messages}
+`;
+}
+
+function formatChatClearOutput(result: ChatCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput({ workspaceRoot: result.workspaceRoot, cleared: true, chat: result.chat });
+  }
+
+  return `Cleared chat ${result.chat.id}.\n`;
+}
+
+function formatChatSetModelOutput(result: ChatCommandResult, json: boolean): string {
+  if (json) {
+    return formatJsonOutput({ workspaceRoot: result.workspaceRoot, chat: result.chat });
+  }
+
+  return `Set chat ${result.chat.id} model to ${result.chat.model}.\n`;
+}
+
+function toChatJson(chat: Chat): ChatJson {
+  return {
+    id: chat.id,
+    title: chat.title,
+    model: chat.model,
+    previousChatId: chat.previousChatId ?? null,
+    compactedAt: chat.compactedAt ?? null,
+    messages: chat.messages,
+    history: chat.history as JsonValue[],
+    lastAnswer: chat.lastAnswer,
+    busy: chat.busy,
+    activity: chat.activity ?? null,
+    activityDetail: chat.activityDetail ?? null,
+    modelRequest: (chat.modelRequest as JsonValue | undefined) ?? null,
+    context: (chat.context as JsonValue | undefined) ?? null,
+    contextLength: chat.contextLength ?? null,
+    activePlan: (chat.activePlan as JsonValue | undefined) ?? null,
+    reflectionCandidates: (chat.reflectionCandidates as JsonValue[] | undefined) ?? [],
+    usage: chat.usage,
+    createdAt: chat.createdAt,
+    updatedAt: chat.updatedAt
+  };
+}
+
+function toChatSummaryJson(summary: ChatSummary): ChatSummaryJson {
+  return {
+    id: summary.id,
+    title: summary.title,
+    model: summary.model,
+    previousChatId: summary.previousChatId ?? null,
+    compactedAt: summary.compactedAt ?? null,
+    messageCount: summary.messageCount,
+    lastUserMessage: summary.lastUserMessage,
+    busy: summary.busy,
+    lastMessageAt: summary.lastMessageAt,
+    updatedAt: summary.updatedAt
+  };
+}
+
+function toChatSummary(chat: Chat): ChatSummary {
+  const userAssistantMessages = chat.messages.filter(
+    (message) => message.role === 'user' || message.role === 'assistant'
+  );
+  const lastUserMessage = [...chat.messages]
+    .reverse()
+    .find((message) => message.role === 'user' && message.content?.trim());
+
+  return {
+    id: chat.id,
+    title: getCliChatTitle(chat),
+    model: chat.model,
+    previousChatId: chat.previousChatId,
+    compactedAt: chat.compactedAt,
+    messageCount: userAssistantMessages.length,
+    lastUserMessage: lastUserMessage ? toSingleLinePreview(lastUserMessage.content || '', 50) : '',
+    busy: chat.busy,
+    lastMessageAt: chat.messages.at(-1)?.createdAt || chat.createdAt,
+    updatedAt: chat.updatedAt
+  };
+}
+
+function getCliChatTitle(chat: Chat): string {
+  const firstUserMessage = chat.messages.find((message) => message.role === 'user' && message.content?.trim());
+  return firstUserMessage ? toSingleLinePreview(firstUserMessage.content || '', 50) || chat.title : chat.title;
+}
+
+function formatChatMessageLine(message: ChatMessage): string {
+  const content = message.content ? ` ${toSingleLinePreview(message.content, 120)}` : '';
+  return `[${formatTimestamp(message.createdAt)}] ${message.role}:${content}`;
+}
+
+function toSingleLinePreview(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function formatTimestamp(value: number): string {
+  return new Date(value).toISOString();
+}
 
 async function getConfigCommandResult(
   command: Extract<CliCommand, { kind: 'configGet' }>,
@@ -878,15 +1255,267 @@ function formatCliErrorJson(error: unknown, message: string): string {
   return formatJsonOutput({
     error: {
       message,
-      ...(error instanceof CliUsageError ? { code: 'cli.usage', exitCode: error.exitCode } : {})
+      ...(error instanceof CliUsageError ? { code: 'cli.usage', exitCode: error.exitCode } : {}),
+      ...(error instanceof CliCommandError
+        ? { code: error.code, exitCode: error.exitCode, ...(error.details ? { details: error.details } : {}) }
+        : {}),
+      ...(!isCliKnownError(error) && hasErrorCode(error) ? { code: error.code } : {})
     }
   });
+}
+
+function isCliKnownError(error: unknown): error is CliUsageError | CliCommandError {
+  return error instanceof CliUsageError || error instanceof CliCommandError;
+}
+
+function hasErrorCode(error: unknown): error is { code: string } {
+  return Boolean(error && typeof error === 'object' && 'code' in error && typeof error.code === 'string');
 }
 
 type WorkspaceOptions = {
   readonly workspace?: string;
   readonly showHelp: boolean;
 };
+
+function parseChatCommand(args: readonly string[]): CliCommand {
+  const [subcommand, ...rest] = args;
+  if (!subcommand || subcommand === '--help' || subcommand === '-h') {
+    assertNoExtraArgs(rest, subcommand || 'chat');
+    return { kind: 'help' };
+  }
+
+  if (subcommand === 'new') {
+    return parseChatNewCommand(rest);
+  }
+
+  if (subcommand === 'list') {
+    return parseChatListCommand(rest);
+  }
+
+  if (subcommand === 'get') {
+    return parseChatGetCommand(rest);
+  }
+
+  if (subcommand === 'clear') {
+    return parseChatClearCommand(rest);
+  }
+
+  if (subcommand === 'set-model') {
+    return parseChatSetModelCommand(rest);
+  }
+
+  if (subcommand.startsWith('-')) {
+    throw new CliUsageError(`Unknown option for 'chat': ${subcommand}`);
+  }
+
+  throw new CliUsageError(`Unknown chat command: ${subcommand}`);
+}
+
+function parseChatNewCommand(args: readonly string[]): CliCommand {
+  let workspace: string | undefined;
+  let model: string | undefined;
+  let json = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { kind: 'help' };
+    }
+
+    if (token === '--json') {
+      json = true;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken('chat new', args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    const modelResult = parseModelOptionToken('chat new', args, index, model);
+    if (modelResult.matched) {
+      model = modelResult.model;
+      index = modelResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for 'chat new': ${token}`);
+    }
+
+    throw new CliUsageError(`Unexpected argument for 'chat new': ${token}`);
+  }
+
+  return { kind: 'chatNew', workspace, model, json };
+}
+
+function parseChatListCommand(args: readonly string[]): CliCommand {
+  const options = parseChatWorkspaceJsonOptions('chat list', args);
+  if (options.showHelp) {
+    return { kind: 'help' };
+  }
+
+  return { kind: 'chatList', workspace: options.workspace, json: options.json };
+}
+
+function parseChatGetCommand(args: readonly string[]): CliCommand {
+  const parsed = parseChatIdWorkspaceJsonOptions('chat get', args);
+  if (parsed.showHelp) {
+    return { kind: 'help' };
+  }
+
+  return { kind: 'chatGet', chatId: parsed.chatId, workspace: parsed.workspace, json: parsed.json };
+}
+
+function parseChatClearCommand(args: readonly string[]): CliCommand {
+  const parsed = parseChatIdWorkspaceJsonOptions('chat clear', args);
+  if (parsed.showHelp) {
+    return { kind: 'help' };
+  }
+
+  return { kind: 'chatClear', chatId: parsed.chatId, workspace: parsed.workspace, json: parsed.json };
+}
+
+function parseChatSetModelCommand(args: readonly string[]): CliCommand {
+  let chatId: string | undefined;
+  let model: string | undefined;
+  let workspace: string | undefined;
+  let json = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { kind: 'help' };
+    }
+
+    if (token === '--json') {
+      json = true;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken('chat set-model', args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for 'chat set-model': ${token}`);
+    }
+
+    if (!chatId) {
+      chatId = token;
+      continue;
+    }
+
+    if (!model) {
+      model = token;
+      continue;
+    }
+
+    throw new CliUsageError(`Unexpected argument for 'chat set-model': ${token}`);
+  }
+
+  if (!chatId) {
+    throw new CliUsageError(`'chat set-model' requires a chat id.`);
+  }
+
+  if (!model) {
+    throw new CliUsageError(`'chat set-model' requires a model.`);
+  }
+
+  return { kind: 'chatSetModel', chatId, model, workspace, json };
+}
+
+function parseChatWorkspaceJsonOptions(
+  command: string,
+  args: readonly string[]
+): { readonly workspace?: string; readonly json: boolean; readonly showHelp: boolean } {
+  let workspace: string | undefined;
+  let json = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { workspace, json, showHelp: true };
+    }
+
+    if (token === '--json') {
+      json = true;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken(command, args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for '${command}': ${token}`);
+    }
+
+    throw new CliUsageError(`Unexpected argument for '${command}': ${token}`);
+  }
+
+  return { workspace, json, showHelp: false };
+}
+
+function parseChatIdWorkspaceJsonOptions(
+  command: string,
+  args: readonly string[]
+): { readonly chatId: string; readonly workspace?: string; readonly json: boolean; readonly showHelp: boolean } {
+  let chatId: string | undefined;
+  let workspace: string | undefined;
+  let json = false;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { chatId: '', workspace, json, showHelp: true };
+    }
+
+    if (token === '--json') {
+      json = true;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken(command, args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for '${command}': ${token}`);
+    }
+
+    if (chatId !== undefined) {
+      throw new CliUsageError(`Unexpected argument for '${command}': ${token}`);
+    }
+
+    chatId = token;
+  }
+
+  if (!chatId) {
+    throw new CliUsageError(`'${command}' requires a chat id.`);
+  }
+
+  return { chatId, workspace, json, showHelp: false };
+}
 
 function parseConfigCommand(args: readonly string[]): CliCommand {
   const [subcommand, ...rest] = args;
@@ -1260,6 +1889,34 @@ function parseProviderOptionToken(
   return { matched: false, provider: current, index };
 }
 
+function parseModelOptionToken(
+  command: string,
+  args: readonly string[],
+  index: number,
+  current: string | undefined
+): { readonly matched: boolean; readonly model?: string; readonly index: number } {
+  const token = args[index];
+
+  if (token === '--model') {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option --model was provided more than once for '${command}'.`);
+    }
+
+    const value = args[index + 1];
+    return { matched: true, model: parseChatModel(command, value), index: index + 1 };
+  }
+
+  if (token.startsWith('--model=')) {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option --model was provided more than once for '${command}'.`);
+    }
+
+    return { matched: true, model: parseChatModel(command, token.slice('--model='.length)), index };
+  }
+
+  return { matched: false, model: current, index };
+}
+
 function parseConfigScope(command: string, value: string | undefined): ConfigScope {
   if (value === 'global' || value === 'workspace') {
     return value;
@@ -1274,6 +1931,14 @@ function parseCliModelProvider(command: string, value: string | undefined): CliM
   }
 
   throw new CliUsageError(`Option --provider for '${command}' must be openrouter, codex, or all.`);
+}
+
+function parseChatModel(command: string, value: string | undefined): string {
+  if (value && value.trim() && !value.startsWith('-')) {
+    return value;
+  }
+
+  throw new CliUsageError(`Option --model for '${command}' requires a model.`);
 }
 
 function parseConfigValue(rawValue: string): JsonValue {

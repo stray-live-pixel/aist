@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -144,6 +145,8 @@ export class ChatRepository {
     });
     await this.writeMeta(meta);
     await this.writeState(chatId, normalizeState(input.state));
+    await this.replaceJsonl(chatId, 'messages.jsonl', []);
+    await this.replaceJsonl(chatId, 'history.jsonl', []);
 
     for (const message of input.messages || []) {
       await appendJsonl(this.messagesPath(chatId), this.createMessage(message, now));
@@ -158,6 +161,10 @@ export class ChatRepository {
   }
 
   async list(): Promise<ChatSummary[]> {
+    if (!(await pathExists(this.rootPath))) {
+      return [];
+    }
+
     const index = await this.readUsableIndex();
     if (index) {
       return sortSummaries(index.chats);
@@ -189,6 +196,25 @@ export class ChatRepository {
     await this.writeMeta(nextMeta);
     await this.rebuildIndex();
     return this.requireChat(chatId);
+  }
+
+  async clear(chatId: string): Promise<Chat> {
+    const meta = await this.requireMeta(chatId);
+    const now = this.now();
+
+    await this.writeMeta({
+      ...meta,
+      title: DEFAULT_TITLE,
+      lastAnswer: '',
+      usage: normalizeUsage(undefined),
+      updatedAt: now
+    });
+    await this.writeState(meta.id, normalizeState(undefined));
+    await this.replaceJsonl(meta.id, 'messages.jsonl', []);
+    await this.replaceJsonl(meta.id, 'history.jsonl', []);
+    await this.rebuildIndex();
+
+    return this.requireChat(meta.id);
   }
 
   async updateState(chatId: string, patch: ChatStatePatch): Promise<Chat> {
@@ -360,6 +386,27 @@ export class ChatRepository {
 
   private writeState(chatId: string, state: StoredChatState): Promise<void> {
     return writeJsonAtomic(this.statePath(chatId), state);
+  }
+
+  private async replaceJsonl(
+    chatId: string,
+    fileName: 'messages.jsonl' | 'history.jsonl',
+    entries: unknown[]
+  ): Promise<void> {
+    const targetPath = path.join(this.chatPath(chatId), fileName);
+    const tempPath = path.join(
+      path.dirname(targetPath),
+      `.${fileName}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
+    );
+    const content = entries.length ? `${entries.map((entry) => JSON.stringify(entry)).join('\n')}\n` : '';
+
+    try {
+      await fs.promises.writeFile(tempPath, content, 'utf8');
+      await fs.promises.rename(tempPath, targetPath);
+    } catch (error) {
+      await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
+      throw error;
+    }
   }
 
   private chatPath(chatId: string): string {
