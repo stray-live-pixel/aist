@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "runId": "476c83e8-50c2-44a7-86a0-78b405a4ca86",
+  "chatId": "8135bb6c-f38f-4b41-888d-0750cb58aa00",
+  "model": "codex:gpt-5.5",
+  "startedAt": 1779923379393,
+  "promptTokens": 167045,
+  "completionTokens": 2724,
+  "totalTokens": 169769,
+  "modelRequestCount": 20,
+  "toolCallCount": 19,
+  "toolCallsByType": {
+    "create_plan": 1,
+    "get_workspace_info": 1,
+    "run_bash_script": 11,
+    "set_plan_item_status": 6
+  },
+  "repeatedToolCalls": 0,
+  "failedEdits": 0,
+  "approvals": {
+    "requested": 12,
+    "approved": 12,
+    "denied": 0
+  },
+  "contextBytes": 10545,
+  "finishedAt": 1779923637541,
+  "durationMs": 258148,
+  "status": "success"
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "runId": "5f72199a-9e71-4381-9c99-e30f7022ec36",
+  "chatId": "8135bb6c-f38f-4b41-888d-0750cb58aa00",
+  "model": "codex:gpt-5.5",
+  "startedAt": 1779923875517,
+  "promptTokens": 51014,
+  "completionTokens": 426,
+  "totalTokens": 51440,
+  "modelRequestCount": 6,
+  "toolCallCount": 5,
+  "toolCallsByType": {
+    "get_workspace_info": 1,
+    "grep_search": 1,
+    "outline_file": 1,
+    "read_file": 1,
+    "run_bash_script": 1
+  },
+  "repeatedToolCalls": 0,
+  "failedEdits": 0,
+  "approvals": {
+    "requested": 1,
+    "approved": 1,
+    "denied": 0
+  },
+  "contextBytes": 33844,
+  "finishedAt": 1779923917447,
+  "durationMs": 41930,
+  "status": "stopped"
+}

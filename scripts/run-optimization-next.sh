@@ -1,21 +1,45 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_BRANCH="${BASE_BRANCH:-optimization_feature}"
+TASK_STREAM="${TASK_STREAM:-optimization}"
+
+# Первый аргумент — короткий выбор набора задач: так старый запуск без аргументов
+# остаётся optimization, а CLI можно стартовать симметрично через `...sh cli`.
+if [[ $# -gt 0 ]]; then
+  TASK_STREAM="$1"
+  shift
+fi
+
+BASE_BRANCH="${BASE_BRANCH:-}"
 MAIN_BRANCH="${MAIN_BRANCH:-main}"
-ISSUES_DIR="${ISSUES_DIR:-product/optimization/issues}"
+ISSUES_DIR="${ISSUES_DIR:-}"
 PROMPT_TEMPLATE="${PROMPT_TEMPLATE:-scripts/optimization-task-prompt.md}"
 AGENT_CMD="${AGENT_CMD:-codex exec --dangerously-bypass-approvals-and-sandbox}"
 REMOTE="${REMOTE:-origin}"
 PUSH_AFTER_EACH="${PUSH_AFTER_EACH:-1}"
 MAX_TASKS="${MAX_TASKS:-0}"
 
+case "$TASK_STREAM" in
+  optimization)
+    BASE_BRANCH="${BASE_BRANCH:-optimization_feature}"
+    ISSUES_DIR="${ISSUES_DIR:-product/optimization/issues}"
+    ;;
+  cli)
+    BASE_BRANCH="${BASE_BRANCH:-cli_feature}"
+    ISSUES_DIR="${ISSUES_DIR:-product/cli/issues}"
+    ;;
+  *)
+    BASE_BRANCH="${BASE_BRANCH:-${TASK_STREAM}_feature}"
+    ISSUES_DIR="${ISSUES_DIR:-product/$TASK_STREAM/issues}"
+    ;;
+esac
+
 log() {
-  printf '[optimize:cycle] %s\n' "$*"
+  printf '[%s:cycle] %s\n' "$TASK_STREAM" "$*"
 }
 
 fail() {
-  printf '[optimize:cycle] ERROR: %s\n' "$*" >&2
+  printf '[%s:cycle] ERROR: %s\n' "$TASK_STREAM" "$*" >&2
   exit 1
 }
 
@@ -60,6 +84,9 @@ render_prompt() {
   issue_path="$1"
   issue_content="$(cat "$issue_path")"
   template="$(cat "$PROMPT_TEMPLATE")"
+  template="${template//'{{TASK_STREAM}}'/$TASK_STREAM}"
+  template="${template//'{{BASE_BRANCH}}'/$BASE_BRANCH}"
+  template="${template//'{{ISSUES_DIR}}'/$ISSUES_DIR}"
   template="${template//'{{ISSUE_PATH}}'/$issue_path}"
   template="${template//'{{ISSUE_CONTENT}}'/$issue_content}"
   printf '%s\n' "$template"
@@ -137,7 +164,7 @@ main() {
   while true; do
     issue_path="$(find_next_issue)"
     if [[ -z "$issue_path" ]]; then
-      log "No pending optimization issues found in $ISSUES_DIR. Cycle finished."
+      log "No pending $TASK_STREAM issues found in $ISSUES_DIR. Cycle finished."
       break
     fi
 

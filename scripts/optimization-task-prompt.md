@@ -1,6 +1,6 @@
-# AIST autonomous optimization task
+# AIST autonomous {{TASK_STREAM}} task
 
-Ты автономный coding agent внутри репозитория AIST. Выполни ровно одну optimization issue, переданную ниже.
+Ты автономный coding agent внутри репозитория AIST. Выполни ровно одну {{TASK_STREAM}} issue из каталога `{{ISSUES_DIR}}`, переданную ниже.
 
 ## Обязательный workflow
 
@@ -24,7 +24,7 @@
 
 ## Git-инварианты
 
-- Ты работаешь прямо в текущей ветке `optimization_feature`.
+- Ты работаешь прямо в текущей ветке `{{BASE_BRANCH}}`.
 - В конце успешной задачи должен быть новый commit в текущей ветке.
 - Файл issue должен быть переименован из `NNN-name.md` в `DONE-NNN-name.md`.
 - После commit workspace должен быть чистым.
