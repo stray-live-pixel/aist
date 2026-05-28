@@ -94,15 +94,7 @@ type FilesystemEditProposal = {
   diagnostics?: unknown[];
 };
 
-const AUTO_EXECUTABLE_TOOLS = new Set([
-  'get_workspace_info',
-  'outline_file',
-  'list_files',
-  'read_file',
-  'read_file_range',
-  'grep_search',
-  'set_plan_item_status'
-]);
+const AUTO_EXECUTABLE_TOOLS = new Set(['list_files', 'read_file', 'grep_search', 'set_plan_item_status']);
 
 const UI_ASSISTED_PREVIEW_TOOLS = new Set(['edit_file', 'write_file', 'replace_in_file', 'apply_patch']);
 

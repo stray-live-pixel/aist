@@ -18,11 +18,8 @@ afterEach(() => {
 describe('node filesystem tool definitions', () => {
   it('exposes CLI-safe filesystem tools without edit_file preview', () => {
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).toEqual([
-      'get_workspace_info',
-      'outline_file',
       'list_files',
       'read_file',
-      'read_file_range',
       'grep_search',
       'run_bash_script',
       'write_file',
@@ -30,6 +27,9 @@ describe('node filesystem tool definitions', () => {
       'create_directory',
       'delete_path'
     ]);
+    expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('get_workspace_info');
+    expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('outline_file');
+    expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('read_file_range');
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('edit_file');
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('apply_patch');
     expect(nodeFilesystemTools.find((tool) => tool.function.name === 'grep_search')?.function.parameters).toMatchObject(

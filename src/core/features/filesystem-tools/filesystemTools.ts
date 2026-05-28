@@ -42,50 +42,8 @@ type SearchMatch = {
 };
 
 export const nodeFilesystemTools: OpenRouterTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_workspace_info',
-      description:
-        'Get the current workspace folder, active file metadata when provided by the host, and a compact on-demand repo map with verification hints.',
-      parameters: {
-        type: 'object',
-        properties: {
-          reason: {
-            type: 'string',
-            description: 'A short explanation of why this tool call is needed.'
-          }
-        },
-        required: ['reason'],
-        additionalProperties: false
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'outline_file',
-      description:
-        'Return a compact symbol outline for a workspace file when the host provides a document-symbol capability. CLI Node tools return an unsupported result by default.',
-      parameters: {
-        type: 'object',
-        properties: {
-          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
-          path: { type: 'string', description: 'Workspace-relative file path.' },
-          maxDepth: {
-            type: 'number',
-            description: `Maximum symbol nesting depth. Default is ${DEFAULT_OUTLINE_DEPTH}.`
-          },
-          maxSymbols: {
-            type: 'number',
-            description: `Maximum number of symbols to return across the outline. Default is ${DEFAULT_OUTLINE_SYMBOL_LIMIT}.`
-          }
-        },
-        required: ['reason', 'path'],
-        additionalProperties: false
-      }
-    }
-  },
+  // get_workspace_info пока не показываем модели: workspace/repo map должен передаваться в базовом контексте по умолчанию.
+  // outline_file пока не используем: Node core без host document-symbol adapter всё равно возвращает unsupported.
   {
     type: 'function',
     function: {
@@ -108,8 +66,7 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'read_file',
-      description:
-        'Read a UTF-8 text file from the workspace. Prefer read_file_range when you already know the needed line range.',
+      description: 'Read a UTF-8 text file from the workspace.',
       parameters: {
         type: 'object',
         properties: {
@@ -122,28 +79,7 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
       }
     }
   },
-  {
-    type: 'function',
-    function: {
-      name: 'read_file_range',
-      description:
-        'Read an inclusive 1-based line range from a UTF-8 workspace file. Use this after grep_search when line numbers are known.',
-      parameters: {
-        type: 'object',
-        properties: {
-          reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
-          path: { type: 'string', description: 'Workspace-relative file path.' },
-          startLine: { type: 'number', description: 'Inclusive 1-based start line.' },
-          endLine: {
-            type: 'number',
-            description: `Inclusive 1-based end line. At most ${MAX_READ_FILE_RANGE_LINES} lines are returned.`
-          }
-        },
-        required: ['reason', 'path', 'startLine', 'endLine'],
-        additionalProperties: false
-      }
-    }
-  },
+  // read_file_range пока не используем как model-visible tool; при необходимости агент может читать файл целиком через read_file.
   {
     type: 'function',
     function: {
@@ -239,8 +175,7 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
     type: 'function',
     function: {
       name: 'replace_in_file',
-      description:
-        'Replace text in an existing UTF-8 file. If this returns code TEXT_NOT_FOUND, read_file_range around the expected location before retrying.',
+      description: 'Replace text in an existing UTF-8 file.',
       parameters: {
         type: 'object',
         properties: {
