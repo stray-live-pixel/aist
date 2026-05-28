@@ -369,10 +369,11 @@
   },
   "scripts": {
     "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
+    "build:cli": "tsc --noEmit --project tsconfig.cli.json",
     "build:webview": "node scripts/build-webview.mjs",
     "build:component-screenshots": "esbuild tests/component-screenshots/harness.tsx --bundle --format=iife --outfile=tests/component-screenshots/harness.js --loader:.css=css --loader:.scss=local-css",
     "build:e2e": "npm run build:extension && npm run build:webview",
-    "build": "npm run typecheck && npm run build:extension && npm run build:webview",
+    "build": "npm run typecheck && npm run build:cli && npm run build:extension && npm run build:webview",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "typecheck": "tsc --noEmit",

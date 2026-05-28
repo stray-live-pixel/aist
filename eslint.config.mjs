@@ -35,5 +35,22 @@ export default [
         }
       ]
     }
+  },
+  {
+    files: ['src/core/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'vscode',
+              message:
+                'Core нельзя связывать с VS Code API: этот слой должен одинаково компилироваться для CLI и VS Code adapter.'
+            }
+          ]
+        }
+      ]
+    }
   }
 ];
