@@ -181,6 +181,7 @@ describe('AIST daemon JSON-RPC local socket', () => {
                 name: 'write_file',
                 arguments: JSON.stringify({
                   reason: 'create a file',
+                  nextStep: 'verify preview',
                   path: 'hello.txt',
                   content: 'hello from preview'
                 })

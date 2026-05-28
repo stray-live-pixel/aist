@@ -55,5 +55,18 @@
     "update_plan": "auto",
     "set_plan_item_status": "auto"
   },
-  "projectToolDisabledIds": []
+  "projectToolDisabledIds": [],
+  "auxiliaryModels": {
+    "compaction": {
+      "model": "",
+      "reasoningEffort": "auto",
+      "allowTools": false
+    },
+    "tool": {
+      "model": "codex:gpt-5.3-codex-spark",
+      "reasoningEffort": "medium",
+      "allowTools": false,
+      "overrides": []
+    }
+  }
 }

@@ -27,6 +27,8 @@ export type { EmptyStateProps } from './empty-state';
 export { KeyboardShortcut, Keycap } from './keyboard-shortcut';
 export { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from './modal';
 export type { ModalSize, ModalTone } from './modal';
+export { ModelRequestStatus } from './model-request-status';
+export type { ModelRequestStatusProps } from './model-request-status';
 export type { KeyboardShortcutProps, KeycapProps } from './keyboard-shortcut';
 export { PipelineSteps } from './pipeline-steps';
 export type { PipelineStep, PipelineStepsProps } from './pipeline-steps';

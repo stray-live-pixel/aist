@@ -1,6 +1,8 @@
 import { type AgentMemoryCandidate } from '../../entities/memory/memory';
+import type { AuxiliaryModelInvoker } from '../../entities/model/auxiliaryModel';
 import type { RunApprovalInput, RunToolResultInput } from '../../entities/run/runRepository';
 import { toStructuredToolFailure } from '../../shared/lib/toolErrors';
+import type { ReasoningEffort } from '../../shared/types/types';
 import type {
   AgentRun,
   ApprovalPreviewKind,
@@ -48,6 +50,7 @@ export type ToolRunnerApprovalRequest = {
   toolCall: ToolCall;
   messageId: string;
   reason: string;
+  nextStep?: string;
   args: Record<string, unknown>;
   preview?: Record<string, unknown>;
 };
@@ -82,6 +85,12 @@ export type ToolRunnerMemoryService = {
   add(candidate: AgentMemoryCandidate): Promise<unknown>;
 };
 
+export type ToolRunnerAuxiliaryModelSettings = {
+  model?: string;
+  reasoningEffort?: ReasoningEffort;
+  allowTools?: boolean;
+};
+
 export type ToolRunnerEventEmitter = {
   emit(event: RuntimeEvent): void | Promise<void>;
 };
@@ -106,6 +115,10 @@ export type ToolRunnerDeps = {
   skills?: ToolRunnerExecutionAdapter;
   preview?: ToolRunnerPreviewAdapter;
   memory?: ToolRunnerMemoryService;
+  auxiliaryModel?: AuxiliaryModelInvoker;
+  getAuxiliaryModelSettings?(
+    toolName: string
+  ): ToolRunnerAuxiliaryModelSettings | Promise<ToolRunnerAuxiliaryModelSettings>;
   telemetry?: ToolRunnerTelemetryRecorder;
   events?: ToolRunnerEventEmitter;
   runRepository?: ToolRunnerRunRepository;
@@ -137,6 +150,7 @@ export class ToolRunner {
     const runId = this.getRunId(params);
     const args = parseToolArguments(params.toolCall.function.arguments);
     const reason = getToolReason(args);
+    const nextStep = getToolNextStep(args);
     this.deps.telemetry?.recordToolStarted?.(toolName);
 
     const toolMessage = await this.deps.context.appendToolMessage(params.chat.id, {
@@ -144,10 +158,11 @@ export class ToolRunner {
       name: toolName,
       status: 'waiting',
       reason,
+      nextStep,
       args
     });
     await this.deps.context.setActivity(params.chat.id, 'thinking', this.activityFormatter.prepare(toolName, reason));
-    await this.emitToolStarted(params, runId, toolMessage.id, args, reason);
+    await this.emitToolStarted(params, runId, toolMessage.id, args, reason, nextStep);
     this.deps.context.sendState?.();
 
     let previewHandle: ToolExecutionPreview | undefined;
@@ -169,6 +184,7 @@ export class ToolRunner {
           runId,
           toolMessageId: toolMessage.id,
           reason,
+          nextStep,
           args,
           preview,
           previewHandle
@@ -191,6 +207,7 @@ export class ToolRunner {
         status: 'running',
         approval: permission === 'ask' ? 'approved' : undefined,
         reason,
+        nextStep,
         args,
         result: preview ? { preview } : undefined
       });
@@ -209,6 +226,7 @@ export class ToolRunner {
       await this.deps.context.updateToolMessage(params.chat.id, toolMessage.id, {
         status: result.ok === false ? 'error' : 'done',
         reason,
+        nextStep,
         args,
         result: uiResult,
         modelResult
@@ -218,8 +236,8 @@ export class ToolRunner {
         tool_call_id: params.toolCall.id,
         content: JSON.stringify(modelResult, null, 2)
       });
-      await this.persistToolResult(params, runId, toolMessage.id, args, reason, uiResult, modelResult);
-      await this.emitToolCompleted(params, runId, toolMessage.id, args, reason, uiResult, modelResult);
+      await this.persistToolResult(params, runId, toolMessage.id, args, reason, nextStep, uiResult, modelResult);
+      await this.emitToolCompleted(params, runId, toolMessage.id, args, reason, nextStep, uiResult, modelResult);
     } catch (error) {
       if (error instanceof ToolCallDeniedError) {
         if (params.run.stopRequested) {
@@ -234,6 +252,7 @@ export class ToolRunner {
       await this.deps.context.updateToolMessage(params.chat.id, toolMessage.id, {
         status: 'error',
         reason,
+        nextStep,
         args,
         result,
         modelResult
@@ -243,8 +262,8 @@ export class ToolRunner {
         tool_call_id: params.toolCall.id,
         content: JSON.stringify(modelResult, null, 2)
       });
-      await this.persistToolResult(params, runId, toolMessage.id, args, reason, result, modelResult);
-      await this.emitToolFailed(params, runId, toolMessage.id, args, reason, result);
+      await this.persistToolResult(params, runId, toolMessage.id, args, reason, nextStep, result, modelResult);
+      await this.emitToolFailed(params, runId, toolMessage.id, args, reason, nextStep, result);
     } finally {
       await previewHandle?.cleanup();
     }
@@ -257,6 +276,7 @@ export class ToolRunner {
       runId: string | undefined;
       toolMessageId: string;
       reason: string;
+      nextStep?: string;
       args: Record<string, unknown>;
       preview: Record<string, unknown> | undefined;
       previewHandle: ToolExecutionPreview | undefined;
@@ -300,7 +320,7 @@ export class ToolRunner {
         approvalId: approval.approvalId,
         status: 'requested',
         approval,
-        toolCall: toToolCallSnapshot(params.toolCall, params.args, params.reason)
+        toolCall: toToolCallSnapshot(params.toolCall, params.args, params.reason, params.nextStep)
       });
     }
     await this.emitApprovalRequested(params, approval?.approvalId, approval);
@@ -313,6 +333,7 @@ export class ToolRunner {
         toolCall: params.toolCall,
         messageId: params.toolMessageId,
         reason: params.reason,
+        nextStep: params.nextStep,
         args: params.args,
         preview: params.preview
       })
@@ -337,7 +358,7 @@ export class ToolRunner {
         approval: resolvedApproval,
         decision,
         resolvedAt: resolvedApproval.updatedAt,
-        toolCall: toToolCallSnapshot(params.toolCall, params.args, params.reason)
+        toolCall: toToolCallSnapshot(params.toolCall, params.args, params.reason, params.nextStep)
       });
     }
     await this.emitApprovalResolved(params, resolvedApproval?.approvalId, resolvedApproval, decision);
@@ -374,6 +395,7 @@ export class ToolRunner {
       runId: string | undefined;
       toolMessageId: string;
       reason: string;
+      nextStep?: string;
       args: Record<string, unknown>;
       preview: Record<string, unknown> | undefined;
     },
@@ -394,6 +416,7 @@ export class ToolRunner {
       status: 'denied',
       approval: 'denied',
       reason: params.reason,
+      nextStep: params.nextStep,
       args: params.args,
       result: uiResult,
       modelResult,
@@ -410,6 +433,7 @@ export class ToolRunner {
       params.toolMessageId,
       params.args,
       params.reason,
+      params.nextStep,
       uiResult,
       modelResult
     );
@@ -419,6 +443,7 @@ export class ToolRunner {
       params.toolMessageId,
       params.args,
       params.reason,
+      params.nextStep,
       uiResult,
       modelResult
     );
@@ -439,6 +464,8 @@ export class ToolRunner {
     switch (tool?.kind) {
       case 'planning':
         return this.runPlanningTool(toolName, args, chatId);
+      case 'model':
+        return this.runModelTool(args, chatId, toolName);
       case 'project':
         return this.runProjectTool(toolName, args);
       case 'skill':
@@ -471,6 +498,45 @@ export class ToolRunner {
     };
   }
 
+  private async runModelTool(
+    args: Record<string, unknown>,
+    chatId: string,
+    toolName: string
+  ): Promise<Record<string, unknown>> {
+    if (!this.deps.auxiliaryModel) {
+      throw new Error('Auxiliary model invoker is not configured.');
+    }
+
+    const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
+    if (!prompt) {
+      throw new Error('invoke_model requires a non-empty prompt.');
+    }
+
+    const system = typeof args.system === 'string' && args.system.trim() ? args.system.trim() : undefined;
+    const settings = (await this.deps.getAuxiliaryModelSettings?.(toolName)) || {};
+    const model = typeof args.model === 'string' && args.model.trim() ? args.model.trim() : settings.model;
+    const reasoningEffort = normalizeReasoningEffort(args.reasoningEffort) || settings.reasoningEffort;
+    const response = await this.deps.auxiliaryModel.invoke({
+      model,
+      reasoningEffort,
+      messages: [
+        ...(system ? [{ role: 'system' as const, content: system }] : []),
+        { role: 'user' as const, content: prompt }
+      ],
+      tools: settings.allowTools === true ? this.deps.registry.snapshot().tools : undefined
+    });
+
+    return {
+      ok: true,
+      chatId,
+      model: model || 'configured auxiliary tool model',
+      modelSource: typeof args.model === 'string' && args.model.trim() ? 'argument' : 'settings',
+      content: response.content || '',
+      reasoning: response.reasoning,
+      usage: response.usage
+    };
+  }
+
   private runProjectTool(toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
     if (this.deps.projectTools) {
       return this.deps.projectTools.execute(toolName, args);
@@ -498,6 +564,7 @@ export class ToolRunner {
     messageId: string,
     args: Record<string, unknown>,
     reason: string,
+    nextStep: string | undefined,
     result: Record<string, unknown>,
     modelResult: Record<string, unknown>
   ): Promise<void> {
@@ -507,7 +574,7 @@ export class ToolRunner {
     await this.deps.runRepository?.appendToolResult?.(runId, {
       chatId: params.chat.id,
       messageId,
-      toolCall: toToolCallSnapshot(params.toolCall, args, reason),
+      toolCall: toToolCallSnapshot(params.toolCall, args, reason, nextStep),
       result: toRuntimeToolResult(result),
       modelResult: toRuntimeToolResult(modelResult)
     });
@@ -518,7 +585,8 @@ export class ToolRunner {
     runId: string | undefined,
     messageId: string,
     args: Record<string, unknown>,
-    reason: string
+    reason: string,
+    nextStep: string | undefined
   ): Promise<void> {
     if (!runId) {
       return;
@@ -528,7 +596,7 @@ export class ToolRunner {
       runId,
       chatId: params.chat.id,
       messageId,
-      toolCall: toToolCallSnapshot(params.toolCall, args, reason),
+      toolCall: toToolCallSnapshot(params.toolCall, args, reason, nextStep),
       at: this.now()
     });
   }
@@ -538,6 +606,7 @@ export class ToolRunner {
       runId: string | undefined;
       toolMessageId: string;
       reason: string;
+      nextStep?: string;
       args: Record<string, unknown>;
       preview: Record<string, unknown> | undefined;
     },
@@ -554,7 +623,7 @@ export class ToolRunner {
       approvalId,
       messageId: params.toolMessageId,
       approval,
-      toolCall: toToolCallSnapshot(params.toolCall, params.args, params.reason),
+      toolCall: toToolCallSnapshot(params.toolCall, params.args, params.reason, params.nextStep),
       preview: params.preview ? toRuntimeToolResult(params.preview) : undefined,
       at: this.now()
     });
@@ -565,6 +634,7 @@ export class ToolRunner {
       runId: string | undefined;
       toolMessageId: string;
       reason: string;
+      nextStep?: string;
       args: Record<string, unknown>;
     },
     approvalId: string | undefined,
@@ -592,6 +662,7 @@ export class ToolRunner {
     messageId: string,
     args: Record<string, unknown>,
     reason: string,
+    nextStep: string | undefined,
     result: Record<string, unknown>,
     modelResult: Record<string, unknown>
   ): Promise<void> {
@@ -603,7 +674,7 @@ export class ToolRunner {
       runId,
       chatId: params.chat.id,
       messageId,
-      toolCall: toToolCallSnapshot(params.toolCall, args, reason),
+      toolCall: toToolCallSnapshot(params.toolCall, args, reason, nextStep),
       result: toRuntimeToolResult(result),
       modelResult: toRuntimeToolResult(modelResult),
       at: this.now()
@@ -616,6 +687,7 @@ export class ToolRunner {
     messageId: string,
     args: Record<string, unknown>,
     reason: string,
+    nextStep: string | undefined,
     result: Record<string, unknown>
   ): Promise<void> {
     if (!runId) {
@@ -626,7 +698,7 @@ export class ToolRunner {
       runId,
       chatId: params.chat.id,
       messageId,
-      toolCall: toToolCallSnapshot(params.toolCall, args, reason),
+      toolCall: toToolCallSnapshot(params.toolCall, args, reason, nextStep),
       error: {
         message: typeof result.error === 'string' ? result.error : 'Tool execution failed.',
         code: typeof result.code === 'string' ? result.code : undefined
@@ -647,6 +719,13 @@ const defaultActivityFormatter: ToolRunnerActivityFormatter = {
   waitingApproval: (toolName, reason) => `Waiting for approval for ${toolName}: ${reason}`,
   runningTool: (toolName, reason) => `Running tool ${toolName}: ${reason}`
 };
+
+function normalizeReasoningEffort(value: unknown): 'auto' | 'low' | 'medium' | 'high' | undefined {
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'auto') {
+    return value;
+  }
+  return undefined;
+}
 
 function parseToolArguments(rawArgs: unknown): Record<string, unknown> {
   if (!rawArgs) {
@@ -670,6 +749,11 @@ function getToolReason(args: Record<string, unknown>): string {
   return typeof reason === 'string' && reason.trim() ? reason.trim() : 'No reason provided by the model.';
 }
 
+function getToolNextStep(args: Record<string, unknown>): string | undefined {
+  const nextStep = args.nextStep;
+  return typeof nextStep === 'string' && nextStep.trim() ? nextStep.trim() : undefined;
+}
+
 function withApprovalComment(result: Record<string, unknown>, comment: string | undefined): Record<string, unknown> {
   return comment ? { ...result, userApprovalComment: comment } : result;
 }
@@ -677,13 +761,15 @@ function withApprovalComment(result: Record<string, unknown>, comment: string | 
 function toToolCallSnapshot(
   toolCall: ToolCall,
   args: Record<string, unknown>,
-  reason: string
+  reason: string,
+  nextStep?: string
 ): RuntimeToolCallSnapshot {
   return {
     id: toolCall.id,
     name: toolCall.function.name,
     args: toJsonObject(args),
-    reason
+    reason,
+    nextStep
   };
 }
 

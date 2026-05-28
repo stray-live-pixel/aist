@@ -366,6 +366,7 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     status: 'waiting',
     approval: 'pending',
     reason: 'Need permission before changing source files.',
+    nextStep: 'If approved, apply the replacement and inspect the changed CSS block.',
     args: { path: 'src/webview/app/styles.css', search: '.message-card', replace: '.message-card' },
     result: { preview: { path: 'src/webview/app/styles.css', replacements: 3 } },
     createdAt: storyNow - 1000 * 90
@@ -377,6 +378,7 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     status: 'running',
     args: { script: 'npm run typecheck' },
     reason: 'Verifying TypeScript after Storybook setup.',
+    nextStep: 'Use the compiler output to fix any remaining type errors.',
     createdAt: storyNow - 1000 * 70
   },
   finishedBash: {
@@ -403,6 +405,7 @@ export const storyToolMessages: Record<string, ChatMessage> = {
       stderrTruncated: false
     },
     reason: 'Checking the parser helpers still behave correctly.',
+    nextStep: 'Keep the change if tests pass, otherwise inspect the failing assertions.',
     createdAt: storyNow - 1000 * 55
   },
   approvedWithComment: {
@@ -412,6 +415,7 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     status: 'done',
     approval: 'approved',
     reason: 'Apply the user-approved wording change.',
+    nextStep: 'Verify the replacement count and preserve the public API name.',
     userApprovalComment: 'Keep the public API name unchanged.',
     args: { path: 'src/core/toolRunner.ts', search: 'userComment', replace: 'userApprovalComment' },
     result: {
@@ -519,7 +523,18 @@ export const storyAgentState: AgentState = {
   codexServiceTier: 'priority',
   editorContextMode: 'auto',
   streamingEnabled: false,
-  compactionSettings: { enabled: true, thresholdPercent: 70, keepLastMessages: 0 },
+  auxiliaryModels: {
+    compaction: { model: '', reasoningEffort: 'auto', allowTools: false },
+    tool: { model: '', reasoningEffort: 'auto', allowTools: false, overrides: [] }
+  },
+  compactionSettings: {
+    enabled: true,
+    thresholdPercent: 70,
+    keepLastMessages: 0,
+    model: '',
+    reasoningEffort: 'auto',
+    allowTools: false
+  },
   approvalNotificationSettings: {
     enabled: true,
     systemNotifications: true,

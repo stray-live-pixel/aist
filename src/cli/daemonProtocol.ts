@@ -121,6 +121,7 @@ export type DaemonChatGetResult = {
 export type DaemonChatAskParams = {
   readonly chatId: string;
   readonly prompt: string;
+  readonly skipUserMessage?: boolean;
 };
 
 export type DaemonChatAskResult = {

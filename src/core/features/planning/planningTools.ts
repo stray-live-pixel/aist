@@ -20,6 +20,10 @@ export const planningTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this plan is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           title: { type: 'string', description: 'What is being implemented in this plan.' },
           steps: {
             type: 'array',
@@ -27,7 +31,7 @@ export const planningTools: OpenRouterTool[] = [
             items: { type: 'string' }
           }
         },
-        required: ['reason', 'title', 'steps'],
+        required: ['reason', 'nextStep', 'title', 'steps'],
         additionalProperties: false
       }
     }
@@ -42,6 +46,10 @@ export const planningTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why the plan must change.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           title: { type: 'string', description: 'Updated title of the active plan.' },
           steps: {
             type: 'array',
@@ -49,7 +57,7 @@ export const planningTools: OpenRouterTool[] = [
             items: { type: 'string' }
           }
         },
-        required: ['reason', 'title', 'steps'],
+        required: ['reason', 'nextStep', 'title', 'steps'],
         additionalProperties: false
       }
     }
@@ -63,6 +71,10 @@ export const planningTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this status changed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           itemIndex: { type: 'number', description: '1-based plan item number.' },
           status: {
             type: 'string',
@@ -70,7 +82,7 @@ export const planningTools: OpenRouterTool[] = [
             description: 'New status for the plan item.'
           }
         },
-        required: ['reason', 'itemIndex', 'status'],
+        required: ['reason', 'nextStep', 'itemIndex', 'status'],
         additionalProperties: false
       }
     }

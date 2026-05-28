@@ -87,6 +87,6 @@ function expectBasePromptContract(prompt: string, language: AgentLanguage): void
 
 function getExpectedLanguageRule(language: AgentLanguage): string {
   return language === 'ru'
-    ? 'Write final answers and every tool call "reason" argument in Russian.'
-    : 'Write final answers and every tool call "reason" argument in English.';
+    ? 'Write final answers and every tool call "reason" and "nextStep" argument in Russian.'
+    : 'Write final answers and every tool call "reason" and "nextStep" argument in English.';
 }

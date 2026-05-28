@@ -10,6 +10,7 @@ import {
   getToolPermissionPresets
 } from '../../tools/permissions';
 import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '../config/agentConfigStore';
+import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
 import { getCompactionSettings } from '../config/compaction';
 import { getApprovalNotificationSettings } from '../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
@@ -58,6 +59,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const promptConfig = getPromptConfig();
   const memoryItems = getAgentMemoryItems();
   const compactionSettings = getCompactionSettings();
+  const auxiliaryModels = getAuxiliaryModelsSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
   const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
   const telemetry = getTelemetryDashboardState();
@@ -81,6 +83,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       promptConfig,
       memoryItems,
       instructionSources,
+      auxiliaryModels,
       compactionSettings,
       approvalNotificationSettings,
       telemetry,
@@ -106,6 +109,7 @@ type StateContext = SendAgentStateParams & {
   promptConfig: unknown;
   memoryItems: unknown;
   instructionSources: unknown;
+  auxiliaryModels: unknown;
   compactionSettings: unknown;
   approvalNotificationSettings: unknown;
   telemetry: unknown;
@@ -138,6 +142,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     codexServiceTier: context.codexServiceTier,
     editorContextMode: context.editorContextMode,
     streamingEnabled: context.streamingEnabled,
+    auxiliaryModels: context.auxiliaryModels,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,
     telemetry: context.telemetry,

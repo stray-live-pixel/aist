@@ -631,7 +631,9 @@ describe('CLI commands', () => {
 
     expect(exitCode).toBe(0);
     expect(output.stderrText()).toBe('');
-    expect(toolExecutions).toEqual([{ toolName: 'read_file', args: { reason: 'test reason', path: 'fake.txt' } }]);
+    expect(toolExecutions).toEqual([
+      { toolName: 'read_file', args: { reason: 'test reason', nextStep: 'test next step', path: 'fake.txt' } }
+    ]);
     expect(
       modelClient.calls[1]?.messages.some((message) => message.role === 'tool' && message.tool_call_id === 'call-1')
     ).toBe(true);
@@ -1161,6 +1163,7 @@ function createToolCall(name: string, args: Record<string, unknown>): ToolCall {
       name,
       arguments: {
         reason: 'test reason',
+        nextStep: 'test next step',
         ...args
       }
     }

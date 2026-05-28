@@ -24,6 +24,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
   const {
     toolPermissions,
     maxToolIterations,
+    auxiliaryModels,
     compactionSettings,
     approvalNotificationSettings,
     agentLanguage,
@@ -33,6 +34,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     promptConfig,
     memoryItems,
     activeChat,
+    models,
     instructionSources,
     customSkills,
     codexAuthenticated,
@@ -86,7 +88,9 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
           {activePage === 'telemetry' ? <TelemetrySettingsPage telemetry={telemetry} /> : null}
-          {activePage === 'compaction' ? <CompactionSettingsPage settings={compactionSettings} /> : null}
+          {activePage === 'compaction' ? (
+            <CompactionSettingsPage settings={compactionSettings} auxiliaryModels={auxiliaryModels} models={models} />
+          ) : null}
           {activePage === 'system' ? (
             <SystemSettingsPage
               agentLanguage={agentLanguage}

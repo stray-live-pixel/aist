@@ -171,7 +171,6 @@ export class AgentController {
     this.logger.info('newChat command received');
 
     const chat = await this.daemonRuntime.createChat(getConfiguredModel());
-    this.sidebarChatId = chat.id;
     this.sidebarPage = 'chat';
 
     this.logger.info('Chat created from command', {
@@ -181,9 +180,8 @@ export class AgentController {
       surfaces: this.getSurfaces().map((surface) => surface.id)
     });
 
-    void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
+    this.openChatInEditor(chat.id);
     this.sendState();
-    this.postSidebarPage();
     vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
   }
 
@@ -218,9 +216,9 @@ export class AgentController {
     }
   }
 
-  private async ask(chatId: string, prompt: string): Promise<void> {
+  private async ask(chatId: string, prompt: string, options: { skipUserMessage?: boolean } = {}): Promise<void> {
     await this.syncLegacyOpenRouterApiKey();
-    await this.daemonRuntime.ask(chatId, prompt);
+    await this.daemonRuntime.ask(chatId, prompt, options);
     this.sendState();
   }
 
@@ -292,16 +290,13 @@ export class AgentController {
   private async handleDaemonWebviewMessage(surface: WebviewSurface, message: WebviewMessage): Promise<boolean> {
     switch (message.type) {
       case 'ask':
-        await this.ask(surface.getChatId(), message.prompt);
+        await this.ask(surface.getChatId(), message.prompt, { skipUserMessage: message.continueWithoutUserPrompt });
         return true;
       case 'newChat': {
         const chat = await this.daemonRuntime.createChat(getConfiguredModel());
-        surface.setChatId(chat.id);
         this.sidebarPage = 'chat';
+        this.openChatInEditor(chat.id);
         this.sendState();
-        if (surface.kind === 'sidebar') {
-          this.postPage(surface, 'chat');
-        }
         return true;
       }
       case 'deleteChat': {

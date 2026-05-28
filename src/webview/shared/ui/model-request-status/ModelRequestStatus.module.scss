@@ -1,0 +1,77 @@
+.root {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.label {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 42%;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-weight: 600;
+}
+
+.label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.progress {
+  background: color-mix(in srgb, var(--vscode-progressBar-background) 18%, transparent);
+  color: var(--vscode-progressBar-background);
+}
+
+.success {
+  background: color-mix(in srgb, #2ea043 18%, transparent);
+  color: #2ea043;
+}
+
+.warning {
+  background: color-mix(in srgb, var(--vscode-editorWarning-foreground) 18%, transparent);
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.danger {
+  background: color-mix(in srgb, var(--vscode-errorForeground) 18%, transparent);
+  color: var(--vscode-errorForeground);
+}
+
+.neutral {
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 16%, transparent);
+  color: var(--vscode-descriptionForeground);
+}
+
+.meta,
+.model {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  flex: 0 0 auto;
+}
+
+.model {
+  flex: 1 1 auto;
+  color: var(--vscode-foreground);
+}

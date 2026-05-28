@@ -49,7 +49,7 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   deleteChat(chatId: string, fallbackModel?: string): Promise<Chat>;
   clearChat(chatId: string): Promise<void>;
   setModel(chatId: string, model: string): Promise<void>;
-  ask(chatId: string, prompt: string): Promise<void>;
+  ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void>;
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
@@ -150,10 +150,10 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     await this.updateDaemonConfig('model', model);
   }
 
-  async ask(chatId: string, prompt: string): Promise<void> {
+  async ask(chatId: string, prompt: string, options: { skipUserMessage?: boolean } = {}): Promise<void> {
     const client = await this.getClient();
     await this.syncSettings();
-    await client.request<DaemonChatAskResult>('chat.ask', { chatId, prompt });
+    await client.request<DaemonChatAskResult>('chat.ask', { chatId, prompt, skipUserMessage: options.skipUserMessage });
     await this.refreshChat(chatId);
   }
 

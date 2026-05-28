@@ -1,4 +1,4 @@
-import { Check, Copy, MessageSquare, Plus, Trash2, X } from 'lucide-react';
+import { Check, Copy, ExternalLink, MessageSquare, Plus, Trash2, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
 import { pluralKey, translate, useI18n } from '../../shared/i18n';
@@ -42,6 +42,11 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
     onClose();
   }
 
+  function openChatInEditor(chatId: string) {
+    agentActions.openChatInEditor(chatId);
+    onClose();
+  }
+
   function deleteChat(chatId: string) {
     agentActions.deleteChat(chatId);
     onClose();
@@ -75,6 +80,7 @@ export function ChatListModal({ chats, activeChatId, language, onClose }: ChatLi
               language={language}
               onSelect={() => selectChat(chat.id)}
               onDuplicate={() => duplicateChat(chat.id)}
+              onOpenInEditor={() => openChatInEditor(chat.id)}
               onAskDelete={() => setDeleteTargetId(chat.id)}
               onCancelDelete={() => setDeleteTargetId(undefined)}
               onDelete={() => deleteChat(chat.id)}
@@ -93,6 +99,7 @@ type ChatRowProps = {
   language: AgentLanguage;
   onSelect(): void;
   onDuplicate(): void;
+  onOpenInEditor(): void;
   onAskDelete(): void;
   onCancelDelete(): void;
   onDelete(): void;
@@ -127,11 +134,18 @@ const ChatRow = memo(function ChatRow(props: ChatRowProps) {
           </span>
         </span>
       </button>
-      {confirmingDelete ? (
-        <DeleteActions onCancel={props.onCancelDelete} onDelete={props.onDelete} />
-      ) : (
-        <RowActions disabled={chat.busy} onDuplicate={props.onDuplicate} onDelete={props.onAskDelete} />
-      )}
+      <div className={styles.chatRowActions}>
+        {confirmingDelete ? (
+          <DeleteActions onCancel={props.onCancelDelete} onDelete={props.onDelete} />
+        ) : (
+          <RowActions
+            disabled={chat.busy}
+            onDuplicate={props.onDuplicate}
+            onOpenInEditor={props.onOpenInEditor}
+            onDelete={props.onAskDelete}
+          />
+        )}
+      </div>
     </div>
   );
 });
@@ -162,16 +176,21 @@ const ChatStatusLabel = memo(function ChatStatusLabel({
 const RowActions = memo(function RowActions({
   disabled,
   onDuplicate,
+  onOpenInEditor,
   onDelete
 }: {
   disabled: boolean;
   onDuplicate(): void;
+  onOpenInEditor(): void;
   onDelete(): void;
 }) {
   const { t } = useI18n();
 
   return (
     <>
+      <IconButton title={t('chat.openInEditor')} onClick={onOpenInEditor}>
+        <ExternalLink size={14} />
+      </IconButton>
       <IconButton title={t('chatList.duplicate')} disabled={disabled} onClick={onDuplicate}>
         <Copy size={14} />
       </IconButton>

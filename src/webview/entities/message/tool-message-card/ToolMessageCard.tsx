@@ -98,7 +98,31 @@ function ToolHeaderContent({ message, model, expanded, isRunning, onToggle }: To
         {formatMessageDate(message.createdAt)}
         <ToolTitle model={model} />
       </div>
-      {!expanded && message.reason ? <div className={styles.reasonRow}>{message.reason}</div> : null}
+      {!expanded ? <ToolIntentSummary message={message} /> : null}
+    </div>
+  );
+}
+
+function ToolIntentSummary({ message }: { message: ChatMessage }) {
+  const { t } = useI18n();
+  if (!message.reason && !message.nextStep) {
+    return null;
+  }
+
+  return (
+    <div className={styles.intentSummary}>
+      {message.reason ? (
+        <div className={styles.intentRow}>
+          <span className={styles.intentLabel}>{t('tool.reasonLabel')}</span>
+          <span className={styles.intentText}>{message.reason}</span>
+        </div>
+      ) : null}
+      {message.nextStep ? (
+        <div className={styles.intentRow}>
+          <span className={styles.intentLabel}>{t('tool.nextStepLabel')}</span>
+          <span className={styles.intentText}>{message.nextStep}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

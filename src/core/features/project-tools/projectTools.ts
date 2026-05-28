@@ -255,10 +255,18 @@ function normalizeInputSchema(
   }
 
   const required = Array.isArray(schema.required) ? schema.required.filter((item) => typeof item === 'string') : [];
-  if (properties?.reason && !isReasonSchema(properties.reason)) {
+  if (properties?.reason && !isStringSchema(properties.reason)) {
     diagnostics.push({
       code: 'projectTool.reasonInvalid',
       message: 'Project tool reason property must be a string schema.',
+      path: definitionPath,
+      toolId
+    });
+  }
+  if (properties?.nextStep && !isStringSchema(properties.nextStep)) {
+    diagnostics.push({
+      code: 'projectTool.nextStepInvalid',
+      message: 'Project tool nextStep property must be a string schema.',
       path: definitionPath,
       toolId
     });
@@ -272,6 +280,10 @@ function normalizeInputSchema(
     type: 'string',
     description: 'A short explanation of why this project tool call is needed.'
   };
+  properties.nextStep ||= {
+    type: 'string',
+    description: 'A short explanation of how this result will be used and what will be done next.'
+  };
 
   return {
     diagnostics,
@@ -279,7 +291,7 @@ function normalizeInputSchema(
       ...schema,
       type: 'object',
       properties,
-      required: uniqueStrings(['reason', ...required]),
+      required: uniqueStrings(['reason', 'nextStep', ...required]),
       additionalProperties: schema.additionalProperties === undefined ? false : schema.additionalProperties
     }
   };
@@ -329,6 +341,12 @@ async function executeProjectToolImpl(
     throw createToolError('INVALID_ARGUMENT', 'Project tool calls must include a non-empty reason.', {
       toolId: definition.id,
       argument: 'reason'
+    });
+  }
+  if (typeof args.nextStep !== 'string' || !args.nextStep.trim()) {
+    throw createToolError('INVALID_ARGUMENT', 'Project tool calls must include a non-empty nextStep.', {
+      toolId: definition.id,
+      argument: 'nextStep'
     });
   }
 
@@ -531,7 +549,7 @@ function normalizePermission(value: unknown): ToolPermissionMode {
   return value === 'auto' ? 'auto' : 'ask';
 }
 
-function isReasonSchema(value: unknown): boolean {
+function isStringSchema(value: unknown): boolean {
   return isRecord(value) && value.type === 'string';
 }
 

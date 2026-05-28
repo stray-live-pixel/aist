@@ -10,7 +10,7 @@ import {
 } from '../project-tools/projectTools';
 import { type AgentSkill, runSkillTool } from '../skills/skills';
 
-export type ToolKind = 'builtin' | 'planning' | 'skill' | 'project';
+export type ToolKind = 'builtin' | 'planning' | 'model' | 'skill' | 'project';
 
 export type RegisteredTool = {
   name: string;
@@ -31,12 +31,14 @@ export type ToolRegistryRefreshInput = {
   skills: readonly AgentSkill[];
   workspaceRoot: string;
   disabledProjectToolIds?: readonly string[];
+  auxiliaryModelToolEnabled?: boolean;
 };
 
 export type ToolRegistryImplementationOptions = {
   builtinTools?: readonly OpenRouterTool[];
   planningToolDefinitions?: readonly OpenRouterTool[];
   skillTool?: OpenRouterTool;
+  modelTool?: OpenRouterTool;
   discoverProjectTools?: typeof discoverProjectTools;
   executeProjectTool?: typeof executeProjectTool;
 };
@@ -55,6 +57,42 @@ export interface ToolRegistry {
 
 const EMPTY_DIGEST = '0'.repeat(64);
 
+const invokeModelTool: OpenRouterTool = {
+  type: 'function',
+  function: {
+    name: 'invoke_model',
+    description:
+      'Call the configured auxiliary lightweight AI model for a focused subtask. Use when a short independent answer, classification, extraction, rewrite, or summary is enough.',
+    parameters: {
+      type: 'object',
+      properties: {
+        prompt: {
+          type: 'string',
+          description: 'The focused prompt for the auxiliary model.'
+        },
+        system: {
+          type: 'string',
+          description: 'Optional system instruction for the auxiliary model.'
+        },
+        model: {
+          type: 'string',
+          description: 'Optional model override. Empty uses the configured auxiliary tool model.'
+        },
+        reasoningEffort: {
+          type: 'string',
+          enum: ['auto', 'low', 'medium', 'high'],
+          description: 'Optional reasoning effort override for this auxiliary request.'
+        },
+        reason: {
+          type: 'string',
+          description: 'Short reason why the auxiliary model is needed now.'
+        }
+      },
+      required: ['prompt']
+    }
+  }
+};
+
 /**
  * Model-visible tool registry shared by CLI and extension adapters.
  *
@@ -65,6 +103,7 @@ export class DefaultToolRegistry implements ToolRegistry {
   private readonly builtinTools: readonly OpenRouterTool[];
   private readonly planningToolDefinitions: readonly OpenRouterTool[];
   private readonly skillTool: OpenRouterTool;
+  private readonly modelTool: OpenRouterTool;
   private readonly discoverProjectToolsImpl: typeof discoverProjectTools;
   private readonly executeProjectToolImpl: typeof executeProjectTool;
   private readonly registeredTools = new Map<string, RegisteredTool>();
@@ -82,6 +121,7 @@ export class DefaultToolRegistry implements ToolRegistry {
     this.builtinTools = options.builtinTools || nodeFilesystemTools;
     this.planningToolDefinitions = options.planningToolDefinitions || planningTools;
     this.skillTool = options.skillTool || runSkillTool;
+    this.modelTool = options.modelTool || invokeModelTool;
     this.discoverProjectToolsImpl = options.discoverProjectTools || discoverProjectTools;
     this.executeProjectToolImpl = options.executeProjectTool || executeProjectTool;
     this.snapshotValue = {
@@ -105,6 +145,11 @@ export class DefaultToolRegistry implements ToolRegistry {
     if (input.skills.length) {
       tools.push(this.skillTool);
       usedNames.add(this.skillTool.function.name);
+    }
+
+    if (input.auxiliaryModelToolEnabled) {
+      tools.push(this.modelTool);
+      usedNames.add(this.modelTool.function.name);
     }
 
     for (const projectTool of projectTools) {
@@ -171,6 +216,7 @@ export class DefaultToolRegistry implements ToolRegistry {
   ): void {
     const projectDefinitions = new Map(projectTools.map((tool) => [tool.id, tool]));
     const planningNames = new Set(this.planningToolDefinitions.map((tool) => tool.function.name));
+    const modelToolName = this.modelTool.function.name;
     this.registeredTools.clear();
 
     for (const tool of tools) {
@@ -182,9 +228,11 @@ export class DefaultToolRegistry implements ToolRegistry {
           ? 'project'
           : name === this.skillTool.function.name
             ? 'skill'
-            : planningNames.has(name)
-              ? 'planning'
-              : 'builtin',
+            : name === modelToolName
+              ? 'model'
+              : planningNames.has(name)
+                ? 'planning'
+                : 'builtin',
         definition: projectDefinition,
         tool
       });

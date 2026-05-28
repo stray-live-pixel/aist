@@ -23,6 +23,10 @@ export const runSkillTool: OpenRouterTool = {
       type: 'object',
       properties: {
         reason: { type: 'string', description: 'A short explanation of why this skill is needed.' },
+        nextStep: {
+          type: 'string',
+          description: 'A short explanation of how this result will be used and what will be done next.'
+        },
         skillId: { type: 'string', description: 'ID of the custom skill to run.' },
         input: {
           type: 'string',
@@ -35,7 +39,7 @@ export const runSkillTool: OpenRouterTool = {
           description: 'Maximum stdout/stderr characters to return per stream. Default is 200000.'
         }
       },
-      required: ['reason', 'skillId'],
+      required: ['reason', 'nextStep', 'skillId'],
       additionalProperties: false
     }
   }

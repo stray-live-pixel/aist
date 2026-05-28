@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 import type { AgentInstructionSource } from '../../../core/features/system-prompt/systemPrompt';
 import { getWorkspaceFolder } from '../../shared/workspace';
+import type { AuxiliaryModelsSettings } from './auxiliaryModels';
 import type { CompactionSettings } from './compaction';
 import type { AgentMode } from './settings';
 
@@ -81,6 +82,7 @@ type StoredAgentConfig = {
   modeInstructions?: Record<string, string>;
   customSkills?: StoredSkillItem[];
   compaction?: Partial<CompactionSettings>;
+  auxiliaryModels?: Partial<AuxiliaryModelsSettings>;
   instructions?: StoredInstructionItem[];
   modes?: StoredModeItem[];
   presets?: AgentPromptPreset[];

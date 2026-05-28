@@ -53,11 +53,15 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           path: { type: 'string', description: 'Workspace-relative directory path. Use "." for root.' },
           maxDepth: { type: 'number', description: 'Maximum recursive depth. Default is 2.' },
           limit: { type: 'number', description: 'Maximum number of entries. Default is 200.' }
         },
-        required: ['reason'],
+        required: ['reason', 'nextStep'],
         additionalProperties: false
       }
     }
@@ -71,10 +75,14 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           path: { type: 'string', description: 'Workspace-relative file path.' },
           maxChars: { type: 'number', description: 'Maximum characters to return. Default is 200000.' }
         },
-        required: ['reason', 'path'],
+        required: ['reason', 'nextStep', 'path'],
         additionalProperties: false
       }
     }
@@ -90,6 +98,10 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           query: { type: 'string', description: 'Text or regular expression to search for.' },
           path: { type: 'string', description: 'Workspace-relative file or directory path to search. Default is ".".' },
           include: { type: 'string', description: 'Glob pattern within the search path. Default is "**/*".' },
@@ -126,7 +138,7 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
           },
           maxFiles: { type: 'number', description: 'Maximum number of files to inspect. Default is 2000.' }
         },
-        required: ['reason', 'query'],
+        required: ['reason', 'nextStep', 'query'],
         additionalProperties: false
       }
     }
@@ -141,6 +153,10 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this script needs to run.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           script: { type: 'string', description: 'Bash script to execute with bash -lc.' },
           cwd: { type: 'string', description: 'Workspace-relative directory to run in. Default is ".".' },
           timeoutMs: { type: 'number', description: 'Timeout in milliseconds. Default is 30000, maximum is 120000.' },
@@ -149,7 +165,7 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
             description: 'Maximum stdout/stderr characters to return per stream. Default is 200000.'
           }
         },
-        required: ['reason', 'script'],
+        required: ['reason', 'nextStep', 'script'],
         additionalProperties: false
       }
     }
@@ -163,10 +179,14 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           path: { type: 'string', description: 'Workspace-relative file path.' },
           content: { type: 'string', description: 'Full file content to write.' }
         },
-        required: ['reason', 'path', 'content'],
+        required: ['reason', 'nextStep', 'path', 'content'],
         additionalProperties: false
       }
     }
@@ -180,12 +200,16 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           path: { type: 'string', description: 'Workspace-relative file path.' },
           search: { type: 'string', description: 'Exact text to find.' },
           replace: { type: 'string', description: 'Replacement text.' },
           all: { type: 'boolean', description: 'Replace all matches instead of only the first.' }
         },
-        required: ['reason', 'path', 'search', 'replace'],
+        required: ['reason', 'nextStep', 'path', 'search', 'replace'],
         additionalProperties: false
       }
     }
@@ -200,9 +224,13 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           path: { type: 'string', description: 'Workspace-relative directory path.' }
         },
-        required: ['reason', 'path'],
+        required: ['reason', 'nextStep', 'path'],
         additionalProperties: false
       }
     }
@@ -217,10 +245,14 @@ export const nodeFilesystemTools: OpenRouterTool[] = [
         type: 'object',
         properties: {
           reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+          nextStep: {
+            type: 'string',
+            description: 'A short explanation of how this result will be used and what will be done next.'
+          },
           path: { type: 'string', description: 'Workspace-relative path.' },
           recursive: { type: 'boolean', description: 'Delete directories recursively.' }
         },
-        required: ['reason', 'path'],
+        required: ['reason', 'nextStep', 'path'],
         additionalProperties: false
       }
     }

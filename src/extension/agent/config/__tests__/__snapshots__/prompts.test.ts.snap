@@ -14,6 +14,7 @@ exports[`getSystemPrompt > snapshots project instructions and custom skills with
 ## Tool rules
 - All tool paths must be workspace-relative.
 - Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.
+- Every tool call must include a concise nextStep: how you will use the result and what you will do next.
 - Use grep_search for symbols, strings, or related files across the workspace.
 - Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.
 - For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.
@@ -30,7 +31,7 @@ exports[`getSystemPrompt > snapshots project instructions and custom skills with
 - After successful edits, verify at most once when verification is useful.
 
 ## Language
-- Write final answers and every tool call "reason" argument in English.
+- Write final answers and every tool call "reason" and "nextStep" argument in English.
 - Keep final answers concise and mention changed files.
 
 ## User instructions
@@ -62,6 +63,7 @@ exports[`getSystemPrompt > snapshots the compact en base prompt contract 1`] = `
 ## Tool rules
 - All tool paths must be workspace-relative.
 - Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.
+- Every tool call must include a concise nextStep: how you will use the result and what you will do next.
 - Use grep_search for symbols, strings, or related files across the workspace.
 - Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.
 - For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.
@@ -78,7 +80,7 @@ exports[`getSystemPrompt > snapshots the compact en base prompt contract 1`] = `
 - After successful edits, verify at most once when verification is useful.
 
 ## Language
-- Write final answers and every tool call "reason" argument in English.
+- Write final answers and every tool call "reason" and "nextStep" argument in English.
 - Keep final answers concise and mention changed files."
 `;
 
@@ -96,6 +98,7 @@ exports[`getSystemPrompt > snapshots the compact ru base prompt contract 1`] = `
 ## Tool rules
 - All tool paths must be workspace-relative.
 - Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.
+- Every tool call must include a concise nextStep: how you will use the result and what you will do next.
 - Use grep_search for symbols, strings, or related files across the workspace.
 - Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.
 - For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.
@@ -112,6 +115,6 @@ exports[`getSystemPrompt > snapshots the compact ru base prompt contract 1`] = `
 - After successful edits, verify at most once when verification is useful.
 
 ## Language
-- Write final answers and every tool call "reason" argument in Russian.
+- Write final answers and every tool call "reason" and "nextStep" argument in Russian.
 - Keep final answers concise and mention changed files."
 `;

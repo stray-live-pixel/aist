@@ -222,22 +222,32 @@
 
 .chatList {
   display: grid;
+  min-width: 0;
   max-height: 65vh;
-  gap: 4px;
+  gap: 8px;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 8px;
+  padding: 10px;
 }
 
 .chatRow {
   display: flex;
-  min-height: 56px;
-  gap: 4px;
-  border-radius: 4px;
+  min-width: 0;
+  min-height: 64px;
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 16px;
+  corner-shape: squircle;
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 24%, transparent);
+  padding: 6px;
 }
 
 .chatRowActive {
-  color: var(--vscode-list-activeSelectionForeground);
-  background: var(--vscode-list-activeSelectionBackground);
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 58%, var(--agent-border));
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-focusBorder) 12%, var(--vscode-editor-background));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 16%, transparent) inset;
 }
 
 .chatRowButton {
@@ -245,9 +255,10 @@
   min-width: 0;
   flex: 1 1 auto;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  overflow: hidden;
   border: 0;
-  border-radius: 4px;
+  border-radius: 12px;
   color: inherit;
   background: transparent;
   padding: 8px;
@@ -256,7 +267,7 @@
 }
 
 .chatRowButton:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 72%, transparent);
 }
 
 .chatRowIconMuted {
@@ -264,8 +275,11 @@
 }
 
 .chatRowContent {
+  display: grid;
   min-width: 0;
   flex: 1 1 auto;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .chatRowTitle,
@@ -284,26 +298,31 @@
 .chatRowTitleLine {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
 
 .chatRowTitleLine .chatRowTitle {
   min-width: 0;
+  max-width: 100%;
   flex: 0 1 auto;
 }
 
 .chatStatusLabel {
   display: inline-flex;
-  flex: 0 0 auto;
+  max-width: 100%;
+  flex: 0 1 auto;
   align-items: center;
   gap: 4px;
+  overflow: hidden;
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 1px 6px;
   font-size: 10px;
   font-weight: 700;
   line-height: 14px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -357,6 +376,36 @@
 
 .chatRowActive .chatRowMeta {
   opacity: 0.8;
+}
+
+.chatRowActions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 112px;
+}
+
+.chatRowActions > button {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+}
+
+@media (max-width: 420px) {
+  .chatRow {
+    flex-direction: column;
+  }
+
+  .chatRowActions {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-end;
+    padding: 0 4px 4px;
+  }
 }
 
 @keyframes approvalBackdropIn {

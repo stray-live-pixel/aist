@@ -13,6 +13,8 @@ export type ComposerProps = {
   floating?: boolean;
   /** Слот кратких настроек агента над textarea. */
   settings?: ReactNode;
+  /** Слот дополнительных действий справа в верхней строке composer. */
+  headerActions?: ReactNode;
   /** Слот дополнительных действий/метаданных слева в нижней строке. */
   footer?: ReactNode;
   /** Слот предупреждения над composer, например про недоступные настройки. */

@@ -362,6 +362,7 @@ function createToolCall(name: string, args: Record<string, unknown>, id = `call-
       name,
       arguments: {
         reason: 'test reason',
+        nextStep: 'test next step',
         ...args
       }
     }

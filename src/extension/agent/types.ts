@@ -39,7 +39,7 @@ export type AgentRun = CoreAgentRun<AgentRunTelemetryDraft>;
  */
 export type WebviewMessage =
   | { type: 'webviewReady' }
-  | { type: 'ask'; prompt: string }
+  | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }
   | { type: 'deleteChat'; chatId: string }
@@ -55,6 +55,15 @@ export type WebviewMessage =
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
+  | {
+      type: 'setAuxiliaryModelSettings';
+      id: 'compaction' | 'tool';
+      settings: Partial<{ model: string; reasoningEffort: ReasoningEffort; allowTools: boolean }>;
+    }
+  | {
+      type: 'setAuxiliaryToolModelOverrides';
+      overrides: Array<{ toolName: string; model: string; reasoningEffort: ReasoningEffort; allowTools: boolean }>;
+    }
   | { type: 'compactChat'; chatId?: string }
   | {
       type: 'setCompactionSettings';

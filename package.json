@@ -203,6 +203,105 @@
           "default": false,
           "description": "Stream model responses while they are generated. Disabled by default because non-streaming requests are usually more resilient to interrupted SSE connections."
         },
+        "openrouterAgent.auxiliaryModels": {
+          "type": "object",
+          "default": {
+            "compaction": {
+              "model": "",
+              "reasoningEffort": "auto",
+              "allowTools": false
+            },
+            "tool": {
+              "model": "",
+              "reasoningEffort": "auto",
+              "allowTools": false,
+              "overrides": []
+            }
+          },
+          "markdownDescription": "Optional lightweight AI models for non-primary tasks. `compaction` is used when summarizing old context; `tool` configures the default `invoke_model` model; `tool.overrides` can assign different models to individual tools.",
+          "properties": {
+            "compaction": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "default": ""
+                },
+                "reasoningEffort": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "default": "auto"
+                },
+                "allowTools": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            },
+            "tool": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "default": ""
+                },
+                "reasoningEffort": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "default": "auto"
+                },
+                "allowTools": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "overrides": {
+                  "type": "array",
+                  "default": [],
+                  "markdownDescription": "Per-tool model overrides for `invoke_model`. Use toolName `invoke_model` for the built-in model-calling tool, or any future/project tool id that delegates to auxiliary models.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "toolName"
+                    ],
+                    "properties": {
+                      "toolName": {
+                        "type": "string"
+                      },
+                      "model": {
+                        "type": "string",
+                        "default": ""
+                      },
+                      "reasoningEffort": {
+                        "type": "string",
+                        "enum": [
+                          "auto",
+                          "low",
+                          "medium",
+                          "high"
+                        ],
+                        "default": "auto"
+                      },
+                      "allowTools": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "openrouterAgent.daemonBinaryPath": {
           "type": "string",
           "default": "",

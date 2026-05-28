@@ -1,10 +1,18 @@
-import { SendHorizontal, Square } from 'lucide-react';
-import { type ReactNode, type Ref, useLayoutEffect, useRef, useState } from 'react';
+import { History, SendHorizontal, Square } from 'lucide-react';
+import { type KeyboardEvent, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
-import { Button, ComposerFrame, KeyboardShortcut, TextArea } from '../../shared/ui';
+import { Button, CompactNavigationButton, ComposerFrame, KeyboardShortcut, TextArea } from '../../shared/ui';
 import styles from './Composer.module.scss';
+import { PromptHistoryModal } from './PromptHistoryModal';
+import {
+  type PromptHistoryItem,
+  addPromptToHistory,
+  loadPromptDraft,
+  loadPromptHistory,
+  savePromptDraft
+} from './promptHistory';
 import type { ComposerProps } from './types';
 import { DEFAULT_CONTINUE_PROMPT, isMacLikePlatform, resizePromptField } from './utils';
 
@@ -21,32 +29,149 @@ type SentComposerSnapshot = {
  * Что это: нижний composer для отправки prompt или остановки текущей генерации.
  * Зачем нужно: компонент инкапсулирует правила пустого prompt, shortcut и autosize textarea, а весь UI собирает из shared-компонентов.
  */
-export function Composer({ chatId, busy, floating = false, settings, footer, notice }: ComposerProps) {
+export function Composer({ chatId, busy, floating = false, settings, headerActions, footer, notice }: ComposerProps) {
   const { t } = useI18n();
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(() => loadPromptDraft(chatId));
+  const [history, setHistory] = useState<PromptHistoryItem[]>(() => loadPromptHistory(chatId));
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [sentComposer, setSentComposer] = useState<SentComposerSnapshot | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const animationIdRef = useRef(0);
+  const historyIndexRef = useRef<number | null>(null);
+  const draftBeforeHistoryRef = useRef('');
+
+  useEffect(() => {
+    const draft = loadPromptDraft(chatId);
+    setPrompt(draft);
+    setHistory(loadPromptHistory(chatId));
+    historyIndexRef.current = null;
+    draftBeforeHistoryRef.current = draft;
+  }, [chatId]);
 
   useLayoutEffect(() => {
     resizePromptField(textareaRef.current);
   }, [prompt]);
+
+  function updatePrompt(value: string) {
+    setPrompt(value);
+    savePromptDraft(chatId, value);
+    historyIndexRef.current = null;
+    draftBeforeHistoryRef.current = value;
+  }
+
+  function applyPrompt(value: string) {
+    setPrompt(value);
+    savePromptDraft(chatId, value);
+    window.requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      textarea?.focus();
+      textarea?.setSelectionRange(value.length, value.length);
+    });
+  }
 
   function sendPrompt() {
     if (busy) {
       return;
     }
 
-    const value = prompt.trim() || DEFAULT_CONTINUE_PROMPT;
+    const typedPrompt = prompt.trim();
+
+    if (!typedPrompt) {
+      agentActions.ask(DEFAULT_CONTINUE_PROMPT, { continueWithoutUserPrompt: true });
+      return;
+    }
+
     const nextAnimationId = animationIdRef.current + 1;
     animationIdRef.current = nextAnimationId;
-    setSentComposer({ id: nextAnimationId, prompt: value });
+    setSentComposer({ id: nextAnimationId, prompt: typedPrompt });
     setPrompt('');
+    savePromptDraft(chatId, '');
+    addPromptToHistory(chatId, typedPrompt);
+    setHistory(loadPromptHistory(chatId));
+    historyIndexRef.current = null;
+    draftBeforeHistoryRef.current = '';
     window.setTimeout(() => {
       setSentComposer((current) => (current?.id === nextAnimationId ? null : current));
     }, COMPOSER_TRANSITION_MS);
-    agentActions.ask(value);
+    agentActions.ask(typedPrompt);
   }
+
+  function navigateHistory(direction: 'older' | 'newer') {
+    if (history.length === 0) {
+      return;
+    }
+
+    if (direction === 'older') {
+      const nextIndex =
+        historyIndexRef.current === null ? 0 : Math.min(historyIndexRef.current + 1, history.length - 1);
+
+      if (historyIndexRef.current === null) {
+        draftBeforeHistoryRef.current = prompt;
+      }
+
+      historyIndexRef.current = nextIndex;
+      applyPrompt(history[nextIndex].prompt);
+      return;
+    }
+
+    if (historyIndexRef.current === null) {
+      return;
+    }
+
+    const nextIndex = historyIndexRef.current - 1;
+
+    if (nextIndex < 0) {
+      historyIndexRef.current = null;
+      applyPrompt(draftBeforeHistoryRef.current);
+      return;
+    }
+
+    historyIndexRef.current = nextIndex;
+    applyPrompt(history[nextIndex].prompt);
+  }
+
+  function handlePromptKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      sendPrompt();
+      return;
+    }
+
+    if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
+      return;
+    }
+
+    const target = event.currentTarget;
+    const selectionStart = target.selectionStart ?? 0;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const cursorAtStart = selectionStart === 0 && selectionEnd === 0;
+    const cursorAtEnd = selectionStart === target.value.length && selectionEnd === target.value.length;
+
+    if (event.key === 'ArrowUp' && (target.value.length === 0 || cursorAtStart)) {
+      event.preventDefault();
+      navigateHistory('older');
+      return;
+    }
+
+    if (event.key === 'ArrowDown' && (target.value.length === 0 || cursorAtEnd)) {
+      event.preventDefault();
+      navigateHistory('newer');
+    }
+  }
+
+  const composerHeaderActions = (
+    <>
+      <CompactNavigationButton
+        icon={<History size={12} />}
+        title={t('composer.history.open')}
+        onClick={() => {
+          setHistory(loadPromptHistory(chatId));
+          setHistoryOpen(true);
+        }}
+      />
+      {headerActions}
+    </>
+  );
 
   const actions = (
     <>
@@ -79,6 +204,7 @@ export function Composer({ chatId, busy, floating = false, settings, footer, not
           fallback={t('composer.noSettings')}
           placeholder={t('composer.placeholder')}
           prompt={sentComposer.prompt}
+          headerActions={composerHeaderActions}
           actions={actions}
           className={styles.composerExit}
           readOnly
@@ -93,12 +219,25 @@ export function Composer({ chatId, busy, floating = false, settings, footer, not
         fallback={t('composer.noSettings')}
         placeholder={t('composer.placeholder')}
         prompt={prompt}
+        headerActions={composerHeaderActions}
         actions={actions}
         className={sentComposer ? styles.composerEnter : undefined}
         textareaRef={textareaRef}
-        onPromptChange={setPrompt}
-        onSendPrompt={sendPrompt}
+        onPromptChange={updatePrompt}
+        onPromptKeyDown={handlePromptKeyDown}
       />
+      {historyOpen ? (
+        <PromptHistoryModal
+          history={history}
+          onClose={() => setHistoryOpen(false)}
+          onSelect={(value) => {
+            historyIndexRef.current = null;
+            draftBeforeHistoryRef.current = value;
+            applyPrompt(value);
+            setHistoryOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -111,12 +250,13 @@ function ComposerShell({
   fallback,
   placeholder,
   prompt,
+  headerActions,
   actions,
   className,
   textareaRef,
   readOnly,
   onPromptChange,
-  onSendPrompt
+  onPromptKeyDown
 }: {
   busy: boolean;
   floating: boolean;
@@ -126,18 +266,20 @@ function ComposerShell({
   fallback: string;
   placeholder: string;
   prompt: string;
+  headerActions?: ReactNode;
   actions: ReactNode;
   className?: string;
   textareaRef?: Ref<HTMLTextAreaElement>;
   readOnly?: boolean;
   onPromptChange?(value: string): void;
-  onSendPrompt?(): void;
+  onPromptKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): void;
 }) {
   return (
     <ComposerFrame
       floating={floating}
       notice={notice}
       header={settings}
+      headerActions={headerActions}
       fallback={fallback}
       className={className}
       input={
@@ -152,8 +294,8 @@ function ComposerShell({
           tabIndex={readOnly ? -1 : undefined}
           onChange={(event) => onPromptChange?.(event.target.value)}
           onKeyDown={(event) => {
-            if (!readOnly && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-              onSendPrompt?.();
+            if (!readOnly) {
+              onPromptKeyDown?.(event);
             }
           }}
         />

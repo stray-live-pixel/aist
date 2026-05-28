@@ -34,7 +34,7 @@ describe('node filesystem tool definitions', () => {
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('apply_patch');
     expect(nodeFilesystemTools.find((tool) => tool.function.name === 'grep_search')?.function.parameters).toMatchObject(
       {
-        required: ['reason', 'query'],
+        required: ['reason', 'nextStep', 'query'],
         properties: {
           filesOnly: { type: 'boolean' },
           countOnly: { type: 'boolean' },

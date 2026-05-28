@@ -1,5 +1,5 @@
-import { type TranslationKey, useI18n } from '../../../shared/i18n';
-import type { Chat, ChatModelRequestPhase, ChatModelRequestStatus } from '../../../shared/types';
+import { useI18n } from '../../../shared/i18n';
+import type { Chat } from '../../../shared/types';
 
 /**
  * Что это: переводит внутренний статус выполнения в короткий текст для UI.
@@ -30,33 +30,6 @@ export function formatActivity(
     default:
       return t('activity.thinking');
   }
-}
-
-export function formatModelRequestPhase(phase: ChatModelRequestPhase, t: ReturnType<typeof useI18n>['t']): string {
-  return t(`modelRequest.phase.${phase}` as TranslationKey);
-}
-
-export function formatModelRequestProvider(
-  provider: ChatModelRequestStatus['provider'],
-  t: ReturnType<typeof useI18n>['t']
-): string {
-  if (provider === 'codex') {
-    return t('modelRequest.provider.codex');
-  }
-
-  if (provider === 'openrouter') {
-    return t('modelRequest.provider.openrouter');
-  }
-
-  return t('modelRequest.provider.unknown');
-}
-
-export function formatDuration(ms: number): string {
-  if (ms < 1000) {
-    return `${ms}ms`;
-  }
-
-  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
 }
 
 /**

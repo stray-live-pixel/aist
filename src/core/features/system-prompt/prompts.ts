@@ -30,6 +30,7 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
     section('Tool rules', [
       'All tool paths must be workspace-relative.',
       'Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.',
+      'Every tool call must include a concise nextStep: how you will use the result and what you will do next.',
       'Use grep_search for symbols, strings, or related files across the workspace.',
       'Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.',
       'For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.',
@@ -70,8 +71,8 @@ function section(title: string, lines: string[]): string {
  */
 export function getLanguageInstruction(language: AgentLanguage): string {
   return language === 'ru'
-    ? 'Write final answers and every tool call "reason" argument in Russian.'
-    : 'Write final answers and every tool call "reason" argument in English.';
+    ? 'Write final answers and every tool call "reason" and "nextStep" argument in Russian.'
+    : 'Write final answers and every tool call "reason" and "nextStep" argument in English.';
 }
 
 /**

@@ -104,6 +104,7 @@ export type ChatMessage = {
   status?: ChatToolStatus;
   approval?: ChatToolApprovalStatus;
   reason?: string;
+  nextStep?: string;
   args?: Record<string, unknown>;
   result?: ToolResult;
   modelResult?: ToolResult;
@@ -407,6 +408,7 @@ export type RuntimeToolCallSnapshot = {
   name: string;
   args: JsonObject;
   reason?: string;
+  nextStep?: string;
 };
 
 export type RuntimeModelToolCall = Omit<ToolCall, 'function'> & {

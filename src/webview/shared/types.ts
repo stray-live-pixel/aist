@@ -8,6 +8,7 @@ export type ChatMessage = {
   status?: 'waiting' | 'running' | 'done' | 'error' | 'denied';
   approval?: 'pending' | 'approved' | 'denied';
   reason?: string;
+  nextStep?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
   modelResult?: Record<string, unknown>;
@@ -139,6 +140,22 @@ export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type CodexServiceTier = 'auto' | 'priority';
 export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 export type AgentLanguage = 'ru' | 'en';
+export type AuxiliaryModelId = 'compaction' | 'tool';
+export type AuxiliaryModelSettings = {
+  model: string;
+  reasoningEffort: ReasoningEffort;
+  allowTools: boolean;
+};
+export type AuxiliaryToolModelOverride = AuxiliaryModelSettings & {
+  toolName: string;
+};
+export type AuxiliaryToolModelSettings = AuxiliaryModelSettings & {
+  overrides: AuxiliaryToolModelOverride[];
+};
+export type AuxiliaryModelsSettings = {
+  compaction: AuxiliaryModelSettings;
+  tool: AuxiliaryToolModelSettings;
+};
 export type AgentModeId = string;
 export type ToolPermissionPresetId = string;
 
@@ -268,6 +285,9 @@ export type CompactionSettings = {
   enabled: boolean;
   thresholdPercent: number;
   keepLastMessages: number;
+  model: string;
+  reasoningEffort: ReasoningEffort;
+  allowTools: boolean;
 };
 
 export type ApprovalNotificationSettings = {
@@ -476,6 +496,7 @@ export type AgentState = {
   editorContextMode: EditorContextMode;
   /** Включает live streaming ответа; по умолчанию false, потому что non-streaming устойчивее к обрывам SSE. */
   streamingEnabled: boolean;
+  auxiliaryModels: AuxiliaryModelsSettings;
   compactionSettings: CompactionSettings;
   approvalNotificationSettings: ApprovalNotificationSettings;
   telemetry: AgentTelemetryDashboard;
@@ -507,7 +528,7 @@ export type ExtensionToWebviewMessage =
 
 export type WebviewToExtensionMessage =
   | { type: 'webviewReady' }
-  | { type: 'ask'; prompt: string }
+  | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }
   | { type: 'deleteChat'; chatId: string }
@@ -525,6 +546,8 @@ export type WebviewToExtensionMessage =
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }
+  | { type: 'setAuxiliaryModelSettings'; id: AuxiliaryModelId; settings: Partial<AuxiliaryModelSettings> }
+  | { type: 'setAuxiliaryToolModelOverrides'; overrides: AuxiliaryToolModelOverride[] }
   | { type: 'setApprovalNotificationSettings'; settings: Partial<ApprovalNotificationSettings> }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }

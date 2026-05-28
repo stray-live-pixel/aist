@@ -6,6 +6,9 @@ import type {
   AgentMemoryScope,
   AgentModeId,
   ApprovalNotificationSettings,
+  AuxiliaryModelId,
+  AuxiliaryModelSettings,
+  AuxiliaryToolModelOverride,
   CodexServiceTier,
   CompactionSettings,
   EditorContextMode,
@@ -35,8 +38,8 @@ export const agentActions = {
     post({ type: 'webviewReady' });
   },
 
-  ask(prompt: string): void {
-    post({ type: 'ask', prompt });
+  ask(prompt: string, options: { continueWithoutUserPrompt?: boolean } = {}): void {
+    post({ type: 'ask', prompt, continueWithoutUserPrompt: options.continueWithoutUserPrompt });
   },
 
   stop(chatId?: string): void {
@@ -113,6 +116,14 @@ export const agentActions = {
 
   setCompactionSettings(settings: Partial<CompactionSettings>): void {
     post({ type: 'setCompactionSettings', settings });
+  },
+
+  setAuxiliaryModelSettings(id: AuxiliaryModelId, settings: Partial<AuxiliaryModelSettings>): void {
+    post({ type: 'setAuxiliaryModelSettings', id, settings });
+  },
+
+  setAuxiliaryToolModelOverrides(overrides: AuxiliaryToolModelOverride[]): void {
+    post({ type: 'setAuxiliaryToolModelOverrides', overrides });
   },
 
   setApprovalNotificationSettings(settings: Partial<ApprovalNotificationSettings>): void {

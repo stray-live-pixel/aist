@@ -14,6 +14,7 @@ import {
   upsertPromptItem,
   upsertPromptPreset
 } from '../../config/agentConfigStore';
+import { setAuxiliaryModelSettings, setAuxiliaryToolModelOverrides } from '../../config/auxiliaryModelSettings';
 import { setCompactionSettings } from '../../config/compaction';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
@@ -35,6 +36,8 @@ type SettingsMessage = Extract<
   | { type: 'setCodexServiceTier' }
   | { type: 'setEditorContextMode' }
   | { type: 'setStreamingEnabled' }
+  | { type: 'setAuxiliaryModelSettings' }
+  | { type: 'setAuxiliaryToolModelOverrides' }
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
   | { type: 'setAgentLanguage' }
@@ -64,6 +67,8 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setCodexServiceTier',
     'setEditorContextMode',
     'setStreamingEnabled',
+    'setAuxiliaryModelSettings',
+    'setAuxiliaryToolModelOverrides',
     'setCompactionSettings',
     'setApprovalNotificationSettings',
     'setAgentLanguage',
@@ -120,6 +125,14 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setStreamingEnabled':
       await updateWorkspaceSetting('streamingEnabled', message.streamingEnabled === true);
+      deps.sendState();
+      return;
+    case 'setAuxiliaryModelSettings':
+      await setAuxiliaryModelSettings(message.id, message.settings);
+      deps.sendState();
+      return;
+    case 'setAuxiliaryToolModelOverrides':
+      await setAuxiliaryToolModelOverrides(message.overrides);
       deps.sendState();
       return;
     case 'setCompactionSettings':

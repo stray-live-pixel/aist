@@ -18,6 +18,7 @@ import {
 } from '../core/app/runtime/agentRuntime';
 import { ChatRepository } from '../core/entities/chat/chatRepository';
 import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/entities/memory/memory';
+import { type AuxiliaryModelInvoker, createAuxiliaryModelInvoker } from '../core/entities/model/auxiliaryModel';
 import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
 import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/entities/model/modelDefaults';
@@ -176,6 +177,7 @@ export class AistDaemonServer {
   private readonly toolRegistry: ToolRegistry;
   private readonly runtime: AgentRuntimeService;
   private readonly autonomousBackend: AutonomousBackend;
+  private readonly auxiliaryModel: AuxiliaryModelInvoker;
   private readonly connections = new Set<DaemonConnection>();
   private readonly pendingApprovalsById = new Map<string, PendingApproval>();
   private readonly pendingApprovalsByMessageId = new Map<string, PendingApproval>();
@@ -207,6 +209,7 @@ export class AistDaemonServer {
       createMemoryStorePaths({ workspaceRoot: this.workspaceRoot, homeDir: this.homeDir })
     );
     this.toolRegistry = options.toolRegistry || new DefaultToolRegistry();
+    this.auxiliaryModel = this.createAuxiliaryModelInvoker();
     this.runtime = this.createRuntime();
     this.autonomousBackend = new AutonomousBackend({
       workspaceRoot: this.workspaceRoot,
@@ -477,6 +480,7 @@ export class AistDaemonServer {
     const input = requireRecord(params, 'chat.ask params');
     const chatId = requireString(input, 'chatId');
     const prompt = requireString(input, 'prompt');
+    const skipUserMessage = input.skipUserMessage === true;
     await this.requireChat(chatId);
     if (this.activeRunsByChat.has(chatId) || this.startingRunsByChat.has(chatId)) {
       throw this.createBusyError(chatId);
@@ -484,7 +488,7 @@ export class AistDaemonServer {
 
     this.startingRunsByChat.add(chatId);
     try {
-      const result = await this.runtime.startAsk(chatId, prompt);
+      const result = await this.runtime.startAsk(chatId, prompt, { skipUserMessage });
       if (!result.accepted) {
         throw new DaemonRpcError(-32000, result.error.code || 'run.rejected', result.error.message, {
           code: result.error.code || 'run.rejected',
@@ -781,6 +785,7 @@ export class AistDaemonServer {
       chatRepository: createFileBackedRuntimeChatRepository(this.chatRepository),
       runRepository: this.runRepository,
       modelClient,
+      auxiliaryModel: this.auxiliaryModel,
       toolRegistry: this.toolRegistry,
       handleToolCall: this.createToolCallHandler(),
       configProvider: {
@@ -864,6 +869,8 @@ export class AistDaemonServer {
         memory: {
           add: (candidate) => this.memoryStore.add(candidate)
         },
+        auxiliaryModel: this.auxiliaryModel,
+        getAuxiliaryModelSettings: (toolName) => this.getAuxiliaryToolSettings(toolName),
         events: params.events,
         runRepository: params.runRepository,
         workspaceRoot: this.workspaceRoot,
@@ -991,11 +998,15 @@ export class AistDaemonServer {
 
     const { summaryHistory } = splitCompactionHistory(chat.history, keepLastMessages);
     const history = summaryHistory.length ? summaryHistory : chat.history;
-    const response = await (this.options.modelClient || this.createRoutingModelClient()).chat(
-      createCompactionMessages(history),
-      undefined,
-      chat.model
-    );
+    const compactionModel = await this.getAuxiliaryModelSetting('compaction', 'model');
+    const response = await this.auxiliaryModel.invoke({
+      messages: createCompactionMessages(history),
+      model: compactionModel || chat.model,
+      reasoningEffort: await this.getAuxiliaryReasoningEffort('compaction'),
+      tools: (await this.getAuxiliaryBooleanSetting('compaction', 'allowTools', false))
+        ? this.toolRegistry.snapshot().tools
+        : undefined
+    });
     const summary = response.content?.trim();
     if (!summary) {
       throw new DaemonRpcError(-32000, 'chat.compaction.empty', 'Model returned an empty compaction summary.', {
@@ -1016,7 +1027,14 @@ export class AistDaemonServer {
     };
   }
 
-  private async createModelClientForModel(model: string): Promise<ModelClient> {
+  private createAuxiliaryModelInvoker(): AuxiliaryModelInvoker {
+    return createAuxiliaryModelInvoker({
+      defaultModel: DEFAULT_MODEL,
+      createClient: (model, reasoningEffort) => this.createModelClientForModel(model, reasoningEffort)
+    });
+  }
+
+  private async createModelClientForModel(model: string, reasoningEffort?: ReasoningEffort): Promise<ModelClient> {
     if (model.startsWith('codex:')) {
       const secretStore = new FileSecretStore({ homeDir: this.homeDir, logger: this.logger });
       const authProvider = new CodexAuthSessionProvider(secretStore, {
@@ -1057,7 +1075,7 @@ export class AistDaemonServer {
       logger: this.logger,
       siteUrl: await this.getStringSetting(['openrouterAgent.siteUrl', 'siteUrl']),
       siteName: (await this.getStringSetting(['openrouterAgent.siteName', 'siteName'])) || 'aist',
-      reasoningEffort: await this.getReasoningEffort()
+      reasoningEffort: reasoningEffort || (await this.getReasoningEffort())
     });
   }
 
@@ -1069,6 +1087,7 @@ export class AistDaemonServer {
         Math.floor(await this.getNumberSetting(['openrouterAgent.maxToolIterations', 'maxToolIterations'], 0))
       ),
       streamingEnabled: await this.getBooleanSetting(['openrouterAgent.streamingEnabled', 'streamingEnabled'], false),
+      auxiliaryModelToolEnabled: await this.hasAuxiliaryToolModelSettings(),
       disabledProjectToolIds: await this.getStringArraySetting([
         'openrouterAgent.projectToolDisabledIds',
         'projectToolDisabledIds'
@@ -1206,6 +1225,113 @@ export class AistDaemonServer {
   private async getCodexServiceTier(): Promise<CodexServiceTier> {
     const value = await this.getStringSetting(['openrouterAgent.codexServiceTier', 'codexServiceTier']);
     return value === 'priority' ? 'priority' : 'auto';
+  }
+
+  private async getAuxiliaryModelSetting(id: 'compaction' | 'tool', key: 'model'): Promise<string | undefined> {
+    return this.getStringSetting([
+      `openrouterAgent.auxiliaryModels.${id}.${key}`,
+      `auxiliaryModels.${id}.${key}`,
+      id === 'compaction' ? `compaction.${key}` : `toolModel.${key}`
+    ]);
+  }
+
+  private async getAuxiliaryReasoningEffort(id: 'compaction' | 'tool'): Promise<ReasoningEffort> {
+    const value = await this.getStringSetting([
+      `openrouterAgent.auxiliaryModels.${id}.reasoningEffort`,
+      `auxiliaryModels.${id}.reasoningEffort`,
+      id === 'compaction' ? 'compaction.reasoningEffort' : 'toolModel.reasoningEffort'
+    ]);
+    return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+  }
+
+  private async getAuxiliaryBooleanSetting(
+    id: 'compaction' | 'tool',
+    key: 'allowTools',
+    fallback: boolean
+  ): Promise<boolean> {
+    return this.getBooleanSetting(
+      [
+        `openrouterAgent.auxiliaryModels.${id}.${key}`,
+        `auxiliaryModels.${id}.${key}`,
+        id === 'compaction' ? `compaction.${key}` : `toolModel.${key}`
+      ],
+      fallback
+    );
+  }
+
+  private async getAuxiliaryToolSettings(toolName: string): Promise<{
+    model?: string;
+    reasoningEffort: ReasoningEffort;
+    allowTools: boolean;
+  }> {
+    const override = await this.getAuxiliaryToolOverride(toolName);
+    if (override) {
+      return override;
+    }
+
+    return {
+      model: await this.getAuxiliaryModelSetting('tool', 'model'),
+      reasoningEffort: await this.getAuxiliaryReasoningEffort('tool'),
+      allowTools: await this.getAuxiliaryBooleanSetting('tool', 'allowTools', false)
+    };
+  }
+
+  private async hasAuxiliaryToolModelSettings(): Promise<boolean> {
+    const defaultModel = await this.getAuxiliaryModelSetting('tool', 'model');
+    if (defaultModel) {
+      return true;
+    }
+    return (await this.getAuxiliaryToolOverrides()).some((override) => Boolean(override.model));
+  }
+
+  private async getAuxiliaryToolOverride(toolName: string): Promise<
+    | {
+        model?: string;
+        reasoningEffort: ReasoningEffort;
+        allowTools: boolean;
+      }
+    | undefined
+  > {
+    return (await this.getAuxiliaryToolOverrides()).find((override) => override.toolName === toolName);
+  }
+
+  private async getAuxiliaryToolOverrides(): Promise<
+    Array<{ toolName: string; model?: string; reasoningEffort: ReasoningEffort; allowTools: boolean }>
+  > {
+    const raw = await this.getFirstConfigSetting([
+      'openrouterAgent.auxiliaryModels.tool.overrides',
+      'auxiliaryModels.tool.overrides'
+    ]);
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    const overrides: Array<{
+      toolName: string;
+      model?: string;
+      reasoningEffort: ReasoningEffort;
+      allowTools: boolean;
+    }> = [];
+    for (const item of raw) {
+      const record = isJsonObject(item) ? item : {};
+      const toolName = typeof record.toolName === 'string' ? record.toolName.trim() : '';
+      if (!toolName) {
+        continue;
+      }
+      const model = typeof record.model === 'string' && record.model.trim() ? record.model.trim() : undefined;
+      const reasoningEffort: ReasoningEffort =
+        record.reasoningEffort === 'low' || record.reasoningEffort === 'medium' || record.reasoningEffort === 'high'
+          ? record.reasoningEffort
+          : 'auto';
+      overrides.push({
+        toolName,
+        ...(model ? { model } : {}),
+        reasoningEffort,
+        allowTools: record.allowTools === true
+      });
+    }
+
+    return overrides;
   }
 
   private async getStringSetting(keys: readonly string[]): Promise<string | undefined> {

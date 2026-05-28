@@ -1,3 +1,4 @@
+import type { AuxiliaryModelInvoker } from '../../entities/model/auxiliaryModel';
 import { CODEX_RESPONSES_URL, OPENROUTER_URL } from '../../entities/model/modelDefaults';
 import { getModelRequestErrorInfo } from '../../entities/model/modelErrors';
 import type { ModelClient } from '../../entities/model/modelTransport';
@@ -64,10 +65,15 @@ export type AgentRuntimeConfigSnapshot = {
   maxToolIterations: number;
   streamingEnabled: boolean;
   disabledProjectToolIds?: readonly string[];
+  auxiliaryModelToolEnabled?: boolean;
   contextBudgets?: Partial<ContextGovernorBudgets>;
 };
 
 export type AgentRuntimeRunResult = { accepted: true; runId: string } | { accepted: false; error: RuntimeErrorInfo };
+export type AgentRuntimeAskOptions = {
+  /** Запустить модель с prompt как инструкцией, но не добавлять новый user message в чат/историю. */
+  skipUserMessage?: boolean;
+};
 
 export type AgentRuntimeTelemetryStatus = 'success' | 'error' | 'stopped';
 
@@ -172,6 +178,7 @@ export type AgentRuntimeServiceDeps = {
   chatRepository: AgentRuntimeChatRepository;
   runRepository?: AgentRuntimeRunRepository;
   modelClient: ModelClient;
+  auxiliaryModel?: AuxiliaryModelInvoker;
   toolRegistry: ToolRegistry;
   handleToolCall: AgentRuntimeToolCallHandler;
   configProvider: { getSnapshot(): MaybePromise<AgentRuntimeConfigSnapshot> };
@@ -231,8 +238,8 @@ export class AgentRuntimeService {
     this.text = { ...defaultRuntimeText, ...deps.text };
   }
 
-  async ask(chatId: string, prompt: string): Promise<AgentRuntimeRunResult> {
-    const acceptedRun = await this.acceptRun(chatId, prompt);
+  async ask(chatId: string, prompt: string, options: AgentRuntimeAskOptions = {}): Promise<AgentRuntimeRunResult> {
+    const acceptedRun = await this.acceptRun(chatId, prompt, options);
     if (!acceptedRun.accepted) {
       return acceptedRun;
     }
@@ -241,8 +248,8 @@ export class AgentRuntimeService {
     return { accepted: true, runId: acceptedRun.runId };
   }
 
-  async startAsk(chatId: string, prompt: string): Promise<AgentRuntimeRunResult> {
-    const acceptedRun = await this.acceptRun(chatId, prompt);
+  async startAsk(chatId: string, prompt: string, options: AgentRuntimeAskOptions = {}): Promise<AgentRuntimeRunResult> {
+    const acceptedRun = await this.acceptRun(chatId, prompt, options);
     if (!acceptedRun.accepted) {
       return acceptedRun;
     }
@@ -255,7 +262,8 @@ export class AgentRuntimeService {
 
   private async acceptRun(
     chatId: string,
-    prompt: string
+    prompt: string,
+    options: AgentRuntimeAskOptions
   ): Promise<{ accepted: true; runId: string; done: Promise<void> } | { accepted: false; error: RuntimeErrorInfo }> {
     const cleanPrompt = String(prompt || '').trim();
     if (!cleanPrompt) {
@@ -286,7 +294,7 @@ export class AgentRuntimeService {
     return {
       accepted: true,
       runId,
-      done: scheduleRunExecution(() => this.executeAcceptedRun(chat, runId, run, cleanPrompt))
+      done: scheduleRunExecution(() => this.executeAcceptedRun(chat, runId, run, cleanPrompt, options))
     };
   }
 
@@ -294,15 +302,19 @@ export class AgentRuntimeService {
     chat: Chat,
     runId: string,
     run: AgentRun<unknown>,
-    cleanPrompt: string
+    cleanPrompt: string,
+    options: AgentRuntimeAskOptions
   ): Promise<void> {
     let reflectionOutcome: RunReflectionOutcome = { status: 'stopped' };
     let telemetryStatus: AgentRuntimeTelemetryStatus = 'success';
     try {
-      await this.startRun(chat, runId, run, cleanPrompt);
-      const initialHistory = await this.createInitialHistory(chat, cleanPrompt);
+      await this.startRun(chat, runId, run, cleanPrompt, options);
+      const initialHistory = await this.createInitialHistory(chat, cleanPrompt, options);
       const result = await this.runLoopWithRetries(chat, initialHistory, runId, run);
-      await this.deps.chatRepository.setHistory(chat.id, result.history);
+      const resultHistory = options.skipUserMessage
+        ? removeLastSyntheticUserPrompt(result.history, cleanPrompt)
+        : result.history;
+      await this.deps.chatRepository.setHistory(chat.id, resultHistory);
       await this.deps.chatRepository.setLastAnswer(chat.id, result.answer);
       await this.appendMessage(runId, chat.id, {
         role: 'assistant',
@@ -372,8 +384,19 @@ export class AgentRuntimeService {
     return this.deps.concurrencyScope === 'chat' ? this.activeRunsByChat.has(chatId) : this.activeRunsById.size > 0;
   }
 
-  private async startRun(chat: Chat, runId: string, run: AgentRun<unknown>, prompt: string): Promise<void> {
-    this.deps.logger.info('Agent run started', { chatId: chat.id, runId, promptLength: prompt.length });
+  private async startRun(
+    chat: Chat,
+    runId: string,
+    run: AgentRun<unknown>,
+    prompt: string,
+    options: AgentRuntimeAskOptions
+  ): Promise<void> {
+    this.deps.logger.info('Agent run started', {
+      chatId: chat.id,
+      runId,
+      promptLength: prompt.length,
+      skipUserMessage: options.skipUserMessage === true
+    });
     await this.deps.chatRepository.setModelRequest(chat.id, undefined);
     await this.deps.chatRepository.setBusy(chat.id, true);
     await this.emit(runId, {
@@ -381,19 +404,25 @@ export class AgentRuntimeService {
       run: this.createRunSnapshot(runId, chat, run, 'running'),
       at: this.now()
     });
-    await this.appendMessage(runId, chat.id, { role: 'user', content: prompt });
+    if (!options.skipUserMessage) {
+      await this.appendMessage(runId, chat.id, { role: 'user', content: prompt });
+    }
     await this.setActivity(runId, chat.id, 'thinking', this.text.prepareRequest());
     run.activityStream = this.createActivityStream(chat.id, runId);
   }
 
-  private async createInitialHistory(chat: Chat, prompt: string): Promise<OpenRouterMessage[]> {
+  private async createInitialHistory(
+    chat: Chat,
+    prompt: string,
+    options: AgentRuntimeAskOptions
+  ): Promise<OpenRouterMessage[]> {
     const [editorContext, repoContextNote, memoryContextBlock, config] = await Promise.all([
       this.deps.contextProviders?.getEditorContext?.(),
       this.deps.contextProviders?.getRepoContextNote?.(prompt),
       this.deps.contextProviders?.getMemoryContextBlock?.(prompt),
       this.getConfig()
     ]);
-    const initialHistory = governModelContext({
+    const governedHistory = governModelContext({
       prompt,
       history: chat.history,
       editorContext,
@@ -401,8 +430,11 @@ export class AgentRuntimeService {
       memoryContextBlock,
       budgets: config.contextBudgets
     }).messages;
+    const initialHistory = options.skipUserMessage
+      ? removeLastSyntheticUserPrompt(governedHistory, prompt)
+      : governedHistory;
     await this.deps.chatRepository.setHistory(chat.id, initialHistory);
-    return initialHistory;
+    return governedHistory;
   }
 
   private async runLoopWithRetries(
@@ -567,7 +599,8 @@ export class AgentRuntimeService {
     const snapshot = await this.deps.toolRegistry.refresh({
       skills,
       workspaceRoot,
-      disabledProjectToolIds: config.disabledProjectToolIds || []
+      disabledProjectToolIds: config.disabledProjectToolIds || [],
+      auxiliaryModelToolEnabled: config.auxiliaryModelToolEnabled === true
     });
     return snapshot.tools;
   }
@@ -986,6 +1019,7 @@ export class AgentRuntimeService {
         : 0,
       streamingEnabled: Boolean(snapshot.streamingEnabled),
       disabledProjectToolIds: snapshot.disabledProjectToolIds || [],
+      auxiliaryModelToolEnabled: snapshot.auxiliaryModelToolEnabled === true,
       contextBudgets: snapshot.contextBudgets
     };
   }
@@ -1075,6 +1109,18 @@ export function isRetryableModelRequestError(error: unknown): boolean {
 
 function createWorkingMessages(systemPrompt: string, initialHistory: OpenRouterMessage[]): OpenRouterMessage[] {
   return [{ role: 'system', content: systemPrompt }, ...initialHistory.filter((message) => message.role !== 'system')];
+}
+
+function removeLastSyntheticUserPrompt(messages: OpenRouterMessage[], prompt: string): OpenRouterMessage[] {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+
+    if (message.role === 'user' && message.content === prompt) {
+      return [...messages.slice(0, index), ...messages.slice(index + 1)];
+    }
+  }
+
+  return messages;
 }
 
 function scheduleRunExecution(task: () => Promise<void>): Promise<void> {
