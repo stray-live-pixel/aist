@@ -23,11 +23,16 @@ AIST settings use the `openrouterAgent.*` namespace.
 | `openrouterAgent.maxContextChars`   | `12000`                | Maximum number of active-file characters attached as editor context.                  |
 | `openrouterAgent.maxToolIterations` | `0`                    | Maximum model/tool-call turns per request. `0` means no configured limit.             |
 | `openrouterAgent.reasoningEffort`   | `"auto"`               | OpenRouter reasoning effort: `auto`, `low`, `medium`, `high`.                         |
+| `openrouterAgent.useCoreRuntime`    | `false`                | Experimental VS Code bridge that stores new chats/runs in `.aist-agent`.              |
 | `openrouterAgent.language`          | `"en"`                 | Agent response language and tool-call `reason` language: `en` or `ru`.                |
 | `openrouterAgent.agentMode`         | `"default"`            | Active agent mode ID.                                                                 |
 | `openrouterAgent.agentConfigScope`  | `"workspace"`          | Where project instructions, custom modes, skills, and compaction settings are stored. |
 
 > Note: the source package may still contain older user settings. Set `openrouterAgent.language` to `en` explicitly if your workspace already has a different value.
+
+## Core runtime bridge
+
+`openrouterAgent.useCoreRuntime` is an experimental migration flag for VS Code smoke tests. When enabled, new extension chats use the core file-backed chat and run repositories under `.aist-agent/chats` and `.aist-agent/runs`, while the webview keeps the same state shape and editable diff approval UX. The default is `false`; disable the flag to return to the legacy Memento-backed runtime.
 
 ## Agent config scope
 

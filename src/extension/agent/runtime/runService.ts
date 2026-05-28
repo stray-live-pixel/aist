@@ -1,11 +1,13 @@
 import {
   type AgentRuntimeChatRepository,
   type AgentRuntimeConfigSnapshot,
+  type AgentRuntimeLogger,
+  type AgentRuntimeRunRepository,
   AgentRuntimeService,
   type AgentRuntimeTelemetryStatus,
   type AgentRuntimeToolCallHandler
 } from '../../../core/agentRuntime';
-import { ToolRunner } from '../../../core/toolRunner';
+import { ToolRunner, type ToolRunnerPreviewAdapter } from '../../../core/toolRunner';
 import type {
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
@@ -14,7 +16,7 @@ import type {
   OpenRouterTool,
   RuntimeEvent
 } from '../../../core/types';
-import type { ChatStore } from '../../chats/chatStore';
+import type { AgentChatStore } from '../../chats/chatDataStore';
 import { createChatErrorMessage } from '../../chats/errorMessages';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
@@ -46,8 +48,14 @@ import { getAgentToolRegistry } from './toolRegistry';
 import { getToolCallPermission, showApprovalSystemNotification } from './toolRunner';
 
 export type AgentRunServiceDeps = {
-  chats: ChatStore;
+  chats: AgentChatStore;
   logger: AistLogger;
+  runtimeLogger?: AgentRuntimeLogger;
+  runRepository?: AgentRuntimeRunRepository;
+  workspaceRootProvider?: { getWorkspaceRoot(): string };
+  activeEditorContextProvider?: { getEditorContext(): ReturnType<typeof getEditorContextSnapshot> };
+  previewEditProvider?: ToolRunnerPreviewAdapter;
+  notifier?: { showApprovalWait(toolName: string): void };
   sendState(): void;
   reportError(error: unknown, options?: { chatId?: string; context?: string; appendToChat?: boolean }): void;
   getSystemPrompt(): string;
@@ -75,6 +83,7 @@ export class AgentRunService {
   constructor(private readonly deps: AgentRunServiceDeps) {
     this.runtime = new AgentRuntimeService({
       chatRepository: createChatStoreRuntimeRepository(deps.chats),
+      runRepository: deps.runRepository,
       modelClient: {
         chat: deps.chat
       },
@@ -87,8 +96,8 @@ export class AgentRunService {
         getSystemPrompt: deps.getSystemPrompt
       },
       contextProviders: {
-        getEditorContext: getEditorContextSnapshot,
-        getRepoContextNote: getOptionalRepoContextNote,
+        getEditorContext: () => deps.activeEditorContextProvider?.getEditorContext() || getEditorContextSnapshot(),
+        getRepoContextNote: (prompt) => this.getOptionalRepoContextNote(prompt),
         getMemoryContextBlock: getRelevantMemoryPromptBlock
       },
       modelCatalog: {
@@ -98,12 +107,12 @@ export class AgentRunService {
         getSkills: getAgentSkills
       },
       workspaceRootProvider: {
-        getWorkspaceRoot: () => getWorkspaceFolder().uri.fsPath
+        getWorkspaceRoot: () => this.getWorkspaceRoot()
       },
       eventSink: {
         emit: (event) => this.handleRuntimeEvent(event)
       },
-      logger: deps.logger,
+      logger: deps.runtimeLogger || deps.logger,
       reportError: deps.reportError,
       createErrorMessage: createChatErrorMessage,
       text: {
@@ -178,7 +187,11 @@ export class AgentRunService {
               ? getSkillPermission(String(args.skillId || ''))
               : getToolCallPermission(toolName, args),
           requestApproval: async (request) => {
-            showApprovalSystemNotification(request.toolCall.function.name);
+            if (this.deps.notifier) {
+              this.deps.notifier.showApprovalWait(request.toolCall.function.name);
+            } else {
+              showApprovalSystemNotification(request.toolCall.function.name);
+            }
             return new Promise<ToolApprovalDecision>((resolve) => {
               run.permissionResolvers.set(request.messageId, (decision) => {
                 run.permissionResolvers.delete(request.messageId);
@@ -197,7 +210,10 @@ export class AgentRunService {
           execute: (_toolName, args) => runAgentSkill(args)
         },
         preview: {
-          prepare: previewFilesystemTool
+          prepare: async (toolName, args) => {
+            const preview = await this.deps.previewEditProvider?.prepare(toolName, args);
+            return preview || previewFilesystemTool(toolName, args);
+          }
         },
         memory: {
           add: addAgentMemory
@@ -225,52 +241,89 @@ export class AgentRunService {
   private handleRuntimeEvent(_event: RuntimeEvent): void {
     this.deps.sendState();
   }
+
+  private getWorkspaceRoot(): string {
+    return this.deps.workspaceRootProvider?.getWorkspaceRoot() || getWorkspaceFolder().uri.fsPath;
+  }
+
+  private getOptionalRepoContextNote(prompt: string): string {
+    try {
+      return getRepoVerificationContextNote(this.getWorkspaceRoot(), prompt);
+    } catch {
+      return '';
+    }
+  }
 }
 
-function createChatStoreRuntimeRepository(chats: ChatStore): AgentRuntimeChatRepository {
+type FlushableAgentChatStore = AgentChatStore & {
+  flushPendingWrites?(): Promise<void>;
+};
+
+function createChatStoreRuntimeRepository(chats: FlushableAgentChatStore): AgentRuntimeChatRepository {
   return {
     getChat: (chatId) => chats.getChat(chatId),
-    appendMessage: (chatId, message) => chats.appendMessage(chatId, message),
-    updateMessage: (chatId, messageId, patch) => chats.updateMessage(chatId, messageId, patch),
-    setBusy: (chatId, busy) => {
+    appendMessage: async (chatId, message) => {
+      const nextMessage = chats.appendMessage(chatId, message);
+      await flushPendingChatWrites(chats);
+      return nextMessage;
+    },
+    updateMessage: async (chatId, messageId, patch) => {
+      const nextMessage = chats.updateMessage(chatId, messageId, patch);
+      await flushPendingChatWrites(chats);
+      return nextMessage;
+    },
+    setBusy: async (chatId, busy) => {
       chats.setBusy(chatId, busy);
+      await flushPendingChatWrites(chats);
     },
-    setActivity: (chatId, activity, detail) => {
+    setActivity: async (chatId, activity, detail) => {
       chats.setActivity(chatId, activity, detail);
+      await flushPendingChatWrites(chats);
     },
-    setActivityDetail: (chatId, detail) => {
+    setActivityDetail: async (chatId, detail) => {
       chats.setActivityDetail(chatId, detail);
+      await flushPendingChatWrites(chats);
     },
-    setModelRequest: (chatId, modelRequest) => {
+    setModelRequest: async (chatId, modelRequest) => {
       chats.setModelRequest(chatId, modelRequest);
+      await flushPendingChatWrites(chats);
     },
-    updateModelRequest: (chatId, patch) => chats.updateModelRequest(chatId, patch),
-    setHistory: (chatId, history) => {
+    updateModelRequest: async (chatId, patch) => {
+      const modelRequest = chats.updateModelRequest(chatId, patch);
+      await flushPendingChatWrites(chats);
+      return modelRequest;
+    },
+    setHistory: async (chatId, history) => {
       chats.setHistory(chatId, history);
+      await flushPendingChatWrites(chats);
     },
-    setLastAnswer: (chatId, answer) => {
+    setLastAnswer: async (chatId, answer) => {
       chats.setLastAnswer(chatId, answer);
+      await flushPendingChatWrites(chats);
     },
-    addUsage: (chatId, usage) => chats.addUsage(chatId, usage),
-    setContext: (chatId, context) => {
+    addUsage: async (chatId, usage) => {
+      const nextUsage = chats.addUsage(chatId, usage);
+      await flushPendingChatWrites(chats);
+      return nextUsage;
+    },
+    setContext: async (chatId, context) => {
       chats.setContext(chatId, context);
+      await flushPendingChatWrites(chats);
     },
     getActivePlan: (chatId) => chats.getChat(chatId)?.activePlan,
-    setActivePlan: (chatId, activePlan) => {
+    setActivePlan: async (chatId, activePlan) => {
       chats.setActivePlan(chatId, activePlan);
+      await flushPendingChatWrites(chats);
     },
-    addReflectionCandidates: (chatId, candidates) => {
+    addReflectionCandidates: async (chatId, candidates) => {
       chats.addReflectionCandidates(chatId, candidates || []);
+      await flushPendingChatWrites(chats);
     }
   };
 }
 
-function getOptionalRepoContextNote(prompt: string): string {
-  try {
-    return getRepoVerificationContextNote(getWorkspaceFolder().uri.fsPath, prompt);
-  } catch {
-    return '';
-  }
+async function flushPendingChatWrites(chats: FlushableAgentChatStore): Promise<void> {
+  await chats.flushPendingWrites?.();
 }
 
 function toTelemetryStatus(status: AgentRuntimeTelemetryStatus) {

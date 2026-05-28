@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 
 import { AgentController } from './extension/agent/agentController';
+import { type VscodeCoreRuntimeBridge, createVscodeCoreRuntimeBridge } from './extension/agent/coreRuntime/bridge';
 import { AutonomousController } from './extension/autonomous/controller';
 import { ChatStore } from './extension/chats/chatStore';
 import { DEFAULT_MODEL } from './extension/shared/constants';
 import { createLogger } from './extension/shared/logger';
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const logger = createLogger();
   const viewContribution = getViewContribution(context, 'openrouterAgent.chats');
 
@@ -19,8 +20,9 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const configModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
-  const chats = new ChatStore(context.workspaceState, configModel);
-  const agent = new AgentController(context, chats, logger);
+  const coreRuntime = await maybeCreateCoreRuntimeBridge(context, logger, configModel);
+  const chats = coreRuntime?.chats || new ChatStore(context.workspaceState, configModel);
+  const agent = new AgentController(context, chats, logger, { coreRuntime });
   const autonomous = new AutonomousController(context, logger);
 
   logger.info('Registering WebviewViewProvider', { viewId: 'openrouterAgent.chats' });
@@ -48,6 +50,27 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {}
+
+async function maybeCreateCoreRuntimeBridge(
+  context: vscode.ExtensionContext,
+  logger: ReturnType<typeof createLogger>,
+  configModel: string
+): Promise<VscodeCoreRuntimeBridge | undefined> {
+  const enabled = vscode.workspace.getConfiguration('openrouterAgent').get<boolean>('useCoreRuntime') === true;
+  if (!enabled) {
+    return undefined;
+  }
+
+  try {
+    return await createVscodeCoreRuntimeBridge(context, logger, configModel);
+  } catch (error) {
+    logger.error('Failed to initialize VS Code core runtime bridge; falling back to legacy runtime', error);
+    void vscode.window.showWarningMessage(
+      'AIST core runtime bridge could not start, so this window is using the legacy chat runtime.'
+    );
+    return undefined;
+  }
+}
 
 function getViewContribution(context: vscode.ExtensionContext, viewId: string): unknown {
   const views = context.extension.packageJSON?.contributes?.views;

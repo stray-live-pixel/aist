@@ -23,11 +23,16 @@
 | `openrouterAgent.maxContextChars`   | `12000`                | Максимум символов активного файла, добавляемых как editor context.                             |
 | `openrouterAgent.maxToolIterations` | `0`                    | Максимум циклов model/tool-call на запрос. `0` — без настроенного лимита.                      |
 | `openrouterAgent.reasoningEffort`   | `"auto"`               | Reasoning effort для OpenRouter: `auto`, `low`, `medium`, `high`.                              |
+| `openrouterAgent.useCoreRuntime`    | `false`                | Экспериментальный VS Code bridge, который хранит новые чаты/runs в `.aist-agent`.              |
 | `openrouterAgent.language`          | `"en"`                 | Язык ответов агента и `reason` у tool calls: `en` или `ru`.                                    |
 | `openrouterAgent.agentMode`         | `"default"`            | ID активного режима агента.                                                                    |
 | `openrouterAgent.agentConfigScope`  | `"workspace"`          | Где хранятся project instructions, custom modes, skills и compaction settings.                 |
 
 > Если workspace уже содержит старую пользовательскую настройку языка, задайте `openrouterAgent.language` явно.
+
+## Core runtime bridge
+
+`openrouterAgent.useCoreRuntime` — экспериментальный флаг миграции для smoke-тестов VS Code extension. При включении новые чаты расширения используют file-backed core repositories в `.aist-agent/chats` и `.aist-agent/runs`, но webview получает прежний state shape и сохраняет editable diff approval UX. Значение по умолчанию — `false`; отключите флаг, чтобы вернуться к legacy runtime на Memento.
 
 ## Agent config scope
 

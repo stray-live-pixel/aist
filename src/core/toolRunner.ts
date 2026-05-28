@@ -11,6 +11,7 @@ import type { ToolRegistry } from './toolRegistry';
 import { buildModelToolResult } from './toolResultCompaction';
 import type {
   AgentRun,
+  ApprovalPreviewKind,
   Chat,
   ChatMessage,
   ChatPlan,
@@ -28,6 +29,7 @@ import type {
 
 export type ToolExecutionPreview = {
   preview: Record<string, unknown>;
+  approvalPreviewKind?: ApprovalPreviewKind;
   approve(): Promise<Record<string, unknown>>;
   cleanup(): Promise<void>;
 };
@@ -168,7 +170,8 @@ export class ToolRunner {
           toolMessageId: toolMessage.id,
           reason,
           args,
-          preview
+          preview,
+          previewHandle
         });
         if (!approval.approved) {
           return;
@@ -256,6 +259,7 @@ export class ToolRunner {
       reason: string;
       args: Record<string, unknown>;
       preview: Record<string, unknown> | undefined;
+      previewHandle: ToolExecutionPreview | undefined;
     }
   ): Promise<{ approved: boolean; comment?: string }> {
     if (params.preview) {
@@ -286,7 +290,7 @@ export class ToolRunner {
           toolName: params.toolCall.function.name,
           reason: params.reason,
           args: params.args,
-          previewKind: params.preview ? 'headless-diff-artifact' : 'none'
+          previewKind: params.preview ? params.previewHandle?.approvalPreviewKind || 'headless-diff-artifact' : 'none'
         })
       : undefined;
     if (params.runId && approval) {

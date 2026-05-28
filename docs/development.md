@@ -152,6 +152,10 @@ VSCODE_CLI=code-insiders npm run install:extension
 
 Run `aist: Show Logs` to open extension logs. Useful events include chat creation, webview resolution, model refresh, agent run start/finish, tool execution, Codex auth state, and compaction failures.
 
+## VS Code Core Runtime Bridge
+
+For migration smoke tests, set `"openrouterAgent.useCoreRuntime": true` in a workspace. The extension will keep the current sidebar/editor webview UX but route new chats through the core file-backed chat and run repositories in `.aist-agent/chats` and `.aist-agent/runs`. Keep the flag off for release verification unless the test explicitly targets the bridge; disabling it returns to the legacy Memento-backed runtime.
+
 ## UI theme integration
 
 The webview uses VS Code theme variables such as:

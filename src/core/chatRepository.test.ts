@@ -157,6 +157,23 @@ describe('ChatRepository', () => {
     expect(fs.readFileSync(path.join(chatRoot, 'history.jsonl'), 'utf8')).toBe('');
   });
 
+  it('deletes chat storage and rebuilds the index', async () => {
+    const workspaceRoot = createWorkspaceRoot();
+    const repository = new ChatRepository({
+      workspaceRoot,
+      idFactory: createIdFactory(['chat-delete', 'chat-keep']),
+      now: () => 4500
+    });
+    const deleted = await repository.create({ model: 'model-a', title: 'Delete me' });
+    const kept = await repository.create({ model: 'model-b', title: 'Keep me' });
+
+    await repository.delete(deleted.id);
+
+    expect(await repository.get(deleted.id)).toBeUndefined();
+    expect(await repository.list()).toEqual([expect.objectContaining({ id: kept.id })]);
+    expect(fs.existsSync(path.join(workspaceChatsDir(workspaceRoot), deleted.id))).toBe(false);
+  });
+
   it('supports runtime message, history, state and usage mutations for file-backed runs', async () => {
     const workspaceRoot = createWorkspaceRoot();
     let now = 5000;

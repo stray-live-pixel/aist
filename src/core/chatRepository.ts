@@ -218,6 +218,12 @@ export class ChatRepository {
     return this.requireChat(meta.id);
   }
 
+  async delete(chatId: string): Promise<void> {
+    const safeChatId = assertRepositoryId(chatId, 'chat');
+    await fs.promises.rm(this.chatPath(safeChatId), { recursive: true, force: true });
+    await this.rebuildIndex();
+  }
+
   async updateState(chatId: string, patch: ChatStatePatch): Promise<Chat> {
     const meta = await this.requireMeta(chatId);
     const currentState = await this.readState(meta.id);

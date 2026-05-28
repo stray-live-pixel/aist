@@ -7,7 +7,7 @@ import type {
   OpenRouterTool
 } from '../../core/types';
 import { createVscodeConfigStore, createVscodeSecretStore } from '../adapters/vscodeStores';
-import { ChatStore } from '../chats/chatStore';
+import type { AgentChatStore } from '../chats/chatDataStore';
 import { createChatErrorMessage } from '../chats/errorMessages';
 import { CodexClient } from '../codex/client';
 import { OpenRouterClient } from '../openrouter/client';
@@ -19,6 +19,7 @@ import { initializeAgentConfigStore } from './config/agentConfigStore';
 import { getCompactionSettings } from './config/compaction';
 import { getAgentSettingsSnapshot, getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
+import type { VscodeCoreRuntimeBridge } from './coreRuntime/bridge';
 import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
 import { createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory } from './runtime/compaction';
@@ -52,22 +53,29 @@ export class AgentController {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly chats: ChatStore,
-    private readonly logger: AistLogger
+    private readonly chats: AgentChatStore,
+    private readonly logger: AistLogger,
+    private readonly options: { coreRuntime?: VscodeCoreRuntimeBridge } = {}
   ) {
     initializeAgentConfigStore(context);
     initializeTelemetryStore({
-      workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      workspaceRoot: options.coreRuntime?.workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       fallbackRoot: (context.storageUri || context.globalStorageUri).fsPath
     });
-    const configStore = createVscodeConfigStore();
-    const secretStore = createVscodeSecretStore(context.secrets);
+    const configStore = options.coreRuntime?.configStore || createVscodeConfigStore();
+    const secretStore = options.coreRuntime?.secretStore || createVscodeSecretStore(context.secrets);
     this.openRouterClient = new OpenRouterClient(configStore, secretStore, logger);
     this.codexClient = new CodexClient(secretStore, logger);
     this.modelCatalog = new AgentModelCatalog(this.openRouterClient, this.codexClient, logger, () => this.sendState());
     this.runService = new AgentRunService({
       chats: this.chats,
       logger: this.logger,
+      runRepository: options.coreRuntime?.runRepository,
+      workspaceRootProvider: options.coreRuntime?.workspaceRootProvider,
+      activeEditorContextProvider: options.coreRuntime?.activeEditorContextProvider,
+      previewEditProvider: options.coreRuntime?.previewEditProvider,
+      notifier: options.coreRuntime?.notifier,
+      runtimeLogger: options.coreRuntime?.runtimeLogger,
       sendState: () => this.sendState(),
       reportError: (error, options) => this.reportError(error, options),
       getSystemPrompt: () => this.getSystemPrompt(),
@@ -78,7 +86,8 @@ export class AgentController {
     void this.refreshCodexAuthState();
     this.logger.info('AgentController initialized', {
       activeChatId: this.chats.getActiveChat().id,
-      chatCount: this.chats.getSummaries().length
+      chatCount: this.chats.getSummaries().length,
+      runtimeMode: options.coreRuntime ? 'core' : 'legacy'
     });
   }
 
@@ -199,7 +208,11 @@ export class AgentController {
     void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
     this.sendState();
     this.postSidebarPage();
-    vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
+    if (this.options.coreRuntime?.notifier) {
+      this.options.coreRuntime.notifier.setStatus(t('status.newChatCreated'), 1800);
+    } else {
+      vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
+    }
   }
 
   async editSelection(): Promise<void> {

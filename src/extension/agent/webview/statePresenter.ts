@@ -1,5 +1,5 @@
 import type { OpenRouterModelOption } from '../../../core/types';
-import type { ChatStore } from '../../chats/chatStore';
+import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
 import { getWorkspaceName } from '../../shared/workspace';
 import { getAgentSkills } from '../../skills/skills';
@@ -19,14 +19,14 @@ import { mergeModels } from '../models/models';
 import { getTelemetryDashboardState } from '../runtime/telemetry';
 import { getAgentToolRegistry } from '../runtime/toolRegistry';
 import { getAgentTools } from '../runtime/tools';
-import { createEmptyUsage, getChatContextEstimate } from '../runtime/usage';
 import type { WebviewSurface } from '../types';
+import { mapChatToWebviewActiveChat } from './stateMapping';
 
 export type SendAgentStateParams = {
   /** Версия берётся из ExtensionContext.packageJSON: это установленный VSIX, а не исходный package.json в workspace. */
   extensionVersion: string;
   surfaces: WebviewSurface[];
-  chats: ChatStore;
+  chats: AgentChatStore;
   logger: AistLogger;
   modelOptions: OpenRouterModelOption[];
   codexAuthenticated: boolean;
@@ -113,27 +113,17 @@ type StateContext = SendAgentStateParams & {
   projectToolDiagnostics: unknown;
 };
 
-function omitHistory<T extends { history?: unknown }>(chat: T): Omit<T, 'history'> {
-  const { history: _history, ...rest } = chat;
-  return rest;
-}
-
 function postStateToSurface(surface: WebviewSurface, context: StateContext): void {
   const activeChat = context.chats.getChat(surface.getChatId()) || context.chats.getActiveChat();
   const models = mergeModels(context.modelOptions, context.configuredModel, activeChat.model);
   const activeModel = models.find((model) => model.id === activeChat.model);
-  const chatContext =
-    activeChat.context ||
-    getChatContextEstimate(activeChat.history, context.getSystemPrompt(), activeModel, activeChat.usage);
   const previousChat = activeChat.previousChatId ? context.chats.getChat(activeChat.previousChatId) : undefined;
-  const { history: _history, ...webviewChat } = activeChat;
-  const webviewActiveChat = {
-    ...webviewChat,
-    previousChat: previousChat ? omitHistory(previousChat) : undefined,
-    context: chatContext,
-    contextLength: chatContext.tokens,
-    usage: activeChat.usage || createEmptyUsage()
-  };
+  const webviewActiveChat = mapChatToWebviewActiveChat({
+    chat: activeChat,
+    previousChat,
+    systemPrompt: context.getSystemPrompt(),
+    activeModel
+  });
 
   const stateMessage = {
     type: 'state',

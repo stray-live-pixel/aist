@@ -1,9 +1,9 @@
-import type { ChatStore } from '../../../chats/chatStore';
+import type { AgentChatStore } from '../../../chats/chatDataStore';
 import type { AistLogger } from '../../../shared/logger';
 import type { ToolApprovalDecision, WebviewSurface } from '../../types';
 
 export type AgentWebviewMessageDeps = {
-  chats: ChatStore;
+  chats: AgentChatStore;
   logger: AistLogger;
   getSidebarPage(): 'chat' | 'settings';
   setSidebarPage(page: 'chat' | 'settings'): void;

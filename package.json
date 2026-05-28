@@ -208,6 +208,11 @@
           "default": false,
           "description": "Stream model responses while they are generated. Disabled by default because non-streaming requests are usually more resilient to interrupted SSE connections."
         },
+        "openrouterAgent.useCoreRuntime": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Experimental migration bridge: when enabled, new VS Code chats use file-backed core chat/run repositories in `.aist-agent` while keeping the current webview UX. Disable to return to the legacy Memento-backed runtime."
+        },
         "openrouterAgent.language": {
           "type": "string",
           "enum": [

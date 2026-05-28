@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { ChatStore } from '../../chats/chatStore';
+import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
 import { getWebviewHtml } from '../../shared/webviewHtml';
 import type { WebviewMessage, WebviewSurface } from '../types';
@@ -8,7 +8,7 @@ import { createSidebarSurface } from './surfaces';
 
 export type AgentWebviewHostDeps = {
   context: vscode.ExtensionContext;
-  chats: ChatStore;
+  chats: AgentChatStore;
   logger: AistLogger;
   getSidebarChatId(): string | undefined;
   setSidebarChatId(chatId: string): void;
