@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { AgentController } from './extension/agent/agentController';
 import { type VscodeCoreRuntimeBridge, createVscodeCoreRuntimeBridge } from './extension/agent/coreRuntime/bridge';
+import { type VscodeDaemonRuntimeBridge, createVscodeDaemonRuntimeBridge } from './extension/agent/daemon/bridge';
 import { AutonomousController } from './extension/autonomous/controller';
 import { ChatStore } from './extension/chats/chatStore';
 import { DEFAULT_MODEL } from './extension/shared/constants';
@@ -20,9 +21,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   const configModel = vscode.workspace.getConfiguration('openrouterAgent').get<string>('model') || DEFAULT_MODEL;
-  const coreRuntime = await maybeCreateCoreRuntimeBridge(context, logger, configModel);
-  const chats = coreRuntime?.chats || new ChatStore(context.workspaceState, configModel);
-  const agent = new AgentController(context, chats, logger, { coreRuntime });
+  const daemonRuntime = await maybeCreateDaemonRuntimeBridge(context, logger, configModel);
+  const coreRuntime = daemonRuntime ? undefined : await maybeCreateCoreRuntimeBridge(context, logger, configModel);
+  const chats = daemonRuntime?.chats || coreRuntime?.chats || new ChatStore(context.workspaceState, configModel);
+  const agent = new AgentController(context, chats, logger, { coreRuntime, daemonRuntime });
   const autonomous = new AutonomousController(context, logger);
 
   logger.info('Registering WebviewViewProvider', { viewId: 'openrouterAgent.chats' });
@@ -67,6 +69,27 @@ async function maybeCreateCoreRuntimeBridge(
     logger.error('Failed to initialize VS Code core runtime bridge; falling back to legacy runtime', error);
     void vscode.window.showWarningMessage(
       'AIST core runtime bridge could not start, so this window is using the legacy chat runtime.'
+    );
+    return undefined;
+  }
+}
+
+async function maybeCreateDaemonRuntimeBridge(
+  context: vscode.ExtensionContext,
+  logger: ReturnType<typeof createLogger>,
+  configModel: string
+): Promise<VscodeDaemonRuntimeBridge | undefined> {
+  const enabled = vscode.workspace.getConfiguration('openrouterAgent').get<boolean>('useDaemonRuntime') === true;
+  if (!enabled) {
+    return undefined;
+  }
+
+  try {
+    return await createVscodeDaemonRuntimeBridge(context, logger, configModel);
+  } catch (error) {
+    logger.error('Failed to initialize VS Code daemon runtime bridge; falling back to in-extension runtime', error);
+    void vscode.window.showWarningMessage(
+      'AIST daemon is unavailable, so this window is using the in-extension chat runtime. Disable openrouterAgent.useDaemonRuntime or retry after fixing daemon diagnostics.'
     );
     return undefined;
   }

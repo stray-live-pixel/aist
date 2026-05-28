@@ -213,6 +213,16 @@
           "default": false,
           "markdownDescription": "Experimental migration bridge: when enabled, new VS Code chats use file-backed core chat/run repositories in `.aist-agent` while keeping the current webview UX. Disable to return to the legacy Memento-backed runtime."
         },
+        "openrouterAgent.useDaemonRuntime": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Experimental thin-client mode: when enabled, the VS Code extension starts or connects to `aist daemon --workspace <root>` and uses it as the chat/runtime backend. Disable to use the in-extension runtime."
+        },
+        "openrouterAgent.daemonBinaryPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to an `aist` executable or bundled CLI JavaScript file used by daemon mode. Empty means the extension searches bundled, workspace-local, and PATH candidates."
+        },
         "openrouterAgent.language": {
           "type": "string",
           "enum": [

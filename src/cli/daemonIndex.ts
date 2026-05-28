@@ -12,6 +12,9 @@ export type {
   DaemonChat,
   DaemonChatAskParams,
   DaemonChatAskResult,
+  DaemonClientCapabilities,
+  DaemonClientRequestMap,
+  DaemonClientRequestMethod,
   DaemonEvent,
   DaemonState
 } from './daemonProtocol';

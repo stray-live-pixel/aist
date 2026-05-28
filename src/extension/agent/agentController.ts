@@ -20,6 +20,7 @@ import { getCompactionSettings } from './config/compaction';
 import { getAgentSettingsSnapshot, getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import type { VscodeCoreRuntimeBridge } from './coreRuntime/bridge';
+import type { VscodeDaemonRuntimeBridge } from './daemon/bridge';
 import { AgentModelCatalog } from './models/catalog';
 import { isCodexModel } from './models/models';
 import { createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory } from './runtime/compaction';
@@ -49,17 +50,21 @@ export class AgentController {
   private readonly codexClient: CodexClient;
   private readonly modelCatalog: AgentModelCatalog;
   private readonly runService: AgentRunService;
+  private daemonModelOptions: ReturnType<AgentModelCatalog['getOptions']> | undefined;
   private codexAuthenticated = false;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly chats: AgentChatStore,
     private readonly logger: AistLogger,
-    private readonly options: { coreRuntime?: VscodeCoreRuntimeBridge } = {}
+    private readonly options: { coreRuntime?: VscodeCoreRuntimeBridge; daemonRuntime?: VscodeDaemonRuntimeBridge } = {}
   ) {
     initializeAgentConfigStore(context);
     initializeTelemetryStore({
-      workspaceRoot: options.coreRuntime?.workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      workspaceRoot:
+        options.daemonRuntime?.workspaceRoot ||
+        options.coreRuntime?.workspaceRoot ||
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       fallbackRoot: (context.storageUri || context.globalStorageUri).fsPath
     });
     const configStore = options.coreRuntime?.configStore || createVscodeConfigStore();
@@ -87,7 +92,7 @@ export class AgentController {
     this.logger.info('AgentController initialized', {
       activeChatId: this.chats.getActiveChat().id,
       chatCount: this.chats.getSummaries().length,
-      runtimeMode: options.coreRuntime ? 'core' : 'legacy'
+      runtimeMode: options.daemonRuntime ? 'daemon' : options.coreRuntime ? 'core' : 'legacy'
     });
   }
 
@@ -191,10 +196,12 @@ export class AgentController {
     };
   }
 
-  createChat(): void {
+  async createChat(): Promise<void> {
     this.logger.info('newChat command received');
 
-    const chat = this.chats.createChat(getConfiguredModel());
+    const chat = this.options.daemonRuntime
+      ? await this.options.daemonRuntime.createChat(getConfiguredModel())
+      : this.chats.createChat(getConfiguredModel());
     this.sidebarChatId = chat.id;
     this.sidebarPage = 'chat';
 
@@ -216,6 +223,11 @@ export class AgentController {
   }
 
   async editSelection(): Promise<void> {
+    if (this.options.daemonRuntime) {
+      vscode.window.showWarningMessage('Edit Selection is not available in AIST daemon mode yet.');
+      return;
+    }
+
     try {
       await runEditSelectionCommand({
         chats: this.chats,
@@ -230,6 +242,12 @@ export class AgentController {
   }
 
   private async ask(chatId: string, prompt: string): Promise<void> {
+    if (this.options.daemonRuntime) {
+      await this.options.daemonRuntime.ask(chatId, prompt);
+      this.sendState();
+      return;
+    }
+
     try {
       await this.runService.ask(chatId, prompt);
       await this.compactChatIfNeeded(chatId);
@@ -243,7 +261,13 @@ export class AgentController {
     try {
       await this.handleWebviewMessageUnsafe(surface, message);
     } catch (error) {
-      this.runService.stop();
+      if (this.options.daemonRuntime) {
+        await this.options.daemonRuntime
+          .stop()
+          .catch((stopError) => this.logger.error('Failed to stop daemon run after webview error', stopError));
+      } else {
+        this.runService.stop();
+      }
       this.reportError(error, { chatId: surface.getChatId(), context: `webview command: ${message.type}` });
       this.logger.error('Unhandled webview message error', error);
       this.sendState(surface);
@@ -251,6 +275,10 @@ export class AgentController {
   }
 
   private async handleWebviewMessageUnsafe(surface: WebviewSurface, message: WebviewMessage): Promise<void> {
+    if (this.options.daemonRuntime && (await this.handleDaemonWebviewMessage(surface, message))) {
+      return;
+    }
+
     await handleAgentWebviewMessage(surface, message, {
       chats: this.chats,
       logger: this.logger,
@@ -279,6 +307,76 @@ export class AgentController {
     });
   }
 
+  private async handleDaemonWebviewMessage(surface: WebviewSurface, message: WebviewMessage): Promise<boolean> {
+    const daemon = this.options.daemonRuntime;
+    if (!daemon) {
+      return false;
+    }
+
+    switch (message.type) {
+      case 'ask':
+        await this.ask(surface.getChatId(), message.prompt);
+        return true;
+      case 'newChat': {
+        const chat = await daemon.createChat(getConfiguredModel());
+        surface.setChatId(chat.id);
+        this.sidebarPage = 'chat';
+        this.sendState();
+        if (surface.kind === 'sidebar') {
+          this.postPage(surface, 'chat');
+        }
+        return true;
+      }
+      case 'deleteChat': {
+        const nextChat = await daemon.deleteChat(message.chatId, getConfiguredModel());
+        this.retargetDeletedChat(message.chatId, nextChat.id);
+        this.sendState();
+        return true;
+      }
+      case 'setModel': {
+        const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
+        await daemon.setModel(chat.id, message.model);
+        await vscode.workspace
+          .getConfiguration('openrouterAgent')
+          .update('model', message.model, vscode.ConfigurationTarget.Workspace);
+        this.sendState();
+        return true;
+      }
+      case 'clear': {
+        const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
+        await daemon.clearChat(chat.id);
+        this.sendState(surface);
+        return true;
+      }
+      case 'compactChat': {
+        const chatId = message.chatId || surface.getChatId();
+        const chat = await daemon.compactChat(chatId, 'manual');
+        surface.setChatId(chat.id);
+        this.sendState();
+        return true;
+      }
+      case 'resolveToolCall':
+        await daemon.resolveToolCall(message.messageId, {
+          approved: message.decision === 'approve',
+          continueAfterDeny: message.decision === 'deny-continue',
+          comment: message.comment?.trim() || undefined,
+          rememberGlobal: message.rememberGlobal?.trim() || undefined,
+          rememberProject: message.rememberProject?.trim() || undefined
+        });
+        return true;
+      case 'stop':
+        await daemon.stop();
+        this.sendState();
+        return true;
+      case 'duplicateChat':
+        vscode.window.setStatusBarMessage('Duplicate chat is not available in AIST daemon mode yet.', 2400);
+        this.sendState(surface);
+        return true;
+      default:
+        return false;
+    }
+  }
+
   private async compactChatIfNeeded(chatId: string): Promise<void> {
     const settings = getCompactionSettings();
     if (!settings.enabled) {
@@ -300,6 +398,10 @@ export class AgentController {
   }
 
   private async compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }> {
+    if (this.options.daemonRuntime) {
+      return this.options.daemonRuntime.compactChat(chatId, trigger);
+    }
+
     const source = this.chats.getChat(chatId) || this.chats.getActiveChat();
     if (source.busy) {
       throw new Error('Cannot compact a chat while it is running.');
@@ -390,7 +492,7 @@ export class AgentController {
     const content = formatChatErrorMessage(error, options.context);
     const chat = options.chatId ? this.chats.getChat(options.chatId) : this.chats.getActiveChat();
 
-    if (options.appendToChat !== false && chat) {
+    if (options.appendToChat !== false && !this.options.daemonRuntime && chat) {
       this.chats.appendMessage(chat.id, createChatErrorMessage(content));
     }
 
@@ -509,13 +611,19 @@ export class AgentController {
       surfaces: targetSurface ? [targetSurface] : this.getSurfaces(),
       chats: this.chats,
       logger: this.logger,
-      modelOptions: this.modelCatalog.getOptions(),
+      modelOptions: this.daemonModelOptions || this.modelCatalog.getOptions(),
       codexAuthenticated: this.codexAuthenticated,
       getSystemPrompt: () => this.getSystemPrompt()
     });
   }
 
   private async refreshModels(force = false): Promise<void> {
+    if (this.options.daemonRuntime) {
+      this.daemonModelOptions = [...(await this.options.daemonRuntime.refreshModels(force))];
+      this.sendState();
+      return;
+    }
+
     await this.modelCatalog.refresh(force);
   }
 }

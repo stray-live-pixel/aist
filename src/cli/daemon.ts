@@ -21,6 +21,7 @@ import {
   FileSecretStore,
   OPENROUTER_API_KEY_SECRET_KEY
 } from '../core/config';
+import type { EditorContextInput } from '../core/contextGovernor';
 import { createNodeFilesystemToolRunner } from '../core/filesystemTools';
 import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/memory';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/modelDefaults';
@@ -29,9 +30,10 @@ import { OpenRouterTransport } from '../core/openrouterTransport';
 import { type AgentLanguage, getSystemPrompt } from '../core/prompts';
 import { getRepoVerificationContextNote } from '../core/repoMap';
 import { RunRepository } from '../core/runRepository';
+import { type AgentSkill, runNodeSkillTool } from '../core/skills';
 import { globalSettingsFile, safeMkdir, workspaceAistRoot, workspaceSettingsFile } from '../core/storage';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/toolRegistry';
-import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/toolRunner';
+import { type ToolExecutionPreview, ToolRunner, type ToolRunnerExecutionAdapter } from '../core/toolRunner';
 import type {
   Chat,
   CodexServiceTier,
@@ -53,12 +55,17 @@ import {
   type DaemonApprovalResolveResult,
   type DaemonChat,
   type DaemonChatAskResult,
+  type DaemonChatClearResult,
   type DaemonChatCompactResult,
   type DaemonChatCreateResult,
+  type DaemonChatDeleteResult,
   type DaemonChatGetResult,
   type DaemonChatListResult,
   type DaemonChatSetModelResult,
   type DaemonChatStopResult,
+  type DaemonClientCapabilities,
+  type DaemonClientCapabilitiesResult,
+  type DaemonClientPreviewPrepareResult,
   type DaemonConfigGetResult,
   type DaemonConfigUpdateResult,
   type DaemonEvent,
@@ -69,6 +76,7 @@ import {
   type JsonRpcErrorObject,
   type JsonRpcId,
   type JsonRpcRequest,
+  type JsonRpcResponse,
   getDaemonSocketPath
 } from './daemonProtocol';
 
@@ -89,6 +97,15 @@ type DaemonConnection = {
   readonly socket: net.Socket;
   buffer: string;
   subscribed: boolean;
+  capabilities: DaemonClientCapabilities;
+  pendingClientRequests: Map<
+    string,
+    {
+      resolve(value: unknown): void;
+      reject(error: unknown): void;
+      timeout: NodeJS.Timeout;
+    }
+  >;
 };
 
 type PendingApproval = {
@@ -142,6 +159,8 @@ export class AistDaemonServer {
   private server: net.Server | undefined;
   private activeRun: DaemonActiveRun | null = null;
   private startingRun = false;
+  private nextClientRequestId = 1;
+  private cachedToolPermissions: Record<string, ToolPermissionMode> = {};
 
   constructor(private readonly options: AistDaemonServerOptions) {
     this.workspaceRoot = path.resolve(options.workspaceRoot);
@@ -222,12 +241,19 @@ export class AistDaemonServer {
   }
 
   private acceptConnection(socket: net.Socket): void {
-    const connection: DaemonConnection = { socket, buffer: '', subscribed: false };
+    const connection: DaemonConnection = {
+      socket,
+      buffer: '',
+      subscribed: false,
+      capabilities: {},
+      pendingClientRequests: new Map()
+    };
     this.connections.add(connection);
     socket.setEncoding('utf8');
     socket.on('data', (chunk) => this.handleConnectionData(connection, chunk));
     socket.on('error', (error) => this.logger.warn('Daemon client socket error', sanitizeLogDetails(error)));
     socket.on('close', () => {
+      this.rejectPendingClientRequests(connection, new Error('Daemon client disconnected.'));
       this.connections.delete(connection);
     });
   }
@@ -249,13 +275,20 @@ export class AistDaemonServer {
   }
 
   private async handleConnectionLine(connection: DaemonConnection, line: string): Promise<void> {
-    let request: JsonRpcRequest;
+    let message: unknown;
     try {
-      request = JSON.parse(line) as JsonRpcRequest;
+      message = JSON.parse(line) as unknown;
     } catch {
       this.sendError(connection, null, createJsonRpcError(-32700, 'parse.error', 'Parse error.'));
       return;
     }
+
+    if (isJsonRpcResponse(message)) {
+      this.handleClientResponse(connection, message);
+      return;
+    }
+
+    const request = message as JsonRpcRequest;
 
     const id = request.id ?? null;
     if (!isValidJsonRpcRequest(request)) {
@@ -289,6 +322,8 @@ export class AistDaemonServer {
         return this.eventsSubscribe(connection, true);
       case 'events.unsubscribe':
         return this.eventsSubscribe(connection, false);
+      case 'client.capabilities':
+        return this.clientCapabilities(connection, params);
       case 'chat.create':
         return this.chatCreate(params);
       case 'chat.list':
@@ -299,6 +334,10 @@ export class AistDaemonServer {
         return this.chatAsk(params);
       case 'chat.stop':
         return this.chatStop(params);
+      case 'chat.delete':
+        return this.chatDelete(params);
+      case 'chat.clear':
+        return this.chatClear(params);
       case 'chat.setModel':
         return this.chatSetModel(params);
       case 'chat.compact':
@@ -338,6 +377,24 @@ export class AistDaemonServer {
     return {
       operationId: this.idFactory(),
       subscribed
+    };
+  }
+
+  private async clientCapabilities(
+    connection: DaemonConnection,
+    params: unknown
+  ): Promise<DaemonClientCapabilitiesResult> {
+    const input = asOptionalRecord(params);
+    const capabilitiesInput = asOptionalRecord(input.capabilities);
+    connection.capabilities = {
+      activeEditorContext: capabilitiesInput.activeEditorContext === true,
+      notifications: capabilitiesInput.notifications === true,
+      openWorkspaceFile: capabilitiesInput.openWorkspaceFile === true,
+      vscodeEditableDiffPreview: capabilitiesInput.vscodeEditableDiffPreview === true
+    };
+    return {
+      operationId: this.idFactory(),
+      capabilities: connection.capabilities
     };
   }
 
@@ -414,6 +471,39 @@ export class AistDaemonServer {
       operationId: this.idFactory(),
       stopped,
       runId
+    };
+  }
+
+  private async chatDelete(params: unknown): Promise<DaemonChatDeleteResult> {
+    const input = requireRecord(params, 'chat.delete params');
+    const chatId = requireString(input, 'chatId');
+    const chat = await this.requireChat(chatId);
+    if (chat.busy || this.activeRun?.chatId === chat.id) {
+      throw this.createBusyError();
+    }
+
+    await this.chatRepository.delete(chat.id);
+    const nextChatId = (await this.chatRepository.list())[0]?.id;
+    await this.broadcastStateChanged('chat.delete');
+    return {
+      operationId: this.idFactory(),
+      deleted: true,
+      nextChatId
+    };
+  }
+
+  private async chatClear(params: unknown): Promise<DaemonChatClearResult> {
+    const input = requireRecord(params, 'chat.clear params');
+    const chat = await this.requireChat(requireString(input, 'chatId'));
+    if (chat.busy || this.activeRun?.chatId === chat.id) {
+      throw this.createBusyError();
+    }
+
+    const cleared = await this.chatRepository.clear(chat.id);
+    await this.broadcastStateChanged('chat.clear');
+    return {
+      operationId: this.idFactory(),
+      chat: toDaemonChat(cleared)
     };
   }
 
@@ -616,6 +706,7 @@ export class AistDaemonServer {
         getSystemPrompt: async () => getSystemPrompt({ language: await this.getLanguage() })
       },
       contextProviders: {
+        getEditorContext: () => this.getClientEditorContext(),
         getRepoContextNote: (inputPrompt) => getRepoVerificationContextNote(this.workspaceRoot, inputPrompt),
         getMemoryContextBlock: (inputPrompt) => getRelevantMemoryPromptBlock(this.memoryStore, inputPrompt)
       },
@@ -623,7 +714,7 @@ export class AistDaemonServer {
         getOption: getDaemonModelOption
       },
       skillProvider: {
-        getSkills: () => []
+        getSkills: () => this.getConfiguredSkills()
       },
       workspaceRootProvider: {
         getWorkspaceRoot: () => this.workspaceRoot
@@ -654,8 +745,12 @@ export class AistDaemonServer {
         registry: this.toolRegistry,
         context: params.context,
         approvalService: {
-          getPermission: (toolName) => getDaemonToolPermission(toolName),
+          getPermission: (toolName) => this.getDaemonToolPermission(toolName),
           requestApproval: async (request) => {
+            void this.sendClientRequest('notifications', 'client.notification', {
+              level: 'info',
+              message: `AIST is waiting for approval for ${request.toolCall.function.name}.`
+            }).catch((error) => this.logger.warn('Failed to notify daemon client about approval', error));
             return new Promise<ToolApprovalDecision>((resolve) => {
               params.run.permissionResolvers.set(request.messageId, (decision) => {
                 params.run.permissionResolvers.delete(request.messageId);
@@ -672,6 +767,17 @@ export class AistDaemonServer {
         },
         projectTools: {
           execute: (toolName, args) => this.toolRegistry.runProjectTool(toolName, args, this.workspaceRoot)
+        },
+        skills: {
+          execute: async (_toolName, args) =>
+            runNodeSkillTool({
+              skills: await this.getConfiguredSkills(),
+              workspaceRoot: this.workspaceRoot,
+              args
+            })
+        },
+        preview: {
+          prepare: (toolName, args) => this.prepareClientPreview(toolName, args)
         },
         memory: {
           add: (candidate) => this.memoryStore.add(candidate)
@@ -849,6 +955,7 @@ export class AistDaemonServer {
   }
 
   private async getRuntimeConfig(): Promise<AgentRuntimeConfigSnapshot> {
+    this.cachedToolPermissions = await this.getToolPermissionsSetting();
     return {
       maxToolIterations: Math.max(
         0,
@@ -860,6 +967,123 @@ export class AistDaemonServer {
         'projectToolDisabledIds'
       ])
     };
+  }
+
+  private async getClientEditorContext(): Promise<EditorContextInput | undefined> {
+    const context = await this.sendClientRequest('activeEditorContext', 'client.activeEditorContext', undefined).catch(
+      (error) => {
+        this.logger.warn('Failed to read active editor context from daemon client', error);
+        return undefined;
+      }
+    );
+
+    return isEditorContextInput(context) ? context : undefined;
+  }
+
+  private async prepareClientPreview(
+    toolName: string,
+    args: Record<string, unknown>
+  ): Promise<ToolExecutionPreview | undefined> {
+    const previewId = this.idFactory();
+    const prepared = await this.sendClientRequest<DaemonClientPreviewPrepareResult>(
+      'vscodeEditableDiffPreview',
+      'client.previewEdit.prepare',
+      {
+        previewId,
+        toolName,
+        args: args as JsonObject
+      }
+    ).catch((error) => {
+      this.logger.warn('Failed to prepare VS Code editable diff preview', error);
+      return undefined;
+    });
+
+    if (!prepared?.preview) {
+      return undefined;
+    }
+
+    return {
+      preview: prepared.preview,
+      approvalPreviewKind: 'vscode-editable-diff',
+      approve: async () => {
+        const result = await this.sendClientRequest<JsonObject>(
+          'vscodeEditableDiffPreview',
+          'client.previewEdit.approve',
+          { previewId }
+        );
+        return result || { ok: true };
+      },
+      cleanup: async () => {
+        await this.sendClientRequest('vscodeEditableDiffPreview', 'client.previewEdit.cleanup', {
+          previewId
+        }).catch((error) => this.logger.warn('Failed to cleanup VS Code editable diff preview', error));
+      }
+    };
+  }
+
+  private sendClientRequest<T = unknown>(
+    capability: keyof DaemonClientCapabilities,
+    method: string,
+    params: unknown
+  ): Promise<T | undefined> {
+    const connection = [...this.connections].find(
+      (item) => item.capabilities[capability] === true && !item.socket.destroyed
+    );
+    if (!connection) {
+      return Promise.resolve(undefined);
+    }
+
+    const id = `server-${this.nextClientRequestId++}`;
+    const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params });
+    return new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        connection.pendingClientRequests.delete(id);
+        reject(new Error(`Timed out waiting for daemon client method: ${method}`));
+      }, 60000);
+      timeout.unref();
+      connection.pendingClientRequests.set(id, {
+        resolve: (value) => resolve(value as T),
+        reject,
+        timeout
+      });
+      connection.socket.write(`${payload}\n`, (error) => {
+        if (!error) {
+          return;
+        }
+
+        clearTimeout(timeout);
+        connection.pendingClientRequests.delete(id);
+        reject(error);
+      });
+    });
+  }
+
+  private handleClientResponse(connection: DaemonConnection, response: JsonRpcResponse): void {
+    if (typeof response.id !== 'string') {
+      return;
+    }
+
+    const pending = connection.pendingClientRequests.get(response.id);
+    if (!pending) {
+      return;
+    }
+
+    clearTimeout(pending.timeout);
+    connection.pendingClientRequests.delete(response.id);
+    if (response.error) {
+      pending.reject(new DaemonRpcError(response.error.code, 'client.requestFailed', response.error.message));
+      return;
+    }
+
+    pending.resolve(response.result);
+  }
+
+  private rejectPendingClientRequests(connection: DaemonConnection, error: unknown): void {
+    for (const pending of connection.pendingClientRequests.values()) {
+      clearTimeout(pending.timeout);
+      pending.reject(error);
+    }
+    connection.pendingClientRequests.clear();
   }
 
   private async getLanguage(): Promise<AgentLanguage> {
@@ -896,6 +1120,43 @@ export class AistDaemonServer {
   private async getStringArraySetting(keys: readonly string[]): Promise<readonly string[]> {
     const value = await this.getFirstConfigSetting(keys);
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  }
+
+  private async getToolPermissionsSetting(): Promise<Record<string, ToolPermissionMode>> {
+    const value = await this.getFirstConfigSetting(['openrouterAgent.toolPermissions', 'toolPermissions']);
+    if (!isJsonObject(value)) {
+      return {};
+    }
+
+    const permissions: Record<string, ToolPermissionMode> = {};
+    for (const [toolName, permission] of Object.entries(value)) {
+      if (permission === 'ask' || permission === 'auto') {
+        permissions[toolName] = permission;
+      }
+    }
+    return permissions;
+  }
+
+  private async getConfiguredSkills(): Promise<readonly AgentSkill[]> {
+    const value = await this.getFirstConfigSetting(['openrouterAgent.customSkills', 'customSkills']);
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.map((item) => normalizeDaemonSkill(item)).filter((skill): skill is AgentSkill => Boolean(skill));
+  }
+
+  private getDaemonToolPermission(toolName: string): ToolPermissionMode {
+    const configured = this.cachedToolPermissions[toolName];
+    if (configured === 'ask' || configured === 'auto') {
+      return configured;
+    }
+
+    if (READONLY_DAEMON_TOOLS.has(toolName)) {
+      return 'auto';
+    }
+
+    return getToolExecutionRequirement(toolName).mode === 'auto' ? 'auto' : 'ask';
   }
 
   private async getFirstConfigSetting(keys: readonly string[]): Promise<JsonValue | undefined> {
@@ -1074,6 +1335,15 @@ function isValidJsonRpcRequest(value: unknown): value is JsonRpcRequest {
   return request.jsonrpc === '2.0' && typeof request.method === 'string';
 }
 
+function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const response = value as JsonRpcResponse;
+  return response.jsonrpc === '2.0' && 'id' in response && ('result' in response || 'error' in response);
+}
+
 function createJsonRpcError(
   code: number,
   dataCode: string,
@@ -1099,14 +1369,6 @@ function toJsonRpcError(error: unknown): JsonRpcErrorObject {
   return createJsonRpcError(-32603, 'internal.error', message);
 }
 
-function getDaemonToolPermission(toolName: string): ToolPermissionMode {
-  if (READONLY_DAEMON_TOOLS.has(toolName)) {
-    return 'auto';
-  }
-
-  return getToolExecutionRequirement(toolName).mode === 'auto' ? 'auto' : 'ask';
-}
-
 function getDaemonModelOption(modelId: string): OpenRouterModelOption {
   const known = FALLBACK_MODEL_OPTIONS.find((model) => model.id === modelId);
   if (known) {
@@ -1118,6 +1380,46 @@ function getDaemonModelOption(modelId: string): OpenRouterModelOption {
     name: modelId,
     provider: modelId.startsWith('codex:') ? 'codex' : 'openrouter',
     supportsTools: true
+  };
+}
+
+function isEditorContextInput(value: unknown): value is EditorContextInput {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const input = value as Partial<EditorContextInput>;
+  return (
+    typeof input.fileName === 'string' &&
+    typeof input.languageId === 'string' &&
+    typeof input.selectionText === 'string' &&
+    typeof input.fullText === 'string' &&
+    typeof input.maxChars === 'number' &&
+    (input.mode === 'auto' || input.mode === 'selection' || input.mode === 'file' || input.mode === 'off')
+  );
+}
+
+function normalizeDaemonSkill(value: unknown): AgentSkill | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === 'string' ? record.id.trim() : '';
+  const label = typeof record.label === 'string' ? record.label.trim() : '';
+  const command = typeof record.command === 'string' ? record.command.trim() : '';
+  if (!id || !label || !command) {
+    return undefined;
+  }
+
+  const permission = record.permission === 'auto' ? 'auto' : 'ask';
+  return {
+    id,
+    label,
+    command,
+    permission,
+    description: typeof record.description === 'string' ? record.description.trim() : '',
+    scope: typeof record.scope === 'string' ? record.scope : undefined
   };
 }
 
