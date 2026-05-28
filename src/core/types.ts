@@ -245,6 +245,7 @@ export type ApprovalDecisionAction = 'approve' | 'deny-stop' | 'deny-continue';
 export type ApprovalStatus = 'pending' | 'approved' | 'denied';
 export type ApprovalPreviewKind = 'none' | 'vscode-editable-diff' | 'headless-diff-artifact';
 export type ToolExecutionMode = 'auto' | 'approval' | 'ui-assisted-preview';
+export type ToolPermissionMode = 'ask' | 'auto';
 
 export type RuntimeClientCapabilities = {
   vscodeEditableDiffPreview?: boolean;

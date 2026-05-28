@@ -1,111 +1,45 @@
-import type { OpenRouterTool } from '../../../core/types';
+import type { AgentSkill } from '../../../core/skills';
+import { DefaultToolRegistry, type ToolRegistrySnapshot } from '../../../core/toolRegistry';
 import { getWorkspaceFolder } from '../../shared/workspace';
-import type { AgentSkill } from '../../skills/skills';
 import { runSkillTool } from '../../skills/skills';
 import { filesystemTools } from '../../tools/filesystemTools';
 import { planningTools } from '../../tools/planningTools';
-import {
-  type ProjectToolDefinition,
-  type ProjectToolDiagnostic,
-  discoverProjectTools,
-  executeProjectTool,
-  toOpenRouterProjectTool
-} from '../../tools/projectTools';
 
-export type AgentToolKind = 'builtin' | 'skill' | 'project';
-
-export type AgentToolRegistrySnapshot = {
-  tools: OpenRouterTool[];
-  projectTools: ProjectToolDefinition[];
-  diagnostics: ProjectToolDiagnostic[];
-  digest: string;
-  version: string;
-};
-
-const EMPTY_DIGEST = '0'.repeat(64);
+export type AgentToolKind = 'builtin' | 'planning' | 'skill' | 'project';
+export type AgentToolRegistrySnapshot = ToolRegistrySnapshot;
 
 /**
- * Single source of truth for model-visible tools. Built-ins are always present,
- * run_skill appears only when skills exist, and project tools are reloaded from
- * `.aist-agent/tools` before model requests.
+ * VS Code adapter around the core registry. The extension keeps VS Code-aware
+ * filesystem tool definitions, while project discovery and registry semantics
+ * live in core for CLI reuse.
  */
-export class AgentToolRegistry {
-  private runnableProjectToolIds = new Set<string>();
+export class AgentToolRegistry extends DefaultToolRegistry {
+  constructor() {
+    super({
+      builtinTools: filesystemTools,
+      planningToolDefinitions: planningTools,
+      skillTool: runSkillTool
+    });
+  }
 
-  private snapshotValue: AgentToolRegistrySnapshot = {
-    tools: [...filesystemTools, ...planningTools],
-    projectTools: [],
-    diagnostics: [],
-    digest: EMPTY_DIGEST,
-    version: EMPTY_DIGEST.slice(0, 12)
-  };
-
-  async refresh(input: {
-    skills: AgentSkill[];
+  refresh(input: {
+    skills: readonly AgentSkill[];
     workspaceRoot?: string;
     disabledProjectToolIds?: readonly string[];
   }): Promise<AgentToolRegistrySnapshot> {
-    const workspaceRoot = input.workspaceRoot || getWorkspaceFolder().uri.fsPath;
-    const discovery = await discoverProjectTools({
-      workspaceRoot,
-      disabledToolIds: input.disabledProjectToolIds || []
+    return super.refresh({
+      skills: input.skills,
+      workspaceRoot: input.workspaceRoot || getWorkspaceFolder().uri.fsPath,
+      disabledProjectToolIds: input.disabledProjectToolIds
     });
-    const diagnostics = [...discovery.diagnostics];
-    const builtInTools = [...filesystemTools, ...planningTools];
-    const tools = input.skills.length ? [...builtInTools, runSkillTool] : builtInTools;
-    const usedNames = new Set(tools.map((tool) => tool.function.name));
-    const projectTools = discovery.tools;
-    const runnableProjectToolIds = new Set<string>();
-
-    for (const projectTool of projectTools) {
-      if (usedNames.has(projectTool.id)) {
-        diagnostics.push({
-          code: 'projectTool.idConflict',
-          message: `Project tool id conflicts with an existing tool: ${projectTool.id}`,
-          path: projectTool.definitionPath,
-          toolId: projectTool.id
-        });
-        continue;
-      }
-      usedNames.add(projectTool.id);
-      if (projectTool.enabled) {
-        tools.push(toOpenRouterProjectTool(projectTool));
-        runnableProjectToolIds.add(projectTool.id);
-      }
-    }
-
-    this.runnableProjectToolIds = runnableProjectToolIds;
-    this.snapshotValue = {
-      tools,
-      projectTools,
-      diagnostics,
-      digest: discovery.digest,
-      version: discovery.version
-    };
-    return this.snapshotValue;
   }
 
-  snapshot(): AgentToolRegistrySnapshot {
-    return this.snapshotValue;
-  }
-
-  getProjectTool(toolName: string): ProjectToolDefinition | undefined {
-    if (!this.runnableProjectToolIds.has(toolName)) {
-      return undefined;
-    }
-    return this.snapshotValue.projectTools.find((tool) => tool.id === toolName && tool.enabled);
-  }
-
-  async runProjectTool(
+  runProjectTool(
     toolName: string,
     args: Record<string, unknown>,
     workspaceRoot?: string
   ): Promise<Record<string, unknown>> {
-    const definition = this.getProjectTool(toolName);
-    if (!definition) {
-      throw new Error(`Unknown project tool: ${toolName}`);
-    }
-    return executeProjectTool(definition, args, workspaceRoot || getWorkspaceFolder().uri.fsPath);
+    return super.runProjectTool(toolName, args, workspaceRoot || getWorkspaceFolder().uri.fsPath);
   }
 }
 

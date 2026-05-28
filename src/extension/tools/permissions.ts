@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 
+import type { ToolPermissionMode } from '../../core/types';
 import { getAgentToolRegistry } from '../agent/runtime/toolRegistry';
 import { filesystemTools } from './filesystemTools';
 import { planningTools } from './planningTools';
 
-export type ToolPermissionMode = 'ask' | 'auto';
+export type { ToolPermissionMode };
 
 export type ToolPermissionItem = {
   name: string;
