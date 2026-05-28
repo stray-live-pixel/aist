@@ -16,6 +16,7 @@ import {
 } from '../../config/agentConfigStore';
 import { setAuxiliaryModelSettings, setAuxiliaryToolModelOverrides } from '../../config/auxiliaryModelSettings';
 import { setCompactionSettings } from '../../config/compaction';
+import { setComposerUiSettings } from '../../config/composerUi';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
 import {
@@ -40,6 +41,7 @@ type SettingsMessage = Extract<
   | { type: 'setAuxiliaryToolModelOverrides' }
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
+  | { type: 'setComposerUiSettings' }
   | { type: 'setAgentLanguage' }
   | { type: 'setAgentMode' }
   | { type: 'setAgentModeInstructions' }
@@ -71,6 +73,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setAuxiliaryToolModelOverrides',
     'setCompactionSettings',
     'setApprovalNotificationSettings',
+    'setComposerUiSettings',
     'setAgentLanguage',
     'setAgentMode',
     'setAgentModeInstructions',
@@ -141,6 +144,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setApprovalNotificationSettings':
       await setApprovalNotificationSettings(message.settings);
+      deps.sendState();
+      return;
+    case 'setComposerUiSettings':
+      await setComposerUiSettings(message.settings);
       deps.sendState();
       return;
     case 'setAgentLanguage':

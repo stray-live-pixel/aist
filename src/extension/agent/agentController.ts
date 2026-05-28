@@ -22,6 +22,7 @@ import { replaceSelection, stripCodeFence } from './context/editorContext';
 import type { VscodeDaemonRuntimeBridge } from './daemon/bridge';
 import { refreshDaemonToolCatalog } from './daemon/toolCatalog';
 import type { WebviewMessage, WebviewSurface } from './types';
+import { type ChatVcsService, buildMergeToMainPrompt, createChatVcsService } from './vcs/chatVcs';
 import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from './webview/host';
 import { handleAgentWebviewMessage } from './webview/messages';
 import { postWebviewPage } from './webview/page';
@@ -43,6 +44,7 @@ export class AgentController {
   private readonly codexAuthProvider: CodexAuthSessionProvider;
   private modelOptions: OpenRouterModelOption[] = [...FALLBACK_MODEL_OPTIONS];
   private codexAuthenticated = false;
+  private readonly chatVcs: ChatVcsService;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -50,6 +52,7 @@ export class AgentController {
     private readonly logger: AistLogger,
     private readonly daemonRuntime: VscodeDaemonRuntimeBridge
   ) {
+    this.chatVcs = createChatVcsService({ workspaceRoot: daemonRuntime.workspaceRoot });
     initializeAgentConfigStore(context);
     initializeTelemetryStore({
       fallbackRoot: context.globalStorageUri.fsPath
@@ -64,6 +67,7 @@ export class AgentController {
       this.logger.error('Failed to sync legacy VS Code OpenRouter API key setting', error)
     );
     void this.refreshToolCatalog();
+    void this.refreshActiveChatVcs();
     void this.refreshCodexAuthState();
     void this.refreshModels();
     this.logger.info('AgentController initialized', {
@@ -283,7 +287,11 @@ export class AgentController {
       resolveToolCall: (messageId, decision) => this.daemonRuntime.resolveToolCall(messageId, decision),
       openWorkspaceFile: (filePath, line, column, endLine, endColumn) =>
         this.openWorkspaceFile(filePath, line, column, endLine, endColumn),
-      stopCurrentRun: (chatId) => this.daemonRuntime.stop(chatId).then(() => this.sendState())
+      stopCurrentRun: (chatId) => this.daemonRuntime.stop(chatId).then(() => this.sendState()),
+      refreshChatVcs: (chatId) => this.refreshChatVcs(chatId),
+      isolateChatVcs: (chatId) => this.isolateChatVcs(chatId),
+      commitAndForcePushChatVcs: (chatId) => this.commitAndForcePushChatVcs(chatId),
+      mergeChatVcsToMain: (chatId) => this.mergeChatVcsToMain(chatId)
     });
   }
 
@@ -341,6 +349,41 @@ export class AgentController {
       default:
         return false;
     }
+  }
+
+  private async refreshActiveChatVcs(): Promise<void> {
+    await this.refreshChatVcs(this.chats.getActiveChat().id).catch((error) =>
+      this.logger.info('Failed to refresh active chat VCS state', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+    );
+  }
+
+  private async refreshChatVcs(chatId: string): Promise<void> {
+    const state = await this.chatVcs.getCurrentState();
+    this.chats.setVcsState(chatId, state);
+    this.sendState();
+  }
+
+  private async isolateChatVcs(chatId: string): Promise<void> {
+    const state = await this.chatVcs.createIsolatedBranch(chatId);
+    this.chats.setVcsState(chatId, state);
+    this.sendState();
+    vscode.window.setStatusBarMessage(`AIST VCS: switched to ${state.branch}`, 2400);
+  }
+
+  private async commitAndForcePushChatVcs(chatId: string): Promise<void> {
+    const chat = this.chats.getChat(chatId) || this.chats.getActiveChat();
+    const state = await this.chatVcs.commitAndForcePush(`AIST changes from ${chat.title}`);
+    this.chats.setVcsState(chat.id, state);
+    this.sendState();
+    vscode.window.setStatusBarMessage(`AIST VCS: pushed ${state.branch} with --force`, 2400);
+  }
+
+  private async mergeChatVcsToMain(chatId: string): Promise<void> {
+    const chat = this.chats.getChat(chatId) || this.chats.getActiveChat();
+    const prompt = buildMergeToMainPrompt(chat.vcs);
+    await this.ask(chat.id, prompt);
   }
 
   private async openWorkspaceFile(

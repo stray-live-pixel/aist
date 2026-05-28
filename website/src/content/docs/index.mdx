@@ -1,0 +1,45 @@
+---
+title: AIST documentation
+description: User documentation for the AIST VS Code coding agent.
+template: splash
+hero:
+  title: AIST
+  tagline: AI coding agent for VS Code with workspace tools, safe approvals, OpenRouter, and ChatGPT Codex.
+  image:
+    file: ../../../../assets/logo-main.svg
+  actions:
+    - text: Install from GitHub
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: Read the user guide
+      link: /using-aist/chat-workflow/
+      icon: open-book
+---
+
+<div class="landing-grid">
+  <section class="landing-card">
+    <h3>Chat with your workspace</h3>
+    <p>AIST runs inside VS Code, sees your selected code or active file, and can inspect project files when needed.</p>
+  </section>
+  <section class="landing-card">
+    <h3>You stay in control</h3>
+    <p>Read-only tools can run automatically, while shell commands and file changes ask for confirmation by default.</p>
+  </section>
+  <section class="landing-card">
+    <h3>Preview edits before applying</h3>
+    <p>File mutations go through VS Code-native diff previews, so you can review and adjust changes before they are written.</p>
+  </section>
+  <section class="landing-card">
+    <h3>Use your preferred models</h3>
+    <p>Choose OpenRouter models or sign in to ChatGPT Codex and select models with the <code>codex:</code> prefix.</p>
+  </section>
+</div>
+
+## Quick install
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
+```
+
+After installation, open the **aist** Activity Bar item, create a chat, choose a model, and ask a question.

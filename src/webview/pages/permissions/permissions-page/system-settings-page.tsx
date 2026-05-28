@@ -3,8 +3,8 @@ import { memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentLanguage } from '../../../shared/types';
-import { Badge, Button, Card, Select, TextField } from '../../../shared/ui';
+import type { AgentLanguage, ComposerUiSettings } from '../../../shared/types';
+import { Badge, Button, Card, Select, Switch, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
 import { clampNumber } from './utils';
 
@@ -15,11 +15,13 @@ import { clampNumber } from './utils';
 export const SystemSettingsPage = memo(function SystemSettingsPage({
   agentLanguage,
   maxToolIterations,
-  codexAuthenticated
+  codexAuthenticated,
+  composerUiSettings
 }: {
   agentLanguage: AgentLanguage;
   maxToolIterations: number;
   codexAuthenticated: boolean;
+  composerUiSettings: ComposerUiSettings;
 }) {
   const { t } = useI18n();
   return (
@@ -46,6 +48,22 @@ export const SystemSettingsPage = memo(function SystemSettingsPage({
             agentActions.setMaxToolIterations(clampNumber(event.target.value, 0, Number.MAX_SAFE_INTEGER, 0, true))
           }
         />
+      </Card>
+      <Card title={t('settings.system.composerTitle')} description={t('settings.system.composerDescription')}>
+        <div className={styles.sectionStackCompact}>
+          <Switch
+            label={t('settings.system.composerMinimizeOnBlur')}
+            description={t('settings.system.composerMinimizeOnBlurDescription')}
+            checked={composerUiSettings.minimizeOnBlur}
+            onChange={(event) => agentActions.setComposerUiSettings({ minimizeOnBlur: event.target.checked })}
+          />
+          <Switch
+            label={t('settings.system.composerGradientWhileBusy')}
+            description={t('settings.system.composerGradientWhileBusyDescription')}
+            checked={composerUiSettings.gradientWhileBusy}
+            onChange={(event) => agentActions.setComposerUiSettings({ gradientWhileBusy: event.target.checked })}
+          />
+        </div>
       </Card>
       <Card
         title={t('settings.system.codexTitle')}

@@ -38,6 +38,7 @@ import {
 } from '../core/entities/storage/storage';
 import { getToolExecutionRequirement } from '../core/features/approval/approvalProtocol';
 import { createNodeFilesystemToolRunner } from '../core/features/filesystem-tools/filesystemTools';
+import type { AgentSkill } from '../core/features/skills/skills';
 import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
 import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/features/tool-execution/toolRunner';
@@ -48,7 +49,8 @@ import {
   type AutonomousExportFormat,
   type AutonomousLaunchOptions,
   type AutonomousSessionView,
-  type AutonomousState
+  type AutonomousState,
+  type AutonomousVcsIsolationOptions
 } from '../core/processes/autonomous';
 import { getRepoVerificationContextNote } from '../core/shared/lib/repoMap';
 import type {
@@ -437,8 +439,8 @@ Usage:
   aist models list [--provider openrouter|codex|all] [--json]
   aist models refresh [--provider openrouter|codex|all] [--json]
   aist autonomous list [--workspace <path>] [--json]
-  aist autonomous flow start <flowId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
-  aist autonomous run start <runId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
+  aist autonomous flow start <flowId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run] [--isolated] [--vcs-command git|arc]
+  aist autonomous run start <runId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run] [--isolated] [--vcs-command git|arc]
   aist autonomous stop <sessionId> [--workspace <path>] [--json]
   aist autonomous export <sessionId> [--workspace <path>] [--format markdown|json]
 
@@ -465,6 +467,14 @@ Options:
                       Headless tool policy: ask, auto-readonly, auto-all, or deny.
   --dry-run           Force autonomous dry-run mode (default for autonomous start).
   --no-dry-run        Execute the selected autonomous engine instead of dry-run.
+  --isolated          Run autonomous work in a git-like VCS worktree and branch.
+  --vcs-command <cmd> Git-like VCS command for isolated runs: git by default, arc for Yandex VCS.
+  --vcs-base-branch <branch>
+                      Base branch for isolated autonomous worktree creation.
+  --vcs-branch <name> Branch name for isolated autonomous work.
+  --vcs-worktree <path>
+                      Worktree path for isolated autonomous work.
+  --keep-worktree     Keep the isolated worktree after autonomous run completion.
   --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
   --json              Print machine-readable JSON.
   --jsonl             Print newline-delimited runtime events.
@@ -840,7 +850,13 @@ async function runChatAskCommand(
       getSnapshot: () => getHeadlessRuntimeConfig(configStore)
     },
     promptProvider: {
-      getSystemPrompt: async () => getSystemPrompt({ language: await getHeadlessLanguage(configStore) })
+      getSystemPrompt: async () => {
+        const skills = await getHeadlessConfiguredSkills(configStore);
+        return getSystemPrompt({
+          language: await getHeadlessLanguage(configStore),
+          skills: skills.map(({ id, label, description }) => ({ id, label, description }))
+        });
+      }
     },
     contextProviders: {
       getRepoContextNote: (inputPrompt) => getRepoVerificationContextNote(workspaceRoot, inputPrompt),
@@ -850,7 +866,7 @@ async function runChatAskCommand(
       getOption: getHeadlessModelOption
     },
     skillProvider: {
-      getSkills: () => []
+      getSkills: () => getHeadlessConfiguredSkills(configStore)
     },
     workspaceRootProvider: {
       getWorkspaceRoot: () => workspaceRoot
@@ -1173,6 +1189,38 @@ async function getHeadlessReasoningEffort(configStore: FileBackedConfigStore): P
 async function getHeadlessCodexServiceTier(configStore: FileBackedConfigStore): Promise<CodexServiceTier> {
   const value = await getStringSetting(configStore, ['openrouterAgent.codexServiceTier', 'codexServiceTier']);
   return value === 'priority' ? 'priority' : 'auto';
+}
+
+async function getHeadlessConfiguredSkills(configStore: FileBackedConfigStore): Promise<readonly AgentSkill[]> {
+  const value = await getFirstConfigSetting(configStore, ['openrouterAgent.customSkills', 'customSkills']);
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => normalizeHeadlessSkill(item)).filter((skill): skill is AgentSkill => Boolean(skill));
+}
+
+function normalizeHeadlessSkill(value: unknown): AgentSkill | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === 'string' ? record.id.trim() : '';
+  const label = typeof record.label === 'string' ? record.label.trim() : '';
+  const command = typeof record.command === 'string' ? record.command.trim() : '';
+  if (!id || !label || !command) {
+    return undefined;
+  }
+
+  return {
+    id,
+    label,
+    command,
+    permission: record.permission === 'auto' ? 'auto' : 'ask',
+    description: typeof record.description === 'string' ? record.description.trim() : '',
+    scope: typeof record.scope === 'string' ? record.scope : undefined
+  };
 }
 
 function getHeadlessModelOption(modelId: string): OpenRouterModelOption {
@@ -2738,13 +2786,20 @@ function parseAutonomousStartOptions(
   let jsonl = false;
   let workDir: string | undefined;
   let extraPrompt: string | undefined;
+  let vcsIsolation: AutonomousVcsIsolationOptions | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
 
     if (token === '--help' || token === '-h') {
       assertNoExtraArgs(args.slice(index + 1), token);
-      return { targetId: '', workspace, launch: { engineId, dryRun, workDir, extraPrompt }, jsonl, showHelp: true };
+      return {
+        targetId: '',
+        workspace,
+        launch: { engineId, dryRun, workDir, vcsIsolation, extraPrompt },
+        jsonl,
+        showHelp: true
+      };
     }
 
     if (token === '--jsonl') {
@@ -2783,6 +2838,56 @@ function parseAutonomousStartOptions(
       continue;
     }
 
+    if (token === '--isolated') {
+      vcsIsolation = { ...(vcsIsolation || { enabled: true }), enabled: true };
+      continue;
+    }
+
+    if (token === '--keep-worktree') {
+      vcsIsolation = { ...(vcsIsolation || { enabled: true }), enabled: true, keepWorktree: true };
+      continue;
+    }
+
+    const vcsCommandResult = parseStringOptionToken(command, '--vcs-command', args, index, vcsIsolation?.command);
+    if (vcsCommandResult.matched) {
+      vcsIsolation = { ...(vcsIsolation || { enabled: true }), enabled: true, command: vcsCommandResult.value };
+      index = vcsCommandResult.index;
+      continue;
+    }
+
+    const vcsBaseBranchResult = parseStringOptionToken(
+      command,
+      '--vcs-base-branch',
+      args,
+      index,
+      vcsIsolation?.baseBranch
+    );
+    if (vcsBaseBranchResult.matched) {
+      vcsIsolation = { ...(vcsIsolation || { enabled: true }), enabled: true, baseBranch: vcsBaseBranchResult.value };
+      index = vcsBaseBranchResult.index;
+      continue;
+    }
+
+    const vcsBranchResult = parseStringOptionToken(command, '--vcs-branch', args, index, vcsIsolation?.branchName);
+    if (vcsBranchResult.matched) {
+      vcsIsolation = { ...(vcsIsolation || { enabled: true }), enabled: true, branchName: vcsBranchResult.value };
+      index = vcsBranchResult.index;
+      continue;
+    }
+
+    const vcsWorktreeResult = parseStringOptionToken(
+      command,
+      '--vcs-worktree',
+      args,
+      index,
+      vcsIsolation?.worktreePath
+    );
+    if (vcsWorktreeResult.matched) {
+      vcsIsolation = { ...(vcsIsolation || { enabled: true }), enabled: true, worktreePath: vcsWorktreeResult.value };
+      index = vcsWorktreeResult.index;
+      continue;
+    }
+
     const extraPromptResult = parseStringOptionToken(command, '--extra-prompt', args, index, extraPrompt);
     if (extraPromptResult.matched) {
       extraPrompt = extraPromptResult.value;
@@ -2808,7 +2913,13 @@ function parseAutonomousStartOptions(
     throw new CliUsageError(`'${command}' currently requires --jsonl.`);
   }
 
-  return { targetId, workspace, launch: { engineId, dryRun, workDir, extraPrompt }, jsonl, showHelp: false };
+  return {
+    targetId,
+    workspace,
+    launch: { engineId, dryRun, workDir, vcsIsolation, extraPrompt },
+    jsonl,
+    showHelp: false
+  };
 }
 
 function parseAutonomousSessionOptions(

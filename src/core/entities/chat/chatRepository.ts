@@ -22,6 +22,7 @@ import type {
   ChatPlan,
   ChatSummary,
   ChatUsageEstimate,
+  ChatVcsState,
   OpenRouterMessage
 } from '../../shared/types/types';
 import { appendJsonl, globalWorkspaceChatsDir, safeMkdir, writeJsonAtomic } from '../storage/storage';
@@ -42,6 +43,7 @@ export type CreateChatInput = {
   model: string;
   previousChatId?: string;
   compactedAt?: number;
+  vcs?: ChatVcsState;
   lastAnswer?: string;
   usage?: Partial<ChatUsageEstimate>;
   messages?: ChatMessageInput[];
@@ -50,7 +52,7 @@ export type CreateChatInput = {
 };
 
 export type ChatMetadataPatch = Partial<
-  Pick<Chat, 'title' | 'model' | 'previousChatId' | 'compactedAt' | 'lastAnswer' | 'usage'>
+  Pick<Chat, 'title' | 'model' | 'previousChatId' | 'compactedAt' | 'vcs' | 'lastAnswer' | 'usage'>
 >;
 
 export type ChatStatePatch = Partial<
@@ -76,6 +78,7 @@ type StoredChatMeta = {
   model: string;
   previousChatId?: string;
   compactedAt?: number;
+  vcs?: ChatVcsState;
   lastAnswer: string;
   usage: ChatUsageEstimate;
   createdAt: number;
@@ -140,6 +143,7 @@ export class ChatRepository {
       model: input.model,
       previousChatId: input.previousChatId,
       compactedAt: input.compactedAt,
+      vcs: input.vcs,
       lastAnswer: input.lastAnswer || '',
       usage: normalizeUsage(input.usage),
       createdAt: now,
@@ -413,6 +417,7 @@ export class ChatRepository {
       model: normalizedMeta.model,
       previousChatId: normalizedMeta.previousChatId,
       compactedAt: normalizedMeta.compactedAt,
+      vcs: normalizedMeta.vcs,
       messages,
       history,
       lastAnswer: normalizedMeta.lastAnswer,
@@ -547,6 +552,7 @@ function normalizeMeta(meta: StoredChatMeta): StoredChatMeta {
     model: typeof meta.model === 'string' && meta.model.trim() ? meta.model : 'unknown',
     previousChatId: meta.previousChatId,
     compactedAt: meta.compactedAt,
+    vcs: normalizeVcsState(meta.vcs),
     lastAnswer: typeof meta.lastAnswer === 'string' ? meta.lastAnswer : '',
     usage: normalizeUsage(meta.usage),
     createdAt: normalizeTimestamp(meta.createdAt),
@@ -565,6 +571,24 @@ function normalizeState(state: Partial<StoredChatState> | ChatStatePatch | undef
     contextLength: state?.contextLength,
     activePlan: state?.activePlan,
     reflectionCandidates: state?.reflectionCandidates
+  });
+}
+
+function normalizeVcsState(value: unknown): ChatVcsState | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const state = value as Partial<ChatVcsState>;
+  if (typeof state.command !== 'string' || typeof state.branch !== 'string') {
+    return undefined;
+  }
+
+  return removeUndefined({
+    command: state.command,
+    branch: state.branch,
+    baseBranch: typeof state.baseBranch === 'string' ? state.baseBranch : undefined,
+    isolated: Boolean(state.isolated)
   });
 }
 
@@ -588,6 +612,7 @@ function toSummary(chat: Chat): ChatSummary {
     model: chat.model,
     previousChatId: chat.previousChatId,
     compactedAt: chat.compactedAt,
+    vcs: chat.vcs,
     messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
     lastUserMessage: getLastUserMessage(chat),
     busy: chat.busy,

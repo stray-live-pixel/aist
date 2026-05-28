@@ -11,6 +11,10 @@ export type ComposerProps = {
   busy: boolean;
   /** Включает sticky/floating layout для закрепления у нижнего края webview. */
   floating?: boolean;
+  /** Сворачивает composer в компактную полоску, когда агент занят и окно не в фокусе. */
+  minimized?: boolean;
+  /** Включает анимированный градиент на свернутой полоске во время работы агента. */
+  gradientWhileBusy?: boolean;
   /** Слот кратких настроек агента над textarea. */
   settings?: ReactNode;
   /** Слот дополнительных действий справа в верхней строке composer. */

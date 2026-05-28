@@ -52,8 +52,8 @@ describe('CLI help and parser', () => {
         aist models list [--provider openrouter|codex|all] [--json]
         aist models refresh [--provider openrouter|codex|all] [--json]
         aist autonomous list [--workspace <path>] [--json]
-        aist autonomous flow start <flowId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
-        aist autonomous run start <runId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run]
+        aist autonomous flow start <flowId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run] [--isolated] [--vcs-command git|arc]
+        aist autonomous run start <runId> [--workspace <path>] --jsonl [--engine <id>] [--dry-run|--no-dry-run] [--isolated] [--vcs-command git|arc]
         aist autonomous stop <sessionId> [--workspace <path>] [--json]
         aist autonomous export <sessionId> [--workspace <path>] [--format markdown|json]
 
@@ -80,6 +80,14 @@ describe('CLI help and parser', () => {
                             Headless tool policy: ask, auto-readonly, auto-all, or deny.
         --dry-run           Force autonomous dry-run mode (default for autonomous start).
         --no-dry-run        Execute the selected autonomous engine instead of dry-run.
+        --isolated          Run autonomous work in a git-like VCS worktree and branch.
+        --vcs-command <cmd> Git-like VCS command for isolated runs: git by default, arc for Yandex VCS.
+        --vcs-base-branch <branch>
+                            Base branch for isolated autonomous worktree creation.
+        --vcs-branch <name> Branch name for isolated autonomous work.
+        --vcs-worktree <path>
+                            Worktree path for isolated autonomous work.
+        --keep-worktree     Keep the isolated worktree after autonomous run completion.
         --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
         --json              Print machine-readable JSON.
         --jsonl             Print newline-delimited runtime events.
@@ -523,6 +531,22 @@ describe('CLI commands', () => {
       homeDir,
       idFactory: createIdFactory(['chat-ask'])
     }).create({ model: 'fake-model' });
+    fs.mkdirSync(path.join(workspaceRoot, '.aist-agent'), { recursive: true });
+    fs.writeFileSync(
+      workspaceSettingsFile(workspaceRoot),
+      `${JSON.stringify({
+        customSkills: [
+          {
+            id: 'lazy-local-skill',
+            label: 'Lazy local skill',
+            description: 'Loaded lazily from workspace settings.',
+            command: 'echo skill',
+            permission: 'ask'
+          }
+        ]
+      })}\n`,
+      'utf8'
+    );
     const modelClient = createQueuedModelClient([
       {
         role: 'assistant',
@@ -542,6 +566,11 @@ describe('CLI commands', () => {
 
     expect(exitCode).toBe(0);
     expect(output.stderrText()).toBe('');
+    const systemMessage = modelClient.calls[0]?.messages.find((message) => message.role === 'system');
+    expect(systemMessage?.content).toContain('## Skills');
+    expect(systemMessage?.content).toContain(
+      '- lazy-local-skill: Lazy local skill - Loaded lazily from workspace settings.'
+    );
     const events = parseJsonl<RuntimeEvent>(output.stdoutText());
     expect(events.map((event) => event.type)).toEqual(
       expect.arrayContaining([

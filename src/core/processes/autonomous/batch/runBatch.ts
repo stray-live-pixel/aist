@@ -10,7 +10,8 @@ import type {
   AutonomousDefinitions,
   AutonomousLaunchOptions,
   AutonomousRunDefinition,
-  AutonomousSessionMeta
+  AutonomousSessionMeta,
+  AutonomousVcsEnvironment
 } from '../types';
 
 export type RunBatchOptions = {
@@ -18,6 +19,7 @@ export type RunBatchOptions = {
   definitions: AutonomousDefinitions;
   workspaceRoot: string;
   launch: AutonomousLaunchOptions;
+  vcs?: AutonomousVcsEnvironment;
   sessionStore: AutonomousSessionStore;
   engineRegistry: AutonomousEngineRegistry;
   signal: AbortSignal;
@@ -45,6 +47,7 @@ export async function runAutonomousBatch(options: RunBatchOptions): Promise<RunB
     engineId,
     workspaceRoot: options.workspaceRoot,
     workDir: options.launch.workDir || options.run.workDir,
+    vcs: options.vcs,
     startedAt: new Date().toISOString()
   };
   const batchState: AutonomousBatchState = {
@@ -69,6 +72,7 @@ export async function runAutonomousBatch(options: RunBatchOptions): Promise<RunB
     engineId,
     dryRun: options.launch.dryRun,
     workDir: meta.workDir,
+    vcs: options.vcs,
     extraPrompt: options.launch.extraPrompt
   });
   await options.sessionStore.writeBatch(sessionId, batchState);
@@ -111,6 +115,7 @@ export async function runAutonomousBatch(options: RunBatchOptions): Promise<RunB
               dryRun: options.launch.dryRun,
               extraPrompt: task.body || options.launch.extraPrompt
             },
+            vcs: options.vcs,
             sessionStore: options.sessionStore,
             engineRegistry: options.engineRegistry,
             signal: options.signal

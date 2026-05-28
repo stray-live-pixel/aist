@@ -7,7 +7,8 @@ import type {
   AutonomousFlowState,
   AutonomousLaunchOptions,
   AutonomousSessionMeta,
-  AutonomousStageRunState
+  AutonomousStageRunState,
+  AutonomousVcsEnvironment
 } from '../types';
 import { resolveStageContext } from './contextResolver';
 import { buildStagePrompt, resolveStageModel } from './promptBuilder';
@@ -17,6 +18,7 @@ export type RunFlowOptions = {
   workspaceRoot: string;
   workDir: string;
   launch: AutonomousLaunchOptions;
+  vcs?: AutonomousVcsEnvironment;
   sessionStore: AutonomousSessionStore;
   engineRegistry: AutonomousEngineRegistry;
   signal: AbortSignal;
@@ -46,6 +48,7 @@ export async function runAutonomousFlow(options: RunFlowOptions): Promise<RunFlo
     engineId,
     workspaceRoot: options.workspaceRoot,
     workDir: options.workDir,
+    vcs: options.vcs,
     startedAt
   };
   const command: AutonomousCommandState = {
@@ -54,6 +57,7 @@ export async function runAutonomousFlow(options: RunFlowOptions): Promise<RunFlo
     engineId,
     dryRun: options.launch.dryRun,
     workDir: options.workDir,
+    vcs: options.vcs,
     extraPrompt: options.launch.extraPrompt
   };
   const flowState: AutonomousFlowState = {

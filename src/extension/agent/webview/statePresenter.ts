@@ -12,6 +12,7 @@ import {
 import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '../config/agentConfigStore';
 import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
 import { getCompactionSettings } from '../config/compaction';
+import { getComposerUiSettings } from '../config/composerUi';
 import { getApprovalNotificationSettings } from '../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
@@ -61,6 +62,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const compactionSettings = getCompactionSettings();
   const auxiliaryModels = getAuxiliaryModelsSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
+  const composerUiSettings = getComposerUiSettings();
   const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
   const telemetry = getTelemetryDashboardState();
 
@@ -86,6 +88,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
       auxiliaryModels,
       compactionSettings,
       approvalNotificationSettings,
+      composerUiSettings,
       telemetry,
       projectToolDiagnostics
     });
@@ -112,6 +115,7 @@ type StateContext = SendAgentStateParams & {
   auxiliaryModels: unknown;
   compactionSettings: unknown;
   approvalNotificationSettings: unknown;
+  composerUiSettings: unknown;
   telemetry: unknown;
   projectToolDiagnostics: unknown;
 };
@@ -145,6 +149,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     auxiliaryModels: context.auxiliaryModels,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,
+    composerUiSettings: context.composerUiSettings,
     telemetry: context.telemetry,
     projectToolDiagnostics: context.projectToolDiagnostics,
     agentLanguage: context.language,

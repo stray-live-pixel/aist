@@ -1,4 +1,13 @@
-import { Braces, ExternalLink, MessageSquare } from 'lucide-react';
+import {
+  Braces,
+  ExternalLink,
+  GitBranch,
+  GitCommitHorizontal,
+  GitMerge,
+  GitPullRequestCreate,
+  MessageSquare,
+  RefreshCw
+} from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 
 import { Composer } from '../../features';
@@ -25,6 +34,7 @@ export function ChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
   const [approvalMinimized, setApprovalMinimized] = useState(false);
+  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
   const chats = useSortedChats(state);
   const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
@@ -36,6 +46,21 @@ export function ChatPage() {
       setResolvedApprovalId(undefined);
     }
   }, [pendingApprovalId]);
+
+  useEffect(() => {
+    const updateFocus = () => setWindowFocused(document.hasFocus());
+
+    window.addEventListener('focus', updateFocus);
+    window.addEventListener('blur', updateFocus);
+    document.addEventListener('visibilitychange', updateFocus);
+    updateFocus();
+
+    return () => {
+      window.removeEventListener('focus', updateFocus);
+      window.removeEventListener('blur', updateFocus);
+      document.removeEventListener('visibilitychange', updateFocus);
+    };
+  }, []);
 
   useEffect(() => {
     /**
@@ -57,6 +82,8 @@ export function ChatPage() {
     setSettingsOpen(true);
   }
 
+  const composerMinimized = state.activeChat.busy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
+
   return (
     <div className={styles.root}>
       <MessageList
@@ -76,13 +103,18 @@ export function ChatPage() {
         chatId={state.activeChat.id}
         busy={state.activeChat.busy}
         floating
+        minimized={composerMinimized}
+        gradientWhileBusy={state.composerUiSettings.gradientWhileBusy}
         settings={<AgentSettingsSummary state={state} onOpen={openSettings} />}
         headerActions={
-          <FloatingChatActions
-            extensionVersion={state.extensionVersion}
-            onOpenChats={() => setChatsOpen(true)}
-            activeChatId={state.activeChat.id}
-          />
+          <>
+            <VcsControls state={state} />
+            <FloatingChatActions
+              extensionVersion={state.extensionVersion}
+              onOpenChats={() => setChatsOpen(true)}
+              activeChatId={state.activeChat.id}
+            />
+          </>
         }
         footer={<ComposerContextSummary state={state} />}
         notice={
@@ -122,6 +154,45 @@ export function ChatPage() {
     </div>
   );
 }
+
+const VcsControls = memo(function VcsControls({ state }: { state: AgentState }) {
+  const vcs = state.activeChat.vcs;
+  const branchLabel = vcs?.branch || 'branch?';
+  const disabled = state.activeChat.busy;
+
+  return (
+    <div className={styles.vcsControls} aria-label="VCS controls">
+      <button
+        type="button"
+        className={styles.vcsBranchButton}
+        title={vcs ? `${vcs.command}: ${vcs.branch}` : 'Refresh VCS branch'}
+        onClick={() => agentActions.refreshVcs()}
+      >
+        <GitBranch size={12} />
+        <span>{branchLabel}</span>
+        <RefreshCw size={10} />
+      </button>
+      <CompactNavigationButton
+        icon={<GitPullRequestCreate size={12} />}
+        title="New isolated branch"
+        disabled={disabled}
+        onClick={() => agentActions.isolateChatVcs()}
+      />
+      <CompactNavigationButton
+        icon={<GitCommitHorizontal size={12} />}
+        title="Commit and push -f"
+        disabled={disabled}
+        onClick={() => agentActions.commitAndForcePushVcs()}
+      />
+      <CompactNavigationButton
+        icon={<GitMerge size={12} />}
+        title="Merge to main through current agent"
+        disabled={disabled}
+        onClick={() => agentActions.mergeToMainVcs()}
+      />
+    </div>
+  );
+});
 
 const FloatingChatActions = memo(function FloatingChatActions({
   extensionVersion,

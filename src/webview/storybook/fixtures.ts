@@ -542,6 +542,10 @@ export const storyAgentState: AgentState = {
     volume: 0.35,
     durationSeconds: 5
   },
+  composerUiSettings: {
+    gradientWhileBusy: true,
+    minimizeOnBlur: true
+  },
   agentLanguage: 'ru',
   agentMode: 'frontend',
   agentModes: storyAgentModes,

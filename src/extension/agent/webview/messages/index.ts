@@ -5,6 +5,7 @@ import { handleWebviewPermissionMessage, isPermissionMessage } from './permissio
 import { handleWebviewSettingsMessage, isSettingsMessage } from './settings';
 import { handleWebviewSkillMessage, isSkillMessage } from './skills';
 import type { AgentWebviewMessageDeps } from './types';
+import { handleWebviewVcsMessage, isVcsMessage } from './vcs';
 
 /**
  * Маршрутизирует входящие сообщения webview по доменным обработчикам.
@@ -46,6 +47,11 @@ export async function handleAgentWebviewMessage(
 
   if (isCodexMessage(message)) {
     await handleWebviewCodexMessage(message, deps);
+    return;
+  }
+
+  if (isVcsMessage(message)) {
+    await handleWebviewVcsMessage(surface, message, deps);
     return;
   }
 

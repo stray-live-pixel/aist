@@ -4,6 +4,7 @@ dist/
 playwright-report/
 test-results/
 storybook-static/
+website/.astro/
 *.vsix
 !releases/*.vsix
 .DS_Store

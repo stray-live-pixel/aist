@@ -1,0 +1,45 @@
+---
+title: Документация AIST
+description: Пользовательская документация VS Code coding-agent AIST.
+template: splash
+hero:
+  title: AIST
+  tagline: ИИ-агент для VS Code с workspace-инструментами, подтверждениями, OpenRouter и ChatGPT Codex.
+  image:
+    file: ../../../../../assets/logo-main.svg
+  actions:
+    - text: Установить из GitHub
+      link: /ru/getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: Читать руководство
+      link: /ru/using-aist/chat-workflow/
+      icon: open-book
+---
+
+<div class="landing-grid">
+  <section class="landing-card">
+    <h3>Чат с workspace</h3>
+    <p>AIST работает внутри VS Code, видит выделенный код или активный файл и может изучать файлы проекта.</p>
+  </section>
+  <section class="landing-card">
+    <h3>Контроль остаётся у вас</h3>
+    <p>Чтение может выполняться автоматически, а shell-команды и изменения файлов по умолчанию требуют подтверждения.</p>
+  </section>
+  <section class="landing-card">
+    <h3>Diff preview перед записью</h3>
+    <p>Изменения файлов проходят через нативный diff-preview VS Code, где их можно проверить и поправить.</p>
+  </section>
+  <section class="landing-card">
+    <h3>OpenRouter и Codex</h3>
+    <p>Используйте модели OpenRouter или авторизуйтесь в ChatGPT Codex и выбирайте модели с префиксом <code>codex:</code>.</p>
+  </section>
+</div>
+
+## Быстрая установка
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
+```
+
+После установки откройте **aist** в Activity Bar, создайте чат, выберите модель и задайте вопрос.

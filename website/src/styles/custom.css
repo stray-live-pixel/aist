@@ -1,0 +1,28 @@
+:root {
+  --sl-color-accent-low: #1d3150;
+  --sl-color-accent: #4f8cff;
+  --sl-color-accent-high: #c9ddff;
+}
+
+.hero-html {
+  display: grid;
+  gap: 1rem;
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.landing-card {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--sl-color-bg) 86%, var(--sl-color-accent-low));
+}
+
+.landing-card h3 {
+  margin-top: 0;
+}

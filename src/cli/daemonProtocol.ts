@@ -17,6 +17,7 @@ import type {
   ApprovalResolveRequest,
   ChatMessage,
   ChatSummary,
+  ChatVcsState,
   JsonObject,
   JsonValue,
   OpenRouterModelOption,
@@ -377,6 +378,7 @@ export type DaemonChat = {
   readonly model: string;
   readonly previousChatId: string | null;
   readonly compactedAt: number | null;
+  readonly vcs?: ChatVcsState;
   readonly messages: readonly ChatMessage[];
   readonly history: readonly JsonValue[];
   readonly lastAnswer: string;

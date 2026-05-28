@@ -24,6 +24,7 @@ export type AgentChatStore = {
   updateMessage(chatId: string, messageId: string, patch: Partial<Omit<ChatMessage, 'id' | 'createdAt'>>): ChatMessage;
   clearChat(chatId: string): void;
   setModel(chatId: string, model: string): void;
+  setVcsState(chatId: string, vcs: Chat['vcs']): void;
   setBusy(chatId: string, busy: boolean): void;
   setLastAnswer(chatId: string, answer: string): void;
   setHistory(chatId: string, history: Chat['history']): void;

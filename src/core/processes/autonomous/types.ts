@@ -110,6 +110,25 @@ export type AutonomousEvent = {
   data?: Record<string, unknown>;
 };
 
+export type AutonomousVcsCommand = 'git' | 'arc' | (string & {});
+
+export type AutonomousVcsIsolationOptions = {
+  enabled: boolean;
+  command?: AutonomousVcsCommand;
+  baseBranch?: string;
+  branchName?: string;
+  worktreePath?: string;
+  keepWorktree?: boolean;
+};
+
+export type AutonomousVcsEnvironment = {
+  command: AutonomousVcsCommand;
+  baseBranch: string;
+  branchName: string;
+  worktreePath: string;
+  keepWorktree: boolean;
+};
+
 export type AutonomousSessionMeta = {
   id: string;
   kind: AutonomousSessionKind;
@@ -118,6 +137,7 @@ export type AutonomousSessionMeta = {
   engineId: AutonomousEngineId;
   workspaceRoot: string;
   workDir: string;
+  vcs?: AutonomousVcsEnvironment;
   startedAt: string;
   finishedAt?: string;
   exitCode?: number;
@@ -130,6 +150,7 @@ export type AutonomousCommandState = {
   engineId: AutonomousEngineId;
   dryRun: boolean;
   workDir: string;
+  vcs?: AutonomousVcsEnvironment;
   extraPrompt?: string;
 };
 
@@ -198,6 +219,7 @@ export type AutonomousLaunchOptions = {
   engineId: AutonomousEngineId;
   dryRun: boolean;
   workDir?: string;
+  vcsIsolation?: AutonomousVcsIsolationOptions;
   extraPrompt?: string;
 };
 

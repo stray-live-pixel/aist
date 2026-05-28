@@ -17,6 +17,44 @@
   gap: 6px;
 }
 
+.vcsControls {
+  display: flex;
+  min-width: 0;
+  flex-shrink: 1;
+  align-items: center;
+  gap: 6px;
+}
+
+.vcsBranchButton {
+  display: inline-flex;
+  max-width: clamp(7rem, 24vw, 14rem);
+  height: 24px;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 34%, transparent);
+  padding: 0 8px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.vcsBranchButton:hover {
+  color: var(--vscode-foreground);
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 42%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 72%, transparent);
+}
+
+.vcsBranchButton span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .summaryActions {
   display: flex;
   flex-shrink: 0;

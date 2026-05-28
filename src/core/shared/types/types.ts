@@ -204,12 +204,20 @@ export type AgentRunActivity = 'thinking' | 'waitingForApproval' | 'runningTool'
 
 export type AgentRunStatus = 'running' | 'waitingForApproval' | 'stopping' | 'completed' | 'failed' | 'stopped';
 
+export type ChatVcsState = {
+  command: string;
+  branch: string;
+  baseBranch?: string;
+  isolated: boolean;
+};
+
 export type Chat = {
   id: string;
   title: string;
   model: string;
   previousChatId?: string;
   compactedAt?: number;
+  vcs?: ChatVcsState;
   messages: ChatMessage[];
   history: OpenRouterMessage[];
   lastAnswer: string;
@@ -232,6 +240,7 @@ export type ChatSummary = {
   model: string;
   previousChatId?: string;
   compactedAt?: number;
+  vcs?: ChatVcsState;
   messageCount: number;
   lastUserMessage: string;
   busy: boolean;

@@ -35,6 +35,7 @@ import type {
   AutonomousSessionView,
   AutonomousState
 } from './types';
+import { prepareAutonomousVcsIsolation } from './vcsIsolation';
 
 export type AutonomousBackendLogger = ConfigStoreLogger & ModelTransportLogger;
 
@@ -201,17 +202,31 @@ export class AutonomousBackend {
     const sessionId = createSessionId('flow');
     const abortController = new AbortController();
     this.runningSessions.set(sessionId, abortController);
-    const workDir = launch.workDir || this.workspaceRoot;
-    const completion = runAutonomousFlow({
-      flow,
+    const completion = prepareAutonomousVcsIsolation({
       workspaceRoot: this.workspaceRoot,
-      workDir,
-      launch,
-      sessionStore: this.sessionStore,
-      engineRegistry: this.createEngineRegistry(),
-      signal: abortController.signal,
-      sessionId
+      sessionId,
+      targetId: flow.id,
+      isolation: launch.vcsIsolation
     })
+      .then(async (vcs) => {
+        const workspaceRoot = vcs.worktreeRoot || this.workspaceRoot;
+        const workDir = launch.workDir ? path.resolve(workspaceRoot, launch.workDir) : workspaceRoot;
+        try {
+          await runAutonomousFlow({
+            flow,
+            workspaceRoot,
+            workDir,
+            launch,
+            vcs: vcs.environment,
+            sessionStore: this.sessionStore,
+            engineRegistry: this.createEngineRegistry(),
+            signal: abortController.signal,
+            sessionId
+          });
+        } finally {
+          await vcs.dispose();
+        }
+      })
       .then(() => this.sessionStore.readSession(sessionId))
       .finally(() => {
         this.runningSessions.delete(sessionId);
@@ -243,16 +258,31 @@ export class AutonomousBackend {
     const sessionId = createSessionId('run');
     const abortController = new AbortController();
     this.runningSessions.set(sessionId, abortController);
-    const completion = runAutonomousBatch({
-      run,
-      definitions,
+    const completion = prepareAutonomousVcsIsolation({
       workspaceRoot: this.workspaceRoot,
-      launch: { ...launch, workDir: launch.workDir || run.workDir || this.workspaceRoot },
-      sessionStore: this.sessionStore,
-      engineRegistry: this.createEngineRegistry(),
-      signal: abortController.signal,
-      sessionId
+      sessionId,
+      targetId: run.id,
+      isolation: launch.vcsIsolation
     })
+      .then(async (vcs) => {
+        const workspaceRoot = vcs.worktreeRoot || this.workspaceRoot;
+        const workDir = launch.workDir || run.workDir || workspaceRoot;
+        try {
+          await runAutonomousBatch({
+            run,
+            definitions,
+            workspaceRoot,
+            launch: { ...launch, workDir },
+            vcs: vcs.environment,
+            sessionStore: this.sessionStore,
+            engineRegistry: this.createEngineRegistry(),
+            signal: abortController.signal,
+            sessionId
+          });
+        } finally {
+          await vcs.dispose();
+        }
+      })
       .then(() => this.sessionStore.readSession(sessionId))
       .finally(() => {
         this.runningSessions.delete(sessionId);

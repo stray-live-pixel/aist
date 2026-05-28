@@ -11,6 +11,7 @@ import type {
   AuxiliaryToolModelOverride,
   CodexServiceTier,
   CompactionSettings,
+  ComposerUiSettings,
   EditorContextMode,
   ReasoningEffort,
   ToolPermissionMode,
@@ -128,6 +129,10 @@ export const agentActions = {
 
   setApprovalNotificationSettings(settings: Partial<ApprovalNotificationSettings>): void {
     post({ type: 'setApprovalNotificationSettings', settings });
+  },
+
+  setComposerUiSettings(settings: Partial<ComposerUiSettings>): void {
+    post({ type: 'setComposerUiSettings', settings });
   },
 
   setAgentLanguage(language: AgentLanguage): void {
@@ -267,5 +272,21 @@ export const agentActions = {
 
   copyMessage(markdown: string): void {
     post({ type: 'copyMessage', markdown });
+  },
+
+  refreshVcs(): void {
+    post({ type: 'vcs.refresh' });
+  },
+
+  isolateChatVcs(): void {
+    post({ type: 'vcs.isolateChat' });
+  },
+
+  commitAndForcePushVcs(): void {
+    post({ type: 'vcs.commitAndForcePush' });
+  },
+
+  mergeToMainVcs(): void {
+    post({ type: 'vcs.mergeToMain' });
   }
 };

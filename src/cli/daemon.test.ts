@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ModelClient } from '../core/entities/model/modelTransport';
-import { globalWorkspaceAutonomousSessionsDir } from '../core/entities/storage/storage';
+import { globalWorkspaceAutonomousSessionsDir, workspaceSettingsFile } from '../core/entities/storage/storage';
 import type { OpenRouterMessage } from '../core/shared/types/types';
 import { AistDaemonServer } from './daemon';
 import { DaemonJsonRpcClient, DaemonJsonRpcError } from './daemonClient';
@@ -40,14 +40,29 @@ afterEach(async () => {
 
 describe('AIST daemon JSON-RPC local socket', () => {
   it('serves state.get and chat.ask while streaming subscribed events', async () => {
-    const { server } = await startDaemon(
-      createQueuedModelClient([
-        {
-          role: 'assistant',
-          content: 'Daemon final answer.',
-          usage: { promptTokens: 3, completionTokens: 4, totalTokens: 7 }
-        }
-      ])
+    const modelClient = createQueuedModelClient([
+      {
+        role: 'assistant',
+        content: 'Daemon final answer.',
+        usage: { promptTokens: 3, completionTokens: 4, totalTokens: 7 }
+      }
+    ]);
+    const { server, workspaceRoot } = await startDaemon(modelClient);
+    fs.mkdirSync(path.join(workspaceRoot, '.aist-agent'), { recursive: true });
+    fs.writeFileSync(
+      workspaceSettingsFile(workspaceRoot),
+      `${JSON.stringify({
+        customSkills: [
+          {
+            id: 'daemon-local-skill',
+            label: 'Daemon local skill',
+            description: 'Loaded by daemon from workspace settings.',
+            command: 'echo daemon',
+            permission: 'ask'
+          }
+        ]
+      })}\n`,
+      'utf8'
     );
     const client = await connectClient(server);
     const events = createEventCollector(client);
@@ -75,6 +90,11 @@ describe('AIST daemon JSON-RPC local socket', () => {
 
     const finished = await events.waitFor((event) => event.type === 'run.finished' && event.run.id === ask.runId);
     expect(finished).toMatchObject({ type: 'run.finished', status: 'completed' });
+    const systemMessage = modelClient.calls[0]?.messages.find((message) => message.role === 'system');
+    expect(systemMessage?.content).toContain('## Skills');
+    expect(systemMessage?.content).toContain(
+      '- daemon-local-skill: Daemon local skill - Loaded by daemon from workspace settings.'
+    );
     expect(events.items.map((event) => event.type)).toEqual(
       expect.arrayContaining(['state.changed', 'run.started', 'message.appended', 'run.finished'])
     );
@@ -361,10 +381,17 @@ function createNativeAutonomousFlow(workspaceRoot: string, flowId: string): void
   );
 }
 
-function createQueuedModelClient(responses: OpenRouterMessage[]): ModelClient {
+type QueuedDaemonModelClient = ModelClient & {
+  calls: Array<{ messages: OpenRouterMessage[] }>;
+};
+
+function createQueuedModelClient(responses: OpenRouterMessage[]): QueuedDaemonModelClient {
   const queue = [...responses];
+  const calls: QueuedDaemonModelClient['calls'] = [];
   return {
-    chat: async () => {
+    calls,
+    chat: async (messages) => {
+      calls.push({ messages });
       const next = queue.shift();
       if (!next) {
         throw new Error('Unexpected fake model request.');

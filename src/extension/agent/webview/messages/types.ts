@@ -20,4 +20,8 @@ export type AgentWebviewMessageDeps = {
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   openWorkspaceFile(path: string, line?: number, column?: number, endLine?: number, endColumn?: number): Promise<void>;
   stopCurrentRun(chatId?: string): Promise<void>;
+  refreshChatVcs(chatId: string): Promise<void>;
+  isolateChatVcs(chatId: string): Promise<void>;
+  commitAndForcePushChatVcs(chatId: string): Promise<void>;
+  mergeChatVcsToMain(chatId: string): Promise<void>;
 };

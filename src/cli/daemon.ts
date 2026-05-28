@@ -792,7 +792,13 @@ export class AistDaemonServer {
         getSnapshot: () => this.getRuntimeConfig()
       },
       promptProvider: {
-        getSystemPrompt: async () => getSystemPrompt({ language: await this.getLanguage() })
+        getSystemPrompt: async () => {
+          const skills = await this.getConfiguredSkills();
+          return getSystemPrompt({
+            language: await this.getLanguage(),
+            skills: skills.map(({ id, label, description }) => ({ id, label, description }))
+          });
+        }
       },
       contextProviders: {
         getEditorContext: () => this.getClientEditorContext(),

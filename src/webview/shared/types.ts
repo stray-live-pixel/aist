@@ -26,12 +26,20 @@ export type ChatMessageUsageEstimate = {
   costUsd?: number;
 };
 
+export type ChatVcsState = {
+  command: string;
+  branch: string;
+  baseBranch?: string;
+  isolated: boolean;
+};
+
 export type ChatSummary = {
   id: string;
   title: string;
   model: string;
   previousChatId?: string;
   compactedAt?: number;
+  vcs?: ChatVcsState;
   messageCount: number;
   lastUserMessage: string;
   busy: boolean;
@@ -105,6 +113,7 @@ export type Chat = {
   model: string;
   previousChatId?: string;
   compactedAt?: number;
+  vcs?: ChatVcsState;
   previousChat?: CompactPreviousChat;
   messages: ChatMessage[];
   lastAnswer: string;
@@ -296,6 +305,11 @@ export type ApprovalNotificationSettings = {
   sound: boolean;
   volume: number;
   durationSeconds: number;
+};
+
+export type ComposerUiSettings = {
+  gradientWhileBusy: boolean;
+  minimizeOnBlur: boolean;
 };
 
 export type RunTelemetryStatus = 'success' | 'error' | 'stopped';
@@ -499,6 +513,7 @@ export type AgentState = {
   auxiliaryModels: AuxiliaryModelsSettings;
   compactionSettings: CompactionSettings;
   approvalNotificationSettings: ApprovalNotificationSettings;
+  composerUiSettings: ComposerUiSettings;
   telemetry: AgentTelemetryDashboard;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
@@ -549,6 +564,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setAuxiliaryModelSettings'; id: AuxiliaryModelId; settings: Partial<AuxiliaryModelSettings> }
   | { type: 'setAuxiliaryToolModelOverrides'; overrides: AuxiliaryToolModelOverride[] }
   | { type: 'setApprovalNotificationSettings'; settings: Partial<ApprovalNotificationSettings> }
+  | { type: 'setComposerUiSettings'; settings: Partial<ComposerUiSettings> }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
@@ -613,6 +629,10 @@ export type WebviewToExtensionMessage =
   | { type: 'stop'; chatId?: string }
   | { type: 'clear' }
   | { type: 'copyMessage'; markdown: string }
+  | { type: 'vcs.refresh' }
+  | { type: 'vcs.isolateChat' }
+  | { type: 'vcs.commitAndForcePush' }
+  | { type: 'vcs.mergeToMain' }
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
   | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }

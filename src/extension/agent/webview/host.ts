@@ -60,25 +60,23 @@ export function resolveAgentSidebarWebview(
  * через явные callbacks.
  */
 export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebviewHostDeps): void {
-  const activeChatId = chatId || deps.getSidebarChatId() || deps.chats.getActiveChat().id;
-  const chat = deps.chats.getChat(activeChatId) || deps.chats.getActiveChat();
-  const surfaceId = `${chat.id}:${Date.now()}`;
-  let panelChatId = chat.id;
+  const requestedChatId = chatId || deps.getSidebarChatId() || deps.chats.getActiveChat().id;
+  const chat = deps.chats.getChat(requestedChatId);
+  const fallbackChat = deps.chats.getActiveChat();
+  const panelChatIdInitial = chat?.id || requestedChatId;
+  const surfaceId = `${panelChatIdInitial}:${Date.now()}`;
+  let panelChatId = panelChatIdInitial;
+  const title = chat?.title || fallbackChat.title;
 
-  deps.logger.info('Opening chat in editor', { chatId: chat.id, surfaceId });
-  const panel = vscode.window.createWebviewPanel(
-    'openrouterAgentChat',
-    `aist: ${chat.title}`,
-    vscode.ViewColumn.Beside,
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(deps.context.extensionUri, 'dist'),
-        vscode.Uri.joinPath(deps.context.extensionUri, 'assets')
-      ]
-    }
-  );
+  deps.logger.info('Opening chat in editor', { chatId: panelChatId, requestedChatId, surfaceId });
+  const panel = vscode.window.createWebviewPanel('openrouterAgentChat', `aist: ${title}`, vscode.ViewColumn.Beside, {
+    enableScripts: true,
+    retainContextWhenHidden: true,
+    localResourceRoots: [
+      vscode.Uri.joinPath(deps.context.extensionUri, 'dist'),
+      vscode.Uri.joinPath(deps.context.extensionUri, 'assets')
+    ]
+  });
 
   const surface: WebviewSurface = {
     id: surfaceId,

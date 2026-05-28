@@ -162,6 +162,7 @@ export class DaemonChatStore implements AgentChatStore {
       model: chat.model,
       previousChatId: chat.previousChatId,
       compactedAt: chat.compactedAt,
+      vcs: chat.vcs,
       messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
       lastUserMessage: getLastUserMessage(chat),
       busy: chat.busy,
@@ -212,6 +213,12 @@ export class DaemonChatStore implements AgentChatStore {
   setModel(chatId: string, model: string): void {
     const chat = this.requireChat(chatId);
     chat.model = model;
+    this.touch(chat);
+  }
+
+  setVcsState(chatId: string, vcs: Chat['vcs']): void {
+    const chat = this.requireChat(chatId);
+    chat.vcs = vcs;
     this.touch(chat);
   }
 
@@ -339,6 +346,7 @@ function toExtensionChat(chat: DaemonChat): Chat {
     model: chat.model,
     previousChatId: chat.previousChatId || undefined,
     compactedAt: chat.compactedAt || undefined,
+    vcs: chat.vcs,
     messages: chat.messages.map((message) => ({ ...message })),
     history: chat.history as Chat['history'],
     lastAnswer: chat.lastAnswer,

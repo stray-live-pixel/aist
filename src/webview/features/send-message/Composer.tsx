@@ -1,4 +1,4 @@
-import { History, SendHorizontal, Square } from 'lucide-react';
+import { ChevronUp, History, SendHorizontal, Square } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useI18n } from '../../shared/i18n';
@@ -29,7 +29,17 @@ type SentComposerSnapshot = {
  * Что это: нижний composer для отправки prompt или остановки текущей генерации.
  * Зачем нужно: компонент инкапсулирует правила пустого prompt, shortcut и autosize textarea, а весь UI собирает из shared-компонентов.
  */
-export function Composer({ chatId, busy, floating = false, settings, headerActions, footer, notice }: ComposerProps) {
+export function Composer({
+  chatId,
+  busy,
+  floating = false,
+  minimized = false,
+  gradientWhileBusy = true,
+  settings,
+  headerActions,
+  footer,
+  notice
+}: ComposerProps) {
   const { t } = useI18n();
   const [prompt, setPrompt] = useState(() => loadPromptDraft(chatId));
   const [history, setHistory] = useState<PromptHistoryItem[]>(() => loadPromptHistory(chatId));
@@ -198,6 +208,8 @@ export function Composer({ chatId, busy, floating = false, settings, headerActio
           key={sentComposer.id}
           busy={busy}
           floating={floating}
+          minimized={minimized}
+          gradientWhileBusy={gradientWhileBusy}
           settings={settings}
           footer={footer}
           notice={notice}
@@ -213,6 +225,8 @@ export function Composer({ chatId, busy, floating = false, settings, headerActio
       <ComposerShell
         busy={busy}
         floating={floating}
+        minimized={minimized}
+        gradientWhileBusy={gradientWhileBusy}
         settings={settings}
         footer={footer}
         notice={notice}
@@ -243,7 +257,10 @@ export function Composer({ chatId, busy, floating = false, settings, headerActio
 }
 
 function ComposerShell({
+  busy,
   floating,
+  minimized,
+  gradientWhileBusy,
   settings,
   footer,
   notice,
@@ -260,6 +277,8 @@ function ComposerShell({
 }: {
   busy: boolean;
   floating: boolean;
+  minimized: boolean;
+  gradientWhileBusy: boolean;
   settings?: ReactNode;
   footer?: ReactNode;
   notice?: ReactNode;
@@ -274,34 +293,48 @@ function ComposerShell({
   onPromptChange?(value: string): void;
   onPromptKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): void;
 }) {
+  const shellClassName = [
+    className,
+    minimized ? styles.composerMinimized : undefined,
+    minimized && busy && gradientWhileBusy ? styles.composerMinimizedBusyGradient : undefined
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <ComposerFrame
-      floating={floating}
-      notice={notice}
-      header={settings}
-      headerActions={headerActions}
-      fallback={fallback}
-      className={className}
-      input={
-        <TextArea
-          ref={textareaRef}
-          variant="composer"
-          placeholder={placeholder}
-          rows={1}
-          value={prompt}
-          readOnly={readOnly}
-          aria-hidden={readOnly}
-          tabIndex={readOnly ? -1 : undefined}
-          onChange={(event) => onPromptChange?.(event.target.value)}
-          onKeyDown={(event) => {
-            if (!readOnly) {
-              onPromptKeyDown?.(event);
-            }
-          }}
+    <div className={shellClassName || undefined} aria-expanded={!minimized}>
+      <div className={styles.minimizedStrip} aria-hidden={!minimized}>
+        <ChevronUp size={16} strokeWidth={2.4} />
+      </div>
+      <div className={styles.composerContent}>
+        <ComposerFrame
+          floating={floating}
+          notice={notice}
+          header={settings}
+          headerActions={headerActions}
+          fallback={fallback}
+          input={
+            <TextArea
+              ref={textareaRef}
+              variant="composer"
+              placeholder={placeholder}
+              rows={1}
+              value={prompt}
+              readOnly={readOnly}
+              aria-hidden={readOnly || minimized}
+              tabIndex={readOnly || minimized ? -1 : undefined}
+              onChange={(event) => onPromptChange?.(event.target.value)}
+              onKeyDown={(event) => {
+                if (!readOnly) {
+                  onPromptKeyDown?.(event);
+                }
+              }}
+            />
+          }
+          footer={footer}
+          actions={actions}
         />
-      }
-      footer={footer}
-      actions={actions}
-    />
+      </div>
+    </div>
   );
 }

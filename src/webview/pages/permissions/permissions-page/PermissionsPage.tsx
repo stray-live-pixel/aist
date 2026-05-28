@@ -27,6 +27,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     auxiliaryModels,
     compactionSettings,
     approvalNotificationSettings,
+    composerUiSettings,
     agentLanguage,
     agentMode,
     agentModes,
@@ -96,6 +97,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
               agentLanguage={agentLanguage}
               maxToolIterations={maxToolIterations}
               codexAuthenticated={codexAuthenticated}
+              composerUiSettings={composerUiSettings}
             />
           ) : null}
         </div>

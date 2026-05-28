@@ -79,6 +79,10 @@ export type WebviewMessage =
         durationSeconds: number;
       }>;
     }
+  | {
+      type: 'setComposerUiSettings';
+      settings: Partial<{ gradientWhileBusy: boolean; minimizeOnBlur: boolean }>;
+    }
   | { type: 'setAgentLanguage'; language: 'ru' | 'en' }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }
@@ -142,7 +146,11 @@ export type WebviewMessage =
   | { type: 'openWorkspaceFile'; path: string; line?: number; column?: number; endLine?: number; endColumn?: number }
   | { type: 'stop'; chatId?: string }
   | { type: 'clear' }
-  | { type: 'copyMessage'; markdown: string };
+  | { type: 'copyMessage'; markdown: string }
+  | { type: 'vcs.refresh' }
+  | { type: 'vcs.isolateChat' }
+  | { type: 'vcs.commitAndForcePush' }
+  | { type: 'vcs.mergeToMain' };
 
 /**
  * Абстракция над webview-поверхностью: sidebar и editor panel имеют разный
