@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { OpenRouterMessage, ToolCall } from '../../../core/types';
 import { ChatStore } from '../../chats/chatStore';
 import type { ChatMessage } from '../../chats/types';
-import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
 import { createToolError } from '../../shared/toolErrors';
 import { addAgentMemory } from '../memory/memory';
 import type { AgentRun, ToolApprovalDecision } from '../types';

@@ -1,5 +1,5 @@
+import type { OpenRouterModelOption } from '../../../core/types';
 import type { ChatStore } from '../../chats/chatStore';
-import type { OpenRouterModelOption } from '../../openrouter/types';
 import type { AistLogger } from '../../shared/logger';
 import { getWorkspaceName } from '../../shared/workspace';
 import { getAgentSkills } from '../../skills/skills';

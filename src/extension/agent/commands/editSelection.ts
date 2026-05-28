@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
+import type { OpenRouterMessage, OpenRouterTool } from '../../../core/types';
 import type { ChatStore } from '../../chats/chatStore';
-import type { OpenRouterMessage, OpenRouterTool } from '../../openrouter/types';
 import { t } from '../../shared/i18n';
 import { replaceSelection, stripCodeFence } from '../context/editorContext';
 import { buildEditSelectionPrompt } from './editSelectionPrompt';

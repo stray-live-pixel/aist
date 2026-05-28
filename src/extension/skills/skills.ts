@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as vscode from 'vscode';
 
+import type { OpenRouterTool } from '../../core/types';
 import {
   type AgentItemScope,
   readAgentConfig,
@@ -8,7 +9,6 @@ import {
   updateAgentConfig,
   updateGlobalAgentConfig
 } from '../agent/config/agentConfigStore';
-import type { OpenRouterTool } from '../openrouter/types';
 import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { resolveWorkspacePath } from '../shared/workspace';
 import type { ToolPermissionMode } from '../tools/permissions';

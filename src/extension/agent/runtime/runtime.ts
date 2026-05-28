@@ -1,4 +1,4 @@
-import type { OpenRouterMessage } from '../../openrouter/types';
+import type { OpenRouterMessage } from '../../../core/types';
 
 export function isAbortError(error: unknown): boolean {
   return Boolean(error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');

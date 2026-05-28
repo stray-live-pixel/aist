@@ -1,8 +1,5 @@
 import * as vscode from 'vscode';
 
-import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
-import type { AistLogger } from '../shared/logger';
-import { ModelRequestError } from './errors';
 import type {
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
@@ -10,8 +7,12 @@ import type {
   OpenRouterModelOption,
   OpenRouterModelPricing,
   OpenRouterTool,
+  ReasoningEffort,
   ToolCall
-} from './types';
+} from '../../core/types';
+import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../shared/constants';
+import type { AistLogger } from '../shared/logger';
+import { ModelRequestError } from './errors';
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -65,7 +66,7 @@ type OpenRouterModelsResponse = {
   data?: OpenRouterModelApiItem[];
 };
 
-export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+export type { ReasoningEffort } from '../../core/types';
 
 export class OpenRouterClient {
   constructor(private readonly logger?: AistLogger) {}

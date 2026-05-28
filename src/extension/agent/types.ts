@@ -1,16 +1,21 @@
 import type * as vscode from 'vscode';
 
-import type { ChatUsageEstimate } from '../chats/types';
-import type { ModelStreamCallbacks, OpenRouterMessage } from '../openrouter/types';
+import type { CodexServiceTier, AgentRun as CoreAgentRun, EditorContextMode, ReasoningEffort } from '../../core/types';
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
 import type { AgentMemoryScope } from './memory/memory';
 import type { AgentRunTelemetryDraft } from './runtime/telemetry';
 
-export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
-export type CodexServiceTier = 'auto' | 'priority';
-export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
+export type {
+  AgentActivityStream,
+  AgentLoopResult,
+  CodexServiceTier,
+  EditorContextMode,
+  ReasoningEffort,
+  RepeatedToolCall,
+  ToolApprovalDecision
+} from '../../core/types';
 
 /**
  * Хранит состояние одного активного запуска агента.
@@ -19,59 +24,7 @@ export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
  * управлялись из одного места. Создается в AgentController.ask и передается
  * в agent loop/tool calls вместо набора разрозненных флагов.
  */
-export type AgentRun = {
-  chatId: string;
-  startedAt: number;
-  prompt: string;
-  abortController: AbortController;
-  stopRequested: boolean;
-  activityStream?: AgentActivityStream;
-  permissionResolvers: Map<string, (decision: ToolApprovalDecision) => void>;
-  telemetry?: AgentRunTelemetryDraft;
-};
-
-/**
- * Решение пользователя по tool approval.
- * approved запускает инструмент и может передать комментарий модели как userApprovalComment после результата;
- * отказ может либо остановить текущий агентский цикл, либо вернуться в модель как результат tool-call.
- */
-export type ToolApprovalDecision = {
-  approved: boolean;
-  continueAfterDeny: boolean;
-  comment?: string;
-  rememberGlobal?: string;
-  rememberProject?: string;
-};
-
-export type AgentActivityStream = ModelStreamCallbacks & {
-  reset(): void;
-  hasContent(): boolean;
-};
-
-/**
- * Результат полного agent loop после всех вызовов модели и инструментов.
- *
- * Контроллер использует его как единый commit-point: сохраняет историю,
- * последний ответ и usage только после успешного завершения цикла.
- */
-export type AgentLoopResult = {
-  answer: string;
-  history: OpenRouterMessage[];
-  usage: ChatUsageEstimate;
-};
-
-/**
- * Описание повторяющегося tool call, из-за которого agent loop останавливается.
- *
- * Сигнатура строится без поля reason, потому что reason может меняться текстово,
- * хотя сам инструмент и его существенные аргументы остаются теми же.
- */
-export type RepeatedToolCall = {
-  signature: string;
-  count: number;
-  toolName: string;
-  args: Record<string, unknown>;
-};
+export type AgentRun = CoreAgentRun<AgentRunTelemetryDraft>;
 
 /**
  * Входящие сообщения из webview UI.

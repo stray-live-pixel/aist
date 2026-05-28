@@ -1,4 +1,4 @@
-import type { ToolCall } from '../../openrouter/types';
+import type { ToolCall } from '../../../core/types';
 import type { RepeatedToolCall } from '../types';
 
 /**

@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import type { OpenRouterMessage } from '../../openrouter/types';
+import type { OpenRouterMessage } from '../../../core/types';
 import type { EditorContextInput } from './editorContextBuilder';
 
 export type ContextTaskType = 'read-only' | 'code-edit' | 'debug-test-fix' | 'repo-inspection';

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
-import type { OpenRouterTool } from '../openrouter/types';
+import type { OpenRouterTool } from '../../core/types';
 import { getRepoMap } from '../shared/repoMap';
 import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import { getWorkspaceFolder, resolveWorkspacePath } from '../shared/workspace';

@@ -1,4 +1,4 @@
-import type { OpenRouterModelOption } from '../../openrouter/types';
+import type { OpenRouterModelOption } from '../../../core/types';
 
 /**
  * Объединяет модели провайдеров и гарантирует наличие уже выбранных моделей.

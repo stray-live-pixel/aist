@@ -1,5 +1,5 @@
+import type { OpenRouterMessage } from '../../../core/types';
 import type { ChatMessage } from '../../chats/types';
-import type { OpenRouterMessage } from '../../openrouter/types';
 
 export const COMPACTION_SYSTEM_PROMPT = [
   'You summarize coding-agent chat history for context compaction.',

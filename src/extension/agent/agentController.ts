@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
 
-import { ChatStore } from '../chats/chatStore';
-import { createChatErrorMessage } from '../chats/errorMessages';
-import { CodexClient } from '../codex/client';
-import { OpenRouterClient } from '../openrouter/client';
 import type {
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterTool
-} from '../openrouter/types';
+} from '../../core/types';
+import { ChatStore } from '../chats/chatStore';
+import { createChatErrorMessage } from '../chats/errorMessages';
+import { CodexClient } from '../codex/client';
+import { OpenRouterClient } from '../openrouter/client';
 import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
 import { editSelection as runEditSelectionCommand } from './commands/editSelection';

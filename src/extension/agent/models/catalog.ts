@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
+import type { OpenRouterModelOption } from '../../../core/types';
 import type { CodexClient } from '../../codex/client';
 import type { OpenRouterClient } from '../../openrouter/client';
-import type { OpenRouterModelOption } from '../../openrouter/types';
 import { FALLBACK_MODEL_OPTIONS } from '../../shared/constants';
 import { getErrorMessage } from '../../shared/errors';
 import { t } from '../../shared/i18n';

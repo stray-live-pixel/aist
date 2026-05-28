@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { OpenRouterMessage } from '../../openrouter/types';
+import type { OpenRouterMessage } from '../../../core/types';
 import { classifyContextTask, governModelContext } from './contextGovernor';
 import type { EditorContextInput } from './editorContextBuilder';
 

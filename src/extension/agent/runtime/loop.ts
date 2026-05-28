@@ -1,13 +1,14 @@
-import type { ChatStore } from '../../chats/chatStore';
-import type { Chat, ChatUsageEstimate } from '../../chats/types';
-import { getModelRequestErrorInfo } from '../../openrouter/errors';
 import type {
+  Chat,
+  ChatUsageEstimate,
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterModelOption,
   OpenRouterTool
-} from '../../openrouter/types';
+} from '../../../core/types';
+import type { ChatStore } from '../../chats/chatStore';
+import { getModelRequestErrorInfo } from '../../openrouter/errors';
 import { CODEX_RESPONSES_URL, OPENROUTER_URL } from '../../shared/constants';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';

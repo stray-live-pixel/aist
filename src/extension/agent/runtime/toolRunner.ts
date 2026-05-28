@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 
+import type { Chat, OpenRouterMessage, ToolCall } from '../../../core/types';
 import type { ChatStore } from '../../chats/chatStore';
-import type { Chat } from '../../chats/types';
-import type { OpenRouterMessage, ToolCall } from '../../openrouter/types';
 import { t } from '../../shared/i18n';
 import { toStructuredToolFailure } from '../../shared/toolErrors';
 import { getSkillPermission, runAgentSkill } from '../../skills/skills';

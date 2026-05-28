@@ -1,14 +1,14 @@
-import type { ChatStore } from '../../chats/chatStore';
-import { createChatErrorMessage } from '../../chats/errorMessages';
-import type { Chat } from '../../chats/types';
 import type {
+  Chat,
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
   OpenRouterModelOption,
   OpenRouterTool,
   ToolCall
-} from '../../openrouter/types';
+} from '../../../core/types';
+import type { ChatStore } from '../../chats/chatStore';
+import { createChatErrorMessage } from '../../chats/errorMessages';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import { getRepoVerificationContextNote } from '../../shared/repoMap';

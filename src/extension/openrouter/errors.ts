@@ -1,4 +1,4 @@
-import type { ModelProvider } from './types';
+import type { ModelProvider } from '../../core/types';
 
 const MAX_RESPONSE_BODY_CHARS = 6000;
 

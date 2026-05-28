@@ -3,8 +3,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import type { OpenRouterTool } from '../../core/types';
 import { type FrontmatterObject, parseMarkdownFrontmatter } from '../autonomous/frontmatter';
-import type { OpenRouterTool } from '../openrouter/types';
 import { createToolError, toStructuredToolFailure } from '../shared/toolErrors';
 import type { ToolPermissionMode } from './permissions';
 

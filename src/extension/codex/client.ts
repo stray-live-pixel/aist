@@ -3,7 +3,6 @@ import { type Server, createServer } from 'node:http';
 import * as os from 'node:os';
 import * as vscode from 'vscode';
 
-import { ModelRequestError } from '../openrouter/errors';
 import type {
   CodexServiceTier,
   ModelRequestLifecycleCallbacks,
@@ -12,7 +11,8 @@ import type {
   OpenRouterModelOption,
   OpenRouterTool,
   ToolCall
-} from '../openrouter/types';
+} from '../../core/types';
+import { ModelRequestError } from '../openrouter/errors';
 import { CODEX_RESPONSES_URL, FALLBACK_MODEL_OPTIONS } from '../shared/constants';
 import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';

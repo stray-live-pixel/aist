@@ -1,4 +1,4 @@
-import type { OpenRouterTool } from '../../openrouter/types';
+import type { OpenRouterTool } from '../../../core/types';
 import { getWorkspaceFolder } from '../../shared/workspace';
 import type { AgentSkill } from '../../skills/skills';
 import { runSkillTool } from '../../skills/skills';

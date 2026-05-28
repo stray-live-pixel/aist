@@ -1,5 +1,4 @@
-import type { ChatPlan, ChatPlanItem, ChatPlanItemStatus } from '../chats/types';
-import type { OpenRouterTool } from '../openrouter/types';
+import type { ChatPlan, ChatPlanItem, ChatPlanItemStatus, OpenRouterTool } from '../../core/types';
 
 export const PLAN_TOOL_NAMES = ['create_plan', 'update_plan', 'set_plan_item_status'] as const;
 
