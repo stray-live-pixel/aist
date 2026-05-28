@@ -474,9 +474,31 @@ export type RuntimeEvent =
       at: number;
     }
   | {
+      type: 'run.finished';
+      run: RuntimeRunSnapshot;
+      status: Extract<AgentRunStatus, 'completed' | 'stopped'>;
+      answer?: string;
+      usage?: ChatUsageEstimate;
+      reason?: string;
+      at: number;
+    }
+  | {
+      type: 'run.error';
+      runId: string;
+      chatId: string;
+      error: RuntimeErrorInfo;
+      at: number;
+    }
+  | {
       type: 'message.appended';
       chatId: string;
       message: RuntimeChatMessage;
+      at: number;
+    }
+  | {
+      type: 'chat.updated';
+      chatId: string;
+      reason?: string;
       at: number;
     }
   | {

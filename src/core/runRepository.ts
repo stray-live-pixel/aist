@@ -343,6 +343,21 @@ function eventMetaPatch(event: RuntimeEvent): Partial<RunMetadata> {
       };
     case 'run.stopped':
       return { status: 'stopped', chatId: event.chatId, finishedAt: event.at };
+    case 'run.finished':
+      return {
+        status: event.status,
+        chatId: event.run.chatId,
+        model: event.run.model,
+        finishedAt: event.run.finishedAt || event.at,
+        usage: event.usage
+      };
+    case 'run.error':
+      return {
+        status: 'failed',
+        chatId: event.chatId,
+        finishedAt: event.at,
+        error: { message: event.error.message, code: event.error.code }
+      };
     default:
       return {};
   }
@@ -352,8 +367,10 @@ function getRuntimeEventRunId(event: RuntimeEvent): string | undefined {
   switch (event.type) {
     case 'run.started':
     case 'run.completed':
+    case 'run.finished':
       return event.run.id;
     case 'message.appended':
+    case 'chat.updated':
       return undefined;
     default:
       return event.runId;

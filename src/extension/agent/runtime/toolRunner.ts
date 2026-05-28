@@ -87,7 +87,7 @@ export function handleAgentToolCall(params: HandleAgentToolCallParams): Promise<
  * Показывает системное уведомление VS Code только для критичного ожидания решения.
  * Звук остаётся в webview, потому что там доступен Web Audio; extension отвечает за OS/VS Code notification.
  */
-function showApprovalSystemNotification(toolName: string): void {
+export function showApprovalSystemNotification(toolName: string): void {
   const settings = getApprovalNotificationSettings();
   if (!settings.enabled || !settings.systemNotifications) {
     return;
@@ -99,7 +99,10 @@ function showApprovalSystemNotification(toolName: string): void {
   );
 }
 
-function getToolCallPermission(toolName: string, args: Record<string, unknown>): ReturnType<typeof getToolPermission> {
+export function getToolCallPermission(
+  toolName: string,
+  args: Record<string, unknown>
+): ReturnType<typeof getToolPermission> {
   if (toolName === 'edit_file') {
     return 'ask';
   }

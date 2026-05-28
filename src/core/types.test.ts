@@ -15,7 +15,10 @@ const runtimeEventTypes = [
   'run.completed',
   'run.failed',
   'run.stopped',
+  'run.finished',
+  'run.error',
   'message.appended',
+  'chat.updated',
   'model.request.updated',
   'model.response',
   'tool.call.started',
@@ -71,7 +74,10 @@ function getEventKind(event: RuntimeEvent): RuntimeEventType {
     case 'run.completed':
     case 'run.failed':
     case 'run.stopped':
+    case 'run.finished':
+    case 'run.error':
     case 'message.appended':
+    case 'chat.updated':
     case 'model.request.updated':
     case 'model.response':
     case 'tool.call.started':

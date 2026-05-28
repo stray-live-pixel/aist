@@ -1,6 +1,7 @@
 import type { CoreRuntimeBoundary } from './types';
 
 export * from './storage';
+export * from './agentRuntime';
 export * from './chatRepository';
 export * from './approvalProtocol';
 export * from './config';
@@ -26,6 +27,7 @@ export * from './skills';
 export * from './systemPrompt';
 export * from './telemetry';
 export * from './toolErrors';
+export * from './toolCalls';
 export * from './toolRegistry';
 export * from './toolResultCompaction';
 export * from './toolRunner';
