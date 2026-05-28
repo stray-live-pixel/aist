@@ -1,11 +1,21 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ChatRepository } from '../core/chatRepository';
-import { globalSecretsFile, globalSettingsFile, workspaceChatsDir, workspaceSettingsFile } from '../core/storage';
+import type { ModelClient } from '../core/modelTransport';
+import { RunRepository } from '../core/runRepository';
+import {
+  globalSecretsFile,
+  globalSettingsFile,
+  workspaceChatsDir,
+  workspaceRunsDir,
+  workspaceSettingsFile
+} from '../core/storage';
+import type { OpenRouterMessage, RuntimeEvent, ToolCall } from '../core/types';
 import { CliUsageError, formatHelpOutput, parseCliArgs, resolveCliPaths, runCli } from './router';
 
 const tempDirs: string[] = [];
@@ -31,6 +41,7 @@ describe('CLI help and parser', () => {
         aist chat get <chatId> [--workspace <path>] [--json]
         aist chat clear <chatId> [--workspace <path>] [--json]
         aist chat set-model <chatId> <model> [--workspace <path>] [--json]
+        aist chat ask <chatId> --prompt <text>|--stdin --workspace <path> --jsonl [--approval-mode ask|auto-readonly|auto-all|deny]
         aist config get [key] [--workspace <path>] [--json]
         aist config set <key> <value> --scope global|workspace [--workspace <path>] [--json]
         aist auth openrouter set-key [--from-env] [--json]
@@ -52,8 +63,11 @@ describe('CLI help and parser', () => {
         --model <model>     Model id for chat creation.
         --scope <scope>     Config write scope: global or workspace.
         --provider <name>   Model provider: openrouter, codex, or all.
+        --approval-mode <mode>
+                            Headless tool policy: ask, auto-readonly, auto-all, or deny.
         --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
         --json              Print machine-readable JSON.
+        --jsonl             Print newline-delimited runtime events.
         --help, -h          Show this help.
         --version, -v       Show the package version.
       "
@@ -87,6 +101,36 @@ describe('CLI help and parser', () => {
       workspace: undefined,
       json: false
     });
+    expect(
+      parseCliArgs([
+        'chat',
+        'ask',
+        'chat-1',
+        '--prompt',
+        'Hello',
+        '--workspace=repo',
+        '--jsonl',
+        '--approval-mode',
+        'auto-readonly'
+      ])
+    ).toEqual({
+      kind: 'chatAsk',
+      chatId: 'chat-1',
+      prompt: 'Hello',
+      workspace: 'repo',
+      stdin: false,
+      jsonl: true,
+      approvalMode: 'auto-readonly'
+    });
+    expect(parseCliArgs(['chat', 'ask', 'chat-1', '--stdin', '--jsonl'])).toEqual({
+      kind: 'chatAsk',
+      chatId: 'chat-1',
+      prompt: undefined,
+      workspace: undefined,
+      stdin: true,
+      jsonl: true,
+      approvalMode: 'ask'
+    });
     expect(parseCliArgs(['config', 'get', 'model', '--workspace=repo', '--json'])).toEqual({
       kind: 'configGet',
       key: 'model',
@@ -115,7 +159,13 @@ describe('CLI help and parser', () => {
 
   it('reports command usage errors without running commands', () => {
     expect(() => parseCliArgs(['doctor', '--workspace'])).toThrow(CliUsageError);
-    expect(() => parseCliArgs(['chat', 'ask'])).toThrow('Unknown chat command: ask');
+    expect(() => parseCliArgs(['chat', 'ask'])).toThrow("'chat ask' requires a chat id.");
+    expect(() => parseCliArgs(['chat', 'ask', 'chat-1', '--prompt', 'Hello'])).toThrow(
+      "'chat ask' currently requires --jsonl."
+    );
+    expect(() =>
+      parseCliArgs(['chat', 'ask', 'chat-1', '--prompt', 'Hello', '--jsonl', '--approval-mode', 'maybe'])
+    ).toThrow("Option --approval-mode for 'chat ask' must be ask, auto-readonly, auto-all, or deny.");
     expect(() => parseCliArgs(['chat', 'clear'])).toThrow("'chat clear' requires a chat id.");
     expect(() => parseCliArgs(['chat', 'new', '--model'])).toThrow("Option --model for 'chat new' requires a model.");
     expect(() => parseCliArgs(['paths', '--token', 'secret'])).toThrow("Unknown option for 'paths': --token");
@@ -375,6 +425,266 @@ describe('CLI commands', () => {
     });
   });
 
+  it('runs chat ask from stdin with a fake model, streams JSONL and persists chat and run records', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-ask-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    const chat = await new ChatRepository({
+      workspaceRoot,
+      idFactory: createIdFactory(['chat-ask'])
+    }).create({ model: 'fake-model' });
+    const modelClient = createQueuedModelClient([
+      {
+        role: 'assistant',
+        content: 'Fake final answer.',
+        usage: { promptTokens: 4, completionTokens: 5, totalTokens: 9 }
+      }
+    ]);
+    const output = createCliOutput();
+
+    const exitCode = await runCli(['chat', 'ask', chat.id, '--stdin', '--workspace', workspaceRoot, '--jsonl'], {
+      homeDir,
+      stdin: Readable.from(['Prompt from stdin']),
+      modelClient,
+      stdout: output.stdout,
+      stderr: output.stderr
+    });
+
+    expect(exitCode).toBe(0);
+    expect(output.stderrText()).toBe('');
+    const events = parseJsonl<RuntimeEvent>(output.stdoutText());
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        'run.started',
+        'run.activity',
+        'model.request.updated',
+        'model.response',
+        'message.appended',
+        'run.finished'
+      ])
+    );
+    const started = events.find((event): event is Extract<RuntimeEvent, { type: 'run.started' }> => {
+      return event.type === 'run.started';
+    });
+    expect(started?.run).toMatchObject({ chatId: chat.id, prompt: 'Prompt from stdin', model: 'fake-model' });
+
+    const getOutput = createCliOutput();
+    expect(
+      await runCli(['chat', 'get', chat.id, '--workspace', workspaceRoot, '--json'], {
+        homeDir,
+        stdout: getOutput.stdout,
+        stderr: getOutput.stderr
+      })
+    ).toBe(0);
+    expect(JSON.parse(getOutput.stdoutText())).toMatchObject({
+      chat: {
+        id: chat.id,
+        lastAnswer: 'Fake final answer.',
+        busy: false,
+        messages: [
+          { role: 'user', content: 'Prompt from stdin' },
+          { role: 'assistant', content: 'Fake final answer.' }
+        ]
+      }
+    });
+
+    const restoredRun = await new RunRepository({ workspaceRoot }).get(started!.run.id);
+    expect(restoredRun?.meta).toMatchObject({ chatId: chat.id, status: 'completed' });
+    expect(restoredRun?.events.map((event) => event.type)).toEqual(events.map((event) => event.type));
+    expect(fs.existsSync(path.join(workspaceRunsDir(workspaceRoot), started!.run.id, 'events.jsonl'))).toBe(true);
+  });
+
+  it('runs a fake read-only tool in auto-readonly mode and saves tool history and events', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-tool-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    const chat = await new ChatRepository({
+      workspaceRoot,
+      idFactory: createIdFactory(['chat-tool'])
+    }).create({ model: 'fake-model' });
+    const toolCall = createToolCall('read_file', { path: 'fake.txt' });
+    const modelClient = createQueuedModelClient([
+      { role: 'assistant', content: '', tool_calls: [toolCall] },
+      { role: 'assistant', content: 'The file says fake content.' }
+    ]);
+    const toolExecutions: Array<{ toolName: string; args: Record<string, unknown> }> = [];
+    const output = createCliOutput();
+
+    const exitCode = await runCli(
+      [
+        'chat',
+        'ask',
+        chat.id,
+        '--prompt',
+        'Read fake.txt',
+        '--workspace',
+        workspaceRoot,
+        '--jsonl',
+        '--approval-mode',
+        'auto-readonly'
+      ],
+      {
+        homeDir,
+        modelClient,
+        filesystemToolRunner: {
+          execute: async (toolName, args) => {
+            toolExecutions.push({ toolName, args });
+            return { ok: true, path: args.path, content: 'fake content' };
+          }
+        },
+        stdout: output.stdout,
+        stderr: output.stderr
+      }
+    );
+
+    expect(exitCode).toBe(0);
+    expect(output.stderrText()).toBe('');
+    expect(toolExecutions).toEqual([{ toolName: 'read_file', args: { reason: 'test reason', path: 'fake.txt' } }]);
+    expect(
+      modelClient.calls[1]?.messages.some((message) => message.role === 'tool' && message.tool_call_id === 'call-1')
+    ).toBe(true);
+    const events = parseJsonl<RuntimeEvent>(output.stdoutText());
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(['tool.call.started', 'tool.call.completed', 'run.finished'])
+    );
+    const started = events.find((event): event is Extract<RuntimeEvent, { type: 'run.started' }> => {
+      return event.type === 'run.started';
+    });
+    const restoredRun = await new RunRepository({ workspaceRoot }).get(started!.run.id);
+    expect(restoredRun?.toolResults[0]).toMatchObject({
+      chatId: chat.id,
+      toolCall: { name: 'read_file', args: { path: 'fake.txt' } },
+      result: { ok: true, path: 'fake.txt', content: 'fake content' }
+    });
+    const restoredChat = await new ChatRepository({ workspaceRoot }).get(chat.id);
+    expect(restoredChat?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'tool',
+          name: 'read_file',
+          status: 'done',
+          result: { ok: true, path: 'fake.txt', content: 'fake content' }
+        }),
+        expect.objectContaining({ role: 'assistant', content: 'The file says fake content.' })
+      ])
+    );
+    expect(restoredChat?.history.at(-2)).toMatchObject({ role: 'tool', tool_call_id: 'call-1' });
+  });
+
+  it('returns a distinct exit code when headless ask mode needs tool approval', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-approval-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    const chat = await new ChatRepository({
+      workspaceRoot,
+      idFactory: createIdFactory(['chat-approval'])
+    }).create({ model: 'fake-model' });
+    const modelClient = createQueuedModelClient([
+      { role: 'assistant', content: '', tool_calls: [createToolCall('run_bash_script', { script: 'echo no' })] }
+    ]);
+    let toolExecuted = false;
+    const output = createCliOutput();
+
+    const exitCode = await runCli(
+      ['chat', 'ask', chat.id, '--prompt', 'Run a command', '--workspace', workspaceRoot, '--jsonl'],
+      {
+        homeDir,
+        modelClient,
+        filesystemToolRunner: {
+          execute: async () => {
+            toolExecuted = true;
+            return { ok: true };
+          }
+        },
+        stdout: output.stdout,
+        stderr: output.stderr
+      }
+    );
+
+    expect(exitCode).toBe(3);
+    expect(toolExecuted).toBe(false);
+    expect(output.stderrText()).toContain('approval required for tool run_bash_script');
+    const events = parseJsonl<RuntimeEvent>(output.stdoutText());
+    expect(events.map((event) => event.type)).toEqual(expect.arrayContaining(['tool.call.approvalRequested']));
+    expect(events.at(-1)).toMatchObject({ type: 'run.finished', status: 'stopped' });
+  });
+
+  it('returns an error exit code when a started run fails', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-error-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    const chat = await new ChatRepository({
+      workspaceRoot,
+      idFactory: createIdFactory(['chat-error'])
+    }).create({ model: 'fake-model' });
+    const output = createCliOutput();
+
+    const exitCode = await runCli(
+      ['chat', 'ask', chat.id, '--prompt', 'Fail please', '--workspace', workspaceRoot, '--jsonl'],
+      {
+        homeDir,
+        modelClient: createQueuedModelClient([new Error('fake model boom')]),
+        stdout: output.stdout,
+        stderr: output.stderr
+      }
+    );
+
+    expect(exitCode).toBe(1);
+    expect(output.stderrText()).toContain('run failed: fake model boom');
+    const events = parseJsonl<RuntimeEvent>(output.stdoutText());
+    expect(events.map((event) => event.type)).toEqual(expect.arrayContaining(['run.error']));
+    const started = events.find((event): event is Extract<RuntimeEvent, { type: 'run.started' }> => {
+      return event.type === 'run.started';
+    });
+    expect(await new RunRepository({ workspaceRoot }).get(started!.run.id)).toMatchObject({
+      meta: {
+        status: 'failed',
+        error: { message: 'fake model boom' }
+      }
+    });
+  });
+
+  it('fails before creating a run when OpenRouter auth is missing', async () => {
+    const workspaceRoot = createTempDir('aist-cli-chat-auth-workspace-');
+    const homeDir = createTempDir('aist-cli-home-');
+    const chat = await new ChatRepository({
+      workspaceRoot,
+      idFactory: createIdFactory(['chat-auth'])
+    }).create({ model: 'openrouter/test-model' });
+    const output = createCliOutput();
+
+    const exitCode = await runCli(
+      ['chat', 'ask', chat.id, '--prompt', 'Hello', '--workspace', workspaceRoot, '--jsonl'],
+      {
+        homeDir,
+        env: {},
+        stdout: output.stdout,
+        stderr: output.stderr
+      }
+    );
+
+    expect(exitCode).toBe(1);
+    expect(output.stdoutText()).toBe('');
+    expect(JSON.parse(output.stderrText())).toMatchObject({
+      error: {
+        code: 'auth.openrouter.missing',
+        exitCode: 1
+      }
+    });
+    expect(fs.existsSync(workspaceRunsDir(workspaceRoot))).toBe(false);
+  });
+
+  it('keeps the documented chat ask JSONL fixture parseable', () => {
+    const fixturePath = path.join(process.cwd(), 'product', 'cli', 'fixtures', '015-chat-ask-jsonl.jsonl');
+    const events = parseJsonl<RuntimeEvent>(fs.readFileSync(fixturePath, 'utf8'));
+
+    expect(events.map((event) => event.type)).toEqual([
+      'run.started',
+      'message.appended',
+      'run.activity',
+      'model.request.updated',
+      'model.response',
+      'message.appended',
+      'run.finished'
+    ]);
+  });
+
   it('sets and reads config with workspace values taking precedence over global defaults', async () => {
     const workspaceRoot = createTempDir('aist-cli-workspace-');
     const homeDir = createTempDir('aist-cli-home-');
@@ -623,6 +933,60 @@ function createTempDir(prefix: string): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   tempDirs.push(tempDir);
   return tempDir;
+}
+
+function createIdFactory(ids: string[]): () => string {
+  let index = 0;
+  return () => ids[index++] || `generated-${index}`;
+}
+
+type QueuedModelClient = ModelClient & {
+  calls: Array<{
+    messages: OpenRouterMessage[];
+    tools: unknown;
+    model: string | undefined;
+  }>;
+};
+
+function createQueuedModelClient(responses: Array<OpenRouterMessage | Error>): QueuedModelClient {
+  const queue = [...responses];
+  const calls: QueuedModelClient['calls'] = [];
+  return {
+    calls,
+    chat: async (messages, tools, model) => {
+      calls.push({ messages, tools, model });
+      const next = queue.shift();
+      if (next instanceof Error) {
+        throw next;
+      }
+      if (!next) {
+        throw new Error('Unexpected fake model request.');
+      }
+      return next;
+    }
+  };
+}
+
+function createToolCall(name: string, args: Record<string, unknown>): ToolCall {
+  return {
+    id: 'call-1',
+    type: 'function',
+    function: {
+      name,
+      arguments: {
+        reason: 'test reason',
+        ...args
+      }
+    }
+  };
+}
+
+function parseJsonl<T>(text: string): T[] {
+  return text
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as T);
 }
 
 function createCliOutput(): {

@@ -3,6 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import packageJson from '../../package.json';
+import {
+  type AgentRuntimeChatRepository,
+  type AgentRuntimeConfigSnapshot,
+  AgentRuntimeService,
+  type AgentRuntimeToolCallHandler
+} from '../core/agentRuntime';
+import { getToolExecutionRequirement } from '../core/approvalProtocol';
 import { ChatRepository } from '../core/chatRepository';
 import { CodexAuthSessionProvider } from '../core/codexAuth';
 import { CodexResponsesTransport } from '../core/codexTransport';
@@ -12,9 +19,14 @@ import {
   FileSecretStore,
   OPENROUTER_API_KEY_SECRET_KEY
 } from '../core/config';
+import { createNodeFilesystemToolRunner } from '../core/filesystemTools';
+import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/memory';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/modelDefaults';
-import type { FetchLike } from '../core/modelTransport';
+import type { FetchLike, ModelClient } from '../core/modelTransport';
 import { OpenRouterTransport } from '../core/openrouterTransport';
+import { type AgentLanguage, getSystemPrompt } from '../core/prompts';
+import { getRepoVerificationContextNote } from '../core/repoMap';
+import { RunRepository } from '../core/runRepository';
 import {
   globalAistRoot,
   globalMemoryFile,
@@ -28,18 +40,28 @@ import {
   workspaceTelemetryDir,
   workspaceToolsDir
 } from '../core/storage';
+import { DefaultToolRegistry, type ToolRegistry } from '../core/toolRegistry';
+import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/toolRunner';
 import type {
   Chat,
   ChatMessage,
   ChatSummary,
+  CodexServiceTier,
   JsonObject,
   JsonValue,
   ModelProvider,
-  OpenRouterModelOption
+  OpenRouterModelOption,
+  ReasoningEffort,
+  RuntimeEvent,
+  ToolApprovalDecision,
+  ToolPermissionMode
 } from '../core/types';
 
 export const CLI_NAME = 'aist';
 export const CLI_VERSION = packageJson.version;
+export const CLI_APPROVAL_REQUIRED_EXIT_CODE = 3;
+
+export type CliApprovalMode = 'ask' | 'auto-readonly' | 'auto-all' | 'deny';
 
 export type CliCommand =
   | { readonly kind: 'help' }
@@ -56,6 +78,15 @@ export type CliCommand =
       readonly model: string;
       readonly workspace?: string;
       readonly json: boolean;
+    }
+  | {
+      readonly kind: 'chatAsk';
+      readonly chatId: string;
+      readonly workspace?: string;
+      readonly prompt?: string;
+      readonly stdin: boolean;
+      readonly jsonl: boolean;
+      readonly approvalMode: CliApprovalMode;
     }
   | { readonly kind: 'configGet'; readonly key?: string; readonly workspace?: string; readonly json: boolean }
   | {
@@ -105,6 +136,9 @@ export type RunCliOptions = {
   env?: Record<string, string | undefined>;
   stdin?: NodeJS.ReadableStream;
   fetch?: FetchLike;
+  modelClient?: ModelClient;
+  toolRegistry?: ToolRegistry;
+  filesystemToolRunner?: ToolRunnerExecutionAdapter;
   stdout?: CliWriter;
   stderr?: CliWriter;
 };
@@ -189,7 +223,7 @@ export function parseCliArgs(args: readonly string[]): CliCommand {
 export async function runCli(args: readonly string[], options: RunCliOptions = {}): Promise<number> {
   const stdout = options.stdout || ((text: string) => process.stdout.write(text));
   const stderr = options.stderr || ((text: string) => process.stderr.write(text));
-  const wantsJson = args.includes('--json');
+  const wantsJson = args.includes('--json') || args.includes('--jsonl');
 
   try {
     const command = parseCliArgs(args);
@@ -249,6 +283,10 @@ export async function runCli(args: readonly string[], options: RunCliOptions = {
       const result = await setChatModelCommandResult(command, options);
       stdout(formatChatSetModelOutput(result, command.json));
       return 0;
+    }
+
+    if (command.kind === 'chatAsk') {
+      return await runChatAskCommand(command, options, stdout, stderr);
     }
 
     if (command.kind === 'configGet') {
@@ -320,6 +358,7 @@ Usage:
   aist chat get <chatId> [--workspace <path>] [--json]
   aist chat clear <chatId> [--workspace <path>] [--json]
   aist chat set-model <chatId> <model> [--workspace <path>] [--json]
+  aist chat ask <chatId> --prompt <text>|--stdin --workspace <path> --jsonl [--approval-mode ask|auto-readonly|auto-all|deny]
   aist config get [key] [--workspace <path>] [--json]
   aist config set <key> <value> --scope global|workspace [--workspace <path>] [--json]
   aist auth openrouter set-key [--from-env] [--json]
@@ -341,8 +380,11 @@ Options:
   --model <model>     Model id for chat creation.
   --scope <scope>     Config write scope: global or workspace.
   --provider <name>   Model provider: openrouter, codex, or all.
+  --approval-mode <mode>
+                      Headless tool policy: ask, auto-readonly, auto-all, or deny.
   --from-env          Read OPENROUTER_API_KEY instead of stdin for set-key.
   --json              Print machine-readable JSON.
+  --jsonl             Print newline-delimited runtime events.
   --help, -h          Show this help.
   --version, -v       Show the package version.
 `;
@@ -582,6 +624,361 @@ async function setChatModelCommandResult(
   await requireChat(repository, command.chatId);
   const chat = await repository.update(command.chatId, { model: command.model });
   return toChatCommandResult(workspaceRoot, chat);
+}
+
+async function runChatAskCommand(
+  command: Extract<CliCommand, { kind: 'chatAsk' }>,
+  options: RunCliOptions,
+  stdout: CliWriter,
+  stderr: CliWriter
+): Promise<number> {
+  const workspaceRoot = await resolveChatWorkspaceRoot(command.workspace, options);
+  const chatRepository = new ChatRepository({ workspaceRoot });
+  const chat = await requireChat(chatRepository, command.chatId);
+  if (chat.busy) {
+    throw new CliCommandError('run.busy', `Chat already has an active run: ${chat.id}`, {
+      details: { chatId: chat.id }
+    });
+  }
+
+  const prompt = command.stdin ? await readStreamText(options.stdin || process.stdin) : command.prompt || '';
+  if (!prompt.trim()) {
+    throw new CliUsageError(`'chat ask' prompt is empty.`);
+  }
+
+  const configStore = new FileBackedConfigStore({ workspaceRoot, homeDir: options.homeDir, logger: silentLogger });
+  const modelClient = options.modelClient || (await createHeadlessModelClient(chat.model, configStore, options));
+  const runRepository = new RunRepository({ workspaceRoot });
+  const toolRegistry = options.toolRegistry || new DefaultToolRegistry();
+  const memoryStore = new AgentMemoryStore(createMemoryStorePaths({ workspaceRoot, homeDir: options.homeDir }));
+  const runState: {
+    approvalRequired?: {
+      runId: string;
+      chatId: string;
+      approvalId: string;
+      messageId: string;
+      toolName: string;
+    };
+    runError?: Extract<RuntimeEvent, { type: 'run.error' }>;
+  } = {};
+  const writeEvent = (event: RuntimeEvent): void => {
+    if (event.type === 'tool.call.approvalRequested' && command.approvalMode !== 'deny') {
+      runState.approvalRequired = {
+        runId: event.runId,
+        chatId: event.chatId,
+        approvalId: event.approvalId,
+        messageId: event.messageId,
+        toolName: event.toolCall.name
+      };
+    }
+    if (event.type === 'run.error') {
+      runState.runError = event;
+    }
+    stdout(`${JSON.stringify(event)}\n`);
+  };
+
+  const runtime = new AgentRuntimeService({
+    chatRepository: createFileBackedRuntimeChatRepository(chatRepository),
+    runRepository,
+    modelClient,
+    toolRegistry,
+    handleToolCall: createHeadlessToolCallHandler({
+      approvalMode: command.approvalMode,
+      filesystem: options.filesystemToolRunner || {
+        execute: createNodeFilesystemToolRunner({
+          workspaceRoot,
+          workspaceName: path.basename(workspaceRoot)
+        })
+      },
+      memoryStore,
+      toolRegistry,
+      workspaceRoot
+    }),
+    configProvider: {
+      getSnapshot: () => getHeadlessRuntimeConfig(configStore)
+    },
+    promptProvider: {
+      getSystemPrompt: async () => getSystemPrompt({ language: await getHeadlessLanguage(configStore) })
+    },
+    contextProviders: {
+      getRepoContextNote: (inputPrompt) => getRepoVerificationContextNote(workspaceRoot, inputPrompt),
+      getMemoryContextBlock: (inputPrompt) => getRelevantMemoryPromptBlock(memoryStore, inputPrompt)
+    },
+    modelCatalog: {
+      getOption: getHeadlessModelOption
+    },
+    skillProvider: {
+      getSkills: () => []
+    },
+    workspaceRootProvider: {
+      getWorkspaceRoot: () => workspaceRoot
+    },
+    eventSink: {
+      emit: writeEvent
+    },
+    logger: silentLogger,
+    concurrencyScope: 'chat',
+    reflection: {
+      enabled: false
+    }
+  });
+
+  const result = await runtime.ask(chat.id, prompt);
+  if (!result.accepted) {
+    throw new CliCommandError(result.error.code || 'run.rejected', result.error.message, {
+      details: { chatId: chat.id }
+    });
+  }
+
+  if (runState.approvalRequired) {
+    stderr(
+      `${CLI_NAME}: approval required for tool ${runState.approvalRequired.toolName} in run ${runState.approvalRequired.runId}; approval.resolve is not implemented in this MVP.\n`
+    );
+    return CLI_APPROVAL_REQUIRED_EXIT_CODE;
+  }
+
+  if (runState.runError) {
+    stderr(`${CLI_NAME}: run failed: ${runState.runError.error.message}\n`);
+    return 1;
+  }
+
+  return 0;
+}
+
+function createFileBackedRuntimeChatRepository(repository: ChatRepository): AgentRuntimeChatRepository {
+  const activePlans = new Map<string, Chat['activePlan']>();
+
+  return {
+    getChat: async (chatId) => {
+      const chat = await repository.get(chatId);
+      activePlans.set(chatId, chat?.activePlan);
+      return chat;
+    },
+    appendMessage: (chatId, message) => repository.appendMessage(chatId, message),
+    updateMessage: (chatId, messageId, patch) => repository.updateMessage(chatId, messageId, patch),
+    setBusy: (chatId, busy) => repository.setBusy(chatId, busy),
+    setActivity: (chatId, activity, detail) => repository.setActivity(chatId, activity, detail),
+    setActivityDetail: (chatId, detail) => repository.setActivityDetail(chatId, detail),
+    setModelRequest: (chatId, modelRequest) => repository.setModelRequest(chatId, modelRequest),
+    updateModelRequest: (chatId, patch) => repository.updateModelRequest(chatId, patch),
+    setHistory: (chatId, history) => repository.setHistory(chatId, history),
+    setLastAnswer: (chatId, answer) => repository.setLastAnswer(chatId, answer),
+    addUsage: (chatId, usage) => repository.addUsage(chatId, usage),
+    setContext: (chatId, context) => repository.setContext(chatId, context),
+    getActivePlan: (chatId) => activePlans.get(chatId),
+    setActivePlan: async (chatId, activePlan) => {
+      activePlans.set(chatId, activePlan);
+      await repository.setActivePlan(chatId, activePlan);
+    },
+    addReflectionCandidates: (chatId, candidates) => repository.addReflectionCandidates(chatId, candidates)
+  };
+}
+
+function createHeadlessToolCallHandler(input: {
+  approvalMode: CliApprovalMode;
+  filesystem: ToolRunnerExecutionAdapter;
+  memoryStore: AgentMemoryStore;
+  toolRegistry: ToolRegistry;
+  workspaceRoot: string;
+}): AgentRuntimeToolCallHandler {
+  return async (params) => {
+    const runner = new ToolRunner({
+      registry: input.toolRegistry,
+      context: params.context,
+      approvalService: {
+        getPermission: (toolName) => getHeadlessToolPermission(input.approvalMode, toolName),
+        requestApproval: async (request) => {
+          if (input.approvalMode === 'deny') {
+            return {
+              approved: false,
+              continueAfterDeny: true,
+              comment: 'Denied by CLI approval policy.'
+            } satisfies ToolApprovalDecision;
+          }
+
+          return {
+            approved: false,
+            continueAfterDeny: false,
+            comment: 'Tool approval is required in headless ask mode.'
+          } satisfies ToolApprovalDecision;
+        }
+      },
+      filesystem: input.filesystem,
+      projectTools: {
+        execute: (toolName, args) => input.toolRegistry.runProjectTool(toolName, args, input.workspaceRoot)
+      },
+      memory: {
+        add: (candidate) => input.memoryStore.add(candidate)
+      },
+      events: params.events,
+      runRepository: params.runRepository,
+      workspaceRoot: input.workspaceRoot,
+      getRunId: () => params.runId
+    });
+    await runner.handleToolCall(params);
+  };
+}
+
+const READONLY_HEADLESS_TOOLS = new Set([
+  'get_workspace_info',
+  'outline_file',
+  'list_files',
+  'read_file',
+  'read_file_range',
+  'grep_search'
+]);
+
+function getHeadlessToolPermission(approvalMode: CliApprovalMode, toolName: string): ToolPermissionMode {
+  if (approvalMode === 'ask' || approvalMode === 'deny') {
+    return 'ask';
+  }
+
+  if (approvalMode === 'auto-readonly') {
+    return READONLY_HEADLESS_TOOLS.has(toolName) ? 'auto' : 'ask';
+  }
+
+  const requirement = getToolExecutionRequirement(toolName);
+  return toolName === 'edit_file' && requirement.mode !== 'auto' ? 'ask' : 'auto';
+}
+
+async function createHeadlessModelClient(
+  model: string,
+  configStore: FileBackedConfigStore,
+  options: RunCliOptions
+): Promise<ModelClient> {
+  if (model.startsWith('codex:')) {
+    const secretStore = new FileSecretStore({ homeDir: options.homeDir, logger: silentLogger });
+    const authProvider = new CodexAuthSessionProvider(secretStore, { fetch: options.fetch, logger: silentLogger });
+    if (!(await authProvider.isAuthenticated())) {
+      throw new CliCommandError(
+        'auth.codex.missing',
+        'ChatGPT Codex auth is not configured. Login through the VS Code extension before using codex:* models.',
+        { details: { model } }
+      );
+    }
+
+    return new CodexResponsesTransport({
+      tokenProvider: authProvider,
+      fetch: options.fetch,
+      logger: silentLogger,
+      defaultModel: model,
+      serviceTier: await getHeadlessCodexServiceTier(configStore)
+    });
+  }
+
+  const apiKey = await getOpenRouterApiKey(options);
+  if (!apiKey) {
+    throw new CliCommandError(
+      'auth.openrouter.missing',
+      `OpenRouter API key is not configured. Run '${CLI_NAME} auth openrouter set-key' or set ${OPENROUTER_ENV_KEY}.`,
+      { details: { model } }
+    );
+  }
+
+  return new OpenRouterTransport({
+    apiKey,
+    fetch: options.fetch,
+    logger: silentLogger,
+    siteUrl: await getStringSetting(configStore, ['openrouterAgent.siteUrl', 'siteUrl']),
+    siteName: (await getStringSetting(configStore, ['openrouterAgent.siteName', 'siteName'])) || CLI_NAME,
+    reasoningEffort: await getHeadlessReasoningEffort(configStore)
+  });
+}
+
+async function getHeadlessRuntimeConfig(configStore: FileBackedConfigStore): Promise<AgentRuntimeConfigSnapshot> {
+  return {
+    maxToolIterations: Math.max(
+      0,
+      Math.floor(await getNumberSetting(configStore, ['openrouterAgent.maxToolIterations', 'maxToolIterations'], 0))
+    ),
+    streamingEnabled: await getBooleanSetting(
+      configStore,
+      ['openrouterAgent.streamingEnabled', 'streamingEnabled'],
+      false
+    ),
+    disabledProjectToolIds: await getStringArraySetting(configStore, [
+      'openrouterAgent.projectToolDisabledIds',
+      'projectToolDisabledIds'
+    ])
+  };
+}
+
+async function getHeadlessLanguage(configStore: FileBackedConfigStore): Promise<AgentLanguage> {
+  const language = await getStringSetting(configStore, ['openrouterAgent.language', 'language']);
+  return language === 'ru' ? 'ru' : 'en';
+}
+
+async function getHeadlessReasoningEffort(configStore: FileBackedConfigStore): Promise<ReasoningEffort> {
+  const value = await getStringSetting(configStore, ['openrouterAgent.reasoningEffort', 'reasoningEffort']);
+  return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+}
+
+async function getHeadlessCodexServiceTier(configStore: FileBackedConfigStore): Promise<CodexServiceTier> {
+  const value = await getStringSetting(configStore, ['openrouterAgent.codexServiceTier', 'codexServiceTier']);
+  return value === 'priority' ? 'priority' : 'auto';
+}
+
+function getHeadlessModelOption(modelId: string): OpenRouterModelOption {
+  const known = FALLBACK_MODEL_OPTIONS.find((model) => model.id === modelId);
+  if (known) {
+    return known;
+  }
+
+  return {
+    id: modelId,
+    name: modelId,
+    provider: modelId.startsWith('codex:') ? 'codex' : 'openrouter',
+    supportsTools: true
+  };
+}
+
+async function getStringSetting(
+  configStore: FileBackedConfigStore,
+  keys: readonly string[]
+): Promise<string | undefined> {
+  const value = await getFirstConfigSetting(configStore, keys);
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+async function getNumberSetting(
+  configStore: FileBackedConfigStore,
+  keys: readonly string[],
+  fallback: number
+): Promise<number> {
+  const value = await getFirstConfigSetting(configStore, keys);
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+async function getBooleanSetting(
+  configStore: FileBackedConfigStore,
+  keys: readonly string[],
+  fallback: boolean
+): Promise<boolean> {
+  const value = await getFirstConfigSetting(configStore, keys);
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+async function getStringArraySetting(
+  configStore: FileBackedConfigStore,
+  keys: readonly string[]
+): Promise<readonly string[]> {
+  const value = await getFirstConfigSetting(configStore, keys);
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+async function getFirstConfigSetting(
+  configStore: FileBackedConfigStore,
+  keys: readonly string[]
+): Promise<JsonValue | undefined> {
+  for (const key of keys) {
+    const value = await configStore.get<JsonValue>(key);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 async function resolveChatWorkspaceRoot(workspace: string | undefined, options: RunCliOptions): Promise<string> {
@@ -1304,6 +1701,10 @@ function parseChatCommand(args: readonly string[]): CliCommand {
     return parseChatSetModelCommand(rest);
   }
 
+  if (subcommand === 'ask') {
+    return parseChatAskCommand(rest);
+  }
+
   if (subcommand.startsWith('-')) {
     throw new CliUsageError(`Unknown option for 'chat': ${subcommand}`);
   }
@@ -1432,6 +1833,83 @@ function parseChatSetModelCommand(args: readonly string[]): CliCommand {
   }
 
   return { kind: 'chatSetModel', chatId, model, workspace, json };
+}
+
+function parseChatAskCommand(args: readonly string[]): CliCommand {
+  let chatId: string | undefined;
+  let workspace: string | undefined;
+  let prompt: string | undefined;
+  let stdin = false;
+  let jsonl = false;
+  let approvalMode: CliApprovalMode = 'ask';
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+
+    if (token === '--help' || token === '-h') {
+      assertNoExtraArgs(args.slice(index + 1), token);
+      return { kind: 'help' };
+    }
+
+    if (token === '--jsonl') {
+      jsonl = true;
+      continue;
+    }
+
+    if (token === '--stdin') {
+      stdin = true;
+      continue;
+    }
+
+    const workspaceResult = parseWorkspaceOptionToken('chat ask', args, index, workspace);
+    if (workspaceResult.matched) {
+      workspace = workspaceResult.workspace;
+      index = workspaceResult.index;
+      continue;
+    }
+
+    const promptResult = parsePromptOptionToken('chat ask', args, index, prompt);
+    if (promptResult.matched) {
+      prompt = promptResult.prompt;
+      index = promptResult.index;
+      continue;
+    }
+
+    const approvalResult = parseApprovalModeOptionToken('chat ask', args, index, approvalMode);
+    if (approvalResult.matched) {
+      approvalMode = approvalResult.approvalMode;
+      index = approvalResult.index;
+      continue;
+    }
+
+    if (token.startsWith('-')) {
+      throw new CliUsageError(`Unknown option for 'chat ask': ${token}`);
+    }
+
+    if (chatId !== undefined) {
+      throw new CliUsageError(`Unexpected argument for 'chat ask': ${token}`);
+    }
+
+    chatId = token;
+  }
+
+  if (!chatId) {
+    throw new CliUsageError(`'chat ask' requires a chat id.`);
+  }
+
+  if (!jsonl) {
+    throw new CliUsageError(`'chat ask' currently requires --jsonl.`);
+  }
+
+  if (stdin && prompt !== undefined) {
+    throw new CliUsageError(`'chat ask' accepts either --prompt or --stdin, not both.`);
+  }
+
+  if (!stdin && prompt === undefined) {
+    throw new CliUsageError(`'chat ask' requires --prompt <text> or --stdin.`);
+  }
+
+  return { kind: 'chatAsk', chatId, workspace, prompt, stdin, jsonl, approvalMode };
 }
 
 function parseChatWorkspaceJsonOptions(
@@ -1917,6 +2395,62 @@ function parseModelOptionToken(
   return { matched: false, model: current, index };
 }
 
+function parsePromptOptionToken(
+  command: string,
+  args: readonly string[],
+  index: number,
+  current: string | undefined
+): { readonly matched: boolean; readonly prompt?: string; readonly index: number } {
+  const token = args[index];
+
+  if (token === '--prompt') {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option --prompt was provided more than once for '${command}'.`);
+    }
+
+    const value = args[index + 1];
+    if (value === undefined) {
+      throw new CliUsageError(`Option --prompt for '${command}' requires text.`);
+    }
+
+    return { matched: true, prompt: value, index: index + 1 };
+  }
+
+  if (token.startsWith('--prompt=')) {
+    if (current !== undefined) {
+      throw new CliUsageError(`Option --prompt was provided more than once for '${command}'.`);
+    }
+
+    return { matched: true, prompt: token.slice('--prompt='.length), index };
+  }
+
+  return { matched: false, prompt: current, index };
+}
+
+function parseApprovalModeOptionToken(
+  command: string,
+  args: readonly string[],
+  index: number,
+  current: CliApprovalMode
+): { readonly matched: boolean; readonly approvalMode: CliApprovalMode; readonly index: number } {
+  const token = args[index];
+
+  if (token === '--approval-mode') {
+    const value = args[index + 1];
+    return { matched: true, approvalMode: parseCliApprovalMode(command, value), index: index + 1 };
+  }
+
+  if (token.startsWith('--approval-mode=')) {
+    return {
+      matched: true,
+      approvalMode: parseCliApprovalMode(command, token.slice('--approval-mode='.length)),
+      index
+    };
+  }
+
+  return { matched: false, approvalMode: current, index };
+}
+
 function parseConfigScope(command: string, value: string | undefined): ConfigScope {
   if (value === 'global' || value === 'workspace') {
     return value;
@@ -1939,6 +2473,14 @@ function parseChatModel(command: string, value: string | undefined): string {
   }
 
   throw new CliUsageError(`Option --model for '${command}' requires a model.`);
+}
+
+function parseCliApprovalMode(command: string, value: string | undefined): CliApprovalMode {
+  if (value === 'ask' || value === 'auto-readonly' || value === 'auto-all' || value === 'deny') {
+    return value;
+  }
+
+  throw new CliUsageError(`Option --approval-mode for '${command}' must be ask, auto-readonly, auto-all, or deny.`);
 }
 
 function parseConfigValue(rawValue: string): JsonValue {

@@ -104,8 +104,9 @@ type StoredChatIndex = {
  *
  * Инварианты:
  * - `meta.json`, `state.json` и `index.json` пишутся только atomic temp+rename.
- * - `messages.jsonl` и `history.jsonl` являются append-only логами; очистка или
- *   компакция должны создавать новый chat либо будущую явную log-запись.
+ * - `messages.jsonl` и `history.jsonl` хранят текущую материализованную историю:
+ *   append используется для новых записей, а runtime может переписать файл для
+ *   tool status updates, clear и context compaction.
  * - `index.json` ускоряет списки, но rebuild всегда идёт из каталогов chat,
  *   поэтому повреждение index не теряет пользовательские сообщения.
  * - Secrets сюда не принимаются: repository пишет только chat metadata, UI
@@ -226,6 +227,55 @@ export class ChatRepository {
     return this.requireChat(chatId);
   }
 
+  async setBusy(chatId: string, busy: boolean): Promise<void> {
+    await this.updateState(chatId, { busy });
+  }
+
+  async setActivity(chatId: string, activity: Chat['activity'], detail?: string): Promise<void> {
+    await this.updateState(chatId, { activity, activityDetail: detail });
+  }
+
+  async setActivityDetail(chatId: string, detail: string | undefined): Promise<void> {
+    await this.updateState(chatId, { activityDetail: detail });
+  }
+
+  async setModelRequest(chatId: string, modelRequest: ChatModelRequestStatus | undefined): Promise<void> {
+    await this.updateState(chatId, { modelRequest });
+  }
+
+  async updateModelRequest(
+    chatId: string,
+    patch: Partial<NonNullable<Chat['modelRequest']>>
+  ): Promise<ChatModelRequestStatus | undefined> {
+    const chat = await this.requireChat(chatId);
+    if (!chat.modelRequest) {
+      return undefined;
+    }
+
+    const nextRequest = { ...chat.modelRequest, ...patch };
+    await this.updateState(chatId, { modelRequest: nextRequest });
+    return nextRequest;
+  }
+
+  async setContext(chatId: string, context: ChatContextEstimate | undefined): Promise<void> {
+    await this.updateState(chatId, { context, contextLength: context?.tokens });
+  }
+
+  async setActivePlan(chatId: string, activePlan: ChatPlan | undefined): Promise<void> {
+    await this.updateState(chatId, { activePlan });
+  }
+
+  async addReflectionCandidates(chatId: string, candidates: AgentReflectionCandidate[]): Promise<void> {
+    if (!candidates.length) {
+      return;
+    }
+
+    const chat = await this.requireChat(chatId);
+    await this.updateState(chatId, {
+      reflectionCandidates: [...(chat.reflectionCandidates || []), ...candidates]
+    });
+  }
+
   async appendMessage(chatId: string, message: ChatMessageInput): Promise<ChatMessage> {
     const meta = await this.requireMeta(chatId);
     const now = this.now();
@@ -237,6 +287,28 @@ export class ChatRepository {
         ? toSingleLinePreview(nextMessage.content, 50) || meta.title
         : meta.title;
     await this.writeMeta({ ...meta, title, updatedAt: now });
+    await this.rebuildIndex();
+    return nextMessage;
+  }
+
+  async updateMessage(
+    chatId: string,
+    messageId: string,
+    patch: Partial<Omit<ChatMessage, 'id' | 'createdAt'>>
+  ): Promise<ChatMessage> {
+    const meta = await this.requireMeta(chatId);
+    const messages = await readJsonlFile<ChatMessage>(this.messagesPath(meta.id));
+    const index = messages.findIndex((message) => message.id === messageId);
+    if (index === -1) {
+      throw new FileRepositoryError('repository.readFailed', `Message not found: ${messageId}`, {
+        id: messageId
+      });
+    }
+
+    const nextMessage = { ...messages[index], ...patch };
+    messages[index] = nextMessage;
+    await this.replaceJsonl(meta.id, 'messages.jsonl', messages);
+    await this.touch(meta);
     await this.rebuildIndex();
     return nextMessage;
   }
@@ -255,6 +327,32 @@ export class ChatRepository {
     }
     await this.touch(meta);
     await this.rebuildIndex();
+  }
+
+  async setHistory(chatId: string, history: OpenRouterMessage[]): Promise<void> {
+    const meta = await this.requireMeta(chatId);
+    await this.replaceJsonl(meta.id, 'history.jsonl', history);
+    await this.touch(meta);
+    await this.rebuildIndex();
+  }
+
+  async setLastAnswer(chatId: string, answer: string): Promise<void> {
+    await this.update(chatId, { lastAnswer: answer });
+  }
+
+  async addUsage(chatId: string, usage: Partial<ChatUsageEstimate>): Promise<ChatUsageEstimate> {
+    const chat = await this.requireChat(chatId);
+    const currentCost = chat.usage.costUsd;
+    const nextCost =
+      currentCost === undefined && usage.costUsd === undefined ? undefined : (currentCost || 0) + (usage.costUsd || 0);
+    const nextUsage = normalizeUsage({
+      promptTokens: chat.usage.promptTokens + (usage.promptTokens || 0),
+      completionTokens: chat.usage.completionTokens + (usage.completionTokens || 0),
+      totalTokens: chat.usage.totalTokens + (usage.totalTokens || 0),
+      costUsd: nextCost
+    });
+    await this.update(chatId, { usage: nextUsage });
+    return nextUsage;
   }
 
   async rebuildIndex(): Promise<ChatSummary[]> {

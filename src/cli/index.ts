@@ -1,6 +1,7 @@
 import { coreRuntimeBoundary } from '../core';
 
 export {
+  CLI_APPROVAL_REQUIRED_EXIT_CODE,
   CLI_NAME,
   CLI_VERSION,
   CliUsageError,
@@ -13,6 +14,7 @@ export {
   runDoctor
 } from './router';
 export type {
+  CliApprovalMode,
   CliCommand,
   CliModelProvider,
   CliPaths,
