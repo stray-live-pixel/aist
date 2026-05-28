@@ -69,7 +69,7 @@ Extension-specific files remain in `src/extension/autonomous/controller.ts` and 
 
 ## Отношение к текущему chat agent
 
-- `AgentController`, `AgentRunService` и `ChatStore` не становятся частью autonomous runtime.
+- `AgentController` и VS Code daemon/webview adapters не становятся частью autonomous runtime.
 - Chat stop и autonomous stop — разные команды и разные lifecycle.
 - Ошибки autonomous runner не append-ятся в активный чат.
 - Chat webview state не должен зависеть от discovery или active autonomous sessions.

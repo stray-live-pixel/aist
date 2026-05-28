@@ -82,7 +82,7 @@
       },
       {
         "command": "openrouterAgent.openStorage",
-        "title": "aist: Open Extension Storage",
+        "title": "aist: Open AIST Storage",
         "icon": "$(folder-opened)"
       },
       {
@@ -134,11 +134,6 @@
     "configuration": {
       "title": "aist",
       "properties": {
-        "openrouterAgent.apiKey": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "OpenRouter API key. You can also set the `OPENROUTER_API_KEY` environment variable."
-        },
         "openrouterAgent.model": {
           "type": "string",
           "default": "openai/gpt-4o-mini",
@@ -208,20 +203,10 @@
           "default": false,
           "description": "Stream model responses while they are generated. Disabled by default because non-streaming requests are usually more resilient to interrupted SSE connections."
         },
-        "openrouterAgent.useCoreRuntime": {
-          "type": "boolean",
-          "default": false,
-          "markdownDescription": "Experimental migration bridge: when enabled, new VS Code chats use file-backed core chat/run repositories in `.aist-agent` while keeping the current webview UX. Disable to return to the legacy Memento-backed runtime."
-        },
-        "openrouterAgent.useDaemonRuntime": {
-          "type": "boolean",
-          "default": false,
-          "markdownDescription": "Experimental thin-client mode: when enabled, the VS Code extension starts or connects to `aist daemon --workspace <root>` and uses it as the chat/runtime backend. Disable to use the in-extension runtime."
-        },
         "openrouterAgent.daemonBinaryPath": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Optional path to an `aist` executable or bundled CLI JavaScript file used by daemon mode. Empty means the extension searches bundled, workspace-local, and PATH candidates."
+          "markdownDescription": "Optional path to an `aist` executable or bundled CLI JavaScript file used by the required daemon backend. Empty means the extension searches bundled, workspace-local, and PATH candidates."
         },
         "openrouterAgent.language": {
           "type": "string",

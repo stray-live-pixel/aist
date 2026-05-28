@@ -1,12 +1,12 @@
 # Core boundary
 
-`src/core/**` — слой для будущего agent runtime и доменной логики, общей для CLI и VS Code extension.
+`src/core/**` — слой agent runtime и доменной логики, общей для CLI daemon и thin clients.
 
 Core не импортирует `vscode`: этот пакет доступен только внутри extension host, а CLI должен компилироваться и запускаться без editor API. Всё, что требует VS Code API, остаётся в VS Code adapter слое.
 
 Текущие границы:
 
-- `src/core/**` хранит editor-agnostic типы и будущую переносимую runtime-логику.
+- `src/core/**` хранит editor-agnostic типы и переносимую runtime-логику.
 - `src/core/types.ts` хранит Node-safe runtime contracts для chat history, model transport, runs, tools, approvals и client events.
 - `src/core/storage.ts` хранит Node-safe path policy и файловые primitives для будущих CLI/backend stores.
 - `src/core/config.ts` хранит Node-safe config/secret store contracts и file-backed adapters.
@@ -17,8 +17,8 @@ Core не импортирует `vscode`: этот пакет доступен 
   выйти за корень проекта, а VS Code preview/document-symbol capabilities остаются adapter-specific.
 - `src/core/approvalProtocol.ts` хранит backend approval protocol: JSONL-friendly approval requests,
   tool execution classes, VS Code editable diff preview handoff and headless diff artifact fallback.
-- `src/cli/**` хранит будущий CLI entrypoint и может зависеть от `src/core/**`, но не публикует бинарь в рамках текущего scaffold.
-- `src/extension/**` и `src/extension.ts` остаются текущим VS Code adapter/runtime путём и могут импортировать `vscode`.
+- `src/cli/**` хранит CLI entrypoint и daemon backend, зависит от `src/core/**` и является source of truth для chats/runs/tools/model requests.
+- `src/extension/**` и `src/extension.ts` остаются VS Code thin-client/adapters слоем и могут импортировать `vscode`; они не содержат отдельный agent backend.
 
 Storage policy:
 

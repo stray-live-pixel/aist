@@ -21,11 +21,14 @@ AIST — расширение VS Code с чат-агентом для разра
    bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
    ```
 
-2. Настройте OpenRouter API key в настройках VS Code или через `OPENROUTER_API_KEY`:
+2. Настройте OpenRouter API key в CLI/global secret store или через `OPENROUTER_API_KEY`:
+
+   ```bash
+   aist auth openrouter set-key
+   ```
 
    ```json
    {
-     "openrouterAgent.apiKey": "sk-or-...",
      "openrouterAgent.model": "openai/gpt-4o-mini",
      "openrouterAgent.language": "en"
    }
@@ -37,7 +40,7 @@ AIST — расширение VS Code с чат-агентом для разра
 
 ## Основные понятия
 
-- **Чаты** хранятся расширением; их можно создавать, дублировать, удалять, сжимать и открывать в editor panel.
+- **Чаты** хранятся CLI daemon в `.aist-agent`; их можно создавать, удалять, сжимать и открывать в editor panel.
 - **Модели** приходят из OpenRouter или ChatGPT Codex. OpenRouter ID используются как есть, Codex ID имеют префикс `codex:`.
 - **Контекст редактора** добавляется автоматически: выбранный код или содержимое активного файла до лимита `openrouterAgent.maxContextChars`.
 - **Инструменты** позволяют агенту читать workspace, искать файлы, запускать Bash-команды и менять файлы.

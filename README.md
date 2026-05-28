@@ -20,11 +20,14 @@ VSCODE_CLI=code-insiders bash <(curl -fsSL https://raw.githubusercontent.com/str
 
 ## Quick setup
 
-Configure an OpenRouter API key in VS Code settings or through the environment:
+Store an OpenRouter API key in the CLI/global secret store or provide it through the environment:
+
+```bash
+aist auth openrouter set-key
+```
 
 ```json
 {
-  "openrouterAgent.apiKey": "sk-or-...",
   "openrouterAgent.model": "openai/gpt-4o-mini",
   "openrouterAgent.language": "en"
 }

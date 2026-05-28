@@ -5,7 +5,7 @@ import {
   setToolPermission,
   setToolPermissionPreset
 } from '../../../tools/permissions';
-import { getAgentToolRegistry } from '../../runtime/toolRegistry';
+import { refreshDaemonToolCatalog } from '../../daemon/toolCatalog';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -48,14 +48,14 @@ export async function handleWebviewPermissionMessage(
       return;
     case 'setProjectToolEnabled':
       await setProjectToolEnabled(message.toolId, message.enabled);
-      await getAgentToolRegistry().refresh({
+      await refreshDaemonToolCatalog({
         skills: getAgentSkills(),
         disabledProjectToolIds: getDisabledProjectToolIds()
       });
       deps.sendState();
       return;
     case 'resolveToolCall':
-      deps.resolveToolCall(message.messageId, toApprovalDecision(message));
+      await deps.resolveToolCall(message.messageId, toApprovalDecision(message));
       return;
   }
 }

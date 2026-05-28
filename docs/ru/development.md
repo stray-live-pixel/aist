@@ -148,6 +148,6 @@ VSCODE_CLI=code-insiders npm run install:extension
    bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
    ```
 
-## VS Code Core Runtime Bridge
+## VS Code Daemon Backend
 
-Для миграционных smoke-тестов задайте `"openrouterAgent.useCoreRuntime": true` в workspace. Extension сохранит текущий sidebar/editor webview UX, но новые чаты будут идти через core file-backed repositories в `.aist-agent/chats` и `.aist-agent/runs`. Для release verification держите флаг выключенным, если тест явно не проверяет bridge; отключение возвращает legacy runtime на Memento.
+Extension всегда запускает или подключается к `aist daemon --workspace <root>`. Daemon является source of truth для chats, runs, approvals, tools, model requests, auth, memory, compaction, reflection, telemetry и autonomous sessions. Код VS Code должен оставаться thin-client слоем: webview host, process manager/client, editable diff preview, active editor context, openWorkspaceFile, notifications/status.

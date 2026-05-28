@@ -38,11 +38,16 @@ bash scripts/install-from-github.sh
 
 ## Configure OpenRouter
 
-Set the API key in VS Code settings:
+Store the API key in the CLI/global secret store:
+
+```bash
+aist auth openrouter set-key
+```
+
+Then set the default model if needed:
 
 ```json
 {
-  "openrouterAgent.apiKey": "sk-or-...",
   "openrouterAgent.model": "openai/gpt-4o-mini",
   "openrouterAgent.language": "en"
 }

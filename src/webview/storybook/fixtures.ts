@@ -413,10 +413,10 @@ export const storyToolMessages: Record<string, ChatMessage> = {
     approval: 'approved',
     reason: 'Apply the user-approved wording change.',
     userApprovalComment: 'Keep the public API name unchanged.',
-    args: { path: 'src/extension/agent/runtime/toolRunner.ts', search: 'userComment', replace: 'userApprovalComment' },
+    args: { path: 'src/core/toolRunner.ts', search: 'userComment', replace: 'userApprovalComment' },
     result: {
       ok: true,
-      path: 'src/extension/agent/runtime/toolRunner.ts',
+      path: 'src/core/toolRunner.ts',
       replacements: 3,
       userApprovalComment: 'Keep the public API name unchanged.'
     },

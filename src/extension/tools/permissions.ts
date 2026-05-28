@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
+import { nodeFilesystemTools } from '../../core/filesystemTools';
+import { planningTools } from '../../core/planningTools';
 import type { ToolPermissionMode } from '../../core/types';
-import { getAgentToolRegistry } from '../agent/runtime/toolRegistry';
-import { filesystemTools } from './filesystemTools';
-import { planningTools } from './planningTools';
+import { getDaemonToolCatalog } from '../agent/daemon/toolCatalog';
 
 export type { ToolPermissionMode };
 
@@ -44,7 +44,7 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   set_plan_item_status: 'auto'
 };
 
-const permissionTools = [...filesystemTools, ...planningTools];
+const permissionTools = [...nodeFilesystemTools, ...planningTools];
 
 export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
   {
@@ -239,7 +239,7 @@ function getPermissionToolMetadata(): Omit<ToolPermissionItem, 'permission'>[] {
     source: 'builtin' as const,
     enabled: true
   }));
-  const snapshot = getAgentToolRegistry().snapshot();
+  const snapshot = getDaemonToolCatalog().snapshot();
   const hasRunSkill = snapshot.tools.some((tool) => tool.function.name === 'run_skill');
   const skillTools = hasRunSkill
     ? [

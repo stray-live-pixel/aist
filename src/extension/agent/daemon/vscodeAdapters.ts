@@ -1,14 +1,12 @@
 import * as vscode from 'vscode';
 
 import type { AgentRuntimeLogger } from '../../../core/agentRuntime';
-import type { ConfigStore, SecretStore } from '../../../core/config';
 import type { EditorContextInput } from '../../../core/contextGovernor';
 import type { ApprovalPreviewKind, ToolApprovalRequest } from '../../../core/types';
-import { createVscodeConfigStore, createVscodeSecretStore } from '../../adapters/vscodeStores';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
-import type { FilesystemToolPreview } from '../../tools/filesystemTools';
-import { previewFilesystemApprovalRequest } from '../../tools/filesystemTools';
+import type { FilesystemToolPreview } from '../../tools/previewEdits';
+import { previewFilesystemApprovalRequest } from '../../tools/previewEdits';
 import { normalizeEditorContextMode } from '../config/config';
 import { getApprovalNotificationSettings } from '../config/notifications';
 
@@ -43,7 +41,7 @@ export class VscodeWorkspaceRootAdapter implements VscodeWorkspaceRootProvider {
   getWorkspaceRoot(): string {
     const folder = this.api.workspace.workspaceFolders?.[0];
     if (!folder) {
-      throw new Error('Open a VS Code workspace folder before using the core runtime bridge.');
+      throw new Error('Open a VS Code workspace folder before using the AIST daemon runtime.');
     }
 
     return folder.uri.fsPath;
@@ -139,12 +137,4 @@ export class VscodeCoreLoggerAdapter implements AgentRuntimeLogger {
   error(message: string, error?: unknown): void {
     this.logger.error(message, error);
   }
-}
-
-export function createVscodeCoreConfigStore(): ConfigStore {
-  return createVscodeConfigStore();
-}
-
-export function createVscodeCoreSecretStore(secrets: vscode.SecretStorage): SecretStore {
-  return createVscodeSecretStore(secrets);
 }

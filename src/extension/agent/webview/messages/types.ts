@@ -17,7 +17,7 @@ export type AgentWebviewMessageDeps = {
   retargetDeletedChat(deletedChatId: string, nextChatId: string): void;
   loginCodex(): Promise<void>;
   logoutCodex(): Promise<void>;
-  resolveToolCall(messageId: string, decision: ToolApprovalDecision): void;
+  resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   openWorkspaceFile(path: string, line?: number, column?: number, endLine?: number, endColumn?: number): Promise<void>;
-  stopCurrentRun(): void;
+  stopCurrentRun(): Promise<void>;
 };

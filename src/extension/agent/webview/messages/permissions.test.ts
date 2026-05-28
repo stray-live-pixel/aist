@@ -12,10 +12,8 @@ vi.mock('../../../tools/permissions', () => ({
 vi.mock('../../../skills/skills', () => ({
   getAgentSkills: vi.fn(() => [])
 }));
-vi.mock('../../runtime/toolRegistry', () => ({
-  getAgentToolRegistry: () => ({
-    refresh: vi.fn(async () => undefined)
-  })
+vi.mock('../../daemon/toolCatalog', () => ({
+  refreshDaemonToolCatalog: vi.fn(async () => undefined)
 }));
 
 describe('handleWebviewPermissionMessage', () => {

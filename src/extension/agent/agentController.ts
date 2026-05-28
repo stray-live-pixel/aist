@@ -1,33 +1,26 @@
+import path from 'node:path';
 import * as vscode from 'vscode';
 
-import type {
-  ModelRequestLifecycleCallbacks,
-  ModelStreamCallbacks,
-  OpenRouterMessage,
-  OpenRouterTool
-} from '../../core/types';
-import { createVscodeConfigStore, createVscodeSecretStore } from '../adapters/vscodeStores';
+import { CodexAuthSessionProvider } from '../../core/codexAuth';
+import { FileSecretStore, OPENROUTER_API_KEY_SECRET_KEY } from '../../core/config';
+import { FALLBACK_MODEL_OPTIONS } from '../../core/modelDefaults';
+import { initializeTelemetryStore } from '../../core/telemetry';
+import type { OpenRouterModelOption, ToolApprovalDecision } from '../../core/types';
 import type { AgentChatStore } from '../chats/chatDataStore';
-import { createChatErrorMessage } from '../chats/errorMessages';
-import { CodexClient } from '../codex/client';
-import { OpenRouterClient } from '../openrouter/client';
+import { VscodeCodexLoginAdapter } from '../codex/vscodeLogin';
+import { getErrorMessage } from '../shared/errors';
 import { t } from '../shared/i18n';
 import type { AistLogger } from '../shared/logger';
-import { editSelection as runEditSelectionCommand } from './commands/editSelection';
+import { getAgentSkills } from '../skills/skills';
+import { getDisabledProjectToolIds } from '../tools/permissions';
+import { buildEditSelectionPrompt } from './commands/editSelectionPrompt';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from './commands/openWorkspaceFile';
 import { initializeAgentConfigStore } from './config/agentConfigStore';
-import { getCompactionSettings } from './config/compaction';
-import { getAgentSettingsSnapshot, getConfiguredModel } from './config/settingsSnapshot';
+import { getConfiguredModel } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
-import type { VscodeCoreRuntimeBridge } from './coreRuntime/bridge';
+import { replaceSelection, stripCodeFence } from './context/editorContext';
 import type { VscodeDaemonRuntimeBridge } from './daemon/bridge';
-import { AgentModelCatalog } from './models/catalog';
-import { isCodexModel } from './models/models';
-import { createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory } from './runtime/compaction';
-import { formatChatErrorMessage } from './runtime/errors';
-import { AgentRunService } from './runtime/runService';
-import { initializeTelemetryStore } from './runtime/telemetry';
-import { getChatContextEstimate } from './runtime/usage';
+import { refreshDaemonToolCatalog } from './daemon/toolCatalog';
 import type { WebviewMessage, WebviewSurface } from './types';
 import { createSidebar, openAgentChatEditor, resolveAgentSidebarWebview } from './webview/host';
 import { handleAgentWebviewMessage } from './webview/messages';
@@ -35,64 +28,48 @@ import { postWebviewPage } from './webview/page';
 import { sendAgentState } from './webview/statePresenter';
 
 /**
- * Тонкий координатор VS Code extension commands и webview surfaces.
+ * Thin VS Code client controller.
  *
- * Контроллер намеренно не содержит agent loop, tool execution, state-presenter
- * или обработку отдельных webview-команд. Он связывает VS Code API с сервисами
- * слоя agent и хранит только состояние открытых поверхностей и авторизации.
+ * The CLI daemon is the only chat/runtime backend. This controller owns VS Code
+ * surfaces and small host adapters, then forwards chat/run actions over the
+ * daemon bridge.
  */
 export class AgentController {
   private sidebarView: vscode.WebviewView | undefined;
   private sidebarChatId: string | undefined;
   private sidebarPage: 'chat' | 'settings' = 'chat';
   private readonly editorSurfaces = new Map<string, WebviewSurface>();
-  private readonly openRouterClient: OpenRouterClient;
-  private readonly codexClient: CodexClient;
-  private readonly modelCatalog: AgentModelCatalog;
-  private readonly runService: AgentRunService;
-  private daemonModelOptions: ReturnType<AgentModelCatalog['getOptions']> | undefined;
+  private readonly secretStore: FileSecretStore;
+  private readonly codexAuthProvider: CodexAuthSessionProvider;
+  private modelOptions: OpenRouterModelOption[] = [...FALLBACK_MODEL_OPTIONS];
   private codexAuthenticated = false;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly chats: AgentChatStore,
     private readonly logger: AistLogger,
-    private readonly options: { coreRuntime?: VscodeCoreRuntimeBridge; daemonRuntime?: VscodeDaemonRuntimeBridge } = {}
+    private readonly daemonRuntime: VscodeDaemonRuntimeBridge
   ) {
     initializeAgentConfigStore(context);
     initializeTelemetryStore({
-      workspaceRoot:
-        options.daemonRuntime?.workspaceRoot ||
-        options.coreRuntime?.workspaceRoot ||
-        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      workspaceRoot: daemonRuntime.workspaceRoot,
       fallbackRoot: (context.storageUri || context.globalStorageUri).fsPath
     });
-    const configStore = options.coreRuntime?.configStore || createVscodeConfigStore();
-    const secretStore = options.coreRuntime?.secretStore || createVscodeSecretStore(context.secrets);
-    this.openRouterClient = new OpenRouterClient(configStore, secretStore, logger);
-    this.codexClient = new CodexClient(secretStore, logger);
-    this.modelCatalog = new AgentModelCatalog(this.openRouterClient, this.codexClient, logger, () => this.sendState());
-    this.runService = new AgentRunService({
-      chats: this.chats,
-      logger: this.logger,
-      runRepository: options.coreRuntime?.runRepository,
-      workspaceRootProvider: options.coreRuntime?.workspaceRootProvider,
-      activeEditorContextProvider: options.coreRuntime?.activeEditorContextProvider,
-      previewEditProvider: options.coreRuntime?.previewEditProvider,
-      notifier: options.coreRuntime?.notifier,
-      runtimeLogger: options.coreRuntime?.runtimeLogger,
-      sendState: () => this.sendState(),
-      reportError: (error, options) => this.reportError(error, options),
-      getSystemPrompt: () => this.getSystemPrompt(),
-      getModelOption: (modelId) => this.modelCatalog.getOption(modelId),
-      chat: (messages, tools, modelOverride, signal, stream, lifecycle) =>
-        this.chat(messages, tools, modelOverride, signal, stream, lifecycle)
+    this.secretStore = new FileSecretStore({
+      logger: { warn: (message, details) => this.logger.info(message, details) }
     });
+    this.codexAuthProvider = new CodexAuthSessionProvider(this.secretStore, { logger });
+
+    void this.syncLegacyOpenRouterApiKey().catch((error) =>
+      this.logger.error('Failed to sync legacy VS Code OpenRouter API key setting', error)
+    );
+    void this.refreshToolCatalog();
     void this.refreshCodexAuthState();
+    void this.refreshModels();
     this.logger.info('AgentController initialized', {
       activeChatId: this.chats.getActiveChat().id,
       chatCount: this.chats.getSummaries().length,
-      runtimeMode: options.daemonRuntime ? 'daemon' : options.coreRuntime ? 'core' : 'legacy'
+      runtimeMode: 'daemon'
     });
   }
 
@@ -110,12 +87,6 @@ export class AgentController {
     this.postSidebarPage();
   }
 
-  /**
-   * Открывает список чатов из системной панели VS Code.
-   *
-   * Команда не меняет активный чат: она только гарантирует видимость sidebar и просит
-   * уже загруженный webview показать ту же модалку, что и компактная кнопка в composer.
-   */
   openChats(): void {
     this.logger.info('openChats command received');
     this.sidebarPage = 'chat';
@@ -133,7 +104,7 @@ export class AgentController {
   }
 
   async openStorage(): Promise<void> {
-    const uri = this.context.storageUri || this.context.globalStorageUri;
+    const uri = vscode.Uri.file(path.join(this.daemonRuntime.workspaceRoot, '.aist-agent'));
     this.logger.info('openStorage command received', { path: uri.fsPath });
 
     await vscode.workspace.fs.createDirectory(uri);
@@ -199,9 +170,7 @@ export class AgentController {
   async createChat(): Promise<void> {
     this.logger.info('newChat command received');
 
-    const chat = this.options.daemonRuntime
-      ? await this.options.daemonRuntime.createChat(getConfiguredModel())
-      : this.chats.createChat(getConfiguredModel());
+    const chat = await this.daemonRuntime.createChat(getConfiguredModel());
     this.sidebarChatId = chat.id;
     this.sidebarPage = 'chat';
 
@@ -215,67 +184,80 @@ export class AgentController {
     void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
     this.sendState();
     this.postSidebarPage();
-    if (this.options.coreRuntime?.notifier) {
-      this.options.coreRuntime.notifier.setStatus(t('status.newChatCreated'), 1800);
-    } else {
-      vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
-    }
+    vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
   }
 
   async editSelection(): Promise<void> {
-    if (this.options.daemonRuntime) {
-      vscode.window.showWarningMessage('Edit Selection is not available in AIST daemon mode yet.');
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage(t('editSelection.openFileFirst'));
+      return;
+    }
+
+    const instruction = await vscode.window.showInputBox({
+      title: t('editSelection.title'),
+      prompt: t('editSelection.prompt'),
+      placeHolder: t('editSelection.placeholder')
+    });
+    if (!instruction) {
       return;
     }
 
     try {
-      await runEditSelectionCommand({
-        chats: this.chats,
-        getSystemPrompt: () => this.getSystemPrompt(),
-        chat: (messages, tools, modelOverride, signal) => this.chat(messages, tools, modelOverride, signal)
-      });
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: t('editSelection.progress'),
+          cancellable: false
+        },
+        async () => this.applyDaemonEditSelection(editor, instruction)
+      );
     } catch (error) {
-      this.runService.stop();
-      this.reportError(error, { context: 'edit selection command' });
-      this.logger.error('Failed to edit selection', error);
+      this.logger.error('Failed to edit selection through daemon runtime', error);
+      this.reportError(error, { context: 'Edit Selection' });
     }
   }
 
   private async ask(chatId: string, prompt: string): Promise<void> {
-    if (this.options.daemonRuntime) {
-      await this.options.daemonRuntime.ask(chatId, prompt);
-      this.sendState();
-      return;
+    await this.syncLegacyOpenRouterApiKey();
+    await this.daemonRuntime.ask(chatId, prompt);
+    this.sendState();
+  }
+
+  private async applyDaemonEditSelection(editor: vscode.TextEditor, instruction: string): Promise<void> {
+    const activeChat = this.chats.getActiveChat();
+    const prompt = buildEditSelectionPrompt(editor, instruction);
+
+    await this.ask(activeChat.id, prompt);
+
+    const refreshedChat = this.chats.getChat(activeChat.id) || activeChat;
+    const answer = [...refreshedChat.messages]
+      .reverse()
+      .find((message) => message.role === 'assistant' && message.content?.trim())?.content;
+
+    if (!answer?.trim()) {
+      throw new Error('Daemon did not return an assistant response for Edit Selection.');
     }
 
-    try {
-      await this.runService.ask(chatId, prompt);
-      await this.compactChatIfNeeded(chatId);
-    } catch (error) {
-      this.runService.stop();
-      throw error;
-    }
+    await replaceSelection(editor, stripCodeFence(answer));
+    this.sendState();
   }
 
   private async handleWebviewMessage(surface: WebviewSurface, message: WebviewMessage): Promise<void> {
     try {
       await this.handleWebviewMessageUnsafe(surface, message);
     } catch (error) {
-      if (this.options.daemonRuntime) {
-        await this.options.daemonRuntime
-          .stop()
-          .catch((stopError) => this.logger.error('Failed to stop daemon run after webview error', stopError));
-      } else {
-        this.runService.stop();
-      }
-      this.reportError(error, { chatId: surface.getChatId(), context: `webview command: ${message.type}` });
+      await this.daemonRuntime
+        .stop()
+        .catch((stopError) => this.logger.error('Failed to stop daemon run after webview error', stopError));
+      this.reportError(error, { context: `webview command: ${message.type}` });
       this.logger.error('Unhandled webview message error', error);
       this.sendState(surface);
     }
   }
 
   private async handleWebviewMessageUnsafe(surface: WebviewSurface, message: WebviewMessage): Promise<void> {
-    if (this.options.daemonRuntime && (await this.handleDaemonWebviewMessage(surface, message))) {
+    if (await this.handleDaemonWebviewMessage(surface, message)) {
       return;
     }
 
@@ -295,30 +277,25 @@ export class AgentController {
         void this.refreshCodexAuthState();
       },
       ask: (chatId, prompt) => this.ask(chatId, prompt),
-      compactChat: (chatId, trigger) => this.compactChat(chatId, trigger),
+      compactChat: (chatId, trigger) => this.daemonRuntime.compactChat(chatId, trigger),
       openChatInEditor: (chatId) => this.openChatInEditor(chatId),
       retargetDeletedChat: (deletedChatId, nextChatId) => this.retargetDeletedChat(deletedChatId, nextChatId),
       loginCodex: () => this.loginCodex(),
       logoutCodex: () => this.logoutCodex(),
-      resolveToolCall: (messageId, decision) => this.runService.resolveToolCall(messageId, decision),
+      resolveToolCall: (messageId, decision) => this.daemonRuntime.resolveToolCall(messageId, decision),
       openWorkspaceFile: (filePath, line, column, endLine, endColumn) =>
         this.openWorkspaceFile(filePath, line, column, endLine, endColumn),
-      stopCurrentRun: () => this.runService.stop()
+      stopCurrentRun: () => this.daemonRuntime.stop().then(() => this.sendState())
     });
   }
 
   private async handleDaemonWebviewMessage(surface: WebviewSurface, message: WebviewMessage): Promise<boolean> {
-    const daemon = this.options.daemonRuntime;
-    if (!daemon) {
-      return false;
-    }
-
     switch (message.type) {
       case 'ask':
         await this.ask(surface.getChatId(), message.prompt);
         return true;
       case 'newChat': {
-        const chat = await daemon.createChat(getConfiguredModel());
+        const chat = await this.daemonRuntime.createChat(getConfiguredModel());
         surface.setChatId(chat.id);
         this.sidebarPage = 'chat';
         this.sendState();
@@ -328,14 +305,14 @@ export class AgentController {
         return true;
       }
       case 'deleteChat': {
-        const nextChat = await daemon.deleteChat(message.chatId, getConfiguredModel());
+        const nextChat = await this.daemonRuntime.deleteChat(message.chatId, getConfiguredModel());
         this.retargetDeletedChat(message.chatId, nextChat.id);
         this.sendState();
         return true;
       }
       case 'setModel': {
         const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
-        await daemon.setModel(chat.id, message.model);
+        await this.daemonRuntime.setModel(chat.id, message.model);
         await vscode.workspace
           .getConfiguration('openrouterAgent')
           .update('model', message.model, vscode.ConfigurationTarget.Workspace);
@@ -344,138 +321,31 @@ export class AgentController {
       }
       case 'clear': {
         const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
-        await daemon.clearChat(chat.id);
+        await this.daemonRuntime.clearChat(chat.id);
         this.sendState(surface);
         return true;
       }
       case 'compactChat': {
         const chatId = message.chatId || surface.getChatId();
-        const chat = await daemon.compactChat(chatId, 'manual');
+        const chat = await this.daemonRuntime.compactChat(chatId, 'manual');
         surface.setChatId(chat.id);
         this.sendState();
         return true;
       }
       case 'resolveToolCall':
-        await daemon.resolveToolCall(message.messageId, {
-          approved: message.decision === 'approve',
-          continueAfterDeny: message.decision === 'deny-continue',
-          comment: message.comment?.trim() || undefined,
-          rememberGlobal: message.rememberGlobal?.trim() || undefined,
-          rememberProject: message.rememberProject?.trim() || undefined
-        });
+        await this.daemonRuntime.resolveToolCall(message.messageId, toToolApprovalDecision(message));
         return true;
       case 'stop':
-        await daemon.stop();
+        await this.daemonRuntime.stop();
         this.sendState();
         return true;
       case 'duplicateChat':
-        vscode.window.setStatusBarMessage('Duplicate chat is not available in AIST daemon mode yet.', 2400);
+        vscode.window.setStatusBarMessage('Duplicate chat is not available in AIST daemon-only mode yet.', 2400);
         this.sendState(surface);
         return true;
       default:
         return false;
     }
-  }
-
-  private async compactChatIfNeeded(chatId: string): Promise<void> {
-    const settings = getCompactionSettings();
-    if (!settings.enabled) {
-      return;
-    }
-
-    const chat = this.chats.getChat(chatId);
-    if (!chat || chat.busy || chat.previousChatId) {
-      return;
-    }
-
-    const model = this.modelCatalog.getOption(chat.model);
-    const context = getChatContextEstimate(chat.history, this.getSystemPrompt(), model);
-    if (context.percent === undefined || context.percent < settings.thresholdPercent) {
-      return;
-    }
-
-    await this.compactChat(chat.id, 'auto');
-  }
-
-  private async compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }> {
-    if (this.options.daemonRuntime) {
-      return this.options.daemonRuntime.compactChat(chatId, trigger);
-    }
-
-    const source = this.chats.getChat(chatId) || this.chats.getActiveChat();
-    if (source.busy) {
-      throw new Error('Cannot compact a chat while it is running.');
-    }
-
-    const { keepLastMessages } = getCompactionSettings();
-    const { summaryHistory, tailHistory } = splitCompactionHistory(source.history, keepLastMessages);
-    const tailMessages = selectCompactionTailMessages(source.messages, keepLastMessages);
-    const args = { chatId: source.id, trigger };
-    const toolMessage = this.chats.appendMessage(source.id, {
-      role: 'tool',
-      name: 'compact_chat',
-      status: 'running',
-      reason: trigger === 'auto' ? 'Context token limit reached.' : 'Requested by user.',
-      args
-    });
-    this.chats.setBusy(source.id, true);
-    this.chats.setActivity(source.id, 'runningTool', t('activity.detail.compactingChat'));
-    this.sendState();
-
-    try {
-      const summary = await this.summarizeChat(source.id, summaryHistory);
-      this.chats.setActivity(source.id, undefined);
-      this.chats.setBusy(source.id, false);
-      const chat = this.chats.compactChat(source.id, summary, { messages: tailMessages, history: tailHistory });
-      const result = {
-        ok: true,
-        sourceChatId: source.id,
-        chatId: chat.id,
-        summary,
-        summaryLength: summary.length,
-        keptMessages: tailMessages.length,
-        trigger
-      };
-      this.chats.updateMessage(source.id, toolMessage.id, {
-        status: 'done',
-        result
-      });
-      this.logger.info('Chat compacted', {
-        sourceChatId: source.id,
-        chatId: chat.id,
-        trigger,
-        summaryLength: summary.length,
-        keptMessages: tailMessages.length
-      });
-      this.sendState();
-      return chat;
-    } catch (error) {
-      const result = { ok: false, error: error instanceof Error ? error.message : String(error), trigger };
-      this.chats.updateMessage(source.id, toolMessage.id, {
-        status: 'error',
-        result
-      });
-      this.logger.error('Failed to compact chat', error);
-      this.sendState();
-      throw error;
-    } finally {
-      const current = this.chats.getChat(source.id);
-      if (current) {
-        this.chats.setActivity(source.id, undefined);
-        this.chats.setBusy(source.id, false);
-      }
-    }
-  }
-
-  private async summarizeChat(chatId: string, history?: OpenRouterMessage[]): Promise<string> {
-    const chat = this.chats.getChat(chatId) || this.chats.getActiveChat();
-    const messages = createCompactionMessages(history ?? chat.history);
-    const response = await this.chat(messages, undefined, chat.model);
-    const summary = response.content?.trim();
-    if (!summary) {
-      throw new Error('Model returned an empty compaction summary.');
-    }
-    return summary;
   }
 
   private async openWorkspaceFile(
@@ -488,15 +358,8 @@ export class AgentController {
     await openWorkspaceFileFromWebview({ filePath, line, column, endLine, endColumn, logger: this.logger });
   }
 
-  reportError(error: unknown, options: { chatId?: string; context?: string; appendToChat?: boolean } = {}): void {
-    const content = formatChatErrorMessage(error, options.context);
-    const chat = options.chatId ? this.chats.getChat(options.chatId) : this.chats.getActiveChat();
-
-    if (options.appendToChat !== false && !this.options.daemonRuntime && chat) {
-      this.chats.appendMessage(chat.id, createChatErrorMessage(content));
-    }
-
-    this.postErrorModal(content);
+  reportError(error: unknown, options: { context?: string } = {}): void {
+    this.postErrorModal(formatChatErrorMessage(error, options.context));
     this.sendState();
   }
 
@@ -537,12 +400,6 @@ export class AgentController {
     this.postPage(this.createSidebarSurface(this.sidebarView.webview), this.sidebarPage);
   }
 
-  /**
-   * Просит sidebar webview открыть локальную модалку списка чатов.
-   *
-   * Список остаётся состоянием React-компонента, поэтому extension отправляет отдельное
-   * короткое событие вместо попытки хранить UI-флаг в AgentState и синхронизировать его обратно.
-   */
   private postShowChats(): void {
     if (!this.sidebarView) {
       return;
@@ -562,47 +419,27 @@ export class AgentController {
     postWebviewPage(surface, page, this.logger);
   }
 
-  private getSystemPrompt(): string {
-    return buildAgentSystemPrompt();
-  }
-
   async loginCodex(): Promise<void> {
-    await this.codexClient.login();
+    await new VscodeCodexLoginAdapter(this.codexAuthProvider, this.logger).login();
     await this.refreshCodexAuthState();
     await this.refreshModels(true);
     this.sendState();
   }
 
   async logoutCodex(): Promise<void> {
-    await this.codexClient.logout();
+    await new VscodeCodexLoginAdapter(this.codexAuthProvider, this.logger).logout();
     await this.refreshCodexAuthState();
     this.sendState();
   }
 
   private async refreshCodexAuthState(): Promise<void> {
     try {
-      this.codexAuthenticated = await this.codexClient.isAuthenticated();
+      this.codexAuthenticated = await this.codexAuthProvider.isAuthenticated();
       this.sendState();
     } catch (error) {
       this.codexAuthenticated = false;
       this.logger.error('Failed to read ChatGPT Codex auth state', error);
     }
-  }
-
-  private async chat(
-    messages: OpenRouterMessage[],
-    tools?: OpenRouterTool[],
-    modelOverride?: string,
-    signal?: AbortSignal,
-    stream?: ModelStreamCallbacks,
-    lifecycle?: ModelRequestLifecycleCallbacks
-  ): Promise<OpenRouterMessage> {
-    if (isCodexModel(modelOverride)) {
-      const { codexServiceTier } = getAgentSettingsSnapshot();
-      return this.codexClient.chat(messages, tools, modelOverride, signal, stream, lifecycle, codexServiceTier);
-    }
-
-    return this.openRouterClient.chat(messages, tools, modelOverride, signal, stream, lifecycle);
   }
 
   private sendState(targetSurface?: WebviewSurface): void {
@@ -611,19 +448,58 @@ export class AgentController {
       surfaces: targetSurface ? [targetSurface] : this.getSurfaces(),
       chats: this.chats,
       logger: this.logger,
-      modelOptions: this.daemonModelOptions || this.modelCatalog.getOptions(),
+      modelOptions: this.modelOptions,
       codexAuthenticated: this.codexAuthenticated,
-      getSystemPrompt: () => this.getSystemPrompt()
+      getSystemPrompt: () => buildAgentSystemPrompt()
     });
   }
 
   private async refreshModels(force = false): Promise<void> {
-    if (this.options.daemonRuntime) {
-      this.daemonModelOptions = [...(await this.options.daemonRuntime.refreshModels(force))];
+    try {
+      this.modelOptions = [...(await this.daemonRuntime.refreshModels(force))];
       this.sendState();
+    } catch (error) {
+      this.logger.error('Failed to refresh models from daemon', error);
+      this.modelOptions = [...FALLBACK_MODEL_OPTIONS];
+      this.sendState();
+    }
+  }
+
+  private async refreshToolCatalog(): Promise<void> {
+    await refreshDaemonToolCatalog({
+      skills: getAgentSkills(),
+      disabledProjectToolIds: getDisabledProjectToolIds(),
+      workspaceRoot: this.daemonRuntime.workspaceRoot
+    }).catch((error) => this.logger.error('Failed to refresh daemon tool catalog metadata', error));
+  }
+
+  private async syncLegacyOpenRouterApiKey(): Promise<void> {
+    const apiKey = vscode.workspace.getConfiguration('openrouterAgent').get<string>('apiKey')?.trim();
+    if (!apiKey) {
       return;
     }
 
-    await this.modelCatalog.refresh(force);
+    const current = await this.secretStore.get(OPENROUTER_API_KEY_SECRET_KEY);
+    if (current === apiKey) {
+      return;
+    }
+
+    await this.secretStore.store(OPENROUTER_API_KEY_SECRET_KEY, apiKey);
+    this.logger.info('Synced legacy VS Code OpenRouter API key setting into the daemon global secret store');
   }
+}
+
+function toToolApprovalDecision(message: Extract<WebviewMessage, { type: 'resolveToolCall' }>): ToolApprovalDecision {
+  return {
+    approved: message.decision === 'approve',
+    continueAfterDeny: message.decision === 'deny-continue',
+    comment: message.comment?.trim() || undefined,
+    rememberGlobal: message.rememberGlobal?.trim() || undefined,
+    rememberProject: message.rememberProject?.trim() || undefined
+  };
+}
+
+function formatChatErrorMessage(error: unknown, context?: string): string {
+  const title = context ? `AIST error (${context})` : 'AIST error';
+  return [`**${title}**`, '', getErrorMessage(error)].join('\n');
 }

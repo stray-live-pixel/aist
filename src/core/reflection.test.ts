@@ -37,8 +37,8 @@ describe('post-run reflection trace', () => {
         name: 'write_file',
         status: 'done',
         reason: 'Update implementation',
-        args: { path: 'src/extension/agent/runtime/reflection.ts', content: 'raw file content' },
-        modelResult: { ok: true, path: 'src/extension/agent/runtime/reflection.ts' },
+        args: { path: 'src/core/reflection.ts', content: 'raw file content' },
+        modelResult: { ok: true, path: 'src/core/reflection.ts' },
         createdAt: 130
       }
     ]);
@@ -55,7 +55,7 @@ describe('post-run reflection trace', () => {
     expect(trace.tools.map((tool) => tool.name)).toEqual(['run_bash_script', 'write_file']);
     expect(trace.errors).toContain('Tests failed');
     expect(trace.approvalFeedback).toEqual(['Use focused tests before the full suite.']);
-    expect(trace.changedFiles).toEqual(['src/extension/agent/runtime/reflection.ts']);
+    expect(trace.changedFiles).toEqual(['src/core/reflection.ts']);
     expect(serialized).not.toContain('very long raw output');
     expect(serialized).not.toContain('secret-ish raw failure');
     expect(serialized).not.toContain('raw file content');

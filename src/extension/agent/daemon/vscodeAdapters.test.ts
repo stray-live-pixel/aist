@@ -5,9 +5,7 @@ import {
   VscodeCoreLoggerAdapter,
   VscodePreviewEditAdapter,
   VscodeStatusNotificationAdapter,
-  VscodeWorkspaceRootAdapter,
-  createVscodeCoreConfigStore,
-  createVscodeCoreSecretStore
+  VscodeWorkspaceRootAdapter
 } from './vscodeAdapters';
 
 const vscodeMock = vi.hoisted(() => {
@@ -48,7 +46,7 @@ vi.mock('vscode', () => ({
   }
 }));
 
-describe('VS Code core runtime adapters', () => {
+describe('VS Code daemon runtime adapters', () => {
   beforeEach(() => {
     vscodeMock.state.workspaceFolders = [{ uri: { fsPath: '/workspace' }, name: 'workspace' }];
     vscodeMock.state.config = {};
@@ -130,20 +128,6 @@ describe('VS Code core runtime adapters', () => {
     });
     expect(vscodeMock.setStatusBarMessage).toHaveBeenCalledWith('Created chat', 1000);
     expect(vscodeMock.showWarningMessage).toHaveBeenCalledWith('Core bridge fell back');
-  });
-
-  it('exposes VS Code config and secret storage through core store contracts', async () => {
-    vscodeMock.state.config = { model: 'openai/test' };
-    const secretStorage = {
-      get: vi.fn(async (key: string) => `secret:${key}`),
-      store: vi.fn(async () => undefined),
-      delete: vi.fn(async () => undefined)
-    };
-
-    await expect(createVscodeCoreConfigStore().get('model')).resolves.toBe('openai/test');
-    await expect(createVscodeCoreSecretStore(secretStorage as never).get('openrouter.apiKey')).resolves.toBe(
-      'secret:openrouter.apiKey'
-    );
   });
 
   it('adapts the extension logger to the core runtime logger contract', () => {

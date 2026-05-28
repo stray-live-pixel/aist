@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { validateReflectionCandidates } from '../../../../core/reflection';
 import { getErrorMessage } from '../../../shared/errors';
 import { t } from '../../../shared/i18n';
 import {
@@ -24,7 +25,6 @@ import {
   setAgentModeInstructions
 } from '../../config/settings';
 import { type AgentMemoryScope, addAgentMemory, deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
-import { validateReflectionCandidates } from '../../runtime/reflection';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 

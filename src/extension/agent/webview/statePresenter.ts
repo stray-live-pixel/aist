@@ -1,3 +1,4 @@
+import { getTelemetryDashboardState } from '../../../core/telemetry';
 import type { OpenRouterModelOption } from '../../../core/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
@@ -14,11 +15,9 @@ import { getApprovalNotificationSettings } from '../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
+import { getDaemonToolCatalog, getDaemonTools } from '../daemon/toolCatalog';
 import { getAgentMemoryItems } from '../memory/memory';
 import { mergeModels } from '../models/models';
-import { getTelemetryDashboardState } from '../runtime/telemetry';
-import { getAgentToolRegistry } from '../runtime/toolRegistry';
-import { getAgentTools } from '../runtime/tools';
 import type { WebviewSurface } from '../types';
 import { mapChatToWebviewActiveChat } from './stateMapping';
 
@@ -52,7 +51,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const activeMode = getActiveAgentMode();
   const agentModes = getAgentModes();
   const customSkills = getAgentSkills();
-  const tools = getAgentTools(customSkills);
+  const tools = getDaemonTools(customSkills);
   const agentConfigScope = getAgentConfigScope();
   const projectInstructions = getProjectInstructions();
   const instructionSources = getAgentInstructionSources();
@@ -60,7 +59,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const memoryItems = getAgentMemoryItems();
   const compactionSettings = getCompactionSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
-  const projectToolDiagnostics = getAgentToolRegistry().snapshot().diagnostics;
+  const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
   const telemetry = getTelemetryDashboardState();
 
   for (const surface of params.surfaces) {
@@ -101,7 +100,7 @@ type StateContext = SendAgentStateParams & {
   activeMode: { id: string };
   agentModes: unknown;
   customSkills: unknown;
-  tools: ReturnType<typeof getAgentTools>;
+  tools: ReturnType<typeof getDaemonTools>;
   agentConfigScope: string;
   projectInstructions: string;
   promptConfig: unknown;

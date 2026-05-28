@@ -94,9 +94,8 @@ export async function handleWebviewChatMessage(
 /**
  * Открывает snapshot чата как untitled JSON-документ VS Code.
  *
- * История сейчас живёт в workspaceState, поэтому не даём пользователю псевдо-файл из storage, который нельзя безопасно
- * редактировать. Untitled JSON лучше отражает сценарий «посмотреть/сохранить при необходимости» и всегда открывается
- * штатным редактором VS Code без привязки к внутренней БД Memento.
+ * История принадлежит daemon storage, поэтому экспорт открывается как read-only snapshot
+ * в untitled JSON-документе без прямой привязки к backend-файлам.
  */
 async function openChatJson(surface: WebviewSurface, chatId: string, deps: AgentWebviewMessageDeps): Promise<void> {
   const chat = deps.chats.getChat(chatId);

@@ -1,11 +1,11 @@
 import type * as vscode from 'vscode';
 
+import type { AgentRunTelemetryDraft } from '../../core/telemetry';
 import type { CodexServiceTier, AgentRun as CoreAgentRun, EditorContextMode, ReasoningEffort } from '../../core/types';
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { AgentModeId } from './config/settings';
 import type { AgentMemoryScope } from './memory/memory';
-import type { AgentRunTelemetryDraft } from './runtime/telemetry';
 
 export type {
   AgentActivityStream,

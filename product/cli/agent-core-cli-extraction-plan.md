@@ -6,19 +6,16 @@
 
 Целевая модель: `aist` CLI становится единой backend-базой агента, а VS Code extension, будущий desktop и web-клиент становятся thin clients, которые общаются с этим backend через IPC/HTTP/stdio и отображают состояние.
 
-## Текущая механика агента
+## Итоговая механика агента
 
-Основной interactive agent сейчас распределён по `src/extension/agent/` и завязан на VS Code:
+Основной interactive agent после CLI extraction работает через Node-safe core и CLI daemon:
 
-- `AgentController` связывает команды VS Code, webview surfaces, `ChatStore`, модельные клиенты, авторизацию Codex и `AgentRunService`.
-- `AgentRunService` управляет active run: busy/activity, `AbortController`, approvals, retry, post-run reflection.
-- `runtime/loop.ts` выполняет цикл `model -> tool calls -> model`.
-- `runtime/toolRunner.ts` исполняет tool calls, approval flow, preview filesystem edits и записывает model-visible tool result.
-- `chats/ChatStore` хранит историю чатов в `vscode.Memento`.
-- `config/agentConfigStore.ts`, `memory/memory.ts`, `runtime/telemetry.ts`, autonomous storage уже частично используют файлы `.aist-agent`.
-- `openrouter/client.ts` и `codex/client.ts` читают часть настроек из `vscode.workspace.getConfiguration`, Codex auth хранится в `context.secrets`.
-- `tools/filesystemTools.ts` зависит от VS Code filesystem, diff editor, document symbols, active editor и workspace API.
-- Webview state собирается в `webview/statePresenter.ts` напрямую из extension-модулей.
+- `src/core/agentRuntime.ts` управляет active run: busy/activity, cancellation, approvals, retry, compaction hooks and post-run lifecycle.
+- `src/core/toolRunner.ts` исполняет tool calls, approval flow, preview handoff and model-visible tool result.
+- `src/core/chatRepository.ts` и `src/core/runRepository.ts` хранят state в workspace `.aist-agent`.
+- `src/core/openrouterTransport.ts` и `src/core/codexTransport.ts` выполняют model requests через backend config/secrets.
+- `src/cli/daemon.ts` является source of truth для chats/runs/tools/model requests/auth и отдаёт state/events thin clients.
+- `src/extension/agent/` содержит VS Code thin-client adapters: webview host, daemon process manager/client, editable diff preview, active editor context, openWorkspaceFile и notifications/status.
 
 Главная проблема: runtime state, настройки, секреты, чаты, инструменты и UI lifecycle смешаны в extension. Поэтому агент нельзя стабильно запускать как обычный процесс без VS Code.
 
@@ -187,11 +184,11 @@ run.error
 ### Переписать через adapters
 
 - `ChatStore`: заменить `vscode.Memento` на file-backed `ChatStorage`.
-- `OpenRouterClient`: settings передавать через dependency/config object, не читать `vscode.workspace`.
-- `CodexClient`: auth storage вынести в `SecretStore` interface.
+- Model transports: settings передавать через dependency/config object, не читать `vscode.workspace`.
+- Codex auth: хранить через backend `SecretStore` interface.
 - `tools/filesystemTools.ts`: разделить на Node filesystem tools и VS Code UI preview adapter.
 - `settingsSnapshot.ts`: читать из CLI config store.
-- `AgentRunService`: оставить как core service, но заменить callbacks на event emitter и storage transactions.
+- Runtime service: оставить как core service, но заменить callbacks на event emitter и storage transactions.
 
 ### Оставить в VS Code adapter
 
@@ -289,7 +286,7 @@ OpenRouter API key тоже лучше хранить в user-level CLI secret s
 - Webview state приходит из daemon, а не собирается из `ChatStore`.
 - Команды webview проксируются в daemon.
 - VS Code-specific actions остаются локальными adapter callbacks.
-- Удалить хранение чатов из `vscode.Memento` после успешной миграции.
+- Удалить `vscode.Memento` `ChatStore`, in-extension `AgentRunService` и direct model/tool execution после successful parity review; storage migration старых Memento-чатов не требуется.
 
 ### Фаза 6. Desktop/web readiness
 
@@ -335,4 +332,4 @@ OpenRouter API key тоже лучше хранить в user-level CLI secret s
 
 ## Итоговое решение
 
-Вынос core агента в Node.js CLI стоит делать. Правильный целевой дизайн: `aist` CLI/daemon становится source of truth для истории, настроек, runs, approvals, tools и model requests; VS Code extension становится одним из клиентов. Такой переход напрямую поддерживает программный запуск агента и будущие desktop/web приложения на общей backend базе.
+Вынос core агента в Node.js CLI стоит делать. Целевой дизайн: `aist` CLI/daemon является source of truth для истории, настроек, runs, approvals, tools, auth и model requests; VS Code extension остаётся thin client с webview, daemon process manager/client, editable diff preview, active editor context, openWorkspaceFile и notifications/status. Такой переход напрямую поддерживает программный запуск агента и будущие desktop/web приложения на общей backend базе.

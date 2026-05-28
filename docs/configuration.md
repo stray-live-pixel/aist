@@ -8,7 +8,6 @@ AIST settings use the `openrouterAgent.*` namespace.
 
 ```json
 {
-  "openrouterAgent.apiKey": "sk-or-...",
   "openrouterAgent.model": "openai/gpt-4o-mini",
   "openrouterAgent.language": "en"
 }
@@ -16,23 +15,24 @@ AIST settings use the `openrouterAgent.*` namespace.
 
 | Setting                             | Default                | Description                                                                           |
 | ----------------------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
-| `openrouterAgent.apiKey`            | `""`                   | OpenRouter API key. You can also use `OPENROUTER_API_KEY`.                            |
 | `openrouterAgent.model`             | `"openai/gpt-4o-mini"` | Active model ID. OpenRouter IDs are used as-is; Codex IDs use the `codex:` prefix.    |
 | `openrouterAgent.siteUrl`           | `""`                   | Optional site URL sent to OpenRouter rankings headers.                                |
 | `openrouterAgent.siteName`          | `"aist"`               | Optional site name sent to OpenRouter rankings headers.                               |
 | `openrouterAgent.maxContextChars`   | `12000`                | Maximum number of active-file characters attached as editor context.                  |
 | `openrouterAgent.maxToolIterations` | `0`                    | Maximum model/tool-call turns per request. `0` means no configured limit.             |
 | `openrouterAgent.reasoningEffort`   | `"auto"`               | OpenRouter reasoning effort: `auto`, `low`, `medium`, `high`.                         |
-| `openrouterAgent.useCoreRuntime`    | `false`                | Experimental VS Code bridge that stores new chats/runs in `.aist-agent`.              |
+| `openrouterAgent.daemonBinaryPath`  | `""`                   | Optional path to the `aist` binary or bundled CLI JavaScript used for the daemon.     |
 | `openrouterAgent.language`          | `"en"`                 | Agent response language and tool-call `reason` language: `en` or `ru`.                |
 | `openrouterAgent.agentMode`         | `"default"`            | Active agent mode ID.                                                                 |
 | `openrouterAgent.agentConfigScope`  | `"workspace"`          | Where project instructions, custom modes, skills, and compaction settings are stored. |
 
 > Note: the source package may still contain older user settings. Set `openrouterAgent.language` to `en` explicitly if your workspace already has a different value.
 
-## Core runtime bridge
+## Backend
 
-`openrouterAgent.useCoreRuntime` is an experimental migration flag for VS Code smoke tests. When enabled, new extension chats use the core file-backed chat and run repositories under `.aist-agent/chats` and `.aist-agent/runs`, while the webview keeps the same state shape and editable diff approval UX. The default is `false`; disable the flag to return to the legacy Memento-backed runtime.
+The VS Code extension is a thin client. Chat history, runs, approvals, tools, model requests, auth, memory, telemetry, compaction, and reflection are handled by `aist daemon --workspace <root>`.
+
+Use `aist auth openrouter set-key` or `OPENROUTER_API_KEY` for OpenRouter auth. The removed legacy VS Code `openrouterAgent.apiKey` setting is read only as a compatibility import into the global daemon secret store.
 
 ## Agent config scope
 

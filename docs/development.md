@@ -150,11 +150,11 @@ VSCODE_CLI=code-insiders npm run install:extension
 
 ## Logging
 
-Run `aist: Show Logs` to open extension logs. Useful events include chat creation, webview resolution, model refresh, agent run start/finish, tool execution, Codex auth state, and compaction failures.
+Run `aist: Show Logs` to open extension logs. Useful events include daemon startup, chat creation, webview resolution, model refresh, Codex auth state, and daemon state refresh failures.
 
-## VS Code Core Runtime Bridge
+## VS Code Daemon Backend
 
-For migration smoke tests, set `"openrouterAgent.useCoreRuntime": true` in a workspace. The extension will keep the current sidebar/editor webview UX but route new chats through the core file-backed chat and run repositories in `.aist-agent/chats` and `.aist-agent/runs`. Keep the flag off for release verification unless the test explicitly targets the bridge; disabling it returns to the legacy Memento-backed runtime.
+The extension always starts or connects to `aist daemon --workspace <root>`. The daemon is the source of truth for chats, runs, approvals, tools, model requests, auth, memory, compaction, reflection, telemetry, and autonomous sessions. VS Code code should stay limited to webview hosting, process management, editable diff previews, active editor context, file opening, notifications, and status.
 
 ## UI theme integration
 

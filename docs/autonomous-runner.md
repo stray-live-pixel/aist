@@ -50,14 +50,14 @@ Run `.index.md` поддерживает:
 - `dry-run` — безопасная synthetic execution без внешних зависимостей.
 - `claude-cli` — запускает `claude` напрямую через argv и `--output-format stream-json`.
 - `codex-cli` — запускает `codex exec --json` напрямую через argv.
-- `openrouter-api` — использует существующий `OpenRouterClient`.
-- `codex-api` — использует существующий `CodexClient` и текущий login flow.
+- `openrouter-api` — использует core `OpenRouterTransport` через daemon/backend config и global secret store.
+- `codex-api` — использует core `CodexResponsesTransport` и global Codex auth из daemon/backend secret store.
 
 CLI engines могут запускать инструменты с bypass-флагами. Dashboard показывает это через engine capabilities; используйте dry-run для безопасной проверки definitions.
 
 ## UI
 
-Команда `aist: Autonomous Runner` открывает React dashboard. UI построен на shared components из `src/webview/shared/ui` и не использует standalone HTML/CSS/JS старого monitor. В daemon mode dashboard читает state/events через daemon API; без daemon mode он использует тот же shared backend напрямую.
+Команда `aist: Autonomous Runner` открывает React dashboard. UI построен на shared components из `src/webview/shared/ui` и не использует standalone HTML/CSS/JS старого monitor. Dashboard читает state/events через daemon API; отдельного in-extension backend path больше нет.
 
 Dashboard умеет:
 

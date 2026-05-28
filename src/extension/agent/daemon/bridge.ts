@@ -29,14 +29,14 @@ import type { AistLogger } from '../../shared/logger';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from '../commands/openWorkspaceFile';
 import { getAgentLanguage } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
+import { DaemonChatStore } from './chatStore';
+import { VscodeDaemonProcessManager } from './processManager';
 import {
   VscodeActiveEditorContextAdapter,
   type VscodePreviewEdit,
   VscodePreviewEditAdapter,
   VscodeStatusNotificationAdapter
-} from '../coreRuntime/vscodeAdapters';
-import { DaemonChatStore } from './chatStore';
-import { VscodeDaemonProcessManager } from './processManager';
+} from './vscodeAdapters';
 
 export const DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY = 'daemonRuntime.activeChatId';
 

@@ -23,11 +23,14 @@ AIST is a VS Code extension that adds a coding-agent chat to the editor. It can 
    bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
    ```
 
-2. Configure an OpenRouter API key in VS Code settings or through `OPENROUTER_API_KEY`:
+2. Configure an OpenRouter API key in the CLI/global secret store or through `OPENROUTER_API_KEY`:
+
+   ```bash
+   aist auth openrouter set-key
+   ```
 
    ```json
    {
-     "openrouterAgent.apiKey": "sk-or-...",
      "openrouterAgent.model": "openai/gpt-4o-mini",
      "openrouterAgent.language": "en"
    }
@@ -39,7 +42,7 @@ For ChatGPT Codex models, run `aist: Login ChatGPT Codex` and then select a `cod
 
 ## Main concepts
 
-- **Chats** are stored by the extension and can be created, duplicated, deleted, compacted, or opened in editor panels.
+- **Chats** are stored by the CLI daemon in `.aist-agent` and can be created, deleted, compacted, or opened in editor panels.
 - **Models** can come from OpenRouter or ChatGPT Codex. OpenRouter model IDs are used as-is; Codex model IDs use the `codex:` prefix.
 - **Editor context** is attached automatically. If code is selected, the selected text is sent; otherwise AIST sends the active file content up to `openrouterAgent.maxContextChars`.
 - **Tools** let the agent inspect the workspace, search files, run focused Bash scripts, and change files.
