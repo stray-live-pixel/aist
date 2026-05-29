@@ -1,5 +1,6 @@
 import { buildAfterToolAnswerResponse } from './buildAfterToolAnswerResponse';
 import { buildListFilesToolCallResponse } from './buildListFilesToolCallResponse';
+import { buildMarkdownAnswerResponse } from './buildMarkdownAnswerResponse';
 import { buildSimpleAnswerResponse } from './buildSimpleAnswerResponse';
 import { getLastUserText } from './getLastUserText';
 
@@ -16,9 +17,16 @@ export function buildMockModelResponse({ body }: { body: Record<string, unknown>
     return buildAfterToolAnswerResponse();
   }
 
+  const lastUserText = getLastUserText({ messages });
+
   // Отдельный flow проверяет видимость reason/nextStep на tool-call list_files.
-  if (getLastUserText({ messages }).includes('покажи файлы')) {
+  if (lastUserText.includes('покажи файлы')) {
     return buildListFilesToolCallResponse();
+  }
+
+  // Markdown flow проверяет реальное форматирование ответа в webview.
+  if (lastUserText.includes('покажи markdown ответ')) {
+    return buildMarkdownAnswerResponse();
   }
 
   return buildSimpleAnswerResponse();

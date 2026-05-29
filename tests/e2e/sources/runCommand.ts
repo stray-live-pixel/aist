@@ -7,9 +7,14 @@ import { type Page, expect } from '@playwright/test';
 export async function runCommand({ page, commandTitle }: { page: Page; commandTitle: string }): Promise<void> {
   const shortcut = process.platform === 'darwin' ? 'Meta+Shift+P' : 'Control+Shift+P';
 
-  await page.keyboard.press(shortcut);
-
   const commandInput = page.locator('.quick-input-widget input').first();
+
+  await page.keyboard.press(shortcut);
+  if (!(await commandInput.isVisible({ timeout: 1_000 }).catch(() => false))) {
+    await page.keyboard.press('Escape');
+    await page.keyboard.press(shortcut);
+  }
+
   await expect(commandInput).toBeVisible();
   await commandInput.fill(`>${commandTitle}`);
   await page.keyboard.press('Enter');

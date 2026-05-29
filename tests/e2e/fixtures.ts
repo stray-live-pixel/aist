@@ -7,16 +7,20 @@ import { expectAistScreenshot } from './sources/expectAistScreenshot';
 import { findFrameByText } from './sources/findFrameByText';
 import { launchVscodeWorkbench } from './sources/launchVscodeWorkbench';
 import { openAistChat } from './sources/openAistChat';
+import { openAistSettings } from './sources/openAistSettings';
 import { runCommand } from './sources/runCommand';
 import { startOpenRouterMock } from './sources/startOpenRouterMock';
 import { stopOpenRouterMock } from './sources/stopOpenRouterMock';
 
-type WorkerFixtures = {
-  openRouterMock: OpenRouterMock;
+type TestFixtures = {
   workbench: Page;
 };
 
-export const test = base.extend<{}, WorkerFixtures>({
+type WorkerFixtures = {
+  openRouterMock: OpenRouterMock;
+};
+
+export const test = base.extend<TestFixtures, WorkerFixtures>({
   openRouterMock: [
     async ({}, use) => {
       const mock = await startOpenRouterMock();
@@ -29,20 +33,17 @@ export const test = base.extend<{}, WorkerFixtures>({
     },
     { scope: 'worker', timeout: 30_000 }
   ],
-  workbench: [
-    async ({ openRouterMock }, use) => {
-      let session: VscodeWorkbenchSession | undefined;
+  workbench: async ({ openRouterMock }, use) => {
+    let session: VscodeWorkbenchSession | undefined;
 
-      try {
-        session = await launchVscodeWorkbench({ openRouterEndpoint: openRouterMock.endpoint });
-        await use(session.page);
-      } finally {
-        await closeVscodeWorkbench({ session });
-      }
-    },
-    { scope: 'worker', timeout: 120_000 }
-  ]
+    try {
+      session = await launchVscodeWorkbench({ openRouterEndpoint: openRouterMock.endpoint });
+      await use(session.page);
+    } finally {
+      await closeVscodeWorkbench({ session });
+    }
+  }
 });
 
-export { expect, expectAistScreenshot, findFrameByText, openAistChat, runCommand };
+export { expect, expectAistScreenshot, findFrameByText, openAistChat, openAistSettings, runCommand };
 export type { OpenRouterMock };
