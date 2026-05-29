@@ -29,6 +29,7 @@ import type { AistLogger } from '../../shared/logger';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from '../commands/openWorkspaceFile';
 import { getAgentLanguage } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
+import { getDaemonEventChatId } from '../webview/getDaemonEventChatId';
 import { DaemonChatStore } from './chatStore';
 import { VscodeDaemonProcessManager } from './processManager';
 import {
@@ -55,6 +56,7 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   refreshModels(force?: boolean): Promise<readonly OpenRouterModelOption[]>;
   refreshState(): Promise<void>;
+  onEvent(listener: (event: DaemonEvent) => void): () => void;
 };
 
 export async function createVscodeDaemonRuntimeBridge(
@@ -79,6 +81,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   private readonly notifier = new VscodeStatusNotificationAdapter();
   private readonly previewHandles = new Map<string, VscodePreviewEdit>();
   private client: DaemonJsonRpcClient | undefined;
+  private readonly eventListeners = new Set<(event: DaemonEvent) => void>();
   private lastSyncedSettings = '';
   private refreshQueue = Promise.resolve();
   private disposed = false;
@@ -185,6 +188,13 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     return result.models;
   }
 
+  onEvent(listener: (event: DaemonEvent) => void): () => void {
+    this.eventListeners.add(listener);
+    return () => {
+      this.eventListeners.delete(listener);
+    };
+  }
+
   async refreshState(activeChatId?: string): Promise<void> {
     const client = await this.getClient();
     const state = await client.request<DaemonState>('state.get');
@@ -239,13 +249,22 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     }
 
     this.refreshQueue = this.refreshQueue
-      .then(() => {
-        if ('chatId' in event && typeof event.chatId === 'string') {
-          return this.refreshChat(event.chatId);
+      .then(async () => {
+        const chatId = getDaemonEventChatId(event);
+        if (chatId) {
+          await this.refreshChat(chatId);
+        } else {
+          await this.refreshState();
         }
-        return this.refreshState();
+        this.notifyEventListeners(event);
       })
       .catch((error) => this.logger.error('Failed to refresh daemon state after event', error));
+  }
+
+  private notifyEventListeners(event: DaemonEvent): void {
+    for (const listener of [...this.eventListeners]) {
+      listener(event);
+    }
   }
 
   private async refreshChat(chatId: string): Promise<void> {

@@ -6,6 +6,7 @@ import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 import { I18nProvider, translate } from '../shared/i18n';
 import { agentActions } from '../shared/lib/agentActions';
+import { applyAgentPatch } from '../shared/lib/agentPatches';
 import { AgentStateProvider } from '../shared/lib/agentState';
 import { vscode } from '../shared/lib/vscode';
 import type { AgentState, AutonomousState, ExtensionToWebviewMessage } from '../shared/types';
@@ -26,20 +27,24 @@ export function App() {
 
   useEffect(() => {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
-      if (event.data.type === 'state') {
-        setState(event.data);
-        if (event.data.viewKind === 'editor') {
-          vscode.setState({ chatId: event.data.activeChat.id });
+      const message = event.data;
+
+      if (message.type === 'state') {
+        setState(message);
+        if (message.viewKind === 'editor') {
+          vscode.setState({ chatId: message.activeChat.id });
         }
-      } else if (event.data.type === 'page') {
-        setPage(event.data.page);
-      } else if (event.data.type === 'errorModal') {
-        setErrorModal(event.data.message);
-      } else if (event.data.type === 'autonomous.state') {
-        setAutonomousState(event.data.state);
+      } else if (message.type === 'chat.patch') {
+        setState((current) => applyAgentPatch(current, message));
+      } else if (message.type === 'page') {
+        setPage(message.page);
+      } else if (message.type === 'errorModal') {
+        setErrorModal(message.message);
+      } else if (message.type === 'autonomous.state') {
+        setAutonomousState(message.state);
         setAutonomousError(null);
-      } else if (event.data.type === 'autonomous.error') {
-        setAutonomousError(event.data.message);
+      } else if (message.type === 'autonomous.error') {
+        setAutonomousError(message.message);
       }
     };
 
