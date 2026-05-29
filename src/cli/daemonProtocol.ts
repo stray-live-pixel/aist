@@ -391,6 +391,7 @@ export type DaemonChat = {
   readonly modelSettings: ChatModelSettings;
   readonly previousChatId: string | null;
   readonly compactedAt: number | null;
+  readonly compactionModel: string | null;
   readonly vcs?: ChatVcsState;
   readonly messages: readonly ChatMessage[];
   readonly history: readonly JsonValue[];

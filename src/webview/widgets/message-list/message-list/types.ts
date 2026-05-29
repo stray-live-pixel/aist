@@ -9,6 +9,7 @@ export type MessageListProps = {
   messages: ChatMessage[];
   previousChat?: CompactPreviousChat;
   compactedAt?: number;
+  compactionModel?: string;
   activePlan?: Chat['activePlan'];
   tools: string[];
   busy: boolean;
@@ -42,4 +43,5 @@ export type MessageGroup =
 export type PreviousChatHistoryProps = {
   chat: CompactPreviousChat;
   compactedAt?: number;
+  compactionModel?: string;
 };

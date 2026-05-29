@@ -93,7 +93,7 @@ export function App() {
   return (
     <I18nProvider language={state.agentLanguage}>
       <AgentStateProvider state={state}>
-        <ChatPage />
+        <ChatPage onOpenSettingsPage={() => setPage('settings')} />
         {modal}
       </AgentStateProvider>
     </I18nProvider>

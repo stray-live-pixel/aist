@@ -682,6 +682,7 @@ type ChatSummaryJson = {
   readonly model: string;
   readonly previousChatId: string | null;
   readonly compactedAt: number | null;
+  readonly compactionModel: string | null;
   readonly messageCount: number;
   readonly lastUserMessage: string;
   readonly busy: boolean;
@@ -695,6 +696,7 @@ type ChatJson = {
   readonly model: string;
   readonly previousChatId: string | null;
   readonly compactedAt: number | null;
+  readonly compactionModel: string | null;
   readonly messages: readonly ChatMessage[];
   readonly history: readonly JsonValue[];
   readonly lastAnswer: string;
@@ -1473,6 +1475,7 @@ function toChatJson(chat: Chat): ChatJson {
     model: chat.model,
     previousChatId: chat.previousChatId ?? null,
     compactedAt: chat.compactedAt ?? null,
+    compactionModel: chat.compactionModel ?? null,
     messages: chat.messages,
     history: chat.history as JsonValue[],
     lastAnswer: chat.lastAnswer,
@@ -1497,6 +1500,7 @@ function toChatSummaryJson(summary: ChatSummary): ChatSummaryJson {
     model: summary.model,
     previousChatId: summary.previousChatId ?? null,
     compactedAt: summary.compactedAt ?? null,
+    compactionModel: summary.compactionModel ?? null,
     messageCount: summary.messageCount,
     lastUserMessage: summary.lastUserMessage,
     busy: summary.busy,
@@ -1520,6 +1524,7 @@ function toChatSummary(chat: Chat): ChatSummary {
     modelSettings: chat.modelSettings,
     previousChatId: chat.previousChatId,
     compactedAt: chat.compactedAt,
+    compactionModel: chat.compactionModel,
     messageCount: userAssistantMessages.length,
     lastUserMessage: lastUserMessage ? toSingleLinePreview(lastUserMessage.content || '', 50) : '',
     busy: chat.busy,

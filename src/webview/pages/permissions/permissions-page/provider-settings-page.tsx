@@ -3,8 +3,9 @@ import { memo, useEffect, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
-import type { ProviderProfile } from '../../../shared/types';
+import type { AgentState, ProviderProfile } from '../../../shared/types';
 import { Badge, Button, Card, Select, Text, TextField } from '../../../shared/ui';
+import { RequestSettingsPanel } from '../../chat/RequestSettingsPanel';
 import styles from '../PermissionsPage.module.scss';
 
 type DraftProfile = Pick<ProviderProfile, 'id' | 'name' | 'provider' | 'endpoint' | 'proxyHost' | 'builtIn'>;
@@ -15,9 +16,11 @@ type DraftProfile = Pick<ProviderProfile, 'id' | 'name' | 'provider' | 'endpoint
  * чтобы корпоративные пользователи явно видели, куда уходят запросы OpenRouter/Codex и могли дублировать маршрут.
  */
 export const ProviderSettingsPage = memo(function ProviderSettingsPage({
+  state,
   profiles,
   codexAuthenticated
 }: {
+  state: AgentState;
   profiles: ProviderProfile[];
   codexAuthenticated: boolean;
 }) {
@@ -30,6 +33,7 @@ export const ProviderSettingsPage = memo(function ProviderSettingsPage({
 
   return (
     <div className={styles.sectionStack}>
+      <RequestSettingsPanel state={state} scope="default" />
       <Card title={t('settings.providers.title')} description={t('settings.providers.description')}>
         <Text variant="body">{t('settings.providers.productHint')}</Text>
       </Card>

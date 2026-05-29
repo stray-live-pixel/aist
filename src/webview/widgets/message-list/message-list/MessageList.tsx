@@ -25,6 +25,7 @@ export function MessageList({
   messages,
   previousChat,
   compactedAt,
+  compactionModel,
   activePlan,
   tools: _tools,
   busy,
@@ -68,7 +69,9 @@ export function MessageList({
     >
       <div className={styles.stack}>
         {activePlan ? <ActivePlanWidget plan={activePlan} /> : null}
-        {previousChat ? <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} /> : null}
+        {previousChat ? (
+          <PreviousChatHistory chat={previousChat} compactedAt={compactedAt} compactionModel={compactionModel} />
+        ) : null}
         {messages.length === 0 && !previousChat ? <EmptyState /> : null}
         {groups.map((group) => (
           <AnimatedMessageGroup key={getMessageGroupId(group)} animate={newGroupIds.has(getMessageGroupId(group))}>
@@ -91,20 +94,38 @@ function getMessageGroupId(group: MessageGroup): string {
   return group.type === 'toolCalls' ? group.id : group.message.id;
 }
 
-function PreviousChatHistory({ chat, compactedAt }: PreviousChatHistoryProps) {
+function PreviousChatHistory({ chat, compactedAt, compactionModel }: PreviousChatHistoryProps) {
   const groups = groupMessages(chat.messages, false);
+  const label = formatCompactionDividerLabel(compactedAt, compactionModel);
 
   return (
     <>
       {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(chat.messages)))}
       <div className={styles.compactionDivider}>
         <span className={styles.compactionLine} />
-        <span className={styles.compactionLabel}>
-          Context compacted{compactedAt ? ` · ${new Date(compactedAt).toLocaleString()}` : ''}
-        </span>
+        <span className={styles.compactionLabel}>{label}</span>
         <span className={styles.compactionLine} />
       </div>
     </>
+  );
+}
+
+function formatCompactionDividerLabel(compactedAt: number | undefined, compactionModel: string | undefined): string {
+  return [
+    'Context compacted',
+    compactionModel ? `model: ${compactModelLabel(compactionModel)}` : undefined,
+    compactedAt ? new Date(compactedAt).toLocaleString() : undefined
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function compactModelLabel(model: string): string {
+  return (
+    model
+      .replace(/^openrouter[:/]/i, '')
+      .replace(/^codex[:/]/i, '')
+      .trim() || model
   );
 }
 

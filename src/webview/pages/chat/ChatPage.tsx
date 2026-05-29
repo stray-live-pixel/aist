@@ -19,8 +19,6 @@ import { useAgentState } from '../../shared/lib/agentState';
 import type { AgentState } from '../../shared/types';
 import { CompactNavigationButton } from '../../shared/ui';
 import { MessageList } from '../../widgets/message-list';
-import type { SettingsPageId } from '../permissions/permissions-page/types';
-import { AgentSettingsModal } from './AgentSettingsModal';
 import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
 import { ApprovalPromptModal } from './ApprovalPromptModal';
 import { ChatListModal } from './ChatListModal';
@@ -30,11 +28,9 @@ import styles from './ChatPage.module.scss';
  * Что это: корневая страница активного чата.
  * Зачем нужно: держит только состояние модалок/approval и прокидывает уже подготовленные данные в виджеты чата.
  */
-export function ChatPage() {
+export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void }) {
   const state = useAgentState();
   const [chatsOpen, setChatsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
   const [approvalMinimized, setApprovalMinimized] = useState(false);
   const [vcsPanelOpen, setVcsPanelOpen] = useState(false);
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
@@ -87,11 +83,6 @@ export function ChatPage() {
     return () => window.removeEventListener('message', listener);
   }, []);
 
-  function openSettings(page: SettingsPageId = 'overview') {
-    setSettingsInitialPage(page);
-    setSettingsOpen(true);
-  }
-
   function toggleVcsPanel() {
     if (!state.activeChat.vcs?.branch) {
       agentActions.refreshVcs();
@@ -107,6 +98,7 @@ export function ChatPage() {
         messages={state.activeChat.messages}
         previousChat={state.activeChat.previousChat}
         compactedAt={state.activeChat.compactedAt}
+        compactionModel={state.activeChat.compactionModel}
         activePlan={state.activeChat.activePlan}
         tools={state.tools}
         busy={state.activeChat.busy}
@@ -122,7 +114,7 @@ export function ChatPage() {
         floating
         minimized={composerMinimized}
         gradientWhileBusy={state.composerUiSettings.gradientWhileBusy}
-        settings={<AgentSettingsSummary state={state} onOpen={openSettings} />}
+        settings={<AgentSettingsSummary state={state} onOpen={onOpenSettingsPage} />}
         headerActions={
           <>
             <VcsToggleButton state={state} open={vcsPanelOpen} onToggle={toggleVcsPanel} />
@@ -130,7 +122,7 @@ export function ChatPage() {
               extensionVersion={state.extensionVersion}
               onNewChat={() => agentActions.newChat()}
               onOpenChats={() => setChatsOpen(true)}
-              onOpenSettings={() => openSettings('overview')}
+              onOpenSettings={onOpenSettingsPage}
               activeChatId={state.activeChat.id}
             />
           </>
@@ -161,9 +153,6 @@ export function ChatPage() {
           language={state.agentLanguage}
           onClose={() => setChatsOpen(false)}
         />
-      ) : null}
-      {settingsOpen ? (
-        <AgentSettingsModal initialPage={settingsInitialPage} onClose={() => setSettingsOpen(false)} />
       ) : null}
       {pendingApproval && !approvalMinimized ? (
         <ApprovalPromptModal

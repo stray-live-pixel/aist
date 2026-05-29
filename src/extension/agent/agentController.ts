@@ -301,6 +301,7 @@ export class AgentController {
       loginCodex: () => this.loginCodex(),
       logoutCodex: () => this.logoutCodex(),
       resolveToolCall: (messageId, decision) => this.daemonRuntime.resolveToolCall(messageId, decision),
+      syncToolPermissions: () => this.daemonRuntime.syncToolPermissions(),
       openWorkspaceFile: (filePath, line, column, endLine, endColumn) =>
         this.openWorkspaceFile(filePath, line, column, endLine, endColumn),
       stopCurrentRun: (chatId) => this.daemonRuntime.stop(chatId).then(() => this.sendState()),

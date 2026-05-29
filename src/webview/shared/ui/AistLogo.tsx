@@ -1,7 +1,9 @@
-import type { CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 
 import { getWebviewAssetUri } from '../lib/assets';
 import styles from './AistLogo.module.scss';
+
+const DEFAULT_ANIMATION_ASSET_KEYS = ['logoAnimGif', 'logoAnimGif2'];
 
 type AistLogoProps = {
   className?: string;
@@ -11,7 +13,7 @@ type AistLogoProps = {
 
 type AistAnimatedLogoProps = Omit<AistLogoProps, 'assetKey'> & {
   baseAssetKey?: string;
-  animationAssetKey?: string;
+  animationAssetKeys?: string[];
 };
 
 type LogoStyle = CSSProperties & {
@@ -44,7 +46,7 @@ export function AistLogo({ className = '', assetKey = 'logo', title = 'aist' }: 
 }
 
 /**
- * Проигрывает готовую GIF-анимацию логотипа из общего webview asset manifest.
+ * Проигрывает случайную готовую GIF-анимацию логотипа из общего webview asset manifest.
  *
  * Использование: <AistAnimatedLogo />.
  * Если GIF недоступен, компонент возвращается к статичному SVG-логотипу.
@@ -52,10 +54,16 @@ export function AistLogo({ className = '', assetKey = 'logo', title = 'aist' }: 
 export function AistAnimatedLogo({
   className = '',
   baseAssetKey = 'logo',
-  animationAssetKey = 'logoAnimGif',
+  animationAssetKeys = DEFAULT_ANIMATION_ASSET_KEYS,
   title = 'aist'
 }: AistAnimatedLogoProps) {
-  const animationUri = getWebviewAssetUri(animationAssetKey);
+  const [animationUri] = useState(() => {
+    const animationUris = animationAssetKeys
+      .map((assetKey) => getWebviewAssetUri(assetKey))
+      .filter((uri): uri is string => Boolean(uri));
+
+    return getRandomItem(animationUris);
+  });
 
   if (!animationUri) {
     return <AistLogo className={className} assetKey={baseAssetKey} title={title} />;
@@ -94,4 +102,10 @@ export function AistBrand({ animated = false }: { animated?: boolean }) {
       </div>
     </div>
   );
+}
+
+function getRandomItem<T>(items: T[]): T | undefined {
+  if (!items.length) return undefined;
+
+  return items[Math.floor(Math.random() * items.length)];
 }

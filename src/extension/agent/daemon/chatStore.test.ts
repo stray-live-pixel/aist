@@ -85,6 +85,7 @@ function createDaemonChat(patch: Partial<DaemonChat>): DaemonChat {
     modelSettings: createModelSettings('fake-model'),
     previousChatId: null,
     compactedAt: null,
+    compactionModel: null,
     messages: [
       { id: 'message-1', role: 'user', content: 'Hello', createdAt: 1 },
       {

@@ -10,7 +10,6 @@ import type {
   ToolPermissionPresetId
 } from '../../../shared/types';
 import { Badge, Card } from '../../../shared/ui';
-import { RequestSettingsPanel } from '../../chat/RequestSettingsPanel';
 import styles from '../PermissionsPage.module.scss';
 
 /**
@@ -37,7 +36,6 @@ export const OverviewPage = memo(function OverviewPage({
   const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <RequestSettingsPanel state={state} scope="default" />
       <Card
         tone="elevated"
         title={t('settings.overview.profileTitle')}

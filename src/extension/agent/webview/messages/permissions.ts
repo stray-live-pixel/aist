@@ -40,10 +40,12 @@ export async function handleWebviewPermissionMessage(
   switch (message.type) {
     case 'setToolPermission':
       await setToolPermission(message.toolName, message.permission);
+      await deps.syncToolPermissions();
       deps.sendState();
       return;
     case 'setToolPermissionPreset':
       await applyPermissionPreset(message.presetId, deps);
+      await deps.syncToolPermissions();
       deps.sendState();
       return;
     case 'setProjectToolEnabled':

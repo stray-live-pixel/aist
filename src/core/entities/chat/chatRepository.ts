@@ -45,6 +45,7 @@ export type CreateChatInput = {
   modelSettings?: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
+  compactionModel?: string;
   vcs?: ChatVcsState;
   lastAnswer?: string;
   usage?: Partial<ChatUsageEstimate>;
@@ -54,7 +55,18 @@ export type CreateChatInput = {
 };
 
 export type ChatMetadataPatch = Partial<
-  Pick<Chat, 'title' | 'model' | 'modelSettings' | 'previousChatId' | 'compactedAt' | 'vcs' | 'lastAnswer' | 'usage'>
+  Pick<
+    Chat,
+    | 'title'
+    | 'model'
+    | 'modelSettings'
+    | 'previousChatId'
+    | 'compactedAt'
+    | 'compactionModel'
+    | 'vcs'
+    | 'lastAnswer'
+    | 'usage'
+  >
 >;
 
 export type ChatStatePatch = Partial<
@@ -81,6 +93,7 @@ type StoredChatMeta = {
   modelSettings?: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
+  compactionModel?: string;
   vcs?: ChatVcsState;
   lastAnswer: string;
   usage: ChatUsageEstimate;
@@ -147,6 +160,7 @@ export class ChatRepository {
       modelSettings: normalizeModelSettings(input.modelSettings, input.model),
       previousChatId: input.previousChatId,
       compactedAt: input.compactedAt,
+      compactionModel: input.compactionModel,
       vcs: input.vcs,
       lastAnswer: input.lastAnswer || '',
       usage: normalizeUsage(input.usage),
@@ -422,6 +436,7 @@ export class ChatRepository {
       modelSettings: normalizedMeta.modelSettings || normalizeModelSettings(undefined, normalizedMeta.model),
       previousChatId: normalizedMeta.previousChatId,
       compactedAt: normalizedMeta.compactedAt,
+      compactionModel: normalizedMeta.compactionModel,
       vcs: normalizedMeta.vcs,
       messages,
       history,
@@ -558,6 +573,8 @@ function normalizeMeta(meta: StoredChatMeta): StoredChatMeta {
     modelSettings: normalizeModelSettings(meta.modelSettings, meta.model),
     previousChatId: meta.previousChatId,
     compactedAt: meta.compactedAt,
+    compactionModel:
+      typeof meta.compactionModel === 'string' && meta.compactionModel.trim() ? meta.compactionModel.trim() : undefined,
     vcs: normalizeVcsState(meta.vcs),
     lastAnswer: typeof meta.lastAnswer === 'string' ? meta.lastAnswer : '',
     usage: normalizeUsage(meta.usage),
@@ -648,6 +665,7 @@ function toSummary(chat: Chat): ChatSummary {
     modelSettings: chat.modelSettings,
     previousChatId: chat.previousChatId,
     compactedAt: chat.compactedAt,
+    compactionModel: chat.compactionModel,
     vcs: chat.vcs,
     messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
     lastUserMessage: getLastUserMessage(chat),

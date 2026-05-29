@@ -637,7 +637,11 @@ export class AistDaemonServer {
     await this.broadcastStateChanged('chat.compact.started');
 
     try {
-      const summary = await this.createCompactionSummary(chat, optionalString(input, 'summary'), keepLastMessages);
+      const { summary, model: compactionModel } = await this.createCompactionSummary(
+        chat,
+        optionalString(input, 'summary'),
+        keepLastMessages
+      );
       const tailMessages = selectCompactionTailMessages(chat.messages, keepLastMessages);
       const { tailHistory } = splitCompactionHistory(chat.history, keepLastMessages);
       const compactedAt = this.now();
@@ -647,6 +651,7 @@ export class AistDaemonServer {
         modelSettings: chat.modelSettings,
         previousChatId: chat.id,
         compactedAt,
+        compactionModel,
         lastAnswer: summary,
         messages: [{ role: 'assistant', content: summary, createdAt: compactedAt }, ...tailMessages],
         history: [{ role: 'assistant', content: summary }, ...tailHistory],
@@ -658,7 +663,8 @@ export class AistDaemonServer {
           ok: true,
           chatId: compacted.id,
           sourceChatId: chat.id,
-          compactedAt
+          compactedAt,
+          compactionModel
         }
       });
       await this.chatRepository.updateState(chat.id, {
@@ -775,6 +781,9 @@ export class AistDaemonServer {
     }
 
     await this.configStore.set(key, value, { scope });
+    if (key === 'toolPermissions' || key === 'openrouterAgent.toolPermissions') {
+      this.cachedToolPermissions = normalizeToolPermissionsSetting(value);
+    }
     await this.broadcastStateChanged('config.update');
     const redacted = redactConfigValue(key, value);
     return {
@@ -1088,18 +1097,18 @@ export class AistDaemonServer {
     chat: Chat,
     providedSummary: string | undefined,
     keepLastMessages: number
-  ): Promise<string> {
+  ): Promise<{ summary: string; model: string }> {
     const cleanProvidedSummary = providedSummary?.trim();
     if (cleanProvidedSummary) {
-      return cleanProvidedSummary;
+      return { summary: cleanProvidedSummary, model: chat.model };
     }
 
     const { summaryHistory } = splitCompactionHistory(chat.history, keepLastMessages);
     const history = summaryHistory.length ? summaryHistory : chat.history;
-    const compactionModel = await this.getAuxiliaryModelSetting('compaction', 'model');
+    const compactionModel = (await this.getAuxiliaryModelSetting('compaction', 'model')) || chat.model;
     const response = await this.auxiliaryModel.invoke({
       messages: createCompactionMessages(history),
-      model: compactionModel || chat.model,
+      model: compactionModel,
       reasoningEffort: await this.getAuxiliaryReasoningEffort('compaction'),
       tools: (await this.getAuxiliaryBooleanSetting('compaction', 'allowTools', false))
         ? this.toolRegistry.snapshot().tools
@@ -1112,7 +1121,7 @@ export class AistDaemonServer {
       });
     }
 
-    return summary;
+    return { summary, model: compactionModel };
   }
 
   private createRoutingModelClient(): ModelClient {
@@ -1475,17 +1484,7 @@ export class AistDaemonServer {
 
   private async getToolPermissionsSetting(): Promise<Record<string, ToolPermissionMode>> {
     const value = await this.getFirstConfigSetting(['openrouterAgent.toolPermissions', 'toolPermissions']);
-    if (!isJsonObject(value)) {
-      return {};
-    }
-
-    const permissions: Record<string, ToolPermissionMode> = {};
-    for (const [toolName, permission] of Object.entries(value)) {
-      if (permission === 'ask' || permission === 'auto') {
-        permissions[toolName] = permission;
-      }
-    }
-    return permissions;
+    return normalizeToolPermissionsSetting(value);
   }
 
   private async getConfiguredSkills(): Promise<readonly AgentSkill[]> {
@@ -1830,6 +1829,7 @@ function toDaemonChat(chat: Chat): DaemonChat {
     modelSettings: chat.modelSettings,
     previousChatId: chat.previousChatId ?? null,
     compactedAt: chat.compactedAt ?? null,
+    compactionModel: chat.compactionModel ?? null,
     messages: chat.messages,
     history: chat.history as JsonValue[],
     lastAnswer: chat.lastAnswer,
@@ -1908,6 +1908,20 @@ function normalizeConfigScope(value: string): ConfigScope {
   }
 
   throw new DaemonRpcError(-32602, 'params.invalid', 'Config scope must be global or workspace.', { scope: value });
+}
+
+function normalizeToolPermissionsSetting(value: unknown): Record<string, ToolPermissionMode> {
+  if (!isJsonObject(value)) {
+    return {};
+  }
+
+  const permissions: Record<string, ToolPermissionMode> = {};
+  for (const [toolName, permission] of Object.entries(value)) {
+    if (permission === 'ask' || permission === 'auto') {
+      permissions[toolName] = permission;
+    }
+  }
+  return permissions;
 }
 
 function normalizeModelProvider(value: string): ModelProvider | 'all' {

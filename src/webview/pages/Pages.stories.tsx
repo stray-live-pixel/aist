@@ -18,7 +18,7 @@ type Story = StoryObj<typeof meta>;
 export const Chat: Story = {
   render: () => (
     <AgentStateProvider state={storyAgentState}>
-      <ChatPage />
+      <ChatPage onOpenSettingsPage={() => undefined} />
     </AgentStateProvider>
   )
 };
@@ -35,7 +35,7 @@ export const ChatBusy: Story = {
         }
       }}
     >
-      <ChatPage />
+      <ChatPage onOpenSettingsPage={() => undefined} />
     </AgentStateProvider>
   )
 };

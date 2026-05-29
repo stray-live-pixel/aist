@@ -7,7 +7,8 @@ const WEBVIEW_ASSETS = {
   logoAnimStep3: ['assets', 'logo-anim', '3.svg'],
   logoAnimStep4: ['assets', 'logo-anim', '4.svg'],
   logoAnimStep5: ['assets', 'logo-anim', '5.svg'],
-  logoAnimGif: ['assets', 'logo-anim', 'animation.gif']
+  logoAnimGif: ['assets', 'logo-anim', 'animation.gif'],
+  logoAnimGif2: ['assets', 'logo-anim', 'animation_2.gif']
 } as const;
 
 export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {

@@ -49,6 +49,7 @@ export type ChatSummary = {
   modelSettings: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
+  compactionModel?: string;
   vcs?: ChatVcsState;
   messageCount: number;
   lastUserMessage: string;
@@ -124,6 +125,7 @@ export type Chat = {
   modelSettings: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
+  compactionModel?: string;
   vcs?: ChatVcsState;
   previousChat?: CompactPreviousChat;
   messages: ChatMessage[];

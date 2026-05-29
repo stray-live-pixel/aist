@@ -91,7 +91,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
             />
           ) : null}
           {activePage === 'providers' ? (
-            <ProviderSettingsPage profiles={providerProfiles} codexAuthenticated={codexAuthenticated} />
+            <ProviderSettingsPage state={state} profiles={providerProfiles} codexAuthenticated={codexAuthenticated} />
           ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
           {activePage === 'telemetry' ? <TelemetrySettingsPage telemetry={telemetry} /> : null}

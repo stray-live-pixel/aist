@@ -52,8 +52,8 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
     <Card
       className={compact ? styles.cardCompact : undefined}
       tone="elevated"
-      title={t('settings.requestTitle')}
-      description={t('settings.requestDescription')}
+      title={t(scope === 'default' ? 'settings.defaultRequestTitle' : 'settings.requestTitle')}
+      description={scope === 'default' ? undefined : t('settings.requestDescription')}
     >
       <div className={styles.grid}>
         <Select

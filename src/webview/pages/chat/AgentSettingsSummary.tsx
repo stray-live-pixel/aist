@@ -209,7 +209,6 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         aria-label={t('summary.toolPermissionPreset')}
         title={t('summary.toolPermissionPreset')}
         value={state.activeToolPermissionPresetId}
-        disabled={state.activeChat.busy}
         onChange={(event) => agentActions.setToolPermissionPreset(event.target.value)}
         options={permissionOptions}
         displayLabels={permissionDisplayLabels}

@@ -63,6 +63,7 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
+  syncToolPermissions(): Promise<void>;
   refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;
   refreshState(): Promise<void>;
   onEvent(listener: (event: DaemonEvent) => void): () => void;
@@ -198,6 +199,12 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   async resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void> {
     const client = await this.getClient();
     await client.request('approval.resolve', { messageId, ...decision });
+  }
+
+  async syncToolPermissions(): Promise<void> {
+    const toolPermissions =
+      vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {};
+    await this.updateDaemonConfig('toolPermissions', toolPermissions);
   }
 
   async refreshModels(
