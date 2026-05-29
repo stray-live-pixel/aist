@@ -3,7 +3,6 @@ import {
   FileText,
   FolderPlus,
   FolderTree,
-  GitCompareArrows,
   Info,
   ListChecks,
   PlayCircle,
@@ -37,8 +36,6 @@ export function ToolIcon({ name, size = 16, className }: ToolIconProps) {
       return <FilePenLine size={size} className={className} />;
     case 'replace_in_file':
       return <Replace size={size} className={className} />;
-    case 'apply_patch':
-      return <GitCompareArrows size={size} className={className} />;
     case 'create_directory':
       return <FolderPlus size={size} className={className} />;
     case 'delete_path':
@@ -72,8 +69,6 @@ export function getToolLabel(name?: string): string {
       return 'Write file';
     case 'replace_in_file':
       return 'Replace in file';
-    case 'apply_patch':
-      return 'Apply patch';
     case 'create_directory':
       return 'Create directory';
     case 'delete_path':

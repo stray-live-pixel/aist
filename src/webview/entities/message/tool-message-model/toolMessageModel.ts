@@ -23,7 +23,6 @@ const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: To
   set_plan_item_status: { actionKey: 'tool.action.set_plan_item_status', tone: 'purple' },
   write_file: { actionKey: 'tool.action.write_file', tone: 'amber' },
   replace_in_file: { actionKey: 'tool.action.replace_in_file', tone: 'cyan' },
-  apply_patch: { actionKey: 'tool.action.apply_patch', tone: 'cyan' },
   create_directory: { actionKey: 'tool.action.create_directory', tone: 'blue' },
   delete_path: { actionKey: 'tool.action.delete_path', tone: 'rose' }
 };
@@ -207,7 +206,6 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
   if (message.name === 'list_files') return t('tool.summary.entries', { count: arrayValue(result.entries).length });
   if (message.name === 'replace_in_file')
     return t('tool.summary.replacements', { count: Number(result.replacements || 0) });
-  if (message.name === 'apply_patch') return t('tool.summary.changedFiles', { count: arrayValue(result.files).length });
   if (message.name === 'write_file' && typeof result.bytes === 'number')
     return t('tool.summary.bytes', { count: result.bytes });
   return message.status || t('message.tool').toLowerCase();

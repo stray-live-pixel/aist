@@ -15,7 +15,6 @@ Common tools include:
 | `run_bash_script` | Runs a focused Bash script.               | `ask`              |
 | `write_file`      | Creates or overwrites a file.             | `ask`              |
 | `replace_in_file` | Replaces exact text in a file.            | `ask`              |
-| `apply_patch`     | Applies a unified diff patch.             | `ask`              |
 | `delete_path`     | Deletes a file or directory.              | `ask`              |
 | `run_skill`       | Runs a custom user-defined skill.         | Per-skill setting  |
 

@@ -6,7 +6,7 @@ Core не импортирует `vscode`: этот пакет доступен 
 
 ## FSD layout
 
-Core организован по Feature-Sliced Design. Старые публичные deep paths (`src/core/agentRuntime`, `src/core/types`, `src/core/filesystemTools` и т.д.) сохранены как тонкие re-export фасады для совместимости CLI, extension и тестов.
+Core организован по Feature-Sliced Design. Новые инструменты живут в `src/core/tools/**`, а feature-слой использует их напрямую без скрытых bridge-реэкспортов.
 
 - `src/core/app/**` — composition/runtime слой приложения: agent runtime service и config adapters.
 - `src/core/processes/**` — долгие пользовательские процессы и orchestration flows, сейчас autonomous backend/flows/runs/engines.
@@ -21,7 +21,7 @@ Core организован по Feature-Sliced Design. Старые публи�
 - `src/core/app/config/config.ts` хранит Node-safe config/secret store contracts и file-backed adapters; `src/core/config.ts` — публичный фасад.
 - `src/core/app/runtime/agentRuntime.ts` владеет in-process run lifecycle, retry/model request state, activity stream reduction and runtime event emission.
 - `src/core/features/tool-execution/**` хранит registry/runner/compaction/tool-call helpers, а конкретные IO adapters инжектятся снаружи.
-- `src/core/features/filesystem-tools/**` хранит Node-safe filesystem tools core: реальные операции идут через Node `fs`/`spawn`, workspace guard не даёт выйти за корень проекта, а VS Code preview/document-symbol capabilities остаются adapter-specific.
+- `src/core/tools/fs/**` хранит Node-safe filesystem tools core: реальные операции идут через Node `fs`, workspace guard не даёт выйти за корень проекта, а tool runner находится рядом с fs-инструментами.
 - `src/core/features/approval/approvalProtocol.ts` хранит backend approval protocol: JSONL-friendly approval requests, tool execution classes, VS Code editable diff preview handoff and headless diff artifact fallback.
 - `src/core/processes/autonomous/**` хранит autonomous definitions discovery, orchestration, engines, backend и session storage без зависимости от чата.
 - `src/cli/**` хранит CLI entrypoint и daemon backend, зависит от `src/core/**` и является source of truth для chats/runs/tools/model requests.

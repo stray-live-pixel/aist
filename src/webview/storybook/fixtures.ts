@@ -22,7 +22,6 @@ export const storyTools = [
   'run_bash_script',
   'write_file',
   'replace_in_file',
-  'apply_patch',
   'create_directory',
   'delete_path'
 ];
@@ -211,12 +210,6 @@ export const storyToolPermissions: ToolPermissionItem[] = [
     description: 'Replace a range or matching text inside an existing file.',
     permission: 'ask',
     defaultPermission: 'ask'
-  },
-  {
-    name: 'apply_patch',
-    description: 'Apply a unified diff patch to workspace files.',
-    permission: 'ask',
-    defaultPermission: 'ask'
   }
 ];
 
@@ -234,7 +227,6 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       run_bash_script: 'ask',
       write_file: 'ask',
       replace_in_file: 'ask',
-      apply_patch: 'ask',
       create_directory: 'ask',
       delete_path: 'ask'
     }
@@ -252,7 +244,6 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       run_bash_script: 'ask',
       write_file: 'ask',
       replace_in_file: 'ask',
-      apply_patch: 'ask',
       create_directory: 'ask',
       delete_path: 'ask'
     }
@@ -270,7 +261,6 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       run_bash_script: 'ask',
       write_file: 'auto',
       replace_in_file: 'auto',
-      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'ask'
     }
@@ -288,7 +278,6 @@ export const storyToolPermissionPresets: ToolPermissionPreset[] = [
       run_bash_script: 'auto',
       write_file: 'auto',
       replace_in_file: 'auto',
-      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'auto'
     }
@@ -518,6 +507,24 @@ export const storyAgentState: AgentState = {
   chats: storyChatSummaries,
   activeChat: storyActiveChat,
   models: storyModels,
+  providerProfiles: [
+    {
+      id: 'openrouter',
+      name: 'OpenRouter',
+      provider: 'openrouter',
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      proxyHost: '',
+      builtIn: true
+    },
+    {
+      id: 'codex',
+      name: 'ChatGPT Codex',
+      provider: 'codex',
+      endpoint: 'https://chatgpt.com/backend-api/codex/responses',
+      proxyHost: '',
+      builtIn: true
+    }
+  ],
   maxToolIterations: 6,
   reasoningEffort: 'medium',
   codexServiceTier: 'priority',

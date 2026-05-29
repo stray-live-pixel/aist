@@ -13,6 +13,8 @@ import type {
   CompactionSettings,
   ComposerUiSettings,
   EditorContextMode,
+  ModelProvider,
+  ProviderProfileInput,
   ReasoningEffort,
   ToolPermissionMode,
   ToolPermissionPresetId,
@@ -79,6 +81,10 @@ export const agentActions = {
     post({ type: 'setModel', model });
   },
 
+  refreshModelsForProvider(provider: ModelProvider): void {
+    post({ type: 'refreshModelsForProvider', provider });
+  },
+
   setToolPermission(toolName: string, permission: ToolPermissionMode): void {
     post({ type: 'setToolPermission', toolName, permission });
   },
@@ -109,6 +115,18 @@ export const agentActions = {
 
   setStreamingEnabled(streamingEnabled: boolean): void {
     post({ type: 'setStreamingEnabled', streamingEnabled });
+  },
+
+  upsertProviderProfile(profile: ProviderProfileInput): void {
+    post({ type: 'upsertProviderProfile', profile });
+  },
+
+  duplicateProviderProfile(profileId: string): void {
+    post({ type: 'duplicateProviderProfile', profileId });
+  },
+
+  deleteProviderProfile(profileId: string): void {
+    post({ type: 'deleteProviderProfile', profileId });
   },
 
   compactChat(chatId?: string): void {

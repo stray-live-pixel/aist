@@ -14,6 +14,7 @@ import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
 import { getCompactionSettings } from '../config/compaction';
 import { getComposerUiSettings } from '../config/composerUi';
 import { getApprovalNotificationSettings } from '../config/notifications';
+import { getProviderProfiles } from '../config/providerProfiles';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
@@ -65,6 +66,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const composerUiSettings = getComposerUiSettings();
   const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
   const telemetry = getTelemetryDashboardState();
+  const providerProfiles = getProviderProfiles();
 
   for (const surface of params.surfaces) {
     postStateToSurface(surface, {
@@ -90,7 +92,8 @@ export function sendAgentState(params: SendAgentStateParams): void {
       approvalNotificationSettings,
       composerUiSettings,
       telemetry,
-      projectToolDiagnostics
+      projectToolDiagnostics,
+      providerProfiles
     });
   }
 }
@@ -118,6 +121,7 @@ type StateContext = SendAgentStateParams & {
   composerUiSettings: unknown;
   telemetry: unknown;
   projectToolDiagnostics: unknown;
+  providerProfiles: unknown;
 };
 
 function postStateToSurface(surface: WebviewSurface, context: StateContext): void {
@@ -141,6 +145,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     chats: context.chats.getSummaries(),
     activeChat: webviewActiveChat,
     models,
+    providerProfiles: context.providerProfiles,
     maxToolIterations: context.maxToolIterations,
     reasoningEffort: context.reasoningEffort,
     codexServiceTier: context.codexServiceTier,

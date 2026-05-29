@@ -23,7 +23,9 @@ import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
 import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/entities/model/modelDefaults';
 import type { FetchLike, ModelClient } from '../core/entities/model/modelTransport';
+import { normalizeProviderProfiles } from '../core/entities/model/normalizeProviderProfiles';
 import { OpenRouterTransport } from '../core/entities/model/openrouterTransport';
+import type { ProviderProfile } from '../core/entities/model/providerProfile';
 import { RunRepository } from '../core/entities/run/runRepository';
 import {
   globalSettingsFile,
@@ -39,7 +41,6 @@ import {
   splitCompactionHistory
 } from '../core/features/compaction/compaction';
 import type { EditorContextInput } from '../core/features/context/contextGovernor';
-import { createNodeFilesystemToolRunner } from '../core/features/filesystem-tools/filesystemTools';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
@@ -66,6 +67,7 @@ import type {
   ToolApprovalDecision,
   ToolPermissionMode
 } from '../core/shared/types/types';
+import { createNodeFilesystemToolRunner } from '../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import {
   DAEMON_BUSY_ERROR_CODE,
   DAEMON_EVENT_METHOD,
@@ -148,7 +150,6 @@ const OPENROUTER_ENV_KEY = 'OPENROUTER_API_KEY';
 const REDACTED_VALUE = '<redacted>';
 const READONLY_DAEMON_TOOLS = new Set([
   'get_workspace_info',
-  'outline_file',
   'list_files',
   'read_file',
   'read_file_range',
@@ -902,8 +903,10 @@ export class AistDaemonServer {
         },
         filesystem: this.options.filesystemToolRunner || {
           execute: createNodeFilesystemToolRunner({
-            workspaceRoot: this.workspaceRoot,
-            workspaceName: path.basename(this.workspaceRoot)
+            context: {
+              workspaceRoot: this.workspaceRoot,
+              workspaceName: path.basename(this.workspaceRoot)
+            }
           })
         },
         projectTools: {
@@ -1090,6 +1093,7 @@ export class AistDaemonServer {
 
   private async createModelClientForModel(model: string, reasoningEffort?: ReasoningEffort): Promise<ModelClient> {
     if (model.startsWith('codex:')) {
+      const profile = await this.getProviderProfile('codex');
       const secretStore = new FileSecretStore({ homeDir: this.homeDir, logger: this.logger });
       const authProvider = new CodexAuthSessionProvider(secretStore, {
         fetch: this.options.fetch,
@@ -1108,11 +1112,14 @@ export class AistDaemonServer {
         tokenProvider: authProvider,
         fetch: this.options.fetch,
         logger: this.logger,
+        endpoint: profile.endpoint || undefined,
+        proxyHost: profile.proxyHost || undefined,
         defaultModel: model,
         serviceTier: await this.getCodexServiceTier()
       });
     }
 
+    const profile = await this.getProviderProfile('openrouter');
     const apiKey = await this.getOpenRouterApiKey();
     if (!apiKey) {
       throw new DaemonRpcError(
@@ -1127,6 +1134,8 @@ export class AistDaemonServer {
       apiKey,
       fetch: this.options.fetch,
       logger: this.logger,
+      chatEndpoint: profile.endpoint || undefined,
+      proxyHost: profile.proxyHost || undefined,
       siteUrl: await this.getStringSetting(['openrouterAgent.siteUrl', 'siteUrl']),
       siteName: (await this.getStringSetting(['openrouterAgent.siteName', 'siteName'])) || 'aist',
       reasoningEffort: reasoningEffort || (await this.getReasoningEffort())
@@ -1279,6 +1288,15 @@ export class AistDaemonServer {
   private async getCodexServiceTier(): Promise<CodexServiceTier> {
     const value = await this.getStringSetting(['openrouterAgent.codexServiceTier', 'codexServiceTier']);
     return value === 'priority' ? 'priority' : 'auto';
+  }
+
+  private async getProviderProfile(provider: ModelProvider): Promise<ProviderProfile> {
+    const raw = await this.getFirstConfigSetting(['openrouterAgent.providerProfiles', 'providerProfiles']);
+    const profiles = normalizeProviderProfiles(raw);
+    return (
+      profiles.find((profile) => profile.provider === provider && profile.id === provider) ||
+      profiles.find((profile) => profile.provider === provider)!
+    );
   }
 
   private async getAuxiliaryModelSetting(id: 'compaction' | 'tool', key: 'model'): Promise<string | undefined> {
@@ -1475,10 +1493,13 @@ export class AistDaemonServer {
       return fallbackModels('openrouter');
     }
 
+    const profile = await this.getProviderProfile('openrouter');
     const transport = new OpenRouterTransport({
       apiKey,
       fetch: this.options.fetch,
-      logger: this.logger
+      logger: this.logger,
+      chatEndpoint: profile.endpoint || undefined,
+      proxyHost: profile.proxyHost || undefined
     });
     return {
       fallback: false,

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { nodeFilesystemTools, runNodeFilesystemTool } from './filesystemTools';
+import { nodeFilesystemTools, runNodeFilesystemTool } from '../../tools/fs/node_filesystem_tools/nodeFilesystemTools';
 
 let workspaceRoot: string;
 
@@ -20,6 +20,7 @@ describe('node filesystem tool definitions', () => {
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).toEqual([
       'list_files',
       'read_file',
+      'read_file_range',
       'grep_search',
       'run_bash_script',
       'write_file',
@@ -29,7 +30,6 @@ describe('node filesystem tool definitions', () => {
     ]);
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('get_workspace_info');
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('outline_file');
-    expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('read_file_range');
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('edit_file');
     expect(nodeFilesystemTools.map((tool) => tool.function.name)).not.toContain('apply_patch');
     expect(nodeFilesystemTools.find((tool) => tool.function.name === 'grep_search')?.function.parameters).toMatchObject(
@@ -367,96 +367,7 @@ describe('runNodeFilesystemTool', () => {
     expect(fs.existsSync(path.join(workspaceRoot, 'src'))).toBe(false);
   });
 
-  it('applies unified diffs and leaves files unchanged on patch conflicts', async () => {
-    writeWorkspaceFile('src/a.ts', 'alpha\nbeta\n');
-    writeWorkspaceFile('src/b.ts', 'one\ntwo\n');
-
-    await expect(
-      run('apply_patch', {
-        reason: 'apply patch',
-        patch: [
-          '--- a/src/a.ts',
-          '+++ b/src/a.ts',
-          '@@ -1,2 +1,2 @@',
-          ' alpha',
-          '-beta',
-          '+bravo',
-          '--- /dev/null',
-          '+++ b/src/new.ts',
-          '@@ -0,0 +1 @@',
-          '+created',
-          ''
-        ].join('\n')
-      })
-    ).resolves.toMatchObject({
-      ok: true,
-      files: [
-        { path: 'src/a.ts', created: false },
-        { path: 'src/new.ts', created: true }
-      ]
-    });
-    expect(fs.readFileSync(path.join(workspaceRoot, 'src/a.ts'), 'utf8')).toBe('alpha\nbravo\n');
-    expect(fs.readFileSync(path.join(workspaceRoot, 'src/new.ts'), 'utf8')).toBe('created\n');
-
-    const conflict = await run('apply_patch', {
-      reason: 'conflicting patch',
-      patch: [
-        '--- a/src/a.ts',
-        '+++ b/src/a.ts',
-        '@@ -1,2 +1,2 @@',
-        ' alpha',
-        '-bravo',
-        '+beta',
-        '--- a/src/b.ts',
-        '+++ b/src/b.ts',
-        '@@ -1,2 +1,2 @@',
-        ' expected',
-        '-two',
-        '+dos',
-        ''
-      ].join('\n')
-    });
-
-    expect(conflict).toMatchObject({
-      ok: false,
-      code: 'INVALID_ARGUMENT'
-    });
-    expect(fs.readFileSync(path.join(workspaceRoot, 'src/a.ts'), 'utf8')).toBe('alpha\nbravo\n');
-    expect(fs.readFileSync(path.join(workspaceRoot, 'src/b.ts'), 'utf8')).toBe('one\ntwo\n');
-  });
-
-  it('rolls back already-written patch files when a later write fails', async () => {
-    writeWorkspaceFile('src/a.ts', 'alpha\nbeta\n');
-    writeWorkspaceFile('blocked', 'not a directory\n');
-
-    const result = await run('apply_patch', {
-      reason: 'patch with write failure',
-      patch: [
-        '--- a/src/a.ts',
-        '+++ b/src/a.ts',
-        '@@ -1,2 +1,2 @@',
-        ' alpha',
-        '-beta',
-        '+bravo',
-        '--- /dev/null',
-        '+++ b/blocked/new.ts',
-        '@@ -0,0 +1 @@',
-        '+created',
-        ''
-      ].join('\n')
-    });
-
-    expect(result).toMatchObject({
-      ok: false
-    });
-    expect(fs.readFileSync(path.join(workspaceRoot, 'src/a.ts'), 'utf8')).toBe('alpha\nbeta\n');
-    expect(fs.readFileSync(path.join(workspaceRoot, 'blocked'), 'utf8')).toBe('not a directory\n');
-    expect(fs.existsSync(path.join(workspaceRoot, 'blocked/new.ts'))).toBe(false);
-  });
-
-  it('returns a clear unsupported fallback for outline_file in the Node core', async () => {
-    writeWorkspaceFile('src/plain.ts', 'export const value = 1;\n');
-
+  it('returns an unknown tool error for removed outline_file legacy calls', async () => {
     await expect(
       run('outline_file', {
         reason: 'inspect symbols',
@@ -465,16 +376,14 @@ describe('runNodeFilesystemTool', () => {
     ).resolves.toMatchObject({
       ok: false,
       code: 'INVALID_ARGUMENT',
-      path: 'src/plain.ts',
-      symbols: [],
-      unsupported: true,
-      error: expect.stringContaining('document-symbol capability')
+      error: 'Unknown tool: outline_file',
+      details: { toolName: 'outline_file' }
     });
   });
 });
 
 function run(toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
-  return runNodeFilesystemTool({ workspaceRoot }, toolName, args);
+  return runNodeFilesystemTool({ context: { workspaceRoot }, toolName, args });
 }
 
 function writeWorkspaceFile(relativePath: string, content: string | Buffer): void {

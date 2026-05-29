@@ -45,8 +45,6 @@ function compactExecutableResult(
       return compactBashResult(result);
     case 'write_file':
     case 'replace_in_file':
-    case 'edit_file':
-    case 'apply_patch':
       return compactDiffToolResult(toolName, result);
     default:
       return isLargeSerialized(result) ? compactGenericResult(toolName, args, result) : result;
@@ -70,7 +68,7 @@ function shouldCompact(toolName: string, result: Record<string, unknown>, uiResu
     return matches.length > MAX_GREP_MODEL_MATCHES || isLargeSerialized(result);
   }
 
-  if (['write_file', 'replace_in_file', 'edit_file', 'apply_patch'].includes(toolName)) {
+  if (['write_file', 'replace_in_file'].includes(toolName)) {
     const files = Array.isArray(result.files)
       ? result.files
       : Array.isArray(result.changedFiles)

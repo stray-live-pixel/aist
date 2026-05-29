@@ -53,7 +53,6 @@ VS Code extension — thin client. История чатов, runs, approvals, t
     "run_bash_script": "ask",
     "write_file": "ask",
     "replace_in_file": "ask",
-    "apply_patch": "ask",
     "create_directory": "ask",
     "delete_path": "ask"
   }

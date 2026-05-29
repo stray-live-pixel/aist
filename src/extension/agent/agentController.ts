@@ -6,7 +6,7 @@ import { FileSecretStore, OPENROUTER_API_KEY_SECRET_KEY } from '../../core/app/c
 import { CodexAuthSessionProvider } from '../../core/entities/model/codexAuth';
 import { FALLBACK_MODEL_OPTIONS } from '../../core/entities/model/modelDefaults';
 import { initializeTelemetryStore } from '../../core/features/telemetry/telemetry';
-import type { OpenRouterModelOption, ToolApprovalDecision } from '../../core/shared/types/types';
+import type { ModelProvider, OpenRouterModelOption, ToolApprovalDecision } from '../../core/shared/types/types';
 import type { AgentChatStore } from '../chats/chatDataStore';
 import { VscodeCodexLoginAdapter } from '../codex/vscodeLogin';
 import { getErrorMessage } from '../shared/errors';
@@ -79,7 +79,6 @@ export class AgentController {
     void this.refreshToolCatalog();
     void this.refreshActiveChatVcs();
     void this.refreshCodexAuthState();
-    void this.refreshModels();
     this.logger.info('AgentController initialized', {
       activeChatId: this.chats.getActiveChat().id,
       chatCount: this.chats.getSummaries().length,
@@ -183,8 +182,8 @@ export class AgentController {
       },
       sendState: (surface: WebviewSurface) => this.sendState(surface),
       postPage: (surface: WebviewSurface, page: 'chat' | 'settings') => this.postPage(surface, page),
-      refreshModels: () => {
-        void this.refreshModels();
+      refreshModels: (provider?: ModelProvider) => {
+        void this.refreshModels(true, provider || 'all');
       }
     };
   }
@@ -289,8 +288,8 @@ export class AgentController {
       },
       sendState: (targetSurface) => this.sendState(targetSurface),
       postPage: (targetSurface, page) => this.postPage(targetSurface, page),
-      refreshModels: () => {
-        void this.refreshModels();
+      refreshModels: (provider?: ModelProvider) => {
+        void this.refreshModels(true, provider || 'all');
       },
       refreshCodexAuthState: () => {
         void this.refreshCodexAuthState();
@@ -339,6 +338,9 @@ export class AgentController {
         this.sendState();
         return true;
       }
+      case 'refreshModelsForProvider':
+        await this.refreshModels(true, message.provider);
+        return true;
       case 'clear': {
         const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
         await this.daemonRuntime.clearChat(chat.id);
@@ -515,7 +517,6 @@ export class AgentController {
   async loginCodex(): Promise<void> {
     await new VscodeCodexLoginAdapter(this.codexAuthProvider, this.logger).login();
     await this.refreshCodexAuthState();
-    await this.refreshModels(true);
     this.sendState();
   }
 
@@ -547,13 +548,15 @@ export class AgentController {
     });
   }
 
-  private async refreshModels(force = false): Promise<void> {
+  private async refreshModels(force = false, provider: ModelProvider | 'all' = 'all'): Promise<void> {
     try {
-      this.modelOptions = [...(await this.daemonRuntime.refreshModels(force))];
+      const loadedModels = [...(await this.daemonRuntime.refreshModels(force, provider))];
+      this.modelOptions =
+        provider === 'all' ? loadedModels : mergeModelOptionsByProvider(this.modelOptions, loadedModels, provider);
       this.sendState();
     } catch (error) {
       this.logger.error('Failed to refresh models from daemon', error);
-      this.modelOptions = [...FALLBACK_MODEL_OPTIONS];
+      this.modelOptions = provider === 'all' ? [...FALLBACK_MODEL_OPTIONS] : this.modelOptions;
       this.sendState();
     }
   }
@@ -580,6 +583,19 @@ export class AgentController {
     await this.secretStore.store(OPENROUTER_API_KEY_SECRET_KEY, apiKey);
     this.logger.info('Synced legacy VS Code OpenRouter API key setting into the daemon global secret store');
   }
+}
+
+function mergeModelOptionsByProvider(
+  current: OpenRouterModelOption[],
+  loaded: OpenRouterModelOption[],
+  provider: ModelProvider
+): OpenRouterModelOption[] {
+  const retained = current.filter((model) => (model.provider || 'openrouter') !== provider);
+  const byId = new Map<string, OpenRouterModelOption>();
+  for (const model of [...retained, ...loaded]) {
+    byId.set(model.id, model);
+  }
+  return [...byId.values()];
 }
 
 function toToolApprovalDecision(message: Extract<WebviewMessage, { type: 'resolveToolCall' }>): ToolApprovalDecision {

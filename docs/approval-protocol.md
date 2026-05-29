@@ -18,7 +18,7 @@ Decisions use `approve`, `deny-stop`, or `deny-continue` plus optional sanitized
 
 - `auto`: read-only and safe state tools such as `read_file`, `list_files`, `grep_search`, and `set_plan_item_status`.
 - `approval`: shell, directory, delete, planning, skills, project tools, and unknown tools.
-- `ui-assisted-preview`: `edit_file`, `write_file`, `replace_in_file`, and `apply_patch` when the client advertises `vscodeEditableDiffPreview`.
+- `ui-assisted-preview`: `edit_file`, `write_file`, and `replace_in_file` when the client advertises `vscodeEditableDiffPreview`.
 
 `edit_file` is never auto-applied by the protocol. Without a VS Code preview capability, edit tools fall back to `headless-diff-artifact`.
 

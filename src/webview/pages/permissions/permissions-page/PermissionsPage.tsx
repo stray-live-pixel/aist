@@ -8,6 +8,7 @@ import { NotificationSettingsPage } from './notification-settings-page';
 import { OverviewPage } from './overview-page';
 import { PermissionsSettingsPage } from './permissions-settings-page';
 import { InstructionsSettingsPage, PresetsSettingsPage, RolesSettingsPage } from './prompt-manager';
+import { ProviderSettingsPage } from './provider-settings-page';
 import { SettingsHeader, SettingsSidebar } from './settings-navigation';
 import { SkillsSettingsPage } from './skills-settings-page';
 import { SystemSettingsPage } from './system-settings-page';
@@ -36,6 +37,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     memoryItems,
     activeChat,
     models,
+    providerProfiles,
     instructionSources,
     customSkills,
     codexAuthenticated,
@@ -88,6 +90,9 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
               activePermissionPresetId={activeToolPermissionPresetId}
             />
           ) : null}
+          {activePage === 'providers' ? (
+            <ProviderSettingsPage profiles={providerProfiles} codexAuthenticated={codexAuthenticated} />
+          ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
           {activePage === 'telemetry' ? <TelemetrySettingsPage telemetry={telemetry} /> : null}
           {activePage === 'compaction' ? (
@@ -97,7 +102,6 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
             <SystemSettingsPage
               agentLanguage={agentLanguage}
               maxToolIterations={maxToolIterations}
-              codexAuthenticated={codexAuthenticated}
               composerUiSettings={composerUiSettings}
             />
           ) : null}

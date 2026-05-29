@@ -22,11 +22,17 @@ import type {
   DaemonModelsResult,
   DaemonState
 } from '../../../cli/daemonProtocol';
-import type { JsonObject, OpenRouterModelOption, ToolApprovalDecision } from '../../../core/shared/types/types';
+import type {
+  JsonObject,
+  ModelProvider,
+  OpenRouterModelOption,
+  ToolApprovalDecision
+} from '../../../core/shared/types/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { Chat } from '../../chats/types';
 import type { AistLogger } from '../../shared/logger';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from '../commands/openWorkspaceFile';
+import { getProviderProfiles } from '../config/providerProfiles';
 import { getAgentLanguage } from '../config/settings';
 import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
 import { getDaemonEventChatId } from '../webview/getDaemonEventChatId';
@@ -54,7 +60,7 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
-  refreshModels(force?: boolean): Promise<readonly OpenRouterModelOption[]>;
+  refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;
   refreshState(): Promise<void>;
   onEvent(listener: (event: DaemonEvent) => void): () => void;
 };
@@ -180,10 +186,13 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     await client.request('approval.resolve', { messageId, ...decision });
   }
 
-  async refreshModels(force = false): Promise<readonly OpenRouterModelOption[]> {
+  async refreshModels(
+    force = false,
+    provider: ModelProvider | 'all' = 'all'
+  ): Promise<readonly OpenRouterModelOption[]> {
     const client = await this.getClient();
     const result = await client.request<DaemonModelsResult>(force ? 'models.refresh' : 'models.list', {
-      provider: 'all'
+      provider
     });
     return result.models;
   }
@@ -281,6 +290,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       reasoningEffort: snapshot.reasoningEffort,
       codexServiceTier: snapshot.codexServiceTier,
       streamingEnabled: snapshot.streamingEnabled,
+      providerProfiles: getProviderProfiles(),
       language: getAgentLanguage(),
       toolPermissions:
         vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {},

@@ -17,6 +17,7 @@ import {
   type ModelTransportLogger,
   resolveFetch
 } from './modelTransport';
+import { resolveProviderRequestUrl } from './resolveProviderRequestUrl';
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -80,6 +81,7 @@ export type OpenRouterTransportOptions = {
   logger?: ModelTransportLogger;
   chatEndpoint?: string;
   modelsEndpoint?: string;
+  proxyHost?: string;
   temperature?: number;
   missingApiKeyMessage?: string;
 };
@@ -111,26 +113,29 @@ export class OpenRouterTransport implements ModelClient, ModelCatalogClient {
       throw new Error(this.options.missingApiKeyMessage || 'Set an OpenRouter API key before sending model requests.');
     }
 
-    const response = await this.fetchImpl(this.chatEndpoint, {
-      method: 'POST',
-      signal,
-      headers: {
-        Authorization: `Bearer ${this.options.apiKey}`,
-        'Content-Type': 'application/json',
-        ...(this.options.siteUrl ? { 'HTTP-Referer': this.options.siteUrl } : {}),
-        ...(this.options.siteName ? { 'X-Title': this.options.siteName } : {})
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        ...(tools ? { tools, tool_choice: 'auto' } : {}),
-        ...(this.options.reasoningEffort === 'auto' || !this.options.reasoningEffort
-          ? {}
-          : { reasoning: { effort: this.options.reasoningEffort } }),
-        ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
-        temperature: this.temperature
-      })
-    });
+    const response = await this.fetchImpl(
+      resolveProviderRequestUrl({ endpoint: this.chatEndpoint, proxyHost: this.options.proxyHost }),
+      {
+        method: 'POST',
+        signal,
+        headers: {
+          Authorization: `Bearer ${this.options.apiKey}`,
+          'Content-Type': 'application/json',
+          ...(this.options.siteUrl ? { 'HTTP-Referer': this.options.siteUrl } : {}),
+          ...(this.options.siteName ? { 'X-Title': this.options.siteName } : {})
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          ...(tools ? { tools, tool_choice: 'auto' } : {}),
+          ...(this.options.reasoningEffort === 'auto' || !this.options.reasoningEffort
+            ? {}
+            : { reasoning: { effort: this.options.reasoningEffort } }),
+          ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
+          temperature: this.temperature
+        })
+      }
+    );
     lifecycle?.onResponseHeaders?.({ status: response.status, statusText: response.statusText });
 
     if (!response.ok) {
@@ -162,12 +167,16 @@ export class OpenRouterTransport implements ModelClient, ModelCatalogClient {
   }
 
   async listModels(): Promise<OpenRouterModelOption[]> {
-    const response = await this.fetchImpl(`${this.modelsEndpoint}?output_modalities=text`, {
-      method: 'GET',
-      headers: {
-        ...(this.options.apiKey ? { Authorization: `Bearer ${this.options.apiKey}` } : {})
+    const modelsEndpoint = `${this.modelsEndpoint}?output_modalities=text`;
+    const response = await this.fetchImpl(
+      resolveProviderRequestUrl({ endpoint: modelsEndpoint, proxyHost: this.options.proxyHost }),
+      {
+        method: 'GET',
+        headers: {
+          ...(this.options.apiKey ? { Authorization: `Bearer ${this.options.apiKey}` } : {})
+        }
       }
-    });
+    );
 
     if (!response.ok) {
       const text = await response.text();

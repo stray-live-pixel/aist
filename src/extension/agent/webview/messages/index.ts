@@ -73,6 +73,5 @@ function handleWebviewReady(surface: WebviewSurface, deps: AgentWebviewMessageDe
   });
   deps.sendState(surface);
   deps.postPage(surface, surface.kind === 'sidebar' ? deps.getSidebarPage() : 'chat');
-  deps.refreshModels();
   deps.refreshCodexAuthState();
 }

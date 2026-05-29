@@ -9,6 +9,7 @@ import type {
 } from '../../core/shared/types/types';
 import type { ToolPermissionMode } from '../tools/permissions';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
+import type { ProviderProfileInput } from './config/providerProfiles';
 import type { AgentModeId } from './config/settings';
 import type { AgentMemoryScope } from './memory/memory';
 
@@ -47,6 +48,7 @@ export type WebviewMessage =
   | { type: 'openChatInEditor'; chatId?: string }
   | { type: 'openChatJson'; chatId?: string }
   | { type: 'setModel'; model: string }
+  | { type: 'refreshModelsForProvider'; provider: 'openrouter' | 'codex' }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: string }
   | { type: 'setProjectToolEnabled'; toolId: string; enabled: boolean }
@@ -55,6 +57,9 @@ export type WebviewMessage =
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
+  | { type: 'upsertProviderProfile'; profile: ProviderProfileInput }
+  | { type: 'duplicateProviderProfile'; profileId: string }
+  | { type: 'deleteProviderProfile'; profileId: string }
   | {
       type: 'setAuxiliaryModelSettings';
       id: 'compaction' | 'tool';

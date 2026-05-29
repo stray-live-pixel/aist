@@ -9,7 +9,6 @@ Before a file is changed, AIST opens a VS Code-native diff preview:
 
 - `write_file` previews the complete target content;
 - `replace_in_file` previews the generated replacement;
-- `apply_patch` previews every changed file from the unified diff.
 
 You can review the diff, adjust the right-hand side if needed, and approve only when the result is acceptable.
 

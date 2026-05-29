@@ -130,6 +130,21 @@ export type Chat = {
   updatedAt: number;
 };
 
+export type ProviderProfile = {
+  id: string;
+  name: string;
+  provider: ModelProvider;
+  endpoint: string;
+  proxyHost: string;
+  builtIn: boolean;
+};
+
+export type ProviderProfileInput = Partial<
+  Pick<ProviderProfile, 'id' | 'name' | 'provider' | 'endpoint' | 'proxyHost'>
+>;
+
+export type ModelProvider = 'openrouter' | 'codex';
+
 export type ModelOption = {
   id: string;
   name: string;
@@ -503,6 +518,7 @@ export type AgentState = {
   chats: ChatSummary[];
   activeChat: Chat;
   models: ModelOption[];
+  providerProfiles: ProviderProfile[];
   maxToolIterations: number;
   reasoningEffort: ReasoningEffort;
   /** Управляет ChatGPT Codex service_tier; auto не отправляет поле, priority просит ускоренную обработку. */
@@ -581,6 +597,7 @@ export type WebviewToExtensionMessage =
   | { type: 'openChatInEditor'; chatId?: string }
   | { type: 'openChatJson'; chatId?: string }
   | { type: 'setModel'; model: string }
+  | { type: 'refreshModelsForProvider'; provider: 'openrouter' | 'codex' }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }
   | { type: 'setProjectToolEnabled'; toolId: string; enabled: boolean }
@@ -589,6 +606,9 @@ export type WebviewToExtensionMessage =
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
+  | { type: 'upsertProviderProfile'; profile: ProviderProfileInput }
+  | { type: 'duplicateProviderProfile'; profileId: string }
+  | { type: 'deleteProviderProfile'; profileId: string }
   | { type: 'compactChat'; chatId?: string }
   | { type: 'setCompactionSettings'; settings: Partial<CompactionSettings> }
   | { type: 'setAuxiliaryModelSettings'; id: AuxiliaryModelId; settings: Partial<AuxiliaryModelSettings> }

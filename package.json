@@ -149,6 +149,46 @@
           "default": "aist",
           "description": "Optional site name sent to OpenRouter for rankings."
         },
+        "openrouterAgent.providerProfiles": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Provider network profiles. Each profile can override the provider endpoint and route requests through a corporate proxy host.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "provider"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "openrouter",
+                  "codex"
+                ]
+              },
+              "endpoint": {
+                "type": "string",
+                "default": ""
+              },
+              "proxyHost": {
+                "type": "string",
+                "default": ""
+              },
+              "builtIn": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
         "openrouterAgent.maxContextChars": {
           "type": "number",
           "default": 12000,
@@ -459,7 +499,6 @@
             "run_bash_script": "ask",
             "write_file": "ask",
             "replace_in_file": "ask",
-            "apply_patch": "ask",
             "create_directory": "ask",
             "delete_path": "ask",
             "create_plan": "ask",

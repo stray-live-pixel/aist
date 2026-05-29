@@ -37,7 +37,6 @@ import {
   workspaceToolsDir
 } from '../core/entities/storage/storage';
 import { getToolExecutionRequirement } from '../core/features/approval/approvalProtocol';
-import { createNodeFilesystemToolRunner } from '../core/features/filesystem-tools/filesystemTools';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
@@ -67,6 +66,7 @@ import type {
   ToolApprovalDecision,
   ToolPermissionMode
 } from '../core/shared/types/types';
+import { createNodeFilesystemToolRunner } from '../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { AistDaemonServer } from './daemon';
 import { DaemonJsonRpcClient } from './daemonClient';
 import { type DaemonAutonomousStopResult, getDaemonSocketPath } from './daemonProtocol';
@@ -838,8 +838,10 @@ async function runChatAskCommand(
       approvalMode: command.approvalMode,
       filesystem: options.filesystemToolRunner || {
         execute: createNodeFilesystemToolRunner({
-          workspaceRoot,
-          workspaceName: path.basename(workspaceRoot)
+          context: {
+            workspaceRoot,
+            workspaceName: path.basename(workspaceRoot)
+          }
         })
       },
       memoryStore,
@@ -1104,7 +1106,6 @@ function createHeadlessToolCallHandler(input: {
 
 const READONLY_HEADLESS_TOOLS = new Set([
   'get_workspace_info',
-  'outline_file',
   'list_files',
   'read_file',
   'read_file_range',
@@ -1120,8 +1121,7 @@ function getHeadlessToolPermission(approvalMode: CliApprovalMode, toolName: stri
     return READONLY_HEADLESS_TOOLS.has(toolName) ? 'auto' : 'ask';
   }
 
-  const requirement = getToolExecutionRequirement(toolName);
-  return toolName === 'edit_file' && requirement.mode !== 'auto' ? 'ask' : 'auto';
+  return 'auto';
 }
 
 async function createHeadlessModelClient(

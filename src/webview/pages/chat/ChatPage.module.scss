@@ -117,8 +117,12 @@
   flex-shrink: 1;
 }
 
+.providerSelect {
+  width: clamp(6.2rem, 16vw, 9rem);
+}
+
 .modelSelect {
-  width: clamp(7rem, 20vw, 11rem);
+  width: clamp(6.6rem, 18vw, 10rem);
 }
 
 .reasoningCompactSelect {

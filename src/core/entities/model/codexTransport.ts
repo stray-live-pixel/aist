@@ -18,6 +18,7 @@ import {
   type ModelTransportLogger,
   resolveFetch
 } from './modelTransport';
+import { resolveProviderRequestUrl } from './resolveProviderRequestUrl';
 
 export type CodexAccessToken = {
   accessToken: string;
@@ -33,6 +34,7 @@ export type CodexResponsesTransportOptions = {
   fetch?: FetchLike;
   logger?: ModelTransportLogger;
   endpoint?: string;
+  proxyHost?: string;
   sessionId?: string;
   userAgent?: string;
   defaultModel?: string;
@@ -131,27 +133,30 @@ export class CodexResponsesTransport implements ModelClient, ModelCatalogClient 
     const auth = await this.options.tokenProvider.getToken();
     const model = stripCodexPrefix(modelOverride || this.defaultModel);
     const payload = toCodexPayload(messages);
-    const response = await this.fetchImpl(this.endpoint, {
-      method: 'POST',
-      signal,
-      headers: {
-        authorization: `Bearer ${auth.accessToken}`,
-        'Content-Type': 'application/json',
-        originator: 'opencode',
-        ...(this.options.userAgent ? { 'User-Agent': this.options.userAgent } : {}),
-        session_id: this.sessionId,
-        ...(auth.accountId ? { 'ChatGPT-Account-Id': auth.accountId } : {})
-      },
-      body: JSON.stringify({
-        model,
-        store: false,
-        stream: true,
-        ...(codexServiceTier === 'priority' ? { service_tier: 'priority' } : {}),
-        instructions: payload.instructions,
-        input: payload.input,
-        ...(tools?.length ? { tools: tools.map(toCodexTool), tool_choice: 'auto' } : {})
-      })
-    });
+    const response = await this.fetchImpl(
+      resolveProviderRequestUrl({ endpoint: this.endpoint, proxyHost: this.options.proxyHost }),
+      {
+        method: 'POST',
+        signal,
+        headers: {
+          authorization: `Bearer ${auth.accessToken}`,
+          'Content-Type': 'application/json',
+          originator: 'opencode',
+          ...(this.options.userAgent ? { 'User-Agent': this.options.userAgent } : {}),
+          session_id: this.sessionId,
+          ...(auth.accountId ? { 'ChatGPT-Account-Id': auth.accountId } : {})
+        },
+        body: JSON.stringify({
+          model,
+          store: false,
+          stream: true,
+          ...(codexServiceTier === 'priority' ? { service_tier: 'priority' } : {}),
+          instructions: payload.instructions,
+          input: payload.input,
+          ...(tools?.length ? { tools: tools.map(toCodexTool), tool_choice: 'auto' } : {})
+        })
+      }
+    );
     lifecycle?.onResponseHeaders?.({ status: response.status, statusText: response.statusText });
 
     if (!response.ok) {

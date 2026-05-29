@@ -101,6 +101,38 @@ describe('OpenRouterTransport', () => {
     });
   });
 
+  it('routes chat and model catalog requests through proxy host when configured', async () => {
+    const chatRequests: CapturedRequest[] = [];
+    const chatFetch = captureFetch(chatRequests, { choices: [{ message: { role: 'assistant', content: 'proxied' } }] });
+    const transport = new OpenRouterTransport({
+      apiKey: 'sk-test',
+      fetch: chatFetch,
+      chatEndpoint: 'https://openrouter.example/v1/chat/completions',
+      modelsEndpoint: 'https://openrouter.example/v1/models',
+      proxyHost: 'https://corp-proxy.example/llm'
+    });
+
+    await transport.chat([{ role: 'user', content: 'hello' }]);
+
+    expect(chatRequests[0].input).toBe(
+      'https://corp-proxy.example/llm/?endpoint=https%3A%2F%2Fopenrouter.example%2Fv1%2Fchat%2Fcompletions'
+    );
+
+    const modelRequests: CapturedRequest[] = [];
+    const modelTransport = new OpenRouterTransport({
+      apiKey: 'sk-test',
+      fetch: captureFetch(modelRequests, { data: [] }),
+      modelsEndpoint: 'https://openrouter.example/v1/models',
+      proxyHost: 'https://corp-proxy.example/llm'
+    });
+
+    await modelTransport.listModels();
+
+    expect(modelRequests[0].input).toBe(
+      'https://corp-proxy.example/llm/?endpoint=https%3A%2F%2Fopenrouter.example%2Fv1%2Fmodels%3Foutput_modalities%3Dtext'
+    );
+  });
+
   it('maps model catalog responses', async () => {
     const requests: CapturedRequest[] = [];
     const fetch = captureFetch(requests, {

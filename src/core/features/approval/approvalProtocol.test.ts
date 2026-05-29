@@ -27,14 +27,7 @@ describe('approval protocol contracts', () => {
     expect(getToolExecutionRequirement('read_file')).toEqual({ mode: 'auto' });
     expect(getToolExecutionRequirement('run_skill')).toEqual({ mode: 'auto' });
     expect(getToolExecutionRequirement('run_bash_script')).toEqual({ mode: 'approval', previewKind: 'none' });
-    expect(getToolExecutionRequirement('edit_file')).toEqual({
-      mode: 'approval',
-      previewKind: 'headless-diff-artifact'
-    });
-    expect(getToolExecutionRequirement('edit_file', { vscodeEditableDiffPreview: true })).toEqual({
-      mode: 'ui-assisted-preview',
-      previewKind: 'vscode-editable-diff'
-    });
+    expect(getToolExecutionRequirement('unknown_tool')).toEqual({ mode: 'approval', previewKind: 'none' });
   });
 
   it('moves pending approvals to approved and rejects double resolution', () => {
@@ -183,44 +176,6 @@ describe('approval protocol contracts', () => {
     expect(fs.readFileSync(String(artifact?.absolutePath), 'utf8')).toContain('-old');
     expect(fs.readFileSync(String(artifact?.absolutePath), 'utf8')).toContain('+new');
     expect(readWorkspaceFile('src/example.ts')).toBe('old\n');
-  });
-
-  it('prepares apply_patch preview requests without applying the patch', async () => {
-    writeWorkspaceFile('src/example.ts', 'alpha\nbeta\n');
-    const patch = [
-      '--- a/src/example.ts',
-      '+++ b/src/example.ts',
-      '@@ -1,2 +1,2 @@',
-      ' alpha',
-      '-beta',
-      '+bravo',
-      ''
-    ].join('\n');
-
-    const approval = await prepareFilesystemToolApprovalRequest({
-      approvalId: 'approval-apply-patch',
-      runId: 'run-1',
-      toolCallId: 'call-apply-patch',
-      toolName: 'apply_patch',
-      reason: 'Patch example',
-      args: { reason: 'edit', patch },
-      workspaceRoot,
-      clientCapabilities: { vscodeEditableDiffPreview: true },
-      createdAt: 100
-    });
-
-    expect(readWorkspaceFile('src/example.ts')).toBe('alpha\nbeta\n');
-    expect(approval.previewKind).toBe('vscode-editable-diff');
-    expect(approval.previewPayload).toMatchObject({
-      patch,
-      files: [
-        expect.objectContaining({
-          path: 'src/example.ts',
-          oldContent: 'alpha\nbeta\n',
-          proposedContent: 'alpha\nbravo\n'
-        })
-      ]
-    });
   });
 
   it('applies final approved preview content as the source of truth', async () => {

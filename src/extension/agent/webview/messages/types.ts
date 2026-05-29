@@ -1,3 +1,4 @@
+import type { ModelProvider } from '../../../../core/shared/types/types';
 import type { AgentChatStore } from '../../../chats/chatDataStore';
 import type { AistLogger } from '../../../shared/logger';
 import type { ToolApprovalDecision, WebviewSurface } from '../../types';
@@ -9,7 +10,7 @@ export type AgentWebviewMessageDeps = {
   setSidebarPage(page: 'chat' | 'settings'): void;
   sendState(targetSurface?: WebviewSurface): void;
   postPage(surface: WebviewSurface, page: 'chat' | 'settings'): void;
-  refreshModels(): void;
+  refreshModels(provider?: ModelProvider): void;
   refreshCodexAuthState(): void;
   ask(chatId: string, prompt: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;

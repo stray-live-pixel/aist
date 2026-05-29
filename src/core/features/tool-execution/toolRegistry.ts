@@ -1,5 +1,5 @@
 import type { OpenRouterTool } from '../../shared/types/types';
-import { nodeFilesystemTools } from '../filesystem-tools/filesystemTools';
+import { nodeFilesystemTools } from '../../tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { planningTools } from '../planning/planningTools';
 import {
   type ProjectToolDefinition,

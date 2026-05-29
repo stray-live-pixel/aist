@@ -55,7 +55,6 @@ export function resolveAgentSidebarWebview(
 
   deps.sendState(surface);
   deps.postPage(surface, page);
-  deps.refreshModels();
 }
 
 /**
@@ -135,7 +134,6 @@ function attachAgentChatEditor(panel: vscode.WebviewPanel, initialChatId: string
   });
 
   deps.sendState(surface);
-  deps.refreshModels();
 }
 
 function getWebviewOptions(context: vscode.ExtensionContext): vscode.WebviewPanelOptions & vscode.WebviewOptions {

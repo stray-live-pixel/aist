@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 import { createToolError, toStructuredToolFailure } from '../../shared/lib/toolErrors';
 import type { OpenRouterTool, ToolPermissionMode } from '../../shared/types/types';
-import { resolveNodeWorkspacePath } from '../filesystem-tools/filesystemTools';
+import { resolveWorkspacePath } from '../../tools/fs/shared/resolveWorkspacePath';
 
 export type AgentSkill = {
   id: string;
@@ -74,7 +74,11 @@ async function runNodeSkillToolImpl(input: {
 
   const stdin = typeof input.args.input === 'string' ? input.args.input : '';
   const cwd = typeof input.args.cwd === 'string' && input.args.cwd.trim() ? input.args.cwd : '.';
-  const cwdPath = await resolveNodeWorkspacePath({ workspaceRoot: input.workspaceRoot }, cwd, { allowMissing: false });
+  const cwdPath = await resolveWorkspacePath({
+    context: { workspaceRoot: input.workspaceRoot },
+    relativePath: cwd,
+    options: { allowMissing: false }
+  });
   const stat = await fs.promises.stat(cwdPath.absolutePath);
   if (!stat.isDirectory()) {
     throw createToolError('NOT_A_DIRECTORY', `cwd must point to a workspace directory: ${cwd}`, { cwd });

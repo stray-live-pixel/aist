@@ -1,6 +1,12 @@
 import { Archive, Brain, Coins, FileText, LoaderCircle, Settings2, ShieldCheck } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 
+import {
+  getActiveModelProvider,
+  getProviderModelOptions,
+  getProviderOptions,
+  getSelectedProviderProfile
+} from '../../features/select-model';
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
 import type {
@@ -17,7 +23,6 @@ import {
   CompactNavigationButton,
   ContextUsageIndicator,
   Select,
-  type SelectCategory,
   type SelectOption
 } from '../../shared/ui';
 import type { SettingsPageId } from '../permissions/permissions-page/types';
@@ -80,14 +85,31 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
  */
 export const ComposerContextSummary = memo(function ComposerContextSummary({ state }: { state: AgentState }) {
   const { t } = useI18n();
-  const modelOptions = useMemo(() => getModelOptions(state), [state.activeChat.model, state.models]);
-  const modelDisplayLabels = useMemo(() => getModelDisplayLabels(modelOptions), [modelOptions]);
-  const modelCategories = useMemo(
-    () => (state.models.length ? getModelCategories(state.models) : undefined),
-    [state.models]
+  const [selectedProviderProfileId, setSelectedProviderProfileId] = useState<string | undefined>();
+  const activeProvider = getActiveModelProvider(state.activeChat.model, state.models, state.providerProfiles);
+  const selectedProviderProfile = getSelectedProviderProfile(
+    state.providerProfiles,
+    selectedProviderProfileId,
+    activeProvider
   );
+  const providerOptions = useMemo(() => getProviderOptions(state.providerProfiles), [state.providerProfiles]);
+  const providerModelOptions = useMemo(
+    () => getProviderModelOptions(state.models, selectedProviderProfile?.provider || activeProvider),
+    [activeProvider, selectedProviderProfile?.provider, state.models]
+  );
+  const modelDisplayLabels = useMemo(() => getModelDisplayLabels(providerModelOptions), [providerModelOptions]);
   const activeModel = state.models.find((model) => model.id === state.activeChat.model);
   const codexServiceTierOptions = getCodexServiceTierOptions(activeModel);
+  useEffect(() => {
+    if (!selectedProviderProfile || state.activeChat.busy) {
+      return;
+    }
+
+    if (!providerModelOptions.length) {
+      agentActions.refreshModelsForProvider(selectedProviderProfile.provider);
+    }
+  }, [providerModelOptions.length, selectedProviderProfile, state.activeChat.busy]);
+
   const permissionOptions = useMemo(
     () => [
       ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
@@ -106,16 +128,34 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
   return (
     <CompactControlGroup className={styles.contextSummaryRoot}>
       <Select
-        className={`${styles.compactSelect} ${styles.modelSelect}`}
+        className={`${styles.compactSelect} ${styles.providerSelect}`}
         size="sm"
         leadingIcon={<Settings2 size={12} />}
+        aria-label={t('modelSelect.provider')}
+        title={t('modelSelect.provider')}
+        value={selectedProviderProfile?.id || ''}
+        disabled={state.activeChat.busy}
+        onChange={(event) => {
+          const nextProfile = state.providerProfiles.find((profile) => profile.id === event.target.value);
+          setSelectedProviderProfileId(nextProfile?.id);
+          if (nextProfile) {
+            agentActions.refreshModelsForProvider(nextProfile.provider);
+          }
+        }}
+        options={providerOptions}
+      />
+      <Select
+        className={`${styles.compactSelect} ${styles.modelSelect}`}
+        size="sm"
         aria-label={t('summary.model')}
         title={t('summary.model')}
-        value={state.activeChat.model}
-        disabled={state.activeChat.busy}
+        value={
+          providerModelOptions.some((option) => option.value === state.activeChat.model) ? state.activeChat.model : ''
+        }
+        placeholder={providerModelOptions.length ? t('modelSelect.chooseModel') : t('modelSelect.loadingModels')}
+        disabled={state.activeChat.busy || !providerModelOptions.length}
         onChange={(event) => agentActions.setModel(event.target.value)}
-        options={modelOptions}
-        categories={modelCategories}
+        options={providerModelOptions}
         displayLabels={modelDisplayLabels}
       />
       <Select
@@ -217,25 +257,6 @@ function getCodexServiceTierOptions(model: ModelOption | undefined): SelectOptio
     { value: 'auto', label: 'normal' },
     { value: 'priority', label: 'priority' }
   ];
-}
-
-function getModelOptions(state: AgentState): SelectOption[] {
-  return state.models.length
-    ? state.models.map((model) => ({
-        value: model.id,
-        label: model.name,
-        category: model.provider || 'openrouter'
-      }))
-    : [{ value: state.activeChat.model, label: state.activeChat.model }];
-}
-
-function getModelCategories(models: ModelOption[]): SelectCategory[] {
-  const providers = new Set(models.map((model) => model.provider || 'openrouter'));
-  const categories: SelectCategory[] = [
-    { id: 'openrouter', label: 'OpenRouter' },
-    { id: 'codex', label: 'ChatGPT Codex' }
-  ];
-  return categories.filter((category) => providers.has(category.id as NonNullable<ModelOption['provider']>));
 }
 
 function getActiveRoleLabel(state: AgentState, fallback: string): string {

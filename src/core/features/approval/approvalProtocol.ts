@@ -23,15 +23,11 @@ import type {
   ToolApprovalRequest,
   ToolExecutionRequirement
 } from '../../shared/types/types';
-import { applyUnifiedPatchToContents, parseUnifiedPatch } from '../../tools/applyPatch';
-import { selectSemanticEdit } from '../../tools/semanticEdit';
-import {
-  type NodeFilesystemToolContext,
-  getNodeFilesystemChangedLineRange,
-  readNodeTextFileIfExists,
-  requireNodeFilesystemString,
-  resolveNodeWorkspacePath
-} from '../filesystem-tools/filesystemTools';
+import type { NodeFilesystemToolContext } from '../../tools/fs/shared/nodeFilesystemToolContext';
+import { readTextFileIfExists } from '../../tools/fs/shared/readTextFileIfExists';
+import { resolveWorkspacePath } from '../../tools/fs/shared/resolveWorkspacePath';
+import { getChangedLineRange } from '../../tools/shared/getChangedLineRange';
+import { requireString } from '../../tools/shared/requireString';
 
 export type NormalizedToolApprovalDecision = ToolApprovalDecision & {
   action: ApprovalDecisionAction;
@@ -96,7 +92,7 @@ type FilesystemEditProposal = {
 
 const AUTO_EXECUTABLE_TOOLS = new Set(['list_files', 'read_file', 'grep_search', 'set_plan_item_status', 'run_skill']);
 
-const UI_ASSISTED_PREVIEW_TOOLS = new Set(['edit_file', 'write_file', 'replace_in_file', 'apply_patch']);
+const UI_ASSISTED_PREVIEW_TOOLS = new Set(['write_file', 'replace_in_file']);
 
 export function getToolExecutionRequirement(
   toolName: string,
@@ -301,8 +297,8 @@ export async function applyApprovedPreviewResult(input: {
   const summaries: RuntimeToolResult[] = [];
   const context: NodeFilesystemToolContext = { workspaceRoot: input.workspaceRoot };
   for (const file of files) {
-    const resolved = await resolveNodeWorkspacePath(context, file.path, { allowMissing: true });
-    const oldContent = await readNodeTextFileIfExists(resolved.absolutePath);
+    const resolved = await resolveWorkspacePath({ context, relativePath: file.path, options: { allowMissing: true } });
+    const oldContent = await readTextFileIfExists({ filePath: resolved.absolutePath });
     await fs.promises.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
     await fs.promises.writeFile(resolved.absolutePath, file.content, 'utf8');
     summaries.push({
@@ -310,7 +306,7 @@ export async function applyApprovedPreviewResult(input: {
       path: file.path,
       bytes: Buffer.byteLength(file.content, 'utf8'),
       created: oldContent === undefined,
-      ...getNodeFilesystemChangedLineRange(oldContent || '', file.content)
+      ...getChangedLineRange({ beforeContent: oldContent || '', afterContent: file.content })
     });
   }
 
@@ -398,10 +394,6 @@ async function getFilesystemEditProposal(
       return getWriteFileProposal(context, args);
     case 'replace_in_file':
       return getReplaceInFileProposal(context, args);
-    case 'edit_file':
-      return getEditFileProposal(context, args);
-    case 'apply_patch':
-      return getApplyPatchProposal(context, args);
     default:
       throw createToolError('INVALID_ARGUMENT', `Tool does not support edit preview: ${toolName}`, { toolName });
   }
@@ -411,10 +403,10 @@ async function getWriteFileProposal(
   context: NodeFilesystemToolContext,
   args: Record<string, unknown>
 ): Promise<FilesystemEditProposal> {
-  const filePath = requireNodeFilesystemString(args.path, 'path');
-  const proposedContent = requireNodeFilesystemString(args.content, 'content');
-  const resolved = await resolveNodeWorkspacePath(context, filePath, { allowMissing: true });
-  const oldContent = await readNodeTextFileIfExists(resolved.absolutePath);
+  const filePath = requireString({ value: args.path, name: 'path' });
+  const proposedContent = requireString({ value: args.content, name: 'content' });
+  const resolved = await resolveWorkspacePath({ context, relativePath: filePath, options: { allowMissing: true } });
+  const oldContent = await readTextFileIfExists({ filePath: resolved.absolutePath });
 
   return {
     files: [createProposedEdit(filePath, oldContent, proposedContent)]
@@ -425,11 +417,11 @@ async function getReplaceInFileProposal(
   context: NodeFilesystemToolContext,
   args: Record<string, unknown>
 ): Promise<FilesystemEditProposal> {
-  const filePath = requireNodeFilesystemString(args.path, 'path');
-  const search = requireNodeFilesystemString(args.search, 'search');
-  const replace = requireNodeFilesystemString(args.replace, 'replace');
+  const filePath = requireString({ value: args.path, name: 'path' });
+  const search = requireString({ value: args.search, name: 'search' });
+  const replace = requireString({ value: args.replace, name: 'replace' });
   const replaceAll = Boolean(args.all);
-  const resolved = await resolveNodeWorkspacePath(context, filePath, { allowMissing: false });
+  const resolved = await resolveWorkspacePath({ context, relativePath: filePath, options: { allowMissing: false } });
   const oldContent = await fs.promises.readFile(resolved.absolutePath, 'utf8');
 
   if (!oldContent.includes(search)) {
@@ -440,51 +432,6 @@ async function getReplaceInFileProposal(
   const replacements = replaceAll ? oldContent.split(search).length - 1 : 1;
   return {
     files: [createProposedEdit(filePath, oldContent, proposedContent, { replacements })]
-  };
-}
-
-async function getEditFileProposal(
-  context: NodeFilesystemToolContext,
-  args: Record<string, unknown>
-): Promise<FilesystemEditProposal> {
-  const filePath = requireNodeFilesystemString(args.path, 'path');
-  const resolved = await resolveNodeWorkspacePath(context, filePath, { allowMissing: false });
-  const oldContent = await fs.promises.readFile(resolved.absolutePath, 'utf8');
-  const plan = selectSemanticEdit(args, oldContent);
-
-  return {
-    files: [
-      createProposedEdit(plan.path, oldContent, plan.nextContent, {
-        replacements: plan.replacements,
-        instructions: plan.instructions,
-        strategyUsed: plan.strategyUsed,
-        diagnostics: plan.diagnostics
-      })
-    ],
-    instructions: plan.instructions,
-    strategyUsed: plan.strategyUsed,
-    diagnostics: plan.diagnostics
-  };
-}
-
-async function getApplyPatchProposal(
-  context: NodeFilesystemToolContext,
-  args: Record<string, unknown>
-): Promise<FilesystemEditProposal> {
-  const patch = requireNodeFilesystemString(args.patch, 'patch');
-  const parsedFiles = parseUnifiedPatch(patch);
-  const contentsByPath: Record<string, string | undefined> = {};
-
-  for (const file of parsedFiles) {
-    const resolved = await resolveNodeWorkspacePath(context, file.path, { allowMissing: true });
-    contentsByPath[file.path] = await readNodeTextFileIfExists(resolved.absolutePath);
-  }
-
-  const appliedPatch = applyUnifiedPatchToContents(patch, contentsByPath);
-
-  return {
-    patch,
-    files: appliedPatch.files.map((file) => createProposedEdit(file.path, file.oldContent, file.newContent))
   };
 }
 
@@ -511,7 +458,7 @@ function toApprovalPreviewFile(file: ProposedFilesystemEdit, includeContents: bo
     created: file.created,
     replacements: file.replacements,
     generatedReplacements: file.generatedReplacements,
-    ...getNodeFilesystemChangedLineRange(file.oldContent || '', file.proposedContent)
+    ...getChangedLineRange({ beforeContent: file.oldContent || '', afterContent: file.proposedContent })
   }) as ApprovalPreviewFile;
 }
 

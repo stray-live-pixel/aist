@@ -79,6 +79,24 @@ function createState(): AgentState {
       updatedAt: 1000
     },
     models: [],
+    providerProfiles: [
+      {
+        id: 'openrouter',
+        name: 'OpenRouter',
+        provider: 'openrouter',
+        endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+        proxyHost: '',
+        builtIn: true
+      },
+      {
+        id: 'codex',
+        name: 'ChatGPT Codex',
+        provider: 'codex',
+        endpoint: 'https://chatgpt.com/backend-api/codex/responses',
+        proxyHost: '',
+        builtIn: true
+      }
+    ],
     maxToolIterations: 0,
     reasoningEffort: 'auto',
     codexServiceTier: 'auto',

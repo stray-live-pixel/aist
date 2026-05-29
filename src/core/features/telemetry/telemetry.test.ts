@@ -52,7 +52,7 @@ describe('run telemetry aggregation', () => {
         totalTokens: 140,
         modelRequestCount: 2,
         toolCallCount: 3,
-        toolCallsByType: { read_file: 2, edit_file: 1 },
+        toolCallsByType: { read_file: 2, write_file: 1 },
         repeatedToolCalls: 1,
         firstEditLatencyMs: 900,
         failedEdits: 0,
@@ -73,7 +73,7 @@ describe('run telemetry aggregation', () => {
         totalTokens: 90,
         modelRequestCount: 1,
         toolCallCount: 1,
-        toolCallsByType: { edit_file: 1 },
+        toolCallsByType: { replace_in_file: 1 },
         repeatedToolCalls: 0,
         firstEditLatencyMs: 1200,
         failedEdits: 1,
@@ -97,7 +97,7 @@ describe('run telemetry aggregation', () => {
       contextBytes: 3072,
       averageDurationMs: 3500,
       averageFirstEditLatencyMs: 1050,
-      toolCallsByType: { edit_file: 2, read_file: 2 }
+      toolCallsByType: { read_file: 2, replace_in_file: 1, write_file: 1 }
     });
   });
 
@@ -110,12 +110,12 @@ describe('run telemetry aggregation', () => {
     recordContextBytes(draft, 4096);
     recordModelRequest(draft);
     recordModelUsage(draft, { promptTokens: 123, completionTokens: 45, totalTokens: 168 });
-    recordToolCalls(draft, ['read_file', 'edit_file', 'edit_file']);
+    recordToolCalls(draft, ['read_file', 'replace_in_file', 'replace_in_file']);
     recordRepeatedToolCall(draft);
-    recordToolStarted(draft, 'edit_file', 10_250);
+    recordToolStarted(draft, 'replace_in_file', 10_250);
     recordApprovalRequested(draft);
     recordApprovalDecision(draft, false);
-    recordFailedEdit(draft, 'edit_file');
+    recordFailedEdit(draft, 'replace_in_file');
 
     const record = finalizeRunTelemetry(draft, 'stopped', 11_000);
     const dashboard = getTelemetryDashboardState();
@@ -125,7 +125,7 @@ describe('run telemetry aggregation', () => {
       completionTokens: 45,
       totalTokens: 168,
       toolCallCount: 3,
-      toolCallsByType: { edit_file: 2, read_file: 1 },
+      toolCallsByType: { read_file: 1, replace_in_file: 2 },
       repeatedToolCalls: 1,
       firstEditLatencyMs: 250,
       failedEdits: 1,
@@ -140,7 +140,7 @@ describe('run telemetry aggregation', () => {
     const markdown = exportTelemetryMarkdown(dashboard);
     expect(json).toContain('"exportKind": "aist.telemetry.v1"');
     expect(markdown).toContain('No raw prompts');
-    expect(markdown).toContain('edit_file: 2');
+    expect(markdown).toContain('replace_in_file: 2');
   });
 });
 

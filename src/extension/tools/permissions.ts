@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
-import { nodeFilesystemTools } from '../../core/features/filesystem-tools/filesystemTools';
 import { planningTools } from '../../core/features/planning/planningTools';
 import type { ToolPermissionMode } from '../../core/shared/types/types';
+import { nodeFilesystemTools } from '../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { getDaemonToolCatalog } from '../agent/daemon/toolCatalog';
 
 export type { ToolPermissionMode };
@@ -30,13 +30,10 @@ export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
   list_files: 'auto',
   read_file: 'auto',
   read_file_range: 'auto',
-  outline_file: 'auto',
   grep_search: 'auto',
   run_bash_script: 'ask',
   write_file: 'ask',
   replace_in_file: 'ask',
-  edit_file: 'ask',
-  apply_patch: 'ask',
   create_directory: 'ask',
   delete_path: 'ask',
   create_plan: 'ask',
@@ -56,13 +53,10 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       list_files: 'ask',
       read_file: 'ask',
       read_file_range: 'ask',
-      outline_file: 'ask',
       grep_search: 'ask',
       run_bash_script: 'ask',
       write_file: 'ask',
       replace_in_file: 'ask',
-      edit_file: 'ask',
-      apply_patch: 'ask',
       create_directory: 'ask',
       delete_path: 'ask',
       create_plan: 'ask',
@@ -85,13 +79,10 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       list_files: 'auto',
       read_file: 'auto',
       read_file_range: 'auto',
-      outline_file: 'auto',
       grep_search: 'auto',
       run_bash_script: 'ask',
       write_file: 'auto',
       replace_in_file: 'auto',
-      edit_file: 'ask',
-      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'ask',
       create_plan: 'ask',
@@ -108,13 +99,10 @@ export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
       list_files: 'auto',
       read_file: 'auto',
       read_file_range: 'auto',
-      outline_file: 'auto',
       grep_search: 'auto',
       run_bash_script: 'auto',
       write_file: 'auto',
       replace_in_file: 'auto',
-      edit_file: 'ask',
-      apply_patch: 'auto',
       create_directory: 'auto',
       delete_path: 'auto',
       create_plan: 'auto',

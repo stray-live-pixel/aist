@@ -19,6 +19,7 @@ import { setCompactionSettings } from '../../config/compaction';
 import { setComposerUiSettings } from '../../config/composerUi';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
+import { deleteProviderProfile, duplicateProviderProfile, upsertProviderProfile } from '../../config/providerProfiles';
 import {
   addAgentMode,
   deleteAgentMode,
@@ -37,6 +38,9 @@ type SettingsMessage = Extract<
   | { type: 'setCodexServiceTier' }
   | { type: 'setEditorContextMode' }
   | { type: 'setStreamingEnabled' }
+  | { type: 'upsertProviderProfile' }
+  | { type: 'duplicateProviderProfile' }
+  | { type: 'deleteProviderProfile' }
   | { type: 'setAuxiliaryModelSettings' }
   | { type: 'setAuxiliaryToolModelOverrides' }
   | { type: 'setCompactionSettings' }
@@ -69,6 +73,9 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setCodexServiceTier',
     'setEditorContextMode',
     'setStreamingEnabled',
+    'upsertProviderProfile',
+    'duplicateProviderProfile',
+    'deleteProviderProfile',
     'setAuxiliaryModelSettings',
     'setAuxiliaryToolModelOverrides',
     'setCompactionSettings',
@@ -128,6 +135,18 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setStreamingEnabled':
       await updateWorkspaceSetting('streamingEnabled', message.streamingEnabled === true);
+      deps.sendState();
+      return;
+    case 'upsertProviderProfile':
+      await upsertProviderProfile(message.profile);
+      deps.sendState();
+      return;
+    case 'duplicateProviderProfile':
+      await duplicateProviderProfile(message.profileId);
+      deps.sendState();
+      return;
+    case 'deleteProviderProfile':
+      await deleteProviderProfile(message.profileId);
       deps.sendState();
       return;
     case 'setAuxiliaryModelSettings':

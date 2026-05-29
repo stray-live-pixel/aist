@@ -5,6 +5,7 @@ import {
   FileText,
   Gauge,
   KeyRound,
+  Network,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
@@ -67,6 +68,12 @@ export const GENERAL_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'settings.nav.permissions',
     icon: <ShieldCheck size={15} />,
     descriptionKey: 'settings.nav.permissionsDescription'
+  },
+  {
+    id: 'providers',
+    labelKey: 'settings.nav.providers',
+    icon: <Network size={15} />,
+    descriptionKey: 'settings.nav.providersDescription'
   },
   {
     id: 'notifications',

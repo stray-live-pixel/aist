@@ -1,9 +1,9 @@
-import { nodeFilesystemTools } from '../../../core/features/filesystem-tools/filesystemTools';
 import { planningTools } from '../../../core/features/planning/planningTools';
 import type { AgentSkill } from '../../../core/features/skills/skills';
 import { runSkillTool } from '../../../core/features/skills/skills';
 import { DefaultToolRegistry, type ToolRegistrySnapshot } from '../../../core/features/tool-execution/toolRegistry';
 import type { OpenRouterTool } from '../../../core/shared/types/types';
+import { nodeFilesystemTools } from '../../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { getWorkspaceFolder } from '../../shared/workspace';
 
 export type DaemonToolCatalogSnapshot = ToolRegistrySnapshot;

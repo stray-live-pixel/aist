@@ -7,7 +7,7 @@ import type { Chat, ChatUsageEstimate } from '../../shared/types/types';
 
 const TELEMETRY_SCHEMA_VERSION = 1;
 const MAX_TELEMETRY_RECORDS = 100;
-const EDIT_TOOL_NAMES = new Set(['edit_file', 'write_file', 'replace_in_file', 'apply_patch', 'delete_path']);
+const EDIT_TOOL_NAMES = new Set(['write_file', 'replace_in_file', 'delete_path']);
 
 export type RunTelemetryStatus = 'success' | 'error' | 'stopped';
 
