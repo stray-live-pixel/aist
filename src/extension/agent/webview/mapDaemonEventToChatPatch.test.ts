@@ -27,6 +27,49 @@ describe('mapDaemonEventToChatPatch', () => {
     expect(patch?.chat).toMatchObject({ busy: true, activity: 'thinking' });
   });
 
+  it('maps tool approval events with the current backend message payload', () => {
+    const chats = createStore({
+      activity: 'waitingForApproval',
+      messages: [
+        { id: 'message-1', role: 'user', content: 'Hello', createdAt: 1000 },
+        {
+          id: 'tool-message-1',
+          role: 'tool',
+          name: 'run_bash_script',
+          status: 'waiting',
+          approval: 'pending',
+          createdAt: 1500
+        }
+      ]
+    });
+    const event: DaemonEvent = {
+      type: 'tool.call.approvalRequested',
+      runId: 'run-1',
+      chatId: 'chat-1',
+      approvalId: 'approval-1',
+      messageId: 'tool-message-1',
+      approval: {
+        approvalId: 'approval-1',
+        runId: 'run-1',
+        toolCallId: 'tool-call-1',
+        toolName: 'run_bash_script',
+        args: {},
+        previewKind: 'none',
+        status: 'pending',
+        createdAt: 1500,
+        chatId: 'chat-1',
+        messageId: 'tool-message-1'
+      },
+      toolCall: { id: 'tool-call-1', name: 'run_bash_script', args: {} },
+      at: 1600
+    };
+
+    const patch = mapDaemonEventToChatPatch(event, chats);
+
+    expect(patch?.message).toMatchObject({ id: 'tool-message-1', approval: 'pending' });
+    expect(patch?.chat).toMatchObject({ activity: 'waitingForApproval' });
+  });
+
   it('maps model.request.updated to runtime chat fields without message payload', () => {
     const chats = createStore({ modelRequest: createModelRequest() });
     const event: DaemonEvent = {

@@ -1,6 +1,7 @@
 import type { DaemonEvent } from '../../../cli/daemonProtocol';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { Chat } from '../../chats/types';
+import { findChatMessageById } from './findChatMessageById';
 import { getDaemonEventChatId } from './getDaemonEventChatId';
 
 type ChatPatchMessage = {
@@ -66,6 +67,10 @@ export function mapDaemonEventToChatPatch(event: DaemonEvent, chats: AgentChatSt
     case 'run.error':
     case 'model.request.updated':
     case 'chat.updated':
+      return {
+        ...base,
+        chat: pickChatRuntimeFields(chat)
+      };
     case 'tool.call.started':
     case 'tool.call.approvalRequested':
     case 'tool.call.approvalResolved':
@@ -73,6 +78,7 @@ export function mapDaemonEventToChatPatch(event: DaemonEvent, chats: AgentChatSt
     case 'tool.call.failed':
       return {
         ...base,
+        message: findChatMessageById(chat, event.messageId),
         chat: pickChatRuntimeFields(chat)
       };
     default:
