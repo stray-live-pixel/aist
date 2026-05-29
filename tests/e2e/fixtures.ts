@@ -8,6 +8,7 @@ import { findFrameByText } from './sources/findFrameByText';
 import { launchVscodeWorkbench } from './sources/launchVscodeWorkbench';
 import { openAistChat } from './sources/openAistChat';
 import { openAistSettings } from './sources/openAistSettings';
+import { openFreshAistChat } from './sources/openFreshAistChat';
 import { runCommand } from './sources/runCommand';
 import { startOpenRouterMock } from './sources/startOpenRouterMock';
 import { stopOpenRouterMock } from './sources/stopOpenRouterMock';
@@ -45,5 +46,5 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   }
 });
 
-export { expect, expectAistScreenshot, findFrameByText, openAistChat, openAistSettings, runCommand };
+export { expect, expectAistScreenshot, findFrameByText, openAistChat, openAistSettings, openFreshAistChat, runCommand };
 export type { OpenRouterMock };

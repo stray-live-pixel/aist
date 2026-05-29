@@ -80,5 +80,15 @@ test.describe('Фича: Settings / Instructions flow', () => {
     const systemPrompt = getSystemPromptFromMockRequest({ request: openRouterMock.requests[0] });
     expect(systemPrompt).toContain(instructionLabel);
     expect(systemPrompt).toContain(instructionContent);
+
+    const settingsAfterAsk = await openAistSettings({ page: workbench });
+    await openSettingsSection({ webview: settingsAfterAsk, label: 'Инструкции', heading: 'Инструкции' });
+    await settingsAfterAsk.getByRole('tab', { name: 'Проектные инструкции' }).click();
+    await settingsAfterAsk
+      .locator('section')
+      .filter({ has: settingsAfterAsk.getByRole('heading', { name: instructionLabel }) })
+      .getByRole('button', { name: 'Удалить' })
+      .click();
+    await expect(settingsAfterAsk.getByText(instructionLabel)).toBeHidden();
   });
 });

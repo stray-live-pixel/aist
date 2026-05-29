@@ -1,4 +1,4 @@
-import { expect, expectAistScreenshot, openAistChat, test } from '../../fixtures';
+import { expect, expectAistScreenshot, openFreshAistChat, test } from '../../fixtures';
 
 test.describe('Фича: Chat / Composer', () => {
   test(`
@@ -13,7 +13,7 @@ test.describe('Фича: Chat / Composer', () => {
     Как тест проверяет решение: тест открывает команду aist: Open Chat через Command Palette,
     ждёт реальный webview и проверяет пустое состояние, поле ввода и доступную кнопку отправки.
   `, async ({ workbench }) => {
-    const webview = await openAistChat({ page: workbench });
+    const webview = await openFreshAistChat({ page: workbench });
 
     await expect(webview.getByText('Готов работать с вашим кодом')).toBeVisible();
     await expect(

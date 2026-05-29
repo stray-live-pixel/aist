@@ -1,4 +1,4 @@
-import { expect, expectAistScreenshot, openAistChat, test } from '../../fixtures';
+import { expect, expectAistScreenshot, openFreshAistChat, test } from '../../fixtures';
 
 const composerPlaceholder = 'Попросите агента проверить, создать, изменить или удалить файлы проекта...';
 
@@ -14,7 +14,7 @@ test.describe('Фича: Chat / Markdown rendering', () => {
     а UI показывает заголовок, пункты и команду без внешней ИИ-сети.
   `, async ({ workbench, openRouterMock }) => {
     openRouterMock.reset();
-    const webview = await openAistChat({ page: workbench });
+    const webview = await openFreshAistChat({ page: workbench });
 
     const prompt = webview.locator(`textarea[placeholder="${composerPlaceholder}"]:not([readonly])`);
 

@@ -1,4 +1,4 @@
-import { expect, expectAistScreenshot, openAistChat, test } from '../../fixtures';
+import { expect, expectAistScreenshot, openAistChat, openFreshAistChat, test } from '../../fixtures';
 
 const composerPlaceholder = 'Попросите агента проверить, создать, изменить или удалить файлы проекта...';
 
@@ -39,13 +39,13 @@ test.describe('Фича: Chat / Navigation and workspace controls', () => {
   });
 
   test(`
-    Пользователь открывает список чатов и закрывает его клавишей Escape.
+    Пользователь открывает список чатов и закрывает его кнопкой в модалке.
 
-    Задача пользователя: я хочу быстро посмотреть историю чатов и вернуться к активному composer без мыши.
+    Задача пользователя: я хочу быстро посмотреть историю чатов и вернуться к активному composer.
 
     Зачем это важно: модалка списка чатов не должна блокировать работу, если пользователь передумал переключаться.
 
-    Как тест проверяет решение: тест открывает список, проверяет заголовок и закрывает модалку Escape.
+    Как тест проверяет решение: тест открывает список, проверяет заголовок и закрывает модалку явной кнопкой.
   `, async ({ workbench }) => {
     const webview = await openAistChat({ page: workbench });
 
@@ -54,8 +54,7 @@ test.describe('Фича: Chat / Navigation and workspace controls', () => {
     await expect(webview.getByText('История скрыта по умолчанию')).toBeVisible();
     await expectAistScreenshot({ webview, name: 'chat-list-modal-open.png' });
 
-    await webview.getByRole('dialog').focus();
-    await workbench.keyboard.press('Escape');
+    await webview.getByTitle('Закрыть чаты').click();
 
     await expect(webview.getByRole('dialog')).toBeHidden();
     await expect(activePrompt(webview)).toBeVisible();
@@ -95,7 +94,7 @@ test.describe('Фича: Chat / Navigation and workspace controls', () => {
 
     Как тест проверяет решение: тест нажимает кнопку ветки, проверяет floating-панель VCS и основные действия с git.
   `, async ({ workbench }) => {
-    const webview = await openAistChat({ page: workbench });
+    const webview = await openFreshAistChat({ page: workbench });
 
     await webview
       .getByTitle(/Show VCS controls/)
