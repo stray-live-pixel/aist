@@ -151,6 +151,7 @@ type RedactedConfigValue = {
 };
 
 const OPENROUTER_ENV_KEY = 'OPENROUTER_API_KEY';
+const E2E_OPENROUTER_ENDPOINT_ENV_KEY = 'AIST_E2E_OPENROUTER_ENDPOINT';
 const REDACTED_VALUE = '<redacted>';
 const READONLY_DAEMON_TOOLS = new Set([
   'get_workspace_info',
@@ -1187,8 +1188,10 @@ export class AistDaemonServer {
       apiKey,
       fetch: this.options.fetch,
       logger: this.logger,
-      chatEndpoint: profile.endpoint || undefined,
-      proxyHost: profile.proxyHost || undefined,
+      // E2E запускает реальный VS Code и daemon, но модель должна быть локальным mock server,
+      // чтобы тесты проверяли функциональность расширения без внешних ИИ-запросов.
+      chatEndpoint: this.env[E2E_OPENROUTER_ENDPOINT_ENV_KEY] || profile.endpoint || undefined,
+      proxyHost: this.env[E2E_OPENROUTER_ENDPOINT_ENV_KEY] ? undefined : profile.proxyHost || undefined,
       siteUrl: await this.getStringSetting(['openrouterAgent.siteUrl', 'siteUrl']),
       siteName: (await this.getStringSetting(['openrouterAgent.siteName', 'siteName'])) || 'aist',
       reasoningEffort: reasoningEffort || (await this.getReasoningEffort())
