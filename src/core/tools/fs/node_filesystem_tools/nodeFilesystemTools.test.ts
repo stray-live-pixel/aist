@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { nodeFilesystemTools, runNodeFilesystemTool } from '../../tools/fs/node_filesystem_tools/nodeFilesystemTools';
+import { nodeFilesystemTools, runNodeFilesystemTool } from './nodeFilesystemTools';
 
 let workspaceRoot: string;
 

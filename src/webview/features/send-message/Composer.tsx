@@ -1,5 +1,14 @@
 import { ChevronUp, History, SendHorizontal, Square } from 'lucide-react';
-import { type KeyboardEvent, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react';
 
 import { useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
@@ -14,7 +23,13 @@ import {
   savePromptDraft
 } from './promptHistory';
 import type { ComposerProps } from './types';
-import { DEFAULT_CONTINUE_PROMPT, isMacLikePlatform, resizePromptField } from './utils';
+import {
+  DEFAULT_CONTINUE_PROMPT,
+  getShiftDropFullPaths,
+  insertTextIntoPrompt,
+  isMacLikePlatform,
+  resizePromptField
+} from './utils';
 
 const COMPOSER_TRANSITION_MS = 500;
 
@@ -169,6 +184,45 @@ export function Composer({
     }
   }
 
+  function handlePromptDragOver(event: DragEvent<HTMLTextAreaElement>) {
+    const droppedPaths = getShiftDropFullPaths({ dataTransfer: event.dataTransfer, shiftKey: event.shiftKey });
+
+    if (droppedPaths.length === 0) {
+      return;
+    }
+
+    // Разрешаем drop только для Shift-сценария, чтобы обычное поведение VS Code/браузера не менялось.
+    event.preventDefault();
+  }
+
+  function handlePromptDrop(event: DragEvent<HTMLTextAreaElement>) {
+    const droppedPaths = getShiftDropFullPaths({ dataTransfer: event.dataTransfer, shiftKey: event.shiftKey });
+
+    if (droppedPaths.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const target = event.currentTarget;
+    const selectionStart = target.selectionStart ?? prompt.length;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const insertedText = droppedPaths.join('\n');
+    const nextPrompt = insertTextIntoPrompt({
+      value: prompt,
+      text: insertedText,
+      selectionStart,
+      selectionEnd
+    });
+
+    updatePrompt(nextPrompt.value);
+
+    window.requestAnimationFrame(() => {
+      target.focus();
+      target.setSelectionRange(nextPrompt.cursorPosition, nextPrompt.cursorPosition);
+    });
+  }
+
   const composerHeaderActions = (
     <>
       <CompactNavigationButton
@@ -239,6 +293,8 @@ export function Composer({
         textareaRef={textareaRef}
         onPromptChange={updatePrompt}
         onPromptKeyDown={handlePromptKeyDown}
+        onPromptDragOver={handlePromptDragOver}
+        onPromptDrop={handlePromptDrop}
       />
       {historyOpen ? (
         <PromptHistoryModal
@@ -273,7 +329,9 @@ function ComposerShell({
   textareaRef,
   readOnly,
   onPromptChange,
-  onPromptKeyDown
+  onPromptKeyDown,
+  onPromptDragOver,
+  onPromptDrop
 }: {
   busy: boolean;
   floating: boolean;
@@ -292,6 +350,8 @@ function ComposerShell({
   readOnly?: boolean;
   onPromptChange?(value: string): void;
   onPromptKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): void;
+  onPromptDragOver?(event: DragEvent<HTMLTextAreaElement>): void;
+  onPromptDrop?(event: DragEvent<HTMLTextAreaElement>): void;
 }) {
   const shellClassName = [
     className,
@@ -327,6 +387,16 @@ function ComposerShell({
               onKeyDown={(event) => {
                 if (!readOnly) {
                   onPromptKeyDown?.(event);
+                }
+              }}
+              onDragOver={(event) => {
+                if (!readOnly) {
+                  onPromptDragOver?.(event);
+                }
+              }}
+              onDrop={(event) => {
+                if (!readOnly) {
+                  onPromptDrop?.(event);
                 }
               }}
             />

@@ -1,3 +1,7 @@
+export { getShiftDropFullPaths } from './getShiftDropFullPaths';
+export { insertTextIntoPrompt } from './insertTextIntoPrompt';
+export type { ComposerDropDataTransfer, PromptTextInsertion } from './dropTypes';
+
 /** Максимальная высота поля ввода: выше пользователь уже теряет обзор истории чата. */
 export const MAX_TEXTAREA_HEIGHT = 300;
 

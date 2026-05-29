@@ -48,7 +48,6 @@
     "run_bash_script": "auto",
     "write_file": "auto",
     "replace_in_file": "auto",
-    "apply_patch": "ask",
     "create_directory": "auto",
     "delete_path": "auto",
     "create_plan": "auto",
@@ -77,6 +76,24 @@
       "description": "Load this before any task that creates, edits, reviews, or refactors AIST webview UI, including src/webview, Composer, shared/ui components, SCSS Modules, Storybook stories, settings pages, chat pages, message cards, forms, modals, buttons, selects, badges, or layout styling.",
       "command": "cat docs/webview-design-system.md",
       "permission": "auto"
+    }
+  ],
+  "providerProfiles": [
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "provider": "openrouter",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "proxyHost": "",
+      "builtIn": true
+    },
+    {
+      "id": "codex",
+      "name": "ChatGPT Codex",
+      "provider": "codex",
+      "endpoint": "https://chatgpt.com/backend-api/codex/responses",
+      "proxyHost": "",
+      "builtIn": true
     }
   ]
 }
