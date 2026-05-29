@@ -1,26 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentInstructionSource, AgentPromptConfig } from './agentConfigStore';
+import { globalSettingsFile, workspaceSettingsFile } from '../../../core/entities/storage/storage';
 import { buildAgentSystemPrompt, getAgentInstructionSources } from './systemPrompt';
 
-const mocks = vi.hoisted(() => ({
-  externalSources: [] as AgentInstructionSource[],
-  promptConfig: {
-    globalInstructions: [],
-    localInstructions: [],
-    globalModes: [],
-    localModes: [],
-    presets: [],
-    activeInstructionRefs: []
-  } as AgentPromptConfig
-}));
+const tempDirs: string[] = [];
 
-vi.mock('./agentConfigStore', () => {
-  return {
-    getExternalInstructionSources: () => mocks.externalSources,
-    getPromptConfig: () => mocks.promptConfig
-  };
-});
+vi.mock('vscode', () => ({
+  workspace: {
+    workspaceFolders: []
+  },
+  Uri: {
+    file: (filePath: string) => ({ fsPath: filePath })
+  }
+}));
 
 vi.mock('./settings', () => ({
   getAgentLanguage: () => 'en'
@@ -30,67 +25,100 @@ vi.mock('../../skills/skills', () => ({
   getAgentSkills: () => []
 }));
 
-beforeEach(() => {
-  mocks.externalSources = [];
-  mocks.promptConfig = {
-    globalInstructions: [],
-    localInstructions: [],
-    globalModes: [],
-    localModes: [],
-    presets: [],
-    activeInstructionRefs: []
-  };
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
-describe('system prompt declarative instructions', () => {
-  it('snapshots declarative project instructions without losing immutable kernel rules', () => {
-    mocks.externalSources = [
-      {
-        id: '.aist-agent/instructions/project.md',
-        title: '.aist-agent project instructions',
-        content: 'Prefer declarative project guidance before legacy config.',
-        priority: 12,
-        kind: 'declarative',
-        source: '.aist-agent/instructions/project.md'
-      },
-      {
-        id: '.aist-agent/policies/prompt-policy.md',
-        title: '.aist-agent prompt policy',
-        content: 'Keep prompt snapshots intentional.',
-        priority: 14,
-        kind: 'declarative',
-        source: '.aist-agent/policies/prompt-policy.md'
+describe('extension system prompt preview', () => {
+  it('uses the shared file prompt builder for active preset instructions and mode', () => {
+    const workspaceRoot = createTempDir({ prefix: 'aist-extension-prompt-workspace-' });
+    const homeDir = createTempDir({ prefix: 'aist-extension-prompt-home-' });
+
+    writeJsonFile({
+      filePath: globalSettingsFile(homeDir),
+      value: {
+        instructions: [{ id: 'quality', label: 'Quality', content: 'Keep code easy to review.' }],
+        modes: [{ id: 'coder', label: 'Coder', instructions: 'Work as a focused coding agent.' }],
+        presets: [
+          {
+            id: 'coding',
+            label: 'Coding',
+            instructionRefs: [{ scope: 'global', id: 'quality' }],
+            modeRef: { scope: 'global', id: 'coder' },
+            scope: 'global'
+          }
+        ]
       }
-    ];
+    });
+    writeJsonFile({
+      filePath: workspaceSettingsFile(workspaceRoot),
+      value: {
+        instructions: [{ id: 'tests', label: 'Tests', content: 'Run focused prompt tests.' }],
+        activeInstructionRefs: [
+          { scope: 'global', id: 'quality' },
+          { scope: 'local', id: 'tests' }
+        ],
+        activeModeRef: { scope: 'global', id: 'coder' },
+        activePresetId: 'coding'
+      }
+    });
 
-    const prompt = buildAgentSystemPrompt();
+    const prompt = buildAgentSystemPrompt({ workspaceRoot, homeDir });
 
-    expect(prompt).toMatchSnapshot();
-    expect(prompt).toContain('## Identity');
-    expect(prompt).toContain('## Tool rules');
-    expect(prompt).toContain('## User instructions');
-    expect(prompt).toContain('Source: .aist-agent/instructions/project.md');
-    expect(prompt).toContain('Source: .aist-agent/policies/prompt-policy.md');
-    expect(prompt).toContain('lower priority than the immutable AIST kernel');
+    expect(prompt).toContain('## Global instruction: Quality');
+    expect(prompt).toContain('Keep code easy to review.');
+    expect(prompt).toContain('## Project instruction: Tests');
+    expect(prompt).toContain('Run focused prompt tests.');
+    expect(prompt).toContain('## Global mode: Coder');
+    expect(prompt).toContain('Work as a focused coding agent.');
   });
 
   it('orders declarative sources after the base source and before legacy instruction files', () => {
-    mocks.externalSources = [
-      { id: 'AGENTS.md', title: 'AGENTS.md', content: 'Legacy agents.', priority: 20, kind: 'file' },
-      {
-        id: '.aist-agent/instructions/project.md',
-        title: '.aist-agent project instructions',
-        content: 'Declarative instructions.',
-        priority: 12,
-        kind: 'declarative',
-        source: '.aist-agent/instructions/project.md'
-      }
-    ];
+    const workspaceRoot = createTempDir({ prefix: 'aist-extension-prompt-workspace-' });
+    const homeDir = createTempDir({ prefix: 'aist-extension-prompt-home-' });
+    writeTextFile({
+      filePath: path.join(workspaceRoot, 'AGENTS.md'),
+      content: 'Legacy agents.'
+    });
+    writeTextFile({
+      filePath: path.join(workspaceRoot, '.aist-agent', 'instructions', 'project.md'),
+      content: 'Declarative instructions.'
+    });
 
-    expect(getAgentInstructionSources().map((source) => source.id)).toEqual([
+    expect(getAgentInstructionSources({ workspaceRoot, homeDir }).map((source) => source.id)).toEqual([
       'base',
       '.aist-agent/instructions/project.md',
       'AGENTS.md'
     ]);
   });
 });
+
+/**
+ * Что это: создаёт временную директорию для тестового workspace или home.
+ * Зачем нужно: preview-тесты читают реальные файлы, не трогая настройки разработчика.
+ */
+function createTempDir(params: { prefix: string }): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), params.prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+/**
+ * Что это: записывает JSON fixture настроек агента.
+ * Зачем нужно: тест проверяет тот же файловый контракт, который использует daemon.
+ */
+function writeJsonFile(params: { filePath: string; value: unknown }): void {
+  fs.mkdirSync(path.dirname(params.filePath), { recursive: true });
+  fs.writeFileSync(params.filePath, `${JSON.stringify(params.value, null, 2)}\n`, 'utf8');
+}
+
+/**
+ * Что это: записывает текстовый fixture проектных инструкций.
+ * Зачем нужно: тест проверяет порядок declarative и legacy источников в preview.
+ */
+function writeTextFile(params: { filePath: string; content: string }): void {
+  fs.mkdirSync(path.dirname(params.filePath), { recursive: true });
+  fs.writeFileSync(params.filePath, params.content, 'utf8');
+}
