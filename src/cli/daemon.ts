@@ -42,7 +42,8 @@ import {
 } from '../core/features/compaction/compaction';
 import type { EditorContextInput } from '../core/features/context/contextGovernor';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
-import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
+import { buildFileAgentSystemPrompt } from '../core/features/system-prompt/filePromptConfig';
+import { type AgentLanguage } from '../core/features/system-prompt/prompts';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
 import {
   type ToolExecutionPreview,
@@ -879,7 +880,9 @@ export class AistDaemonServer {
       promptProvider: {
         getSystemPrompt: async () => {
           const skills = await this.getConfiguredSkills();
-          return getSystemPrompt({
+          return buildFileAgentSystemPrompt({
+            workspaceRoot: this.workspaceRoot,
+            homeDir: this.homeDir,
             language: await this.getLanguage(),
             skills: skills.map(({ id, label, description }) => ({ id, label, description }))
           });

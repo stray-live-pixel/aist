@@ -38,7 +38,8 @@ import {
 } from '../core/entities/storage/storage';
 import { getToolExecutionRequirement } from '../core/features/approval/approvalProtocol';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
-import { type AgentLanguage, getSystemPrompt } from '../core/features/system-prompt/prompts';
+import { buildFileAgentSystemPrompt } from '../core/features/system-prompt/filePromptConfig';
+import { type AgentLanguage } from '../core/features/system-prompt/prompts';
 import { DefaultToolRegistry, type ToolRegistry } from '../core/features/tool-execution/toolRegistry';
 import { ToolRunner, type ToolRunnerExecutionAdapter } from '../core/features/tool-execution/toolRunner';
 import {
@@ -857,7 +858,9 @@ async function runChatAskCommand(
     promptProvider: {
       getSystemPrompt: async () => {
         const skills = await getHeadlessConfiguredSkills(configStore);
-        return getSystemPrompt({
+        return buildFileAgentSystemPrompt({
+          workspaceRoot,
+          homeDir: options.homeDir,
           language: await getHeadlessLanguage(configStore),
           skills: skills.map(({ id, label, description }) => ({ id, label, description }))
         });
