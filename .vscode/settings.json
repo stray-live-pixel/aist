@@ -6,6 +6,7 @@
   "openrouterAgent.toolPermissions": {
     "list_files": "auto",
     "read_file": "auto",
+    "read_file_range": "auto",
     "grep_search": "auto",
     "run_bash_script": "auto",
     "write_file": "auto",
@@ -25,5 +26,6 @@
     "volume": 0.35,
     "durationSeconds": 3
   },
-  "openrouterAgent.codexServiceTier": "priority"
+  "openrouterAgent.codexServiceTier": "priority",
+  "openrouterAgent.streamingEnabled": false
 }

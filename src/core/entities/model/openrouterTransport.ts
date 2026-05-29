@@ -14,6 +14,7 @@ import {
   type FetchLike,
   type ModelCatalogClient,
   type ModelClient,
+  type ModelRequestOptions,
   type ModelTransportLogger,
   resolveFetch
 } from './modelTransport';
@@ -105,9 +106,11 @@ export class OpenRouterTransport implements ModelClient, ModelCatalogClient {
     modelOverride?: string,
     signal?: AbortSignal,
     stream?: ModelStreamCallbacks,
-    lifecycle?: ModelRequestLifecycleCallbacks
+    lifecycle?: ModelRequestLifecycleCallbacks,
+    requestOptions?: ModelRequestOptions
   ): Promise<OpenRouterMessage> {
     const model = modelOverride || this.options.model || DEFAULT_MODEL;
+    const reasoningEffort = requestOptions?.reasoningEffort || this.options.reasoningEffort;
 
     if (!this.options.apiKey) {
       throw new Error(this.options.missingApiKeyMessage || 'Set an OpenRouter API key before sending model requests.');
@@ -128,9 +131,7 @@ export class OpenRouterTransport implements ModelClient, ModelCatalogClient {
           model,
           messages,
           ...(tools ? { tools, tool_choice: 'auto' } : {}),
-          ...(this.options.reasoningEffort === 'auto' || !this.options.reasoningEffort
-            ? {}
-            : { reasoning: { effort: this.options.reasoningEffort } }),
+          ...(reasoningEffort === 'auto' || !reasoningEffort ? {} : { reasoning: { effort: reasoningEffort } }),
           ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
           temperature: this.temperature
         })

@@ -16,7 +16,7 @@ import { getComposerUiSettings } from '../config/composerUi';
 import { getApprovalNotificationSettings } from '../config/notifications';
 import { getProviderProfiles } from '../config/providerProfiles';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
-import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
+import { getAgentSettingsSnapshot, getDefaultModelSettings } from '../config/settingsSnapshot';
 import { getAgentInstructionSources } from '../config/systemPrompt';
 import { getDaemonToolCatalog, getDaemonTools } from '../daemon/toolCatalog';
 import { getAgentMemoryItems } from '../memory/memory';
@@ -50,6 +50,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
 
   const { configuredModel, maxToolIterations, reasoningEffort, codexServiceTier, editorContextMode, streamingEnabled } =
     getAgentSettingsSnapshot();
+  const defaultModelSettings = getDefaultModelSettings();
   const language = getAgentLanguage();
   const activeMode = getActiveAgentMode();
   const agentModes = getAgentModes();
@@ -72,6 +73,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
     postStateToSurface(surface, {
       ...params,
       configuredModel,
+      defaultModelSettings,
       maxToolIterations,
       reasoningEffort,
       codexServiceTier,
@@ -100,6 +102,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
 
 type StateContext = SendAgentStateParams & {
   configuredModel: string;
+  defaultModelSettings: ReturnType<typeof getDefaultModelSettings>;
   maxToolIterations: number;
   reasoningEffort: string;
   codexServiceTier: string;
@@ -146,6 +149,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     activeChat: webviewActiveChat,
     models,
     providerProfiles: context.providerProfiles,
+    defaultModelSettings: context.defaultModelSettings,
     maxToolIterations: context.maxToolIterations,
     reasoningEffort: context.reasoningEffort,
     codexServiceTier: context.codexServiceTier,

@@ -105,6 +105,7 @@ function createStore(chatPatch: Partial<Chat> = {}): AgentChatStore {
     id: 'chat-1',
     title: 'Chat',
     model: 'model-a',
+    modelSettings: createModelSettings('model-a'),
     messages: [{ id: 'message-1', role: 'user', content: 'Hello', createdAt: 1000 }],
     history: [{ role: 'user', content: 'Hello' }],
     lastAnswer: '',
@@ -131,6 +132,7 @@ function createStore(chatPatch: Partial<Chat> = {}): AgentChatStore {
         id: chat.id,
         title: chat.title,
         model: chat.model,
+        modelSettings: chat.modelSettings,
         messageCount: chat.messages.length,
         lastUserMessage: 'Hello',
         busy: chat.busy,
@@ -144,6 +146,7 @@ function createStore(chatPatch: Partial<Chat> = {}): AgentChatStore {
     updateMessage: () => chat.messages[0],
     clearChat: () => undefined,
     setModel: () => undefined,
+    setModelSettings: () => undefined,
     setVcsState: () => undefined,
     setBusy: () => undefined,
     setLastAnswer: () => undefined,
@@ -157,6 +160,17 @@ function createStore(chatPatch: Partial<Chat> = {}): AgentChatStore {
     setActivityDetail: () => undefined,
     setModelRequest: () => undefined,
     updateModelRequest: () => chat.modelRequest
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }
 

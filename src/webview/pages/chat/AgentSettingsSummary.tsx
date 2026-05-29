@@ -1,4 +1,4 @@
-import { Archive, Brain, Coins, FileText, LoaderCircle, Settings2, ShieldCheck } from 'lucide-react';
+import { Archive, Brain, Coins, FileText, LoaderCircle, RotateCcw, Settings2, ShieldCheck } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -86,7 +86,11 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
 export const ComposerContextSummary = memo(function ComposerContextSummary({ state }: { state: AgentState }) {
   const { t } = useI18n();
   const [selectedProviderProfileId, setSelectedProviderProfileId] = useState<string | undefined>();
-  const activeProvider = getActiveModelProvider(state.activeChat.model, state.models, state.providerProfiles);
+  const activeProvider = getActiveModelProvider(
+    state.activeChat.modelSettings.model,
+    state.models,
+    state.providerProfiles
+  );
   const selectedProviderProfile = getSelectedProviderProfile(
     state.providerProfiles,
     selectedProviderProfileId,
@@ -98,7 +102,9 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
     [activeProvider, selectedProviderProfile?.provider, state.models]
   );
   const modelDisplayLabels = useMemo(() => getModelDisplayLabels(providerModelOptions), [providerModelOptions]);
-  const activeModel = state.models.find((model) => model.id === state.activeChat.model);
+  const chatModelSettings = state.activeChat.modelSettings;
+  const modelSettingsModified = !areModelSettingsEqual(chatModelSettings, state.defaultModelSettings);
+  const activeModel = state.models.find((model) => model.id === chatModelSettings.model);
   const codexServiceTierOptions = getCodexServiceTierOptions(activeModel);
   useEffect(() => {
     if (!selectedProviderProfile || state.activeChat.busy) {
@@ -150,11 +156,11 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         aria-label={t('summary.model')}
         title={t('summary.model')}
         value={
-          providerModelOptions.some((option) => option.value === state.activeChat.model) ? state.activeChat.model : ''
+          providerModelOptions.some((option) => option.value === chatModelSettings.model) ? chatModelSettings.model : ''
         }
         placeholder={providerModelOptions.length ? t('modelSelect.chooseModel') : t('modelSelect.loadingModels')}
         disabled={state.activeChat.busy || !providerModelOptions.length}
-        onChange={(event) => agentActions.setModel(event.target.value)}
+        onChange={(event) => agentActions.setChatModelSettings({ model: event.target.value })}
         options={providerModelOptions}
         displayLabels={modelDisplayLabels}
       />
@@ -164,9 +170,11 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         leadingIcon={<Brain size={12} />}
         aria-label={t('summary.reasoningEffort')}
         title={t('summary.reasoningEffort')}
-        value={state.reasoningEffort}
+        value={chatModelSettings.reasoningEffort}
         disabled={state.activeChat.busy}
-        onChange={(event) => agentActions.setReasoningEffort(event.target.value as ReasoningEffort)}
+        onChange={(event) =>
+          agentActions.setChatModelSettings({ reasoningEffort: event.target.value as ReasoningEffort })
+        }
         options={getReasoningOptions()}
         displayLabels={REASONING_DISPLAY_LABELS}
       />
@@ -177,11 +185,21 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
           leadingIcon={<Settings2 size={12} />}
           aria-label="Codex speed"
           title="Codex speed"
-          value={state.codexServiceTier}
+          value={chatModelSettings.codexServiceTier}
           disabled={state.activeChat.busy}
-          onChange={(event) => agentActions.setCodexServiceTier(event.target.value as CodexServiceTier)}
+          onChange={(event) =>
+            agentActions.setChatModelSettings({ codexServiceTier: event.target.value as CodexServiceTier })
+          }
           options={codexServiceTierOptions}
           displayLabels={CODEX_TIER_DISPLAY_LABELS}
+        />
+      ) : null}
+      {modelSettingsModified ? (
+        <CompactNavigationButton
+          icon={<RotateCcw size={12} />}
+          title={t('settings.resetChatModelSettings')}
+          disabled={state.activeChat.busy}
+          onClick={() => agentActions.resetChatModelSettings()}
         />
       ) : null}
       <Select
@@ -233,6 +251,20 @@ const ComposerContextControls = memo(function ComposerContextControls({ state }:
     </CompactControlGroup>
   );
 });
+
+function areModelSettingsEqual(
+  left: AgentState['activeChat']['modelSettings'],
+  right: AgentState['defaultModelSettings']
+): boolean {
+  return (
+    left.model === right.model &&
+    left.reasoningEffort === right.reasoningEffort &&
+    left.codexServiceTier === right.codexServiceTier &&
+    left.maxToolIterations === right.maxToolIterations &&
+    left.editorContextMode === right.editorContextMode &&
+    left.streamingEnabled === right.streamingEnabled
+  );
+}
 
 function getReasoningOptions(): SelectOption[] {
   return [

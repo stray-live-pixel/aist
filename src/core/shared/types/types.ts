@@ -180,6 +180,15 @@ export type ChatModelRequestPhase =
   | 'failed'
   | 'aborted';
 
+export type ChatModelSettings = {
+  model: string;
+  reasoningEffort: ReasoningEffort;
+  codexServiceTier: CodexServiceTier;
+  maxToolIterations: number;
+  editorContextMode: EditorContextMode;
+  streamingEnabled: boolean;
+};
+
 export type ChatModelRequestStatus = {
   provider?: ModelProvider;
   model: string;
@@ -215,6 +224,7 @@ export type Chat = {
   id: string;
   title: string;
   model: string;
+  modelSettings: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
   vcs?: ChatVcsState;
@@ -238,6 +248,7 @@ export type ChatSummary = {
   id: string;
   title: string;
   model: string;
+  modelSettings: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
   vcs?: ChatVcsState;

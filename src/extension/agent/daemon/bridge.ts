@@ -9,6 +9,7 @@ import type {
   DaemonChatDeleteResult,
   DaemonChatGetResult,
   DaemonChatSetModelResult,
+  DaemonChatSetModelSettingsResult,
   DaemonChatStopResult,
   DaemonClientCapabilitiesResult,
   DaemonClientNotificationParams,
@@ -23,6 +24,7 @@ import type {
   DaemonState
 } from '../../../cli/daemonProtocol';
 import type {
+  ChatModelSettings,
   JsonObject,
   ModelProvider,
   OpenRouterModelOption,
@@ -34,7 +36,7 @@ import type { AistLogger } from '../../shared/logger';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from '../commands/openWorkspaceFile';
 import { getProviderProfiles } from '../config/providerProfiles';
 import { getAgentLanguage } from '../config/settings';
-import { getAgentSettingsSnapshot } from '../config/settingsSnapshot';
+import { getAgentSettingsSnapshot, getDefaultModelSettings } from '../config/settingsSnapshot';
 import { getDaemonEventChatId } from '../webview/getDaemonEventChatId';
 import { DaemonChatStore } from './chatStore';
 import { VscodeDaemonProcessManager } from './processManager';
@@ -52,10 +54,11 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   workspaceRoot: string;
   chats: AgentChatStore;
   processManager: VscodeDaemonProcessManager;
-  createChat(model?: string): Promise<Chat>;
+  createChat(settings?: ChatModelSettings): Promise<Chat>;
   deleteChat(chatId: string, fallbackModel?: string): Promise<Chat>;
   clearChat(chatId: string): Promise<void>;
   setModel(chatId: string, model: string): Promise<void>;
+  setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): Promise<void>;
   ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void>;
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
@@ -105,7 +108,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     await client.request<DaemonInitializeResult>('initialize');
     await this.refreshState();
     if (!this.chats.getSummaries().length) {
-      await this.createChat(this.defaultModel);
+      await this.createChat(this.getDefaultModelSettings());
     }
     this.logger.info('VS Code daemon runtime bridge initialized', {
       workspaceRoot: this.workspaceRoot,
@@ -124,10 +127,13 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     this.processManager.dispose();
   }
 
-  async createChat(model: string = this.defaultModel): Promise<Chat> {
+  async createChat(settings: ChatModelSettings = this.getDefaultModelSettings()): Promise<Chat> {
     const client = await this.getClient();
     await this.syncSettings();
-    const result = await client.request<DaemonChatCreateResult>('chat.create', { model });
+    const result = await client.request<DaemonChatCreateResult>('chat.create', {
+      model: settings.model,
+      modelSettings: settings
+    });
     const chat = this.chats.upsert(result.chat);
     this.chats.setActiveChat(chat.id);
     await this.saveActiveChatId(chat.id);
@@ -139,7 +145,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     const result = await client.request<DaemonChatDeleteResult>('chat.delete', { chatId });
     await this.refreshState(result.nextChatId);
     if (!this.chats.getSummaries().length) {
-      return this.createChat(fallbackModel);
+      return this.createChat({ ...this.getDefaultModelSettings(), model: fallbackModel });
     }
     const active = result.nextChatId ? this.chats.setActiveChat(result.nextChatId) : this.chats.getActiveChat();
     await this.saveActiveChatId(active.id);
@@ -156,7 +162,15 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     const client = await this.getClient();
     const result = await client.request<DaemonChatSetModelResult>('chat.setModel', { chatId, model });
     this.chats.upsert(result.chat);
-    await this.updateDaemonConfig('model', model);
+  }
+
+  async setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): Promise<void> {
+    const client = await this.getClient();
+    const result = await client.request<DaemonChatSetModelSettingsResult>('chat.setModelSettings', {
+      chatId,
+      settings
+    });
+    this.chats.upsert(result.chat);
   }
 
   async ask(chatId: string, prompt: string, options: { skipUserMessage?: boolean } = {}): Promise<void> {
@@ -280,6 +294,11 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     const client = await this.getClient();
     const result = await client.request<DaemonChatGetResult>('chat.get', { chatId });
     this.chats.upsert(result.chat);
+  }
+
+  private getDefaultModelSettings(): ChatModelSettings {
+    const settings = getDefaultModelSettings();
+    return { ...settings, model: settings.model || this.defaultModel };
   }
 
   private async syncSettings(): Promise<void> {

@@ -9,6 +9,7 @@ import type {
   Chat,
   ChatContextEstimate,
   ChatMessage,
+  ChatModelSettings,
   ChatSummary,
   ChatUsageEstimate
 } from '../../chats/types';
@@ -52,12 +53,14 @@ export class DaemonChatStore implements AgentChatStore {
     return next;
   }
 
-  createChat(model: string = DEFAULT_MODEL): Chat {
+  createChat(settings: string | ChatModelSettings = DEFAULT_MODEL): Chat {
+    const modelSettings = normalizeInitialModelSettings(settings);
     const now = Date.now();
     const chat: Chat = {
       id: randomUUID(),
       title: 'New chat',
-      model,
+      model: modelSettings.model,
+      modelSettings,
       messages: [],
       history: [],
       lastAnswer: '',
@@ -84,6 +87,7 @@ export class DaemonChatStore implements AgentChatStore {
       id: randomUUID(),
       title: `${source.title} compacted`,
       model: source.model,
+      modelSettings: { ...source.modelSettings },
       previousChatId: source.id,
       compactedAt: now,
       messages: [{ id: randomUUID(), role: 'assistant', content: summary, createdAt: now }, ...(tail.messages || [])],
@@ -161,6 +165,7 @@ export class DaemonChatStore implements AgentChatStore {
       id: chat.id,
       title: getChatTitle(chat),
       model: chat.model,
+      modelSettings: chat.modelSettings,
       previousChatId: chat.previousChatId,
       compactedAt: chat.compactedAt,
       vcs: chat.vcs,
@@ -214,6 +219,14 @@ export class DaemonChatStore implements AgentChatStore {
   setModel(chatId: string, model: string): void {
     const chat = this.requireChat(chatId);
     chat.model = model;
+    chat.modelSettings = { ...chat.modelSettings, model };
+    this.touch(chat);
+  }
+
+  setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): void {
+    const chat = this.requireChat(chatId);
+    chat.modelSettings = normalizeModelSettings({ ...chat.modelSettings, ...settings }, chat.modelSettings);
+    chat.model = chat.modelSettings.model;
     this.touch(chat);
   }
 
@@ -345,6 +358,7 @@ function toExtensionChat(chat: DaemonChat, fallbackVcs?: Chat['vcs']): Chat {
     id: chat.id,
     title: chat.title,
     model: chat.model,
+    modelSettings: normalizeModelSettings(chat.modelSettings, createDefaultModelSettings(chat.model)),
     previousChatId: chat.previousChatId || undefined,
     compactedAt: chat.compactedAt || undefined,
     vcs: chat.vcs || fallbackVcs,
@@ -362,6 +376,43 @@ function toExtensionChat(chat: DaemonChat, fallbackVcs?: Chat['vcs']): Chat {
     usage: normalizeUsage(chat.usage),
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt
+  };
+}
+
+function createDefaultModelSettings(model: string): ChatModelSettings {
+  return {
+    model,
+    reasoningEffort: 'auto',
+    codexServiceTier: 'auto',
+    maxToolIterations: 0,
+    editorContextMode: 'auto',
+    streamingEnabled: false
+  };
+}
+
+function normalizeInitialModelSettings(settings: string | ChatModelSettings): ChatModelSettings {
+  return typeof settings === 'string'
+    ? createDefaultModelSettings(settings)
+    : normalizeModelSettings(settings, createDefaultModelSettings(settings.model || DEFAULT_MODEL));
+}
+
+function normalizeModelSettings(value: unknown, fallback: ChatModelSettings): ChatModelSettings {
+  const settings = value && typeof value === 'object' ? (value as Partial<ChatModelSettings>) : {};
+  return {
+    model: typeof settings.model === 'string' && settings.model.trim() ? settings.model : fallback.model,
+    reasoningEffort:
+      settings.reasoningEffort === 'low' || settings.reasoningEffort === 'medium' || settings.reasoningEffort === 'high'
+        ? settings.reasoningEffort
+        : 'auto',
+    codexServiceTier: settings.codexServiceTier === 'priority' ? 'priority' : 'auto',
+    maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
+    editorContextMode:
+      settings.editorContextMode === 'selection' ||
+      settings.editorContextMode === 'file' ||
+      settings.editorContextMode === 'off'
+        ? settings.editorContextMode
+        : 'auto',
+    streamingEnabled: settings.streamingEnabled === true
   };
 }
 
@@ -393,6 +444,7 @@ function cloneChat(chat: Chat): Chat {
     ...chat,
     messages: chat.messages.map((message) => ({ ...message })),
     history: chat.history.map((message) => ({ ...message })),
+    modelSettings: { ...chat.modelSettings },
     usage: { ...chat.usage },
     activePlan: chat.activePlan ? JSON.parse(JSON.stringify(chat.activePlan)) : undefined,
     reflectionCandidates: chat.reflectionCandidates

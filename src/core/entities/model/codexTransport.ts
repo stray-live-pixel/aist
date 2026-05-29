@@ -15,6 +15,7 @@ import {
   type FetchLike,
   type ModelCatalogClient,
   type ModelClient,
+  type ModelRequestOptions,
   type ModelTransportLogger,
   resolveFetch
 } from './modelTransport';
@@ -128,8 +129,9 @@ export class CodexResponsesTransport implements ModelClient, ModelCatalogClient 
     signal?: AbortSignal,
     stream?: ModelStreamCallbacks,
     lifecycle?: ModelRequestLifecycleCallbacks,
-    codexServiceTier: CodexServiceTier = this.options.serviceTier || 'auto'
+    requestOptions?: ModelRequestOptions
   ): Promise<OpenRouterMessage> {
+    const codexServiceTier = requestOptions?.codexServiceTier || this.options.serviceTier || 'auto';
     const auth = await this.options.tokenProvider.getToken();
     const model = stripCodexPrefix(modelOverride || this.defaultModel);
     const payload = toCodexPayload(messages);

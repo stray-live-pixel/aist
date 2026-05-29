@@ -16,6 +16,8 @@ exports[`system prompt declarative instructions > snapshots declarative project 
 - Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.
 - Every tool call must include a concise nextStep: how you will use the result and what you will do next.
 - Use grep_search for symbols, strings, or related files across the workspace.
+- Prefer read_file for first-pass file context; use read_file_range only for known lines, large files, or clearly sufficient small fragments.
+- Do not explore unfamiliar files by chaining read_file_range calls; switch to read_file, grep_search, or an outline/map.
 - Use run_bash_script freely for project commands, tests, builds, diagnostics, and git-safe inspection; keep scripts focused and workspace-relative.
 - For workspace mutations, prefer previewable file-edit tools; if shell is the better mutation path, say why standard edit tools are not suitable.
 - Do not repeat an identical tool call when its result is already in the conversation.

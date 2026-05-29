@@ -19,6 +19,7 @@ import type {
   ChatContextEstimate,
   ChatMessage,
   ChatModelRequestStatus,
+  ChatModelSettings,
   ChatPlan,
   ChatSummary,
   ChatUsageEstimate,
@@ -41,6 +42,7 @@ export type CreateChatInput = {
   id?: string;
   title?: string;
   model: string;
+  modelSettings?: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
   vcs?: ChatVcsState;
@@ -52,7 +54,7 @@ export type CreateChatInput = {
 };
 
 export type ChatMetadataPatch = Partial<
-  Pick<Chat, 'title' | 'model' | 'previousChatId' | 'compactedAt' | 'vcs' | 'lastAnswer' | 'usage'>
+  Pick<Chat, 'title' | 'model' | 'modelSettings' | 'previousChatId' | 'compactedAt' | 'vcs' | 'lastAnswer' | 'usage'>
 >;
 
 export type ChatStatePatch = Partial<
@@ -76,6 +78,7 @@ type StoredChatMeta = {
   id: string;
   title: string;
   model: string;
+  modelSettings?: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
   vcs?: ChatVcsState;
@@ -141,6 +144,7 @@ export class ChatRepository {
       id: chatId,
       title: input.title || DEFAULT_TITLE,
       model: input.model,
+      modelSettings: normalizeModelSettings(input.modelSettings, input.model),
       previousChatId: input.previousChatId,
       compactedAt: input.compactedAt,
       vcs: input.vcs,
@@ -415,6 +419,7 @@ export class ChatRepository {
       id: normalizedMeta.id,
       title: normalizedMeta.title,
       model: normalizedMeta.model,
+      modelSettings: normalizedMeta.modelSettings || normalizeModelSettings(undefined, normalizedMeta.model),
       previousChatId: normalizedMeta.previousChatId,
       compactedAt: normalizedMeta.compactedAt,
       vcs: normalizedMeta.vcs,
@@ -550,6 +555,7 @@ function normalizeMeta(meta: StoredChatMeta): StoredChatMeta {
     id: assertRepositoryId(meta.id, 'chat'),
     title: typeof meta.title === 'string' && meta.title.trim() ? meta.title : DEFAULT_TITLE,
     model: typeof meta.model === 'string' && meta.model.trim() ? meta.model : 'unknown',
+    modelSettings: normalizeModelSettings(meta.modelSettings, meta.model),
     previousChatId: meta.previousChatId,
     compactedAt: meta.compactedAt,
     vcs: normalizeVcsState(meta.vcs),
@@ -572,6 +578,35 @@ function normalizeState(state: Partial<StoredChatState> | ChatStatePatch | undef
     activePlan: state?.activePlan,
     reflectionCandidates: state?.reflectionCandidates
   });
+}
+
+function normalizeModelSettings(value: unknown, fallbackModel: string): ChatModelSettings {
+  const settings = value && typeof value === 'object' ? (value as Partial<ChatModelSettings>) : {};
+  const model = typeof settings.model === 'string' && settings.model.trim() ? settings.model : fallbackModel;
+  const reasoningEffort: ChatModelSettings['reasoningEffort'] =
+    settings.reasoningEffort === 'low' ||
+    settings.reasoningEffort === 'medium' ||
+    settings.reasoningEffort === 'high' ||
+    settings.reasoningEffort === 'auto'
+      ? settings.reasoningEffort
+      : 'auto';
+  const codexServiceTier: ChatModelSettings['codexServiceTier'] =
+    settings.codexServiceTier === 'priority' ? 'priority' : 'auto';
+  const editorContextMode: ChatModelSettings['editorContextMode'] =
+    settings.editorContextMode === 'selection' ||
+    settings.editorContextMode === 'file' ||
+    settings.editorContextMode === 'off' ||
+    settings.editorContextMode === 'auto'
+      ? settings.editorContextMode
+      : 'auto';
+  return {
+    model: typeof model === 'string' && model.trim() ? model : 'unknown',
+    reasoningEffort,
+    codexServiceTier,
+    maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
+    editorContextMode,
+    streamingEnabled: settings.streamingEnabled === true
+  };
 }
 
 function normalizeVcsState(value: unknown): ChatVcsState | undefined {
@@ -610,6 +645,7 @@ function toSummary(chat: Chat): ChatSummary {
     id: chat.id,
     title: getChatTitle(chat),
     model: chat.model,
+    modelSettings: chat.modelSettings,
     previousChatId: chat.previousChatId,
     compactedAt: chat.compactedAt,
     vcs: chat.vcs,

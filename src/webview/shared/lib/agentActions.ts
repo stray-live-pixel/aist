@@ -9,6 +9,7 @@ import type {
   AuxiliaryModelId,
   AuxiliaryModelSettings,
   AuxiliaryToolModelOverride,
+  ChatModelSettings,
   CodexServiceTier,
   CompactionSettings,
   ComposerUiSettings,
@@ -79,6 +80,18 @@ export const agentActions = {
 
   setModel(model: string): void {
     post({ type: 'setModel', model });
+  },
+
+  setDefaultModel(model: string): void {
+    post({ type: 'setDefaultModel', model });
+  },
+
+  setChatModelSettings(settings: Partial<ChatModelSettings>): void {
+    post({ type: 'setChatModelSettings', settings });
+  },
+
+  resetChatModelSettings(): void {
+    post({ type: 'resetChatModelSettings' });
   },
 
   refreshModelsForProvider(provider: ModelProvider): void {

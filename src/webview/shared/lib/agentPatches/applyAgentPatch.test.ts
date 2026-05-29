@@ -49,6 +49,17 @@ describe('applyAgentPatch', () => {
   });
 });
 
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
+  };
+}
+
 function createState(): AgentState {
   return {
     viewKind: 'sidebar',
@@ -60,6 +71,7 @@ function createState(): AgentState {
         id: 'chat-1',
         title: 'Chat',
         model: 'model-a',
+        modelSettings: createModelSettings('model-a'),
         messageCount: 1,
         lastUserMessage: 'Hello',
         busy: true,
@@ -71,6 +83,7 @@ function createState(): AgentState {
       id: 'chat-1',
       title: 'Chat',
       model: 'model-a',
+      modelSettings: createModelSettings('model-a'),
       messages: [{ id: 'message-1', role: 'user', content: 'Hello', createdAt: 1000 }],
       lastAnswer: '',
       busy: true,
@@ -97,6 +110,7 @@ function createState(): AgentState {
         builtIn: true
       }
     ],
+    defaultModelSettings: createModelSettings('model-a'),
     maxToolIterations: 0,
     reasoningEffort: 'auto',
     codexServiceTier: 'auto',

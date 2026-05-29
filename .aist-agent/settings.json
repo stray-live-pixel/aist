@@ -1,8 +1,8 @@
 {
   "activeInstructionRefs": [
     {
-      "scope": "local",
-      "id": "aist-coder"
+      "scope": "global",
+      "id": "правила-разработки"
     }
   ],
   "instructions": [
@@ -22,14 +22,15 @@
       "label": "ai-coder",
       "instructionRefs": [
         {
-          "scope": "local",
-          "id": "aist-coder"
+          "scope": "global",
+          "id": "правила-разработки"
         }
       ],
       "modeRef": {
         "scope": "global",
         "id": "coder"
-      }
+      },
+      "scope": "local"
     }
   ],
   "model": "codex:gpt-5.5",
@@ -95,5 +96,6 @@
       "proxyHost": "",
       "builtIn": true
     }
-  ]
+  ],
+  "activePresetId": "ai-coder"
 }

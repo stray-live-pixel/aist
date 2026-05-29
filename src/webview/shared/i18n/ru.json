@@ -238,6 +238,7 @@
   "settings.modalDescription": "Модель, доступ и рассуждение находятся здесь, чтобы composer оставался сфокусирован на вводе.",
   "settings.requestTitle": "Настройки запроса",
   "settings.requestDescription": "Раньше эти контролы были под prompt. Здесь они меньше шумят визуально, но остаются быстро доступны из строки summary.",
+  "settings.resetChatModelSettings": "Сбросить настройки модели этого чата к дефолтным",
   "settings.streamingTitle": "Streaming",
   "settings.streamingOn": "Live режим включён",
   "settings.streamingOff": "Без streaming",

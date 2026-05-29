@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import type { ChatModelSettings } from '../../chats/types';
 import { DEFAULT_MODEL } from '../../shared/constants';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from './config';
 
@@ -37,5 +38,18 @@ export function getAgentSettingsSnapshot(): {
     editorContextMode: normalizeEditorContextMode(config.get<string>('editorContextMode')),
     // По умолчанию используем non-streaming: он менее интерактивный, но устойчивее к оборванным SSE-соединениям.
     streamingEnabled: config.get<boolean>('streamingEnabled') === true
+  };
+}
+
+/** Возвращает дефолтные настройки модели, которые копируются только в новый чат или при ручном сбросе чата. */
+export function getDefaultModelSettings(): ChatModelSettings {
+  const snapshot = getAgentSettingsSnapshot();
+  return {
+    model: snapshot.configuredModel,
+    reasoningEffort: snapshot.reasoningEffort,
+    codexServiceTier: snapshot.codexServiceTier,
+    maxToolIterations: snapshot.maxToolIterations,
+    editorContextMode: snapshot.editorContextMode,
+    streamingEnabled: snapshot.streamingEnabled
   };
 }

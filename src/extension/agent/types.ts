@@ -2,6 +2,7 @@ import type * as vscode from 'vscode';
 
 import type { AgentRunTelemetryDraft } from '../../core/features/telemetry/telemetry';
 import type {
+  ChatModelSettings,
   CodexServiceTier,
   AgentRun as CoreAgentRun,
   EditorContextMode,
@@ -16,6 +17,7 @@ import type { AgentMemoryScope } from './memory/memory';
 export type {
   AgentActivityStream,
   AgentLoopResult,
+  ChatModelSettings,
   CodexServiceTier,
   EditorContextMode,
   ReasoningEffort,
@@ -48,6 +50,9 @@ export type WebviewMessage =
   | { type: 'openChatInEditor'; chatId?: string }
   | { type: 'openChatJson'; chatId?: string }
   | { type: 'setModel'; model: string }
+  | { type: 'setDefaultModel'; model: string }
+  | { type: 'setChatModelSettings'; settings: Partial<ChatModelSettings> }
+  | { type: 'resetChatModelSettings' }
   | { type: 'refreshModelsForProvider'; provider: 'openrouter' | 'codex' }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: string }

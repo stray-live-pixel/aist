@@ -1517,6 +1517,7 @@ function toChatSummary(chat: Chat): ChatSummary {
     id: chat.id,
     title: getCliChatTitle(chat),
     model: chat.model,
+    modelSettings: chat.modelSettings,
     previousChatId: chat.previousChatId,
     compactedAt: chat.compactedAt,
     messageCount: userAssistantMessages.length,

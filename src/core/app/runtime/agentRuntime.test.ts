@@ -65,7 +65,8 @@ describe('AgentRuntimeService', () => {
       'test-model',
       expect.any(AbortSignal),
       undefined,
-      expect.any(Object)
+      expect.any(Object),
+      { reasoningEffort: 'auto', codexServiceTier: 'auto' }
     );
     expect(harness.chat.history.some((message) => message.role === 'user')).toBe(false);
   });
@@ -403,6 +404,7 @@ function createChat(): Chat {
     id: 'chat-1',
     title: 'Test chat',
     model: 'test-model',
+    modelSettings: createModelSettings('test-model'),
     messages: [],
     history: [],
     lastAnswer: '',
@@ -425,5 +427,16 @@ function createToolCall(name: string, args: Record<string, unknown>, id = `call-
         ...args
       }
     }
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }

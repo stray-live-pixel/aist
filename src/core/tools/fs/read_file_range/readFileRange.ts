@@ -19,11 +19,16 @@ export const readFileRangeToolDefinition: OpenRouterTool = {
   type: 'function',
   function: {
     name: 'read_file_range',
-    description: 'Read a bounded line range from a UTF-8 text file in the workspace.',
+    description:
+      'Read a bounded line range from a UTF-8 workspace file only when exact lines are known, the file is too large to read fully, or a small fragment is certainly sufficient; do not use it for first-pass exploration of unfamiliar files.',
     parameters: {
       type: 'object',
       properties: {
-        reason: { type: 'string', description: 'A short explanation of why this tool call is needed.' },
+        reason: {
+          type: 'string',
+          description:
+            'A short explanation of why this exact line range is enough now, or why reading the full file would be wasteful.'
+        },
         nextStep: {
           type: 'string',
           description: 'A short explanation of how this result will be used and what will be done next.'

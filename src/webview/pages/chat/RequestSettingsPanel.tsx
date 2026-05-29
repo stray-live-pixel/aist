@@ -3,26 +3,35 @@ import { memo, useMemo } from 'react';
 
 import { type TranslationKey, useI18n } from '../../shared/i18n';
 import { agentActions } from '../../shared/lib/agentActions';
-import type { AgentState, EditorContextMode, ModelOption, ReasoningEffort } from '../../shared/types';
+import type {
+  AgentState,
+  ChatModelSettings,
+  EditorContextMode,
+  ModelOption,
+  ReasoningEffort
+} from '../../shared/types';
 import { Card, Select, type SelectCategory, type SelectOption, Switch, Text } from '../../shared/ui';
 import styles from './RequestSettingsPanel.module.scss';
 
 type RequestSettingsPanelProps = {
   state: AgentState;
   compact?: boolean;
+  scope?: 'chat' | 'default';
 };
 
 /**
  * Что это: единая карточка настроек следующего запроса агента.
- * Зачем нужно: composer остаётся визуально лёгким, а модель, доступ, reasoning, контекст и streaming доступны из summary и overview настроек.
+ * Зачем нужно: в chat scope меняет параметры текущего чата, а в default scope — только defaults для новых чатов.
  */
 export const RequestSettingsPanel = memo(function RequestSettingsPanel({
   state,
-  compact = false
+  compact = false,
+  scope = 'chat'
 }: RequestSettingsPanelProps) {
   const { t } = useI18n();
-  const disabled = state.activeChat.busy;
-  const modelOptions = useMemo(() => getModelOptions(state), [state.models, state.activeChat.model]);
+  const disabled = scope === 'chat' && state.activeChat.busy;
+  const settings = scope === 'chat' ? state.activeChat.modelSettings : state.defaultModelSettings;
+  const modelOptions = useMemo(() => getModelOptions(state, settings.model), [state.models, settings.model]);
   const modelCategories = useMemo(
     () => (state.models.length ? getModelCategories(state.models) : undefined),
     [state.models]
@@ -37,6 +46,7 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
     ],
     [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
   );
+  const updateSettings = getSettingsUpdater(scope);
 
   return (
     <Card
@@ -49,9 +59,9 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
         <Select
           label={t('summary.model')}
           leadingIcon={<Cpu size={14} />}
-          value={state.activeChat.model}
+          value={settings.model}
           disabled={disabled}
-          onChange={(event) => agentActions.setModel(event.target.value)}
+          onChange={(event) => updateSettings({ model: event.target.value })}
           options={modelOptions}
           categories={modelCategories}
           searchable
@@ -73,33 +83,33 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
         <Select
           label={t('summary.reasoningEffort')}
           leadingIcon={<Brain size={14} />}
-          value={state.reasoningEffort}
+          value={settings.reasoningEffort}
           disabled={disabled}
-          onChange={(event) => agentActions.setReasoningEffort(event.target.value as ReasoningEffort)}
+          onChange={(event) => updateSettings({ reasoningEffort: event.target.value as ReasoningEffort })}
           options={getReasoningOptions(t)}
           searchable={false}
         />
         <Select
           label={t('settings.editorContextTitle')}
           leadingIcon={<FileText size={14} />}
-          value={state.editorContextMode}
+          value={settings.editorContextMode}
           disabled={disabled}
-          onChange={(event) => agentActions.setEditorContextMode(event.target.value as EditorContextMode)}
+          onChange={(event) => updateSettings({ editorContextMode: event.target.value as EditorContextMode })}
           options={getEditorContextOptions(t)}
           searchable={false}
         />
         <Switch
           className={styles.streamingSwitch}
           label={t('settings.streamingTitle')}
-          description={state.streamingEnabled ? t('settings.streamingOn') : t('settings.streamingDescription')}
-          checked={state.streamingEnabled}
+          description={settings.streamingEnabled ? t('settings.streamingOn') : t('settings.streamingDescription')}
+          checked={settings.streamingEnabled}
           disabled={disabled}
-          onChange={(event) => agentActions.setStreamingEnabled(event.target.checked)}
+          onChange={(event) => updateSettings({ streamingEnabled: event.target.checked })}
         />
         <div className={styles.streamingSummary}>
           <RadioTower size={14} />
           <Text variant="caption">
-            {state.streamingEnabled ? t('settings.streamingOn') : t('settings.streamingOff')}
+            {settings.streamingEnabled ? t('settings.streamingOn') : t('settings.streamingOff')}
           </Text>
         </div>
       </div>
@@ -107,14 +117,29 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
   );
 });
 
-function getModelOptions(state: AgentState): SelectOption[] {
+function getSettingsUpdater(scope: 'chat' | 'default'): (patch: Partial<ChatModelSettings>) => void {
+  if (scope === 'chat') {
+    return (patch) => agentActions.setChatModelSettings(patch);
+  }
+
+  return (patch) => {
+    if (patch.model !== undefined) agentActions.setDefaultModel(patch.model);
+    if (patch.reasoningEffort !== undefined) agentActions.setReasoningEffort(patch.reasoningEffort);
+    if (patch.codexServiceTier !== undefined) agentActions.setCodexServiceTier(patch.codexServiceTier);
+    if (patch.maxToolIterations !== undefined) agentActions.setMaxToolIterations(patch.maxToolIterations);
+    if (patch.editorContextMode !== undefined) agentActions.setEditorContextMode(patch.editorContextMode);
+    if (patch.streamingEnabled !== undefined) agentActions.setStreamingEnabled(patch.streamingEnabled);
+  };
+}
+
+function getModelOptions(state: AgentState, currentModel: string): SelectOption[] {
   return state.models.length
     ? state.models.map((model) => ({
         value: model.id,
         label: `${model.name} (${model.id})`,
         category: model.provider || 'openrouter'
       }))
-    : [{ value: state.activeChat.model, label: state.activeChat.model }];
+    : [{ value: currentModel, label: currentModel }];
 }
 
 function getModelCategories(models: ModelOption[]): SelectCategory[] {

@@ -155,6 +155,7 @@ function createChat(): Chat {
     id: 'chat-1',
     title: 'Telemetry chat',
     model: 'codex:gpt-5.1-codex',
+    modelSettings: createModelSettings('codex:gpt-5.1-codex'),
     messages: [],
     history: [],
     lastAnswer: '',
@@ -162,5 +163,16 @@ function createChat(): Chat {
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     createdAt: 0,
     updatedAt: 0
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }

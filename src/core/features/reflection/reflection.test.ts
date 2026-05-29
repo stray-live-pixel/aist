@@ -160,6 +160,7 @@ function createChat(messages: Array<Partial<Chat['messages'][number]>>): Chat {
     id: 'chat-1',
     title: 'Chat',
     model: 'test-model',
+    modelSettings: createModelSettings('test-model'),
     messages: messages.map((message, index) => ({
       id: `message-${index}`,
       role: 'assistant',
@@ -176,5 +177,16 @@ function createChat(messages: Array<Partial<Chat['messages'][number]>>): Chat {
     },
     createdAt: 0,
     updatedAt: 0
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }

@@ -48,6 +48,7 @@ function createChat(patch: Partial<Chat> = {}): Chat {
     id: 'chat',
     title: 'New chat',
     model: 'model-a',
+    modelSettings: createModelSettings('model-a'),
     messages: [{ id: 'message-1', role: 'user', content: 'Hello', createdAt: 1000 }],
     history: [{ role: 'user', content: 'Hello' }],
     lastAnswer: '',
@@ -56,5 +57,16 @@ function createChat(patch: Partial<Chat> = {}): Chat {
     createdAt: 1000,
     updatedAt: 1000,
     ...patch
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }

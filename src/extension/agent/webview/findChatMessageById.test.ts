@@ -24,6 +24,7 @@ function createChat(): Chat {
     id: 'chat-1',
     title: 'Chat',
     model: 'model-a',
+    modelSettings: createModelSettings('model-a'),
     messages: [
       { id: 'message-1', role: 'user', content: 'Hello', createdAt: 1000 },
       { id: 'tool-message-1', role: 'tool', name: 'run_bash_script', approval: 'pending', createdAt: 1500 }
@@ -34,5 +35,16 @@ function createChat(): Chat {
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     createdAt: 1000,
     updatedAt: 1500
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }

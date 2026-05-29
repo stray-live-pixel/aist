@@ -16,6 +16,7 @@ import type {
   ApprovalPreviewResolution,
   ApprovalResolveRequest,
   ChatMessage,
+  ChatModelSettings,
   ChatSummary,
   ChatVcsState,
   JsonObject,
@@ -98,6 +99,7 @@ export type DaemonInitializeResult = {
 
 export type DaemonChatCreateParams = {
   readonly model?: string;
+  readonly modelSettings?: ChatModelSettings;
 };
 
 export type DaemonChatCreateResult = {
@@ -168,6 +170,16 @@ export type DaemonChatSetModelParams = {
 };
 
 export type DaemonChatSetModelResult = {
+  readonly operationId: string;
+  readonly chat: DaemonChat;
+};
+
+export type DaemonChatSetModelSettingsParams = {
+  readonly chatId: string;
+  readonly settings: Partial<ChatModelSettings>;
+};
+
+export type DaemonChatSetModelSettingsResult = {
   readonly operationId: string;
   readonly chat: DaemonChat;
 };
@@ -376,6 +388,7 @@ export type DaemonChat = {
   readonly id: string;
   readonly title: string;
   readonly model: string;
+  readonly modelSettings: ChatModelSettings;
   readonly previousChatId: string | null;
   readonly compactedAt: number | null;
   readonly vcs?: ChatVcsState;

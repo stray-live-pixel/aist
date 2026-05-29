@@ -17,7 +17,7 @@ import { getDisabledProjectToolIds } from '../tools/permissions';
 import { buildEditSelectionPrompt } from './commands/editSelectionPrompt';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from './commands/openWorkspaceFile';
 import { initializeAgentConfigStore } from './config/agentConfigStore';
-import { getConfiguredModel } from './config/settingsSnapshot';
+import { getConfiguredModel, getDefaultModelSettings } from './config/settingsSnapshot';
 import { buildAgentSystemPrompt } from './config/systemPrompt';
 import { replaceSelection, stripCodeFence } from './context/editorContext';
 import type { VscodeDaemonRuntimeBridge } from './daemon/bridge';
@@ -191,7 +191,7 @@ export class AgentController {
   async createChat(): Promise<void> {
     this.logger.info('newChat command received');
 
-    const chat = await this.daemonRuntime.createChat(getConfiguredModel());
+    const chat = await this.daemonRuntime.createChat(getDefaultModelSettings());
     this.sidebarPage = 'chat';
 
     this.logger.info('Chat created from command', {
@@ -317,7 +317,7 @@ export class AgentController {
         await this.ask(surface.getChatId(), message.prompt, { skipUserMessage: message.continueWithoutUserPrompt });
         return true;
       case 'newChat': {
-        const chat = await this.daemonRuntime.createChat(getConfiguredModel());
+        const chat = await this.daemonRuntime.createChat(getDefaultModelSettings());
         this.sidebarPage = 'chat';
         this.openChatInEditor(chat.id);
         this.sendState();
@@ -332,9 +332,18 @@ export class AgentController {
       case 'setModel': {
         const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
         await this.daemonRuntime.setModel(chat.id, message.model);
-        await vscode.workspace
-          .getConfiguration('openrouterAgent')
-          .update('model', message.model, vscode.ConfigurationTarget.Workspace);
+        this.sendState();
+        return true;
+      }
+      case 'setChatModelSettings': {
+        const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
+        await this.daemonRuntime.setModelSettings(chat.id, message.settings);
+        this.sendState();
+        return true;
+      }
+      case 'resetChatModelSettings': {
+        const chat = this.chats.getChat(surface.getChatId()) || this.chats.getActiveChat();
+        await this.daemonRuntime.setModelSettings(chat.id, getDefaultModelSettings());
         this.sendState();
         return true;
       }

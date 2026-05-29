@@ -66,7 +66,7 @@ describe('CodexResponsesTransport', () => {
       {
         onResponseHeaders: (info) => responseHeaders.push(info)
       },
-      'priority'
+      { codexServiceTier: 'priority' }
     );
 
     expect(response).toMatchObject({

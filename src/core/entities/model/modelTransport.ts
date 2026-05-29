@@ -1,4 +1,5 @@
 import type {
+  ChatModelSettings,
   ModelRequestLifecycleCallbacks,
   ModelStreamCallbacks,
   OpenRouterMessage,
@@ -13,6 +14,8 @@ export type ModelTransportLogger = {
   error?(message: string, error?: unknown): void;
 };
 
+export type ModelRequestOptions = Partial<Pick<ChatModelSettings, 'reasoningEffort' | 'codexServiceTier'>>;
+
 export interface ModelClient {
   chat(
     messages: OpenRouterMessage[],
@@ -20,7 +23,8 @@ export interface ModelClient {
     modelOverride?: string,
     signal?: AbortSignal,
     stream?: ModelStreamCallbacks,
-    lifecycle?: ModelRequestLifecycleCallbacks
+    lifecycle?: ModelRequestLifecycleCallbacks,
+    options?: ModelRequestOptions
   ): Promise<OpenRouterMessage>;
 }
 

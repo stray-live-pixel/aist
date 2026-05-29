@@ -37,7 +37,7 @@ export const OverviewPage = memo(function OverviewPage({
   const { t } = useI18n();
   return (
     <div className={styles.sectionStack}>
-      <RequestSettingsPanel state={state} />
+      <RequestSettingsPanel state={state} scope="default" />
       <Card
         tone="elevated"
         title={t('settings.overview.profileTitle')}

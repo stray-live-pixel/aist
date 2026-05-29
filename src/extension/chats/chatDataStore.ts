@@ -12,7 +12,7 @@ import type {
 
 export type AgentChatStore = {
   onDidChange: vscode.Event<void>;
-  createChat(model?: string): Chat;
+  createChat(settings?: string | Chat['modelSettings']): Chat;
   compactChat(chatId: string, summary: string, tail?: { messages?: ChatMessage[]; history?: Chat['history'] }): Chat;
   duplicateChat(chatId: string): Chat;
   deleteChat(chatId: string, fallbackModel?: string): Chat;
@@ -24,6 +24,7 @@ export type AgentChatStore = {
   updateMessage(chatId: string, messageId: string, patch: Partial<Omit<ChatMessage, 'id' | 'createdAt'>>): ChatMessage;
   clearChat(chatId: string): void;
   setModel(chatId: string, model: string): void;
+  setModelSettings(chatId: string, settings: Partial<Chat['modelSettings']>): void;
   setVcsState(chatId: string, vcs: Chat['vcs']): void;
   setBusy(chatId: string, busy: boolean): void;
   setLastAnswer(chatId: string, answer: string): void;

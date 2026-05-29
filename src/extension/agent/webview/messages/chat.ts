@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { t } from '../../../shared/i18n';
 import { getPromptConfig } from '../../config/agentConfigStore';
 import { getAgentLanguage } from '../../config/settings';
-import { getAgentSettingsSnapshot, getConfiguredModel } from '../../config/settingsSnapshot';
+import { getDefaultModelSettings } from '../../config/settingsSnapshot';
 import { buildAgentSystemPrompt, getAgentInstructionSources } from '../../config/systemPrompt';
 import { governModelContext } from '../../context/contextGovernor';
 import { getEditorContextSnapshot } from '../../context/editorContext';
@@ -21,6 +21,8 @@ type ChatMessage = Extract<
   | { type: 'openChatJson' }
   | { type: 'compactChat' }
   | { type: 'setModel' }
+  | { type: 'setChatModelSettings' }
+  | { type: 'resetChatModelSettings' }
   | { type: 'clear' }
   | { type: 'copyMessage' }
 >;
@@ -36,6 +38,8 @@ export function isChatMessage(message: WebviewMessage): message is ChatMessage {
     'openChatJson',
     'compactChat',
     'setModel',
+    'setChatModelSettings',
+    'resetChatModelSettings',
     'clear',
     'copyMessage'
   ].includes(message.type);
@@ -80,6 +84,12 @@ export async function handleWebviewChatMessage(
       return;
     case 'setModel':
       await setModel(surface, message.model, deps);
+      return;
+    case 'setChatModelSettings':
+      setChatModelSettings(surface, message.settings, deps);
+      return;
+    case 'resetChatModelSettings':
+      setChatModelSettings(surface, getDefaultModelSettings(), deps);
       return;
     case 'clear':
       clearChat(surface, deps);
@@ -133,7 +143,6 @@ function buildChatJsonExport(
     history: chat.history,
     editorContext: getEditorContextSnapshot()
   });
-  const settings = getAgentSettingsSnapshot();
   const promptConfig = getPromptConfig();
   const nextUserPromptPlaceholder = '<next user prompt will be inserted here>';
   const messagesSentToModel = [{ role: 'system' as const, content: systemPrompt }, ...governedContext.messages];
@@ -151,9 +160,9 @@ function buildChatJsonExport(
     nextPromptContext: {
       model: chat.model,
       language: getAgentLanguage(),
-      reasoningEffort: settings.reasoningEffort,
-      codexServiceTier: settings.codexServiceTier,
-      maxToolIterations: settings.maxToolIterations,
+      reasoningEffort: chat.modelSettings.reasoningEffort,
+      codexServiceTier: chat.modelSettings.codexServiceTier,
+      maxToolIterations: chat.modelSettings.maxToolIterations,
       systemPrompt,
       instructionSources: getAgentInstructionSources(),
       promptConfig: {
@@ -177,7 +186,7 @@ function buildChatJsonExport(
 }
 
 function createChatFromWebview(surface: WebviewSurface, deps: AgentWebviewMessageDeps): void {
-  const chat = deps.chats.createChat(getConfiguredModel());
+  const chat = deps.chats.createChat(getDefaultModelSettings());
   surface.setChatId(chat.id);
   if (surface.kind === 'sidebar') {
     deps.setSidebarPage('chat');
@@ -256,7 +265,7 @@ function deleteChat(surface: WebviewSurface, chatId: string, deps: AgentWebviewM
     return;
   }
 
-  const nextChat = deps.chats.deleteChat(chatId, getConfiguredModel());
+  const nextChat = deps.chats.deleteChat(chatId, getDefaultModelSettings().model);
   deps.retargetDeletedChat(chatId, nextChat.id);
   deps.logger.info('Chat deleted from webview', {
     surfaceId: surface.id,
@@ -281,9 +290,16 @@ function setActiveChat(surface: WebviewSurface, chatId: string, deps: AgentWebvi
 async function setModel(surface: WebviewSurface, model: string, deps: AgentWebviewMessageDeps): Promise<void> {
   const chat = deps.chats.getChat(surface.getChatId()) || deps.chats.getActiveChat();
   deps.chats.setModel(chat.id, model);
-  await vscode.workspace
-    .getConfiguration('openrouterAgent')
-    .update('model', model, vscode.ConfigurationTarget.Workspace);
+  deps.sendState();
+}
+
+function setChatModelSettings(
+  surface: WebviewSurface,
+  settings: Partial<ReturnType<typeof getDefaultModelSettings>>,
+  deps: AgentWebviewMessageDeps
+): void {
+  const chat = deps.chats.getChat(surface.getChatId()) || deps.chats.getActiveChat();
+  deps.chats.setModelSettings(chat.id, settings);
   deps.sendState();
 }
 

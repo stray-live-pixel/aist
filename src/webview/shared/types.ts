@@ -33,10 +33,20 @@ export type ChatVcsState = {
   isolated: boolean;
 };
 
+export type ChatModelSettings = {
+  model: string;
+  reasoningEffort: ReasoningEffort;
+  codexServiceTier: CodexServiceTier;
+  maxToolIterations: number;
+  editorContextMode: EditorContextMode;
+  streamingEnabled: boolean;
+};
+
 export type ChatSummary = {
   id: string;
   title: string;
   model: string;
+  modelSettings: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
   vcs?: ChatVcsState;
@@ -111,6 +121,7 @@ export type Chat = {
   id: string;
   title: string;
   model: string;
+  modelSettings: ChatModelSettings;
   previousChatId?: string;
   compactedAt?: number;
   vcs?: ChatVcsState;
@@ -519,6 +530,7 @@ export type AgentState = {
   activeChat: Chat;
   models: ModelOption[];
   providerProfiles: ProviderProfile[];
+  defaultModelSettings: ChatModelSettings;
   maxToolIterations: number;
   reasoningEffort: ReasoningEffort;
   /** Управляет ChatGPT Codex service_tier; auto не отправляет поле, priority просит ускоренную обработку. */
@@ -597,6 +609,9 @@ export type WebviewToExtensionMessage =
   | { type: 'openChatInEditor'; chatId?: string }
   | { type: 'openChatJson'; chatId?: string }
   | { type: 'setModel'; model: string }
+  | { type: 'setDefaultModel'; model: string }
+  | { type: 'setChatModelSettings'; settings: Partial<ChatModelSettings> }
+  | { type: 'resetChatModelSettings' }
   | { type: 'refreshModelsForProvider'; provider: 'openrouter' | 'codex' }
   | { type: 'setToolPermission'; toolName: string; permission: ToolPermissionMode }
   | { type: 'setToolPermissionPreset'; presetId: ToolPermissionPresetId }

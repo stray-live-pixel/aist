@@ -425,7 +425,7 @@ export class AgentRuntimeService {
     const governedHistory = governModelContext({
       prompt,
       history: chat.history,
-      editorContext,
+      editorContext: applyChatEditorContextMode(editorContext, chat.modelSettings.editorContextMode),
       repoContextNote,
       memoryContextBlock,
       budgets: config.contextBudgets
@@ -491,7 +491,7 @@ export class AgentRuntimeService {
     run: AgentRun<unknown>,
     requestAttempt: number
   ): Promise<AgentLoopResult> {
-    const config = await this.getConfig();
+    const config = withChatModelSettings(await this.getConfig(), chat.modelSettings);
     const systemPrompt = await this.deps.promptProvider.getSystemPrompt();
     const workingMessages = createWorkingMessages(systemPrompt, initialHistory);
     this.deps.telemetry?.recordContextBytes?.(run.telemetry, getContextBytes(workingMessages));
@@ -660,7 +660,11 @@ export class AgentRuntimeService {
         params.chat.model,
         params.run.abortController.signal,
         streamCallbacks,
-        lifecycle
+        lifecycle,
+        {
+          reasoningEffort: params.chat.modelSettings.reasoningEffort,
+          codexServiceTier: params.chat.modelSettings.codexServiceTier
+        }
       );
       const finishedAt = this.now();
       await this.updateModelRequest(params.runId, params.chat.id, {
@@ -1129,6 +1133,24 @@ function scheduleRunExecution(task: () => Promise<void>): Promise<void> {
       void task().then(resolve, reject);
     }, 0);
   });
+}
+
+function withChatModelSettings(
+  config: AgentRuntimeConfigSnapshot,
+  settings: Chat['modelSettings']
+): AgentRuntimeConfigSnapshot {
+  return {
+    ...config,
+    maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
+    streamingEnabled: settings.streamingEnabled === true
+  };
+}
+
+function applyChatEditorContextMode(
+  editorContext: EditorContextInput | null | undefined,
+  mode: Chat['modelSettings']['editorContextMode']
+): EditorContextInput | null | undefined {
+  return editorContext ? { ...editorContext, mode } : editorContext;
 }
 
 function getContextBytes(messages: OpenRouterMessage[]): number {

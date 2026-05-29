@@ -17,7 +17,8 @@ export const readFileToolDefinition: OpenRouterTool = {
   type: 'function',
   function: {
     name: 'read_file',
-    description: 'Read a UTF-8 text file from the workspace.',
+    description:
+      'Read a UTF-8 text file from the workspace; prefer this for first-pass understanding of relevant small or medium files before using narrower range reads.',
     parameters: {
       type: 'object',
       properties: {

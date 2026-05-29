@@ -340,6 +340,7 @@ function createChat(): Chat {
     id: 'chat-1',
     title: 'Test chat',
     model: 'test-model',
+    modelSettings: createModelSettings('test-model'),
     messages: [],
     history: [],
     lastAnswer: '',
@@ -419,4 +420,15 @@ output_mode: json
 `,
     'utf8'
   );
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
+  };
 }

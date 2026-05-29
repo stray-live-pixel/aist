@@ -33,6 +33,7 @@ import type { AgentWebviewMessageDeps } from './types';
 
 type SettingsMessage = Extract<
   WebviewMessage,
+  | { type: 'setDefaultModel' }
   | { type: 'setMaxToolIterations' }
   | { type: 'setReasoningEffort' }
   | { type: 'setCodexServiceTier' }
@@ -68,6 +69,7 @@ type SettingsMessage = Extract<
 
 export function isSettingsMessage(message: WebviewMessage): message is SettingsMessage {
   return [
+    'setDefaultModel',
     'setMaxToolIterations',
     'setReasoningEffort',
     'setCodexServiceTier',
@@ -114,6 +116,10 @@ export async function handleWebviewSettingsMessage(
   deps: AgentWebviewMessageDeps
 ): Promise<void> {
   switch (message.type) {
+    case 'setDefaultModel':
+      await updateWorkspaceSetting('model', message.model);
+      deps.sendState();
+      return;
     case 'setMaxToolIterations':
       await updateWorkspaceSetting(
         'maxToolIterations',

@@ -7,6 +7,7 @@ export type {
   ChatMessage,
   ChatMessageRole,
   ChatMessageUsageEstimate,
+  ChatModelSettings,
   ChatModelRequestPhase,
   ChatModelRequestStatus,
   ChatPlan,

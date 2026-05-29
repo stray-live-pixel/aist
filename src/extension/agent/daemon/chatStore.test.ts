@@ -82,6 +82,7 @@ function createDaemonChat(patch: Partial<DaemonChat>): DaemonChat {
     id: 'chat-1',
     title: 'New chat',
     model: 'fake-model',
+    modelSettings: createModelSettings('fake-model'),
     previousChatId: null,
     compactedAt: null,
     messages: [
@@ -114,5 +115,16 @@ function createDaemonChat(patch: Partial<DaemonChat>): DaemonChat {
     createdAt: 1,
     updatedAt: 2,
     ...patch
+  };
+}
+
+function createModelSettings(model: string) {
+  return {
+    model,
+    reasoningEffort: 'auto' as const,
+    codexServiceTier: 'auto' as const,
+    maxToolIterations: 0,
+    editorContextMode: 'auto' as const,
+    streamingEnabled: false
   };
 }

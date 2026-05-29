@@ -57,7 +57,9 @@ import {
 import { getRepoVerificationContextNote } from '../core/shared/lib/repoMap';
 import type {
   Chat,
+  ChatModelSettings,
   CodexServiceTier,
+  EditorContextMode,
   JsonObject,
   JsonValue,
   ModelProvider,
@@ -88,6 +90,7 @@ import {
   type DaemonChatGetResult,
   type DaemonChatListResult,
   type DaemonChatSetModelResult,
+  type DaemonChatSetModelSettingsResult,
   type DaemonChatStopResult,
   type DaemonClientCapabilities,
   type DaemonClientCapabilitiesResult,
@@ -382,6 +385,8 @@ export class AistDaemonServer {
         return this.chatClear(params);
       case 'chat.setModel':
         return this.chatSetModel(params);
+      case 'chat.setModelSettings':
+        return this.chatSetModelSettings(params);
       case 'chat.compact':
         return this.chatCompact(params);
       case 'approval.resolve':
@@ -452,8 +457,10 @@ export class AistDaemonServer {
 
   private async chatCreate(params: unknown): Promise<DaemonChatCreateResult> {
     const input = asOptionalRecord(params);
-    const model = optionalString(input, 'model') || (await this.resolveChatModel());
-    const chat = await this.chatRepository.create({ model });
+    const fallbackSettings = await this.getDefaultChatModelSettings();
+    const model = optionalString(input, 'model') || fallbackSettings.model;
+    const modelSettings = normalizeChatModelSettings(input.modelSettings, { ...fallbackSettings, model });
+    const chat = await this.chatRepository.create({ model: modelSettings.model, modelSettings });
     await this.broadcastStateChanged('chat.create');
     return {
       operationId: this.idFactory(),
@@ -575,8 +582,27 @@ export class AistDaemonServer {
       throw this.createBusyError();
     }
 
-    const updated = await this.chatRepository.update(chat.id, { model });
+    const modelSettings = normalizeChatModelSettings({ ...chat.modelSettings, model }, chat.modelSettings);
+    const updated = await this.chatRepository.update(chat.id, { model, modelSettings });
     await this.broadcastStateChanged('chat.setModel');
+    return {
+      operationId: this.idFactory(),
+      chat: toDaemonChat(updated)
+    };
+  }
+
+  private async chatSetModelSettings(params: unknown): Promise<DaemonChatSetModelSettingsResult> {
+    const input = requireRecord(params, 'chat.setModelSettings params');
+    const chatId = requireString(input, 'chatId');
+    const settingsInput = asOptionalRecord(input.settings);
+    const chat = await this.requireChat(chatId);
+    if (chat.busy || this.activeRunsByChat.has(chat.id)) {
+      throw this.createBusyError();
+    }
+
+    const modelSettings = normalizeChatModelSettings({ ...chat.modelSettings, ...settingsInput }, chat.modelSettings);
+    const updated = await this.chatRepository.update(chat.id, { model: modelSettings.model, modelSettings });
+    await this.broadcastStateChanged('chat.setModelSettings');
     return {
       operationId: this.idFactory(),
       chat: toDaemonChat(updated)
@@ -618,6 +644,7 @@ export class AistDaemonServer {
       const compacted = await this.chatRepository.create({
         title: `${chat.title} compacted`,
         model: chat.model,
+        modelSettings: chat.modelSettings,
         previousChatId: chat.id,
         compactedAt,
         lastAnswer: summary,
@@ -1043,6 +1070,20 @@ export class AistDaemonServer {
     return typeof configuredModel === 'string' && configuredModel.trim() ? configuredModel : DEFAULT_MODEL;
   }
 
+  private async getDefaultChatModelSettings(): Promise<ChatModelSettings> {
+    return {
+      model: await this.resolveChatModel(),
+      reasoningEffort: await this.getReasoningEffort(),
+      codexServiceTier: await this.getCodexServiceTier(),
+      maxToolIterations: Math.max(
+        0,
+        Math.floor(await this.getNumberSetting(['openrouterAgent.maxToolIterations', 'maxToolIterations'], 0))
+      ),
+      editorContextMode: await this.getEditorContextMode(),
+      streamingEnabled: await this.getBooleanSetting(['openrouterAgent.streamingEnabled', 'streamingEnabled'], false)
+    };
+  }
+
   private async createCompactionSummary(
     chat: Chat,
     providedSummary: string | undefined,
@@ -1076,10 +1117,10 @@ export class AistDaemonServer {
 
   private createRoutingModelClient(): ModelClient {
     return {
-      chat: async (messages, tools, modelOverride, signal, stream, lifecycle) => {
+      chat: async (messages, tools, modelOverride, signal, stream, lifecycle, requestOptions) => {
         const model = modelOverride || DEFAULT_MODEL;
-        const client = await this.createModelClientForModel(model);
-        return client.chat(messages, tools, model, signal, stream, lifecycle);
+        const client = await this.createModelClientForModel(model, requestOptions?.reasoningEffort);
+        return client.chat(messages, tools, model, signal, stream, lifecycle, requestOptions);
       }
     };
   }
@@ -1288,6 +1329,11 @@ export class AistDaemonServer {
   private async getCodexServiceTier(): Promise<CodexServiceTier> {
     const value = await this.getStringSetting(['openrouterAgent.codexServiceTier', 'codexServiceTier']);
     return value === 'priority' ? 'priority' : 'auto';
+  }
+
+  private async getEditorContextMode(): Promise<EditorContextMode> {
+    const value = await this.getStringSetting(['openrouterAgent.editorContextMode', 'editorContextMode']);
+    return value === 'selection' || value === 'file' || value === 'off' ? value : 'auto';
   }
 
   private async getProviderProfile(provider: ModelProvider): Promise<ProviderProfile> {
@@ -1734,6 +1780,29 @@ function normalizeDaemonSkill(value: unknown): AgentSkill | undefined {
   };
 }
 
+function normalizeChatModelSettings(value: unknown, fallback: ChatModelSettings): ChatModelSettings {
+  const record = value && typeof value === 'object' ? (value as Partial<ChatModelSettings>) : {};
+  const reasoningEffort: ReasoningEffort =
+    record.reasoningEffort === 'low' || record.reasoningEffort === 'medium' || record.reasoningEffort === 'high'
+      ? record.reasoningEffort
+      : 'auto';
+  const codexServiceTier: CodexServiceTier = record.codexServiceTier === 'priority' ? 'priority' : 'auto';
+  const editorContextMode: EditorContextMode =
+    record.editorContextMode === 'selection' ||
+    record.editorContextMode === 'file' ||
+    record.editorContextMode === 'off'
+      ? record.editorContextMode
+      : 'auto';
+  return {
+    model: typeof record.model === 'string' && record.model.trim() ? record.model : fallback.model,
+    reasoningEffort,
+    codexServiceTier,
+    maxToolIterations: Math.max(0, Math.floor(Number(record.maxToolIterations) || 0)),
+    editorContextMode,
+    streamingEnabled: record.streamingEnabled === true
+  };
+}
+
 function fallbackModels(provider: ModelProvider): {
   readonly fallback: true;
   readonly models: readonly OpenRouterModelOption[];
@@ -1758,6 +1827,7 @@ function toDaemonChat(chat: Chat): DaemonChat {
     id: chat.id,
     title: chat.title,
     model: chat.model,
+    modelSettings: chat.modelSettings,
     previousChatId: chat.previousChatId ?? null,
     compactedAt: chat.compactedAt ?? null,
     messages: chat.messages,

@@ -2,7 +2,7 @@
   "name": "aist",
   "displayName": "aist",
   "description": "Minimal VS Code coding agent powered by OpenRouter or ChatGPT Codex.",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "publisher": "local",
   "repository": {
     "type": "git",

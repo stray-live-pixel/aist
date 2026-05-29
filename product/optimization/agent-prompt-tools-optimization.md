@@ -360,7 +360,7 @@ Default permission: `auto`.
 Пример:
 
 ```text
-read_file: Read a UTF-8 workspace file. Use read_file_range when only specific lines are needed.
+read_file: Read a UTF-8 workspace file. Prefer it for first-pass understanding of relevant small/medium files; use read_file_range only when exact lines are known and a small fragment is enough.
 replace_in_file: Replace exact text in one file. Prefer small replacements; use apply_patch for multi-location edits.
 run_bash_script: Run a focused Bash command for tests, builds, diagnostics, or repo inspection. Do not use it for edits when file-edit tools can do the change.
 ```
