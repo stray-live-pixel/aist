@@ -1,6 +1,7 @@
 import path from 'node:path';
 import * as vscode from 'vscode';
 
+import type { DaemonEvent } from '../../cli/daemonProtocol';
 import { FileSecretStore, OPENROUTER_API_KEY_SECRET_KEY } from '../../core/app/config/config';
 import { CodexAuthSessionProvider } from '../../core/entities/model/codexAuth';
 import { FALLBACK_MODEL_OPTIONS } from '../../core/entities/model/modelDefaults';
@@ -30,6 +31,7 @@ import {
   openAgentChatEditor,
   resolveAgentSidebarWebview
 } from './webview/host';
+import { mapDaemonEventToChatPatch } from './webview/mapDaemonEventToChatPatch';
 import { handleAgentWebviewMessage } from './webview/messages';
 import { postWebviewPage } from './webview/page';
 import { sendAgentState } from './webview/statePresenter';
@@ -51,6 +53,7 @@ export class AgentController {
   private modelOptions: OpenRouterModelOption[] = [...FALLBACK_MODEL_OPTIONS];
   private codexAuthenticated = false;
   private readonly chatVcs: ChatVcsService;
+  private suppressedChatStoreStateBroadcasts = 0;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -67,7 +70,8 @@ export class AgentController {
       logger: { warn: (message, details) => this.logger.info(message, details) }
     });
     this.codexAuthProvider = new CodexAuthSessionProvider(this.secretStore, { logger });
-    this.context.subscriptions.push(this.chats.onDidChange(() => this.sendState()));
+    this.context.subscriptions.push(this.chats.onDidChange(() => this.handleChatStoreChange()));
+    this.context.subscriptions.push({ dispose: this.daemonRuntime.onEvent((event) => this.postChatPatch(event)) });
 
     void this.syncLegacyOpenRouterApiKey().catch((error) =>
       this.logger.error('Failed to sync legacy VS Code OpenRouter API key setting', error)
@@ -237,7 +241,6 @@ export class AgentController {
   private async ask(chatId: string, prompt: string, options: { skipUserMessage?: boolean } = {}): Promise<void> {
     await this.syncLegacyOpenRouterApiKey();
     await this.daemonRuntime.ask(chatId, prompt, options);
-    this.sendState();
   }
 
   private async applyDaemonEditSelection(editor: vscode.TextEditor, instruction: string): Promise<void> {
@@ -413,6 +416,44 @@ export class AgentController {
   reportError(error: unknown, options: { context?: string } = {}): void {
     this.postErrorModal(formatChatErrorMessage(error, options.context));
     this.sendState();
+  }
+
+  private handleChatStoreChange(): void {
+    queueMicrotask(() => {
+      if (this.suppressedChatStoreStateBroadcasts > 0) {
+        this.suppressedChatStoreStateBroadcasts -= 1;
+        this.logger.info('Full state broadcast skipped because chat.patch will cover this backend update');
+        return;
+      }
+
+      this.sendState();
+    });
+  }
+
+  private postChatPatch(event: DaemonEvent): void {
+    const patch = mapDaemonEventToChatPatch(event, this.chats);
+    if (!patch) {
+      return;
+    }
+
+    this.suppressedChatStoreStateBroadcasts += 1;
+
+    for (const surface of this.getSurfaces()) {
+      void surface.webview.postMessage(patch).then(
+        (delivered) => {
+          this.logger.info('Chat patch posted to webview', {
+            surfaceId: surface.id,
+            kind: surface.kind,
+            chatId: patch.chatId,
+            reason: patch.reason,
+            delivered
+          });
+        },
+        (error) => {
+          this.logger.error('Failed to post chat patch to webview', error);
+        }
+      );
+    }
   }
 
   private postErrorModal(message: string): void {

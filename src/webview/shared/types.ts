@@ -531,10 +531,40 @@ export type AgentState = {
   projectToolDiagnostics: ProjectToolDiagnostic[];
 };
 
+export type ChatPatchMessage = {
+  type: 'chat.patch';
+  /** Идентификатор чата, к которому относится подтверждённое backend-изменение. */
+  chatId: string;
+  /** Новое или обновлённое сообщение; отсутствует для чистых статусных изменений. */
+  message?: ChatMessage;
+  /** Небольшой patch активного чата, который нужен UI без пересылки полной истории. */
+  chat?: Partial<
+    Pick<
+      Chat,
+      | 'busy'
+      | 'activity'
+      | 'activityDetail'
+      | 'modelRequest'
+      | 'lastAnswer'
+      | 'usage'
+      | 'context'
+      | 'contextLength'
+      | 'activePlan'
+      | 'reflectionCandidates'
+      | 'updatedAt'
+    >
+  >;
+  /** Summary нужен списку чатов, чтобы title/count/busy оставались консистентными с backend. */
+  summary?: ChatSummary;
+  /** Причина полезна для диагностики транспорта и безопасного fallback на full snapshot. */
+  reason?: string;
+};
+
 export type ExtensionToWebviewMessage =
   | ({
       type: 'state';
     } & AgentState)
+  | ChatPatchMessage
   | { type: 'page'; page: 'chat' | 'settings' | 'autonomous' }
   | { type: 'showChats' }
   | { type: 'errorModal'; message: string }
