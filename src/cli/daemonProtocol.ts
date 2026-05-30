@@ -3,7 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ConfigScope } from '../core/app/config/config';
-import type { EditorContextInput } from '../core/features/context/contextGovernor';
 import type {
   AutonomousBackendEvent,
   AutonomousExportFormat,
@@ -12,6 +11,7 @@ import type {
   AutonomousState,
   AutonomousStopResult
 } from '../core/processes/autonomous';
+import type { EditorContextInput } from '../core/shared/types/types';
 import type {
   ApprovalPreviewResolution,
   ApprovalResolveRequest,

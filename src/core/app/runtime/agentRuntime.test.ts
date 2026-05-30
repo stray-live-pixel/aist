@@ -44,6 +44,33 @@ describe('AgentRuntimeService', () => {
     expect(harness.events.at(-1)).toMatchObject({ type: 'run.finished', status: 'completed', answer: 'Done.' });
   });
 
+  it('shows applied memory as a visible tool message in chat history', async () => {
+    const harness = createHarness({
+      memoryContextBlock: ['Relevant memory notes:', '- project: Проверять через npm run typecheck'].join('\n'),
+      modelResponses: [{ role: 'assistant', content: 'Checked.' }]
+    });
+
+    await harness.runtime.ask('chat-1', 'Проверь изменения');
+
+    expect(harness.chat.messages.map((message) => [message.role, message.name, message.content])).toEqual([
+      ['user', undefined, 'Проверь изменения'],
+      ['tool', 'get_relevant_memory', undefined],
+      ['assistant', undefined, 'Checked.']
+    ]);
+    expect(harness.chat.messages[1]).toMatchObject({
+      status: 'done',
+      result: expect.objectContaining({
+        source: 'user-approved-memory',
+        notes: expect.stringContaining('Проверять через npm run typecheck')
+      })
+    });
+    expect(
+      harness.chat.history.some(
+        (message) => message.role === 'tool' && message.content?.includes('user-approved-memory')
+      )
+    ).toBe(true);
+  });
+
   it('continues without appending a user message when skipUserMessage is enabled', async () => {
     const modelClient = {
       chat: vi.fn(async () => ({ role: 'assistant' as const, content: 'Continued.' }))
@@ -199,6 +226,7 @@ type HarnessOptions = {
   modelResponses?: Array<OpenRouterMessage | Error>;
   modelClient?: ModelClient;
   approvalDecision?: ToolApprovalDecision;
+  memoryContextBlock?: string;
 };
 
 type Harness = {
@@ -251,6 +279,11 @@ function createHarness(options: HarnessOptions = {}): Harness {
     promptProvider: {
       getSystemPrompt: () => 'System prompt'
     },
+    contextProviders: options.memoryContextBlock
+      ? {
+          getMemoryContextBlock: () => options.memoryContextBlock
+        }
+      : undefined,
     modelCatalog: {
       getOption: () => ({
         id: 'test-model',

@@ -84,6 +84,46 @@
   opacity: 0.7;
 }
 
+/* Memory result preview. */
+.memoryPreview {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--tool-tone, var(--agent-border)) 42%, var(--agent-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 82%, var(--tool-tone, transparent));
+  padding: 10px 12px;
+}
+
+.memoryHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--vscode-foreground);
+  text-transform: uppercase;
+}
+
+.memoryNotes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--vscode-foreground);
+}
+
+.memoryNotes li {
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.memoryPolicy {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 /* Static plan tool details. */
 .planPreview {
   display: grid;

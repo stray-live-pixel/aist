@@ -6,7 +6,6 @@ import { getAgentLanguage } from '../../config/settings';
 import { getDefaultModelSettings } from '../../config/settingsSnapshot';
 import { buildAgentSystemPrompt, getAgentInstructionSources } from '../../config/systemPrompt';
 import { governModelContext } from '../../context/contextGovernor';
-import { getEditorContextSnapshot } from '../../context/editorContext';
 import type { WebviewMessage, WebviewSurface } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -140,8 +139,7 @@ function buildChatJsonExport(
   const systemPrompt = buildAgentSystemPrompt();
   const governedContext = governModelContext({
     prompt: '<next user prompt will be inserted here>',
-    history: chat.history,
-    editorContext: getEditorContextSnapshot()
+    history: chat.history
   });
   const promptConfig = getPromptConfig();
   const nextUserPromptPlaceholder = '<next user prompt will be inserted here>';
@@ -171,14 +169,12 @@ function buildChatJsonExport(
         activePresetId: promptConfig.activePresetId
       },
       contextGovernor: {
-        taskType: governedContext.taskType,
-        contextNote: governedContext.contextNote,
-        keptHistoryMessages: governedContext.keptHistoryMessages,
-        omittedHistoryMessages: governedContext.omittedHistoryMessages,
-        recentToolSummaries: governedContext.recentToolSummaries
+        mode: 'memory-only',
+        historyPreserved: true,
+        memoryInjectedAsToolResult: governedContext.messages.length > chat.history.length + 1
       },
-      activeEditorContext: governedContext.editorContextBlock || null,
-      persistedHistorySentToModel: governedContext.messages.slice(0, -1),
+      activeEditorContext: null,
+      persistedHistorySentToModel: chat.history,
       nextUserPromptPlaceholder,
       messagesSentToModel
     }

@@ -83,7 +83,6 @@ describe('VS Code daemon runtime adapters', () => {
       languageId: 'typescript',
       selectionText: 'const value = 1;',
       fullText: 'const value = 1;\n',
-      maxChars: 50,
       mode: 'selection'
     });
   });

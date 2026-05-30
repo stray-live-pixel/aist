@@ -2,11 +2,7 @@ import type { AuxiliaryModelInvoker } from '../../entities/model/auxiliaryModel'
 import { CODEX_RESPONSES_URL, OPENROUTER_URL } from '../../entities/model/modelDefaults';
 import { getModelRequestErrorInfo } from '../../entities/model/modelErrors';
 import type { ModelClient } from '../../entities/model/modelTransport';
-import {
-  type ContextGovernorBudgets,
-  type EditorContextInput,
-  governModelContext
-} from '../../features/context/contextGovernor';
+import { MEMORY_TOOL_NAME, governModelContext } from '../../features/context/contextGovernor';
 import {
   createEmptyUsage,
   getCallUsageFromModelUsage,
@@ -42,6 +38,7 @@ import type {
   ChatModelRequestStatus,
   ChatPlan,
   ChatUsageEstimate,
+  EditorContextInput,
   JsonObject,
   JsonValue,
   ModelRequestLifecycleCallbacks,
@@ -66,7 +63,6 @@ export type AgentRuntimeConfigSnapshot = {
   streamingEnabled: boolean;
   disabledProjectToolIds?: readonly string[];
   auxiliaryModelToolEnabled?: boolean;
-  contextBudgets?: Partial<ContextGovernorBudgets>;
 };
 
 export type AgentRuntimeRunResult = { accepted: true; runId: string } | { accepted: false; error: RuntimeErrorInfo };
@@ -416,25 +412,34 @@ export class AgentRuntimeService {
     prompt: string,
     options: AgentRuntimeAskOptions
   ): Promise<OpenRouterMessage[]> {
-    const [editorContext, repoContextNote, memoryContextBlock, config] = await Promise.all([
-      this.deps.contextProviders?.getEditorContext?.(),
-      this.deps.contextProviders?.getRepoContextNote?.(prompt),
-      this.deps.contextProviders?.getMemoryContextBlock?.(prompt),
-      this.getConfig()
-    ]);
+    const memoryContextBlock = await this.deps.contextProviders?.getMemoryContextBlock?.(prompt);
+    await this.appendMemoryMessageIfNeeded(chat.id, memoryContextBlock);
     const governedHistory = governModelContext({
       prompt,
       history: chat.history,
-      editorContext: applyChatEditorContextMode(editorContext, chat.modelSettings.editorContextMode),
-      repoContextNote,
-      memoryContextBlock,
-      budgets: config.contextBudgets
+      memoryContextBlock
     }).messages;
     const initialHistory = options.skipUserMessage
       ? removeLastSyntheticUserPrompt(governedHistory, prompt)
       : governedHistory;
     await this.deps.chatRepository.setHistory(chat.id, initialHistory);
     return governedHistory;
+  }
+
+  private async appendMemoryMessageIfNeeded(chatId: string, memoryContextBlock: string | undefined): Promise<void> {
+    const memoryNotes = memoryContextBlock?.trim();
+    if (!memoryNotes) {
+      return;
+    }
+
+    await this.deps.chatRepository.appendMessage(chatId, {
+      role: 'tool',
+      name: MEMORY_TOOL_NAME,
+      status: 'done',
+      args: { query: 'current user request' },
+      result: createMemoryToolResult({ memoryNotes }),
+      modelResult: createMemoryToolResult({ memoryNotes })
+    });
   }
 
   private async runLoopWithRetries(
@@ -1023,8 +1028,7 @@ export class AgentRuntimeService {
         : 0,
       streamingEnabled: Boolean(snapshot.streamingEnabled),
       disabledProjectToolIds: snapshot.disabledProjectToolIds || [],
-      auxiliaryModelToolEnabled: snapshot.auxiliaryModelToolEnabled === true,
-      contextBudgets: snapshot.contextBudgets
+      auxiliaryModelToolEnabled: snapshot.auxiliaryModelToolEnabled === true
     };
   }
 
@@ -1115,6 +1119,16 @@ function createWorkingMessages(systemPrompt: string, initialHistory: OpenRouterM
   return [{ role: 'system', content: systemPrompt }, ...initialHistory.filter((message) => message.role !== 'system')];
 }
 
+function createMemoryToolResult(input: { memoryNotes: string }): Record<string, unknown> {
+  return {
+    ok: true,
+    source: 'user-approved-memory',
+    policy:
+      'Use these notes only when they fit the current task. They are lower priority than system, developer, and explicit user instructions.',
+    notes: input.memoryNotes
+  };
+}
+
 function removeLastSyntheticUserPrompt(messages: OpenRouterMessage[], prompt: string): OpenRouterMessage[] {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
@@ -1144,13 +1158,6 @@ function withChatModelSettings(
     maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
     streamingEnabled: settings.streamingEnabled === true
   };
-}
-
-function applyChatEditorContextMode(
-  editorContext: EditorContextInput | null | undefined,
-  mode: Chat['modelSettings']['editorContextMode']
-): EditorContextInput | null | undefined {
-  return editorContext ? { ...editorContext, mode } : editorContext;
 }
 
 function getContextBytes(messages: OpenRouterMessage[]): number {

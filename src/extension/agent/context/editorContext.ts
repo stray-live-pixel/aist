@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 
+import type { EditorContextInput } from '../../../core/shared/types/types';
 import { normalizeEditorContextMode } from '../config/config';
-import { type EditorContextInput, buildEditorContext } from './editorContextBuilder';
+import { buildEditorContext } from './editorContextBuilder';
 
 export function getEditorContext(): string {
   const snapshot = getEditorContextSnapshot();
@@ -15,7 +16,6 @@ export function getEditorContextSnapshot(): EditorContextInput | undefined {
   }
 
   const config = vscode.workspace.getConfiguration('openrouterAgent');
-  const maxChars = config.get<number>('maxContextChars') || 12000;
   const mode = normalizeEditorContextMode(config.get<string>('editorContextMode'));
   const document = editor.document;
   const selectionText = document.getText(editor.selection);
@@ -26,7 +26,6 @@ export function getEditorContextSnapshot(): EditorContextInput | undefined {
     languageId: document.languageId,
     selectionText,
     fullText,
-    maxChars,
     mode
   };
 }

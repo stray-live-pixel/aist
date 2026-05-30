@@ -40,7 +40,6 @@ import {
   selectCompactionTailMessages,
   splitCompactionHistory
 } from '../core/features/compaction/compaction';
-import type { EditorContextInput } from '../core/features/context/contextGovernor';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { buildFileAgentSystemPrompt } from '../core/features/system-prompt/filePromptConfig';
 import { type AgentLanguage } from '../core/features/system-prompt/prompts';
@@ -56,6 +55,7 @@ import {
   type AutonomousLaunchOptions
 } from '../core/processes/autonomous';
 import { getRepoVerificationContextNote } from '../core/shared/lib/repoMap';
+import type { EditorContextInput } from '../core/shared/types/types';
 import type {
   Chat,
   ChatModelSettings,
@@ -1756,7 +1756,6 @@ function isEditorContextInput(value: unknown): value is EditorContextInput {
     typeof input.languageId === 'string' &&
     typeof input.selectionText === 'string' &&
     typeof input.fullText === 'string' &&
-    typeof input.maxChars === 'number' &&
     (input.mode === 'auto' || input.mode === 'selection' || input.mode === 'file' || input.mode === 'off')
   );
 }

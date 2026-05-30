@@ -74,6 +74,31 @@ describe('toolMessageModel', () => {
     ).toBe('3 matches');
   });
 
+  it('summarizes applied memory tool calls as visible memory notes', () => {
+    expect(
+      buildToolDisplayModel(
+        {
+          id: 'tool-memory',
+          role: 'tool',
+          name: 'get_relevant_memory',
+          status: 'done',
+          args: { query: 'current user request' },
+          result: {
+            ok: true,
+            source: 'user-approved-memory',
+            notes: ['Relevant memory notes:', '- global: Prefer Russian answers', '- project: Run typecheck'].join('\n')
+          },
+          createdAt: 0
+        },
+        t
+      )
+    ).toMatchObject({
+      action: 'MEMORY',
+      title: 'MEMORY: relevant notes',
+      summary: '2 memory notes'
+    });
+  });
+
   it('summarizes structured approval denials without treating them as normal tool results', () => {
     expect(
       buildToolDisplayModel(

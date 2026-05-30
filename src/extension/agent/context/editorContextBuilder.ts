@@ -1,13 +1,4 @@
-import type { EditorContextMode } from '../../../core/shared/types/types';
-
-export type EditorContextInput = {
-  fileName: string;
-  languageId: string;
-  selectionText: string;
-  fullText: string;
-  maxChars: number;
-  mode: EditorContextMode;
-};
+import type { EditorContextInput } from '../../../core/shared/types/types';
 
 export function buildEditorContext(input: EditorContextInput): string {
   if (input.mode === 'off') {
@@ -21,24 +12,11 @@ export function buildEditorContext(input: EditorContextInput): string {
     return [...header, ...(selectionText ? [`Selected code:\n${selectionText}`] : [])].join('\n\n');
   }
 
-  if (input.mode === 'auto') {
-    if (selectionText) {
-      return [...header, `Selected code:\n${selectionText}`].join('\n\n');
-    }
-
-    return input.fullText.length <= input.maxChars
-      ? [...header, `File content:\n${input.fullText}`].join('\n\n')
-      : header.join('\n\n');
+  if (input.mode === 'auto' && selectionText) {
+    return [...header, `Selected code:\n${selectionText}`].join('\n\n');
   }
 
-  return [
-    ...header,
-    selectionText
-      ? `Selected code:\n${selectionText}`
-      : `File content:\n${truncateText(input.fullText, input.maxChars)}`
-  ].join('\n\n');
-}
-
-function truncateText(text: string, maxChars: number): string {
-  return text.length > maxChars ? `${text.slice(0, maxChars)}\n...<truncated>` : text;
+  return [...header, selectionText ? `Selected code:\n${selectionText}` : `File content:\n${input.fullText}`].join(
+    '\n\n'
+  );
 }

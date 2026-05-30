@@ -18,6 +18,25 @@ export type CodexServiceTier = 'auto' | 'priority';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 
+/**
+ * Снимок активного редактора, который host может передать агенту.
+ *
+ * Тип описывает пользовательский рабочий контекст: какой файл открыт, что выделено
+ * и какой режим пользователь выбрал для передачи editor context в модель.
+ */
+export type EditorContextInput = {
+  /** Путь или имя открытого файла, чтобы агент понимал, с каким рабочим артефактом связан запрос. */
+  fileName: string;
+  /** Язык открытого файла, чтобы агент мог точнее интерпретировать синтаксис и проверки. */
+  languageId: string;
+  /** Выделенный пользователем фрагмент, если задача относится к конкретному участку файла. */
+  selectionText: string;
+  /** Полный текст открытого файла, если выбран режим передачи файла целиком. */
+  fullText: string;
+  /** Пользовательский режим передачи editor context: автоматически, выделение, файл целиком или выключено. */
+  mode: EditorContextMode;
+};
+
 export type ModelTransportRole = 'system' | 'user' | 'assistant' | 'tool';
 export type OpenRouterRole = ModelTransportRole;
 

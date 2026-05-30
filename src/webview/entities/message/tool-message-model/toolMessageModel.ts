@@ -11,6 +11,7 @@ type Translator = ReturnType<typeof useI18n>['t'];
  */
 const TOOL_META: Record<string, { actionKey: Parameters<Translator>[0]; tone: ToolTone }> = {
   get_workspace_info: { actionKey: 'tool.action.get_workspace_info', tone: 'slate' },
+  get_relevant_memory: { actionKey: 'tool.action.get_relevant_memory', tone: 'purple' },
   list_files: { actionKey: 'tool.action.list_files', tone: 'blue' },
   read_file: { actionKey: 'tool.action.read_file', tone: 'green' },
   read_file_range: { actionKey: 'tool.action.read_file_range', tone: 'green' },
@@ -143,6 +144,10 @@ function fileFromChangedFile(value: unknown): FileReference | undefined {
  * Разные инструменты имеют разные поля-цели, поэтому нужен диспетчер.
  */
 function getToolTarget(message: ChatMessage, t: Translator): string | undefined {
+  if (message.name === 'get_relevant_memory') {
+    return t('tool.target.memory');
+  }
+
   if (message.name === 'run_bash_script') {
     return compactSingleLine(asString(message.args?.script));
   }
@@ -184,6 +189,9 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
   if (!result) return message.status || t('message.tool').toLowerCase();
   if (result.decision === 'denied') return asString(result.comment) || t('tool.status.denied');
   if (asString(result.error)) return asString(result.error) || t('tool.summary.toolError');
+  if (message.name === 'get_relevant_memory') {
+    return t('tool.summary.memoryNotes', { count: getMemoryNoteCount(result) });
+  }
   if (message.name === 'grep_search') {
     const count = typeof result.totalMatches === 'number' ? result.totalMatches : arrayValue(result.matches).length;
     return t('tool.summary.matches', { count });
@@ -209,6 +217,14 @@ function getShortSummary(message: ChatMessage, t: Translator): string {
   if (message.name === 'write_file' && typeof result.bytes === 'number')
     return t('tool.summary.bytes', { count: result.bytes });
   return message.status || t('message.tool').toLowerCase();
+}
+
+function getMemoryNoteCount(result: Record<string, unknown>): number {
+  const notes = asString(result.notes) || '';
+  return notes
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- ')).length;
 }
 
 function getBashSummary(result: Record<string, unknown>, t: Translator): string {

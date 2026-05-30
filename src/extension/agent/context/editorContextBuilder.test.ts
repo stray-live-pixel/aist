@@ -6,8 +6,7 @@ const baseInput = {
   fileName: '/workspace/src/example.ts',
   languageId: 'typescript',
   selectionText: '',
-  fullText: 'const value = 1;\nconsole.log(value);',
-  maxChars: 12
+  fullText: 'const value = 1;\nconsole.log(value);'
 };
 
 describe('buildEditorContext', () => {
@@ -31,9 +30,9 @@ describe('buildEditorContext', () => {
     );
   });
 
-  it('keeps the previous full-file behavior in file mode', () => {
+  it('includes full file content in file mode without context truncation', () => {
     expect(buildEditorContext({ ...baseInput, mode: 'file' })).toBe(
-      'File: /workspace/src/example.ts\n\nLanguage: typescript\n\nFile content:\nconst value \n...<truncated>'
+      'File: /workspace/src/example.ts\n\nLanguage: typescript\n\nFile content:\nconst value = 1;\nconsole.log(value);'
     );
   });
 
@@ -43,15 +42,9 @@ describe('buildEditorContext', () => {
     );
   });
 
-  it('includes a short full file in auto mode when no text is selected', () => {
-    expect(buildEditorContext({ ...baseInput, mode: 'auto', maxChars: 100 })).toBe(
-      'File: /workspace/src/example.ts\n\nLanguage: typescript\n\nFile content:\nconst value = 1;\nconsole.log(value);'
-    );
-  });
-
-  it('keeps only metadata for long files in auto mode when no text is selected', () => {
+  it('includes full file content in auto mode when no text is selected', () => {
     expect(buildEditorContext({ ...baseInput, mode: 'auto' })).toBe(
-      'File: /workspace/src/example.ts\n\nLanguage: typescript'
+      'File: /workspace/src/example.ts\n\nLanguage: typescript\n\nFile content:\nconst value = 1;\nconsole.log(value);'
     );
   });
 });

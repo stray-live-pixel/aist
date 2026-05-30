@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 
 import type { AgentRuntimeLogger } from '../../../core/app/runtime/agentRuntime';
-import type { EditorContextInput } from '../../../core/features/context/contextGovernor';
-import type { ApprovalPreviewKind, ToolApprovalRequest } from '../../../core/shared/types/types';
+import type { ApprovalPreviewKind, EditorContextInput, ToolApprovalRequest } from '../../../core/shared/types/types';
 import { t } from '../../shared/i18n';
 import type { AistLogger } from '../../shared/logger';
 import type { FilesystemToolPreview } from '../../tools/previewEdits';
@@ -68,7 +67,6 @@ export class VscodeActiveEditorContextAdapter implements VscodeActiveEditorConte
       languageId: document.languageId,
       selectionText: document.getText(editor.selection),
       fullText: document.getText(),
-      maxChars: config.get<number>('maxContextChars') || 12000,
       mode: normalizeEditorContextMode(config.get<string>('editorContextMode'))
     };
   }

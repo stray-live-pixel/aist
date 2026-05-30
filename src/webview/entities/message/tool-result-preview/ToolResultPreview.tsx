@@ -1,4 +1,4 @@
-import { ChevronRight, Folder, ListTree, Terminal } from 'lucide-react';
+import { ChevronRight, Database, Folder, ListTree, Terminal } from 'lucide-react';
 
 import { useI18n } from '../../../shared/i18n';
 import type { ChatMessage } from '../../../shared/types';
@@ -39,6 +39,7 @@ function renderPrimaryResult(
   preview?: Record<string, unknown>
 ) {
   if (message.name === 'run_bash_script') return <BashScriptResult message={message} result={result} />;
+  if (message.name === 'get_relevant_memory') return <MemoryNotesPreview result={result} />;
   if (result?.decision === 'denied') return <DeniedResult result={result} />;
   if (message.name === 'create_plan' || message.name === 'update_plan') return <PlanChangePreview message={message} />;
   if (message.name === 'set_plan_item_status') return <PlanStatusPreview message={message} result={result} />;
@@ -51,6 +52,31 @@ function renderPrimaryResult(
   if (message.name === 'grep_search') return <SearchFiles result={result} />;
 
   return <CompactFacts result={result} />;
+}
+
+function MemoryNotesPreview({ result }: { result?: Record<string, unknown> }) {
+  const { t } = useI18n();
+  const notes = parseMemoryNotes({ notes: asString(result?.notes) || '' });
+  const policy = asString(result?.policy);
+
+  if (!notes.length) {
+    return <p className={styles.compactFacts}>{t('tool.preview.memoryEmpty')}</p>;
+  }
+
+  return (
+    <div className={styles.memoryPreview}>
+      <div className={styles.memoryHeader}>
+        <Database size={13} />
+        <span>{t('tool.preview.memoryApplied')}</span>
+      </div>
+      <ul className={styles.memoryNotes}>
+        {notes.map((note, index) => (
+          <li key={`${index}-${note}`}>{note}</li>
+        ))}
+      </ul>
+      {policy ? <p className={styles.memoryPolicy}>{policy}</p> : null}
+    </div>
+  );
 }
 
 function PlanChangePreview({ message }: { message: ChatMessage }) {
@@ -231,6 +257,15 @@ function FileLinks({ files }: { files: FileReference[] }) {
       ))}
     </div>
   );
+}
+
+function parseMemoryNotes(input: { notes: string }): string[] {
+  return input.notes
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- '))
+    .map((line) => line.replace(/^-\s+/, '').trim())
+    .filter(Boolean);
 }
 
 function CompactFacts({ result }: { result: Record<string, unknown> }) {
