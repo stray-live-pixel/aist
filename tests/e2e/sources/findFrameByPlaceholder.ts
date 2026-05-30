@@ -16,6 +16,12 @@ export async function findFrameByPlaceholder({
   const deadline = Date.now() + timeout;
 
   while (Date.now() < deadline) {
+    if (page.isClosed()) {
+      throw new Error(
+        `Could not find AIST webview: VS Code page was closed while waiting for placeholder: ${placeholder}`
+      );
+    }
+
     for (const frame of page.frames()) {
       if (frame.isDetached()) {
         continue;
@@ -27,8 +33,16 @@ export async function findFrameByPlaceholder({
       }
     }
 
-    await page.waitForTimeout(250);
+    await delay(250);
   }
 
   throw new Error(`Could not find a frame containing placeholder: ${placeholder}`);
+}
+
+/**
+ * Что это: задержка polling без привязки к живому Playwright Page.
+ * Зачем нужно: если VS Code page закрылась, helper должен сам дать понятную ошибку на следующей итерации.
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

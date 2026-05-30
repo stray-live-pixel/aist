@@ -1,11 +1,19 @@
 import * as vscode from 'vscode';
 
 import { planningTools } from '../../core/features/planning/planningTools';
+import {
+  DEFAULT_TOOL_PERMISSIONS,
+  type ToolPermissionPreset,
+  areToolPermissionMapsEqual,
+  getToolPermissionPresets as getSharedToolPermissionPresets,
+  getToolPermissionPreset,
+  normalizeToolPermission
+} from '../../core/shared/permissions';
 import type { ToolPermissionMode } from '../../core/shared/types/types';
 import { nodeFilesystemTools } from '../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { getDaemonToolCatalog } from '../agent/daemon/toolCatalog';
 
-export type { ToolPermissionMode };
+export type { ToolPermissionMode, ToolPermissionPreset };
 
 export type ToolPermissionItem = {
   name: string;
@@ -18,116 +26,39 @@ export type ToolPermissionItem = {
   version?: string;
 };
 
-export type ToolPermissionPreset = {
-  id: string;
-  label: string;
-  description: string;
-  permissions: Record<string, ToolPermissionMode>;
-};
-
-export const DEFAULT_TOOL_PERMISSIONS: Record<string, ToolPermissionMode> = {
-  get_workspace_info: 'auto',
-  list_files: 'auto',
-  read_file: 'auto',
-  read_file_range: 'auto',
-  grep_search: 'auto',
-  run_bash_script: 'ask',
-  write_file: 'ask',
-  replace_in_file: 'ask',
-  create_directory: 'ask',
-  delete_path: 'ask',
-  create_plan: 'ask',
-  update_plan: 'ask',
-  set_plan_item_status: 'auto'
-};
-
 const permissionTools = [...nodeFilesystemTools, ...planningTools];
 
-export const TOOL_PERMISSION_PRESETS: ToolPermissionPreset[] = [
-  {
-    id: 'confirm-all',
-    label: 'Confirm all',
-    description: 'Ask before every tool call.',
-    permissions: {
-      get_workspace_info: 'ask',
-      list_files: 'ask',
-      read_file: 'ask',
-      read_file_range: 'ask',
-      grep_search: 'ask',
-      run_bash_script: 'ask',
-      write_file: 'ask',
-      replace_in_file: 'ask',
-      create_directory: 'ask',
-      delete_path: 'ask',
-      create_plan: 'ask',
-      update_plan: 'ask',
-      set_plan_item_status: 'ask'
-    }
-  },
-  {
-    id: 'balanced',
-    label: 'Balanced',
-    description: 'Read and search automatically; ask before shell commands and file changes.',
-    permissions: DEFAULT_TOOL_PERMISSIONS
-  },
-  {
-    id: 'fast-edit',
-    label: 'Fast edit',
-    description: 'Read, search, create, and edit automatically; ask before shell commands and deletion.',
-    permissions: {
-      get_workspace_info: 'auto',
-      list_files: 'auto',
-      read_file: 'auto',
-      read_file_range: 'auto',
-      grep_search: 'auto',
-      run_bash_script: 'ask',
-      write_file: 'auto',
-      replace_in_file: 'auto',
-      create_directory: 'auto',
-      delete_path: 'ask',
-      create_plan: 'ask',
-      update_plan: 'ask',
-      set_plan_item_status: 'auto'
-    }
-  },
-  {
-    id: 'autonomous',
-    label: 'Autonomous',
-    description: 'Run every available tool automatically.',
-    permissions: {
-      get_workspace_info: 'auto',
-      list_files: 'auto',
-      read_file: 'auto',
-      read_file_range: 'auto',
-      grep_search: 'auto',
-      run_bash_script: 'auto',
-      write_file: 'auto',
-      replace_in_file: 'auto',
-      create_directory: 'auto',
-      delete_path: 'auto',
-      create_plan: 'auto',
-      update_plan: 'auto',
-      set_plan_item_status: 'auto'
-    }
-  }
-];
-
+/**
+ * Что это: читает текущую карту разрешений VS Code workspace.
+ * Зачем нужно: extension должен показывать и применять те же разрешения, которые использует runtime при tool calls.
+ */
 export function getToolPermissions(): Record<string, ToolPermissionMode> {
   const configured =
     vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {};
   const permissions: Record<string, ToolPermissionMode> = {};
 
   for (const item of getPermissionToolMetadata()) {
-    permissions[item.name] = normalizePermission(configured[item.name], item.defaultPermission);
+    permissions[item.name] = normalizeToolPermission({
+      value: configured[item.name],
+      fallback: item.defaultPermission
+    });
   }
 
   return permissions;
 }
 
+/**
+ * Что это: возвращает разрешение конкретного инструмента.
+ * Зачем нужно: runtime быстро решает, запускать tool автоматически или запрашивать подтверждение.
+ */
 export function getToolPermission(toolName: string): ToolPermissionMode {
   return getToolPermissions()[toolName] || DEFAULT_TOOL_PERMISSIONS[toolName] || 'ask';
 }
 
+/**
+ * Что это: возвращает список инструментов с текущими разрешениями.
+ * Зачем нужно: UI настроек показывает пользователю фактическое состояние безопасности.
+ */
 export function getToolPermissionItems(): ToolPermissionItem[] {
   const permissions = getToolPermissions();
 
@@ -137,18 +68,24 @@ export function getToolPermissionItems(): ToolPermissionItem[] {
   }));
 }
 
+/**
+ * Что это: возвращает общие пресеты, нормализованные под инструменты extension.
+ * Зачем нужно: UI не хранит собственные пресеты и не расходится с CLI/backend.
+ */
 export function getToolPermissionPresets(): ToolPermissionPreset[] {
-  return TOOL_PERMISSION_PRESETS.map((preset) => ({
-    ...preset,
-    permissions: normalizePermissionMap(preset.permissions)
-  }));
+  return getSharedToolPermissionPresets({ tools: getPermissionToolMetadata() });
 }
 
+/**
+ * Что это: определяет активный пресет по текущим настройкам.
+ * Зачем нужно: UI подсвечивает выбранный режим или custom, если пользователь изменил отдельные tools.
+ */
 export function getActiveToolPermissionPresetId(): string | 'custom' {
   const permissions = getToolPermissions();
+  const tools = getPermissionToolMetadata();
 
-  for (const preset of getToolPermissionPresets()) {
-    if (permissionMapsEqual(permissions, preset.permissions)) {
+  for (const preset of getSharedToolPermissionPresets({ tools })) {
+    if (areToolPermissionMapsEqual({ left: permissions, right: preset.permissions, tools })) {
       return preset.id;
     }
   }
@@ -156,6 +93,10 @@ export function getActiveToolPermissionPresetId(): string | 'custom' {
   return 'custom';
 }
 
+/**
+ * Что это: сохраняет permission для одного инструмента.
+ * Зачем нужно: пользователь может точечно усилить или ослабить подтверждение без выбора полного пресета.
+ */
 export async function setToolPermission(toolName: string, permission: ToolPermissionMode): Promise<void> {
   const nextPermissions = {
     ...getToolPermissions(),
@@ -167,8 +108,12 @@ export async function setToolPermission(toolName: string, permission: ToolPermis
     .update('toolPermissions', nextPermissions, vscode.ConfigurationTarget.Workspace);
 }
 
+/**
+ * Что это: применяет общий пресет разрешений к workspace settings.
+ * Зачем нужно: один клик в UI переводит весь набор tools в понятный режим безопасности.
+ */
 export async function setToolPermissionPreset(presetId: string): Promise<boolean> {
-  const preset = getToolPermissionPresets().find((item) => item.id === presetId);
+  const preset = getToolPermissionPreset({ presetId, tools: getPermissionToolMetadata() });
   if (!preset) {
     return false;
   }
@@ -179,12 +124,20 @@ export async function setToolPermissionPreset(presetId: string): Promise<boolean
   return true;
 }
 
+/**
+ * Что это: читает отключенные project tools.
+ * Зачем нужно: пользователь может скрыть опасный или нерелевантный проектный инструмент из каталога агента.
+ */
 export function getDisabledProjectToolIds(): string[] {
   const configured =
     vscode.workspace.getConfiguration('openrouterAgent').get<unknown[]>('projectToolDisabledIds') || [];
   return configured.filter((item): item is string => typeof item === 'string');
 }
 
+/**
+ * Что это: включает или отключает project tool для текущего workspace.
+ * Зачем нужно: каталог инструментов должен отражать решение пользователя без изменения самих markdown-описаний tools.
+ */
 export async function setProjectToolEnabled(toolId: string, enabled: boolean): Promise<void> {
   const disabled = new Set(getDisabledProjectToolIds());
   if (enabled) {
@@ -198,27 +151,10 @@ export async function setProjectToolEnabled(toolId: string, enabled: boolean): P
     .update('projectToolDisabledIds', [...disabled].sort(), vscode.ConfigurationTarget.Workspace);
 }
 
-function normalizePermissionMap(source: Record<string, unknown>): Record<string, ToolPermissionMode> {
-  const permissions: Record<string, ToolPermissionMode> = {};
-
-  for (const tool of getPermissionToolMetadata()) {
-    permissions[tool.name] = normalizePermission(source[tool.name], tool.defaultPermission);
-  }
-
-  return permissions;
-}
-
-function permissionMapsEqual(
-  left: Record<string, ToolPermissionMode>,
-  right: Record<string, ToolPermissionMode>
-): boolean {
-  return getPermissionToolMetadata().every((tool) => left[tool.name] === right[tool.name]);
-}
-
-function normalizePermission(value: unknown, fallback: ToolPermissionMode): ToolPermissionMode {
-  return value === 'auto' || value === 'ask' ? value : fallback;
-}
-
+/**
+ * Что это: собирает metadata инструментов, для которых есть permission settings.
+ * Зачем нужно: пресеты общие, но extension должен учитывать динамические skills и project tools текущего workspace.
+ */
 function getPermissionToolMetadata(): Omit<ToolPermissionItem, 'permission'>[] {
   const builtIns = permissionTools.map((tool) => ({
     name: tool.function.name,
@@ -234,7 +170,7 @@ function getPermissionToolMetadata(): Omit<ToolPermissionItem, 'permission'>[] {
         {
           name: 'run_skill',
           description: 'Run a user-defined custom skill by ID.',
-          defaultPermission: 'ask' as const,
+          defaultPermission: DEFAULT_TOOL_PERMISSIONS.run_skill || 'ask',
           source: 'skill' as const,
           enabled: true
         }

@@ -1,0 +1,21 @@
+cat <<'EOF'
+
+AIST e2e не запускается автоматически на pre-commit.
+Рекомендуемые ручные команды:
+
+1. Запуск всех e2e тестов:
+   npm run test:e2e
+
+2. Просмотр Playwright отчета:
+   npx playwright show-report
+
+3. Обновление всех screenshot snapshots:
+   npm run build:e2e && npx playwright test --update-snapshots
+
+4. Запуск одного конкретного теста:
+   npm run build:e2e && npx playwright test tests/e2e/features/chat/permission-presets.spec.ts --reporter=list
+
+5. Обновление screenshot snapshots одного конкретного теста:
+   npm run build:e2e && npx playwright test tests/e2e/features/chat/permission-presets.spec.ts --update-snapshots
+
+EOF

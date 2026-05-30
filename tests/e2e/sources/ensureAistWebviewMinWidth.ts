@@ -2,7 +2,7 @@ import { type Frame, type Page, expect } from '@playwright/test';
 
 /**
  * Что это: расширяет левую область VS Code с AIST webview до минимальной ширины через настоящий sash resize.
- * Зачем нужно: screenshots должны сниматься с рабочей шириной webview, а не с узким sidebar, который VS Code ставит по умолчанию.
+ * Зачем нужно: пользовательские e2e работают в реальном VS Code, а screenshots отдельно стабилизируют точную ширину внутри webview.
  */
 export async function ensureAistWebviewMinWidth({
   page,
@@ -31,7 +31,7 @@ export async function ensureAistWebviewMinWidth({
 
   await expect
     .poll(() => getFrameViewportWidth({ webview }), {
-      message: `AIST webview должен быть не уже ${minWidth}px для screenshot e2e`,
+      message: `AIST webview должен быть не уже ${minWidth}px для e2e`,
       timeout: 5_000
     })
     .toBeGreaterThanOrEqual(minWidth - 10);

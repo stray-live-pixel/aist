@@ -53,6 +53,7 @@ import {
   type AutonomousVcsIsolationOptions
 } from '../core/processes/autonomous';
 import { getRepoVerificationContextNote } from '../core/shared/lib/repoMap';
+import { getHeadlessToolPermission } from '../core/shared/permissions';
 import type {
   Chat,
   ChatMessage,
@@ -1068,7 +1069,12 @@ function createHeadlessToolCallHandler(input: {
       registry: input.toolRegistry,
       context: params.context,
       approvalService: {
-        getPermission: (toolName) => getHeadlessToolPermission(input.approvalMode, toolName),
+        getPermission: (toolName) =>
+          getHeadlessToolPermission({
+            approvalMode: input.approvalMode,
+            toolName,
+            tools: getHeadlessPermissionToolMetadata(input.toolRegistry)
+          }),
         requestApproval: async (request) => {
           if (input.approvalMode === 'deny') {
             return {
@@ -1109,24 +1115,20 @@ function createHeadlessToolCallHandler(input: {
   };
 }
 
-const READONLY_HEADLESS_TOOLS = new Set([
-  'get_workspace_info',
-  'list_files',
-  'read_file',
-  'read_file_range',
-  'grep_search'
-]);
+/**
+ * Что это: собирает permission metadata из актуального registry snapshot.
+ * Зачем нужно: headless CLI применяет общие пресеты к тому же набору tools, который видит модель.
+ */
+function getHeadlessPermissionToolMetadata(
+  toolRegistry: ToolRegistry
+): Array<{ name: string; defaultPermission: ToolPermissionMode }> {
+  const snapshot = toolRegistry.snapshot();
+  const projectDefaults = new Map(snapshot.projectTools.map((tool) => [tool.id, tool.permission]));
 
-function getHeadlessToolPermission(approvalMode: CliApprovalMode, toolName: string): ToolPermissionMode {
-  if (approvalMode === 'ask' || approvalMode === 'deny') {
-    return 'ask';
-  }
-
-  if (approvalMode === 'auto-readonly') {
-    return READONLY_HEADLESS_TOOLS.has(toolName) ? 'auto' : 'ask';
-  }
-
-  return 'auto';
+  return snapshot.tools.map((tool) => ({
+    name: tool.function.name,
+    defaultPermission: projectDefaults.get(tool.function.name) || 'ask'
+  }));
 }
 
 async function createHeadlessModelClient(

@@ -54,7 +54,7 @@
     "create_plan": "auto",
     "update_plan": "auto",
     "set_plan_item_status": "auto",
-    "run_skill": "ask"
+    "run_skill": "auto"
   },
   "projectToolDisabledIds": [],
   "auxiliaryModels": {
