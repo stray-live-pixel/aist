@@ -282,6 +282,7 @@ export class AgentController {
     await handleAgentWebviewMessage(surface, message, {
       chats: this.chats,
       logger: this.logger,
+      secretStore: this.secretStore,
       getSidebarPage: () => this.sidebarPage,
       setSidebarPage: (page) => {
         this.sidebarPage = page;
@@ -552,6 +553,7 @@ export class AgentController {
       surfaces: targetSurface ? [targetSurface] : this.getSurfaces(),
       chats: this.chats,
       logger: this.logger,
+      secretStore: this.secretStore,
       modelOptions: this.modelOptions,
       codexAuthenticated: this.codexAuthenticated,
       getSystemPrompt: () => buildAgentSystemPrompt()

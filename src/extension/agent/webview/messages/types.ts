@@ -1,3 +1,4 @@
+import type { SecretStore } from '../../../../core/app/config/config';
 import type { ModelProvider } from '../../../../core/shared/types/types';
 import type { AgentChatStore } from '../../../chats/chatDataStore';
 import type { AistLogger } from '../../../shared/logger';
@@ -6,6 +7,7 @@ import type { ToolApprovalDecision, WebviewSurface } from '../../types';
 export type AgentWebviewMessageDeps = {
   chats: AgentChatStore;
   logger: AistLogger;
+  secretStore: SecretStore;
   getSidebarPage(): 'chat' | 'settings';
   setSidebarPage(page: 'chat' | 'settings'): void;
   sendState(targetSurface?: WebviewSurface): void;

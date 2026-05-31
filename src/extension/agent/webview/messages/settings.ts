@@ -19,7 +19,13 @@ import { setCompactionSettings } from '../../config/compaction';
 import { setComposerUiSettings } from '../../config/composerUi';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from '../../config/config';
 import { setApprovalNotificationSettings } from '../../config/notifications';
-import { deleteProviderProfile, duplicateProviderProfile, upsertProviderProfile } from '../../config/providerProfiles';
+import { saveProviderProfileApiKey } from '../../config/providerApiKeys';
+import {
+  deleteProviderProfile,
+  duplicateProviderProfile,
+  getProviderProfiles,
+  upsertProviderProfile
+} from '../../config/providerProfiles';
 import {
   addAgentMode,
   deleteAgentMode,
@@ -40,6 +46,7 @@ type SettingsMessage = Extract<
   | { type: 'setEditorContextMode' }
   | { type: 'setStreamingEnabled' }
   | { type: 'upsertProviderProfile' }
+  | { type: 'setProviderProfileApiKey' }
   | { type: 'duplicateProviderProfile' }
   | { type: 'deleteProviderProfile' }
   | { type: 'setAuxiliaryModelSettings' }
@@ -76,6 +83,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setEditorContextMode',
     'setStreamingEnabled',
     'upsertProviderProfile',
+    'setProviderProfileApiKey',
     'duplicateProviderProfile',
     'deleteProviderProfile',
     'setAuxiliaryModelSettings',
@@ -145,6 +153,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'upsertProviderProfile':
       await upsertProviderProfile(message.profile);
+      deps.sendState();
+      return;
+    case 'setProviderProfileApiKey':
+      await saveProviderProfileApiKeyFromMessage(message.profileId, message.apiKey, deps);
       deps.sendState();
       return;
     case 'duplicateProviderProfile':
@@ -248,6 +260,19 @@ export async function handleWebviewSettingsMessage(
       deps.sendState();
       return;
   }
+}
+
+async function saveProviderProfileApiKeyFromMessage(
+  profileId: string,
+  apiKey: string,
+  deps: AgentWebviewMessageDeps
+): Promise<void> {
+  const profile = getProviderProfiles().find((item) => item.id === profileId);
+  if (!profile) {
+    throw new Error(`Provider profile not found: ${profileId}`);
+  }
+
+  await saveProviderProfileApiKey({ profile, apiKey, secretStore: deps.secretStore });
 }
 
 async function saveReflectionCandidate(

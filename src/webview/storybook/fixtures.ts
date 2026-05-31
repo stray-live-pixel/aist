@@ -518,7 +518,9 @@ export const storyAgentState: AgentState = {
       provider: 'openrouter',
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       proxyHost: '',
-      builtIn: true
+      builtIn: true,
+      apiKeyConfigured: true,
+      apiKeySource: 'profile-secret'
     },
     {
       id: 'codex',
@@ -526,7 +528,9 @@ export const storyAgentState: AgentState = {
       provider: 'codex',
       endpoint: 'https://chatgpt.com/backend-api/codex/responses',
       proxyHost: '',
-      builtIn: true
+      builtIn: true,
+      apiKeyConfigured: false,
+      apiKeySource: 'unsupported'
     }
   ],
   defaultModelSettings: createModelSettings('codex:gpt-5.1-codex'),

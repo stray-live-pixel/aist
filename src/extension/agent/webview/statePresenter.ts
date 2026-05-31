@@ -1,3 +1,4 @@
+import type { SecretStore } from '../../../core/app/config/config';
 import { getTelemetryDashboardState } from '../../../core/features/telemetry/telemetry';
 import type { OpenRouterModelOption } from '../../../core/shared/types/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
@@ -14,6 +15,7 @@ import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
 import { getCompactionSettings } from '../config/compaction';
 import { getComposerUiSettings } from '../config/composerUi';
 import { getApprovalNotificationSettings } from '../config/notifications';
+import { getProviderProfileApiKeyStatus } from '../config/providerApiKeys';
 import { getProviderProfiles } from '../config/providerProfiles';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../config/settings';
 import { getAgentSettingsSnapshot, getDefaultModelSettings } from '../config/settingsSnapshot';
@@ -30,6 +32,7 @@ export type SendAgentStateParams = {
   surfaces: WebviewSurface[];
   chats: AgentChatStore;
   logger: AistLogger;
+  secretStore: SecretStore;
   modelOptions: OpenRouterModelOption[];
   codexAuthenticated: boolean;
   getSystemPrompt(): string;
@@ -67,37 +70,58 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const composerUiSettings = getComposerUiSettings();
   const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
   const telemetry = getTelemetryDashboardState();
-  const providerProfiles = getProviderProfiles();
 
-  for (const surface of params.surfaces) {
-    postStateToSurface(surface, {
-      ...params,
-      configuredModel,
-      defaultModelSettings,
-      maxToolIterations,
-      reasoningEffort,
-      codexServiceTier,
-      editorContextMode,
-      streamingEnabled,
-      language,
-      activeMode,
-      agentModes,
-      customSkills,
-      tools,
-      agentConfigScope,
-      projectInstructions,
-      promptConfig,
-      memoryItems,
-      instructionSources,
-      auxiliaryModels,
-      compactionSettings,
-      approvalNotificationSettings,
-      composerUiSettings,
-      telemetry,
-      projectToolDiagnostics,
-      providerProfiles
-    });
-  }
+  void buildProviderProfilesWithApiKeyStatus(params)
+    .then((providerProfiles) => {
+      for (const surface of params.surfaces) {
+        postStateToSurface(surface, {
+          ...params,
+          configuredModel,
+          defaultModelSettings,
+          maxToolIterations,
+          reasoningEffort,
+          codexServiceTier,
+          editorContextMode,
+          streamingEnabled,
+          language,
+          activeMode,
+          agentModes,
+          customSkills,
+          tools,
+          agentConfigScope,
+          projectInstructions,
+          promptConfig,
+          memoryItems,
+          instructionSources,
+          auxiliaryModels,
+          compactionSettings,
+          approvalNotificationSettings,
+          composerUiSettings,
+          telemetry,
+          projectToolDiagnostics,
+          providerProfiles
+        });
+      }
+    })
+    .catch((error) => params.logger.error('Failed to build provider auth state', error));
+}
+
+async function buildProviderProfilesWithApiKeyStatus(params: Pick<SendAgentStateParams, 'secretStore'>): Promise<
+  Array<
+    ReturnType<typeof getProviderProfiles>[number] & {
+      apiKeyConfigured: boolean;
+      apiKeySource: 'profile-secret' | 'legacy-global-secret' | 'unsupported' | 'none';
+    }
+  >
+> {
+  const profiles = getProviderProfiles();
+
+  return Promise.all(
+    profiles.map(async (profile) => {
+      const status = await getProviderProfileApiKeyStatus({ profile, secretStore: params.secretStore });
+      return { ...profile, apiKeyConfigured: status.configured, apiKeySource: status.source };
+    })
+  );
 }
 
 type StateContext = SendAgentStateParams & {

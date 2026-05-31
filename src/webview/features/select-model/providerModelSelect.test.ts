@@ -7,16 +7,36 @@ import { getProviderOptions } from './getProviderOptions';
 import { getSelectedProviderProfile } from './getSelectedProviderProfile';
 
 const profiles: ProviderProfile[] = [
-  { id: 'openrouter', name: 'OpenRouter', provider: 'openrouter', endpoint: '', proxyHost: '', builtIn: true },
+  {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    provider: 'openrouter',
+    endpoint: '',
+    proxyHost: '',
+    builtIn: true,
+    apiKeyConfigured: true,
+    apiKeySource: 'profile-secret'
+  },
   {
     id: 'openrouter-work',
     name: 'OpenRouter Work',
     provider: 'openrouter',
     endpoint: '',
     proxyHost: '',
-    builtIn: false
+    builtIn: false,
+    apiKeyConfigured: false,
+    apiKeySource: 'none'
   },
-  { id: 'codex', name: 'Codex', provider: 'codex', endpoint: '', proxyHost: '', builtIn: true }
+  {
+    id: 'codex',
+    name: 'Codex',
+    provider: 'codex',
+    endpoint: '',
+    proxyHost: '',
+    builtIn: true,
+    apiKeyConfigured: false,
+    apiKeySource: 'unsupported'
+  }
 ];
 
 const models: ModelOption[] = [

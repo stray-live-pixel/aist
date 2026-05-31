@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, LogIn, LogOut, Trash2 } from 'lucide-react';
+import { CheckCircle2, Copy, Eye, EyeOff, KeyRound, LogIn, LogOut, Trash2 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
@@ -26,9 +26,13 @@ export const ProviderSettingsPage = memo(function ProviderSettingsPage({
 }) {
   const { t } = useI18n();
   const [drafts, setDrafts] = useState<Record<string, DraftProfile>>(() => createDrafts(profiles));
+  const [apiKeyDrafts, setApiKeyDrafts] = useState<Record<string, string>>({});
+  const [visibleApiKeys, setVisibleApiKeys] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setDrafts(createDrafts(profiles));
+    setApiKeyDrafts((current) => pruneDraftsForProfiles(current, profiles));
+    setVisibleApiKeys((current) => pruneDraftsForProfiles(current, profiles));
   }, [profiles]);
 
   return (
@@ -93,6 +97,14 @@ export const ProviderSettingsPage = memo(function ProviderSettingsPage({
                 hint={t('settings.providers.proxyHostHint')}
                 onChange={(event) => updateDraft(profile.id, { proxyHost: event.target.value })}
               />
+              <ProviderApiKeyField
+                profile={profile}
+                value={apiKeyDrafts[profile.id] || ''}
+                visible={Boolean(visibleApiKeys[profile.id])}
+                onChange={(apiKey) => updateApiKeyDraft(profile.id, apiKey)}
+                onToggleVisible={() => toggleApiKeyVisible(profile.id)}
+                onSave={() => saveApiKey(profile)}
+              />
               {profile.provider === 'codex' ? <CodexAuthRow authenticated={codexAuthenticated} /> : null}
               <div className={styles.actions}>
                 <Button variant="primary" size="sm" onClick={() => agentActions.upsertProviderProfile(draft)}>
@@ -130,7 +142,90 @@ export const ProviderSettingsPage = memo(function ProviderSettingsPage({
       [profileId]: { ...(current[profileId] || profiles.find((profile) => profile.id === profileId)!), ...patch }
     }));
   }
+
+  function updateApiKeyDraft(profileId: string, apiKey: string): void {
+    setApiKeyDrafts((current) => ({ ...current, [profileId]: apiKey }));
+  }
+
+  function toggleApiKeyVisible(profileId: string): void {
+    setVisibleApiKeys((current) => ({ ...current, [profileId]: !current[profileId] }));
+  }
+
+  function saveApiKey(profile: ProviderProfile): void {
+    const apiKey = apiKeyDrafts[profile.id]?.trim();
+    if (!apiKey) {
+      return;
+    }
+
+    agentActions.setProviderProfileApiKey(profile.id, apiKey);
+    setApiKeyDrafts((current) => ({ ...current, [profile.id]: '' }));
+  }
 });
+
+function ProviderApiKeyField({
+  profile,
+  value,
+  visible,
+  onChange,
+  onToggleVisible,
+  onSave
+}: {
+  profile: ProviderProfile;
+  value: string;
+  visible: boolean;
+  onChange(apiKey: string): void;
+  onToggleVisible(): void;
+  onSave(): void;
+}) {
+  const { t } = useI18n();
+  const supported = profile.apiKeySource !== 'unsupported';
+
+  return (
+    <div className={styles.formGrid}>
+      <div className={styles.actions}>
+        <Badge
+          tone={profile.apiKeyConfigured ? 'success' : supported ? 'warning' : 'neutral'}
+          icon={<KeyRound size={12} />}
+        >
+          {profile.apiKeyConfigured ? t('settings.providers.apiKeyConfigured') : t('settings.providers.apiKeyMissing')}
+        </Badge>
+        {profile.apiKeySource === 'legacy-global-secret' ? (
+          <Badge tone="neutral">{t('settings.providers.apiKeyLegacy')}</Badge>
+        ) : null}
+      </div>
+      <TextField
+        label={t('settings.providers.apiKey')}
+        value={value}
+        type={visible ? 'text' : 'password'}
+        disabled={!supported}
+        placeholder={supported ? 'sk-or-...' : t('settings.providers.apiKeyUnsupported')}
+        hint={supported ? t('settings.providers.apiKeyHint') : t('settings.providers.apiKeyUnsupportedHint')}
+        autoComplete="off"
+        spellCheck={false}
+        onChange={(event) => onChange(event.target.value)}
+        trailingSlot={
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            type="button"
+            title={visible ? t('settings.providers.apiKeyHide') : t('settings.providers.apiKeyShow')}
+            aria-label={visible ? t('settings.providers.apiKeyHide') : t('settings.providers.apiKeyShow')}
+            disabled={!supported}
+            onClick={onToggleVisible}
+          >
+            {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+          </Button>
+        }
+      />
+      <div className={styles.actions}>
+        <Button variant="secondary" size="sm" disabled={!supported || !value.trim()} onClick={onSave}>
+          {t('settings.providers.saveApiKey')}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function CodexAuthRow({ authenticated }: { authenticated: boolean }) {
   const { t } = useI18n();
@@ -153,6 +248,11 @@ function CodexAuthRow({ authenticated }: { authenticated: boolean }) {
 
 function createDrafts(profiles: ProviderProfile[]): Record<string, DraftProfile> {
   return Object.fromEntries(profiles.map((profile) => [profile.id, { ...profile }]));
+}
+
+function pruneDraftsForProfiles<T>(drafts: Record<string, T>, profiles: ProviderProfile[]): Record<string, T> {
+  const profileIds = new Set(profiles.map((profile) => profile.id));
+  return Object.fromEntries(Object.entries(drafts).filter(([profileId]) => profileIds.has(profileId)));
 }
 
 function getProviderDescription(provider: ProviderProfile['provider'], t: ReturnType<typeof useI18n>['t']): string {

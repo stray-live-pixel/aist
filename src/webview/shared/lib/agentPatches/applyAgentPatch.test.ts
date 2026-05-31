@@ -99,7 +99,9 @@ function createState(): AgentState {
         provider: 'openrouter',
         endpoint: 'https://openrouter.ai/api/v1/chat/completions',
         proxyHost: '',
-        builtIn: true
+        builtIn: true,
+        apiKeyConfigured: true,
+        apiKeySource: 'profile-secret'
       },
       {
         id: 'codex',
@@ -107,7 +109,9 @@ function createState(): AgentState {
         provider: 'codex',
         endpoint: 'https://chatgpt.com/backend-api/codex/responses',
         proxyHost: '',
-        builtIn: true
+        builtIn: true,
+        apiKeyConfigured: false,
+        apiKeySource: 'unsupported'
       }
     ],
     defaultModelSettings: createModelSettings('model-a'),

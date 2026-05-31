@@ -134,6 +134,10 @@ export const agentActions = {
     post({ type: 'upsertProviderProfile', profile });
   },
 
+  setProviderProfileApiKey(profileId: string, apiKey: string): void {
+    post({ type: 'setProviderProfileApiKey', profileId, apiKey });
+  },
+
   duplicateProviderProfile(profileId: string): void {
     post({ type: 'duplicateProviderProfile', profileId });
   },

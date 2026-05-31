@@ -150,6 +150,8 @@ export type ProviderProfile = {
   endpoint: string;
   proxyHost: string;
   builtIn: boolean;
+  apiKeyConfigured: boolean;
+  apiKeySource: 'profile-secret' | 'legacy-global-secret' | 'unsupported' | 'none';
 };
 
 export type ProviderProfileInput = Partial<
@@ -624,6 +626,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'upsertProviderProfile'; profile: ProviderProfileInput }
+  | { type: 'setProviderProfileApiKey'; profileId: string; apiKey: string }
   | { type: 'duplicateProviderProfile'; profileId: string }
   | { type: 'deleteProviderProfile'; profileId: string }
   | { type: 'compactChat'; chatId?: string }

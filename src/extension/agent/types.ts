@@ -63,6 +63,7 @@ export type WebviewMessage =
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
   | { type: 'upsertProviderProfile'; profile: ProviderProfileInput }
+  | { type: 'setProviderProfileApiKey'; profileId: string; apiKey: string }
   | { type: 'duplicateProviderProfile'; profileId: string }
   | { type: 'deleteProviderProfile'; profileId: string }
   | {
