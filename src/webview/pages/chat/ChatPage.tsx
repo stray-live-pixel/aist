@@ -95,6 +95,7 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
   return (
     <div className={styles.root}>
       <MessageList
+        chatId={state.activeChat.id}
         messages={state.activeChat.messages}
         previousChat={state.activeChat.previousChat}
         compactedAt={state.activeChat.compactedAt}

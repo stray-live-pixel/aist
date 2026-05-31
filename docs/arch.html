@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIST architecture: VS Code webview → daemon → core agent</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --bg-2: #111936;
+        --card: rgba(255, 255, 255, 0.08);
+        --card-strong: rgba(255, 255, 255, 0.13);
+        --border: rgba(255, 255, 255, 0.16);
+        --text: #edf3ff;
+        --muted: #aebcda;
+        --muted-2: #7f8ead;
+        --blue: #60a5fa;
+        --cyan: #22d3ee;
+        --green: #4ade80;
+        --amber: #f59e0b;
+        --rose: #fb7185;
+        --purple: #a78bfa;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        --radius: 28px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 15% 8%, rgba(96, 165, 250, 0.28), transparent 28rem),
+          radial-gradient(circle at 82% 12%, rgba(167, 139, 250, 0.22), transparent 30rem),
+          radial-gradient(circle at 52% 72%, rgba(34, 211, 238, 0.16), transparent 34rem),
+          linear-gradient(135deg, var(--bg), #070b16 60%, #050712);
+        overflow-x: hidden;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      code {
+        padding: 0.12rem 0.38rem;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 0.45rem;
+        color: #dbeafe;
+        background: rgba(15, 23, 42, 0.75);
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+        font-size: 0.92em;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 34px 0 72px;
+      }
+
+      .hero {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 22px;
+        align-items: stretch;
+        margin-bottom: 22px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .card,
+      .layer,
+      .timeline,
+      .legend,
+      .source-map {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.055));
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(24px) saturate(1.3);
+      }
+
+      .hero-main {
+        padding: clamp(28px, 5vw, 58px);
+        overflow: hidden;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 18px;
+        padding: 7px 11px;
+        border: 1px solid rgba(96, 165, 250, 0.35);
+        border-radius: 999px;
+        color: #bfdbfe;
+        background: rgba(96, 165, 250, 0.12);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .pulse {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 7px rgba(74, 222, 128, 0.12);
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 820px;
+        font-size: clamp(38px, 7vw, 82px);
+        line-height: 0.92;
+        letter-spacing: -0.07em;
+      }
+
+      .gradient-text {
+        background: linear-gradient(90deg, #f8fafc, #93c5fd 45%, #67e8f9 78%, #c4b5fd);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .hero-copy {
+        margin: 22px 0 0;
+        max-width: 760px;
+        color: var(--muted);
+        font-size: clamp(16px, 2vw, 20px);
+        line-height: 1.65;
+      }
+
+      .hero-side {
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .quick-card {
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.5);
+      }
+
+      .quick-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+
+      .quick-card span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 22px 0;
+      }
+
+      .nav a {
+        padding: 10px 13px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: #dbeafe;
+        background: rgba(255, 255, 255, 0.07);
+        font-size: 13px;
+        font-weight: 700;
+        transition:
+          transform 140ms ease,
+          border-color 140ms ease,
+          background 140ms ease;
+      }
+
+      .nav a:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.55);
+        background: rgba(96, 165, 250, 0.13);
+      }
+
+      .section {
+        margin-top: 28px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: clamp(25px, 4vw, 42px);
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+
+      .section-header p,
+      .card p,
+      .layer p,
+      .timeline p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .diagram {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 34px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
+        box-shadow: var(--shadow);
+      }
+
+      .lane {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 14px;
+        align-items: stretch;
+      }
+
+      .lane-label {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 14px;
+        border-radius: 22px;
+        color: #dbeafe;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .lane-label small {
+        margin-top: 6px;
+        color: var(--muted-2);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      .lane-flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .node {
+        position: relative;
+        min-height: 128px;
+        padding: 15px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        background: rgba(15, 23, 42, 0.58);
+        overflow: hidden;
+      }
+
+      .node::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 0 0, var(--tone, rgba(96, 165, 250, 0.3)), transparent 64%);
+        opacity: 0.45;
+        pointer-events: none;
+      }
+
+      .node > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .node h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+      }
+
+      .node p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.48;
+      }
+
+      .node .tag {
+        display: inline-flex;
+        margin-bottom: 10px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        color: #e0f2fe;
+        background: rgba(255, 255, 255, 0.095);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .arrow-row {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 14px;
+        margin: -2px 0;
+      }
+
+      .arrows {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        color: var(--muted-2);
+        font-size: 12px;
+        font-weight: 800;
+        text-align: center;
+      }
+
+      .arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 26px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+      }
+
+      .arrow::after {
+        content: '↓';
+        margin-left: 8px;
+        color: var(--cyan);
+      }
+
+      .grid-3,
+      .grid-2 {
+        display: grid;
+        gap: 14px;
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .card,
+      .timeline,
+      .legend,
+      .source-map {
+        padding: 20px;
+      }
+
+      .card h3,
+      .timeline h3,
+      .legend h3,
+      .source-map h3 {
+        margin: 0 0 10px;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+
+      .card ul,
+      .timeline ol,
+      .source-map ul {
+        margin: 12px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+        line-height: 1.58;
+      }
+
+      .card li,
+      .timeline li,
+      .source-map li {
+        margin: 8px 0;
+      }
+
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .pill {
+        padding: 5px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #dbeafe;
+        background: rgba(255, 255, 255, 0.075);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .timeline ol {
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+
+      .timeline li {
+        position: relative;
+        padding: 14px 14px 14px 52px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 20px;
+        background: rgba(15, 23, 42, 0.48);
+        counter-increment: step;
+      }
+
+      .timeline li::before {
+        content: counter(step);
+        position: absolute;
+        left: 14px;
+        top: 14px;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        color: #05111f;
+        background: linear-gradient(135deg, var(--cyan), var(--blue));
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .timeline strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text);
+      }
+
+      .runtime-loop {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .loop-step {
+        min-height: 132px;
+        padding: 15px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.58);
+      }
+
+      .loop-step b {
+        display: block;
+        margin-bottom: 8px;
+        color: #f8fafc;
+      }
+
+      .loop-step span {
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+
+      .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .legend-item {
+        padding: 12px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(15, 23, 42, 0.45);
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 7px;
+        border-radius: 50%;
+        vertical-align: -1px;
+        background: var(--tone);
+        box-shadow: 0 0 18px var(--tone);
+      }
+
+      .source-map {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .file-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .file {
+        padding: 10px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.58);
+        color: #dbeafe;
+        font-family: 'SFMono-Regular', Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .callout {
+        padding: 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(34, 211, 238, 0.24);
+        background: linear-gradient(135deg, rgba(34, 211, 238, 0.13), rgba(96, 165, 250, 0.08));
+        color: #dff9ff;
+        line-height: 1.6;
+      }
+
+      .footer {
+        margin-top: 28px;
+        padding: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        color: var(--muted-2);
+        font-size: 13px;
+        text-align: center;
+      }
+
+      @media (max-width: 980px) {
+        .hero,
+        .grid-3,
+        .grid-2,
+        .source-map {
+          grid-template-columns: 1fr;
+        }
+
+        .lane {
+          grid-template-columns: 1fr;
+        }
+
+        .lane-flow,
+        .runtime-loop,
+        .legend-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .arrow-row {
+          display: none;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .page {
+          width: min(100% - 20px, 1180px);
+          padding-top: 16px;
+        }
+
+        .hero-main,
+        .hero-side,
+        .card,
+        .timeline,
+        .legend,
+        .source-map {
+          border-radius: 22px;
+        }
+
+        .lane-flow,
+        .runtime-loop,
+        .legend-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .section-header {
+          align-items: start;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero" id="top">
+        <div class="hero-main">
+          <div class="eyebrow"><span class="pulse"></span> AIST / VS Code extension architecture</div>
+          <h1><span class="gradient-text">Webview → Daemon → Core AI agent</span></h1>
+          <p class="hero-copy">
+            Эта страница объясняет, что происходит после нажатия Send в VS Code: React webview отправляет команду в
+            extension host, extension пересылает её в долгоживущий JSON-RPC daemon, а daemon запускает core runtime
+            агента, модель, инструменты и approval-flow.
+          </p>
+        </div>
+        <aside class="hero-side" aria-label="Краткая сводка">
+          <div class="quick-card">
+            <strong>Источник правды</strong>
+            <span
+              >Состояние чатов и рантайма живёт на стороне daemon/core, а webview только отображает state и отправляет
+              действия.</span
+            >
+          </div>
+          <div class="quick-card">
+            <strong>Главный транспорт UI</strong>
+            <span
+              ><code>vscode.postMessage</code> и <code>webview.postMessage</code> между React webview и extension
+              host.</span
+            >
+          </div>
+          <div class="quick-card">
+            <strong>Главный backend transport</strong>
+            <span>Локальный socket / named pipe с newline-delimited JSON-RPC 2.0 сообщениями.</span>
+          </div>
+        </aside>
+      </section>
+
+      <nav class="nav" aria-label="Навигация по странице">
+        <a href="#diagram">Схема слоёв</a>
+        <a href="#sequence">Цепочка Send</a>
+        <a href="#runtime">Core loop</a>
+        <a href="#state">Состояние и события</a>
+        <a href="#files">Ключевые файлы</a>
+      </nav>
+
+      <section class="section" id="diagram">
+        <div class="section-header">
+          <h2>Схема работы слоёв</h2>
+          <p>Сверху — пользовательский UI, ниже — VS Code host, daemon и core runtime.</p>
+        </div>
+
+        <div class="diagram" role="img" aria-label="Архитектурная схема AIST webview daemon core agent">
+          <div class="lane">
+            <div class="lane-label">Webview UI<small>изолированный браузер внутри VS Code</small></div>
+            <div class="lane-flow">
+              <div class="node" style="--tone: rgba(96, 165, 250, 0.52)">
+                <span class="tag">React</span>
+                <h3>App / ChatPage / Composer</h3>
+                <p>
+                  Рендерит чат, настройки, approval-модалки и форму ввода. На старте отправляет
+                  <code>webviewReady</code>.
+                </p>
+              </div>
+              <div class="node" style="--tone: rgba(34, 211, 238, 0.48)">
+                <span class="tag">IPC facade</span>
+                <h3>agentActions</h3>
+                <p>
+                  Единая точка команд UI: <code>ask</code>, <code>stop</code>, <code>setModel</code>,
+                  <code>resolveToolCall</code>.
+                </p>
+              </div>
+              <div class="node" style="--tone: rgba(167, 139, 250, 0.42)">
+                <span class="tag">VS Code API</span>
+                <h3>acquireVsCodeApi</h3>
+                <p>Отправляет <code>WebviewToExtensionMessage</code> через <code>vscode.postMessage</code>.</p>
+              </div>
+              <div class="node" style="--tone: rgba(74, 222, 128, 0.35)">
+                <span class="tag">Patch receiver</span>
+                <h3>window.message</h3>
+                <p>
+                  Принимает <code>state</code>, <code>chat.patch</code>, <code>page</code>, <code>errorModal</code> и
+                  обновляет локальный React state.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="arrow-row">
+            <div></div>
+            <div class="arrows">
+              <div class="arrow">postMessage</div>
+              <div class="arrow">command</div>
+              <div class="arrow">state</div>
+              <div class="arrow">patch</div>
+            </div>
+          </div>
+
+          <div class="lane">
+            <div class="lane-label">Extension host<small>тонкий VS Code client</small></div>
+            <div class="lane-flow">
+              <div class="node" style="--tone: rgba(96, 165, 250, 0.42)">
+                <span class="tag">activation</span>
+                <h3>activate()</h3>
+                <p>
+                  Создаёт daemon bridge, <code>AgentController</code>, регистрирует webview provider, panel serializer и
+                  команды VS Code.
+                </p>
+              </div>
+              <div class="node" style="--tone: rgba(34, 211, 238, 0.4)">
+                <span class="tag">webview host</span>
+                <h3>resolveAgentSidebarWebview</h3>
+                <p>Подключает <code>dist/webview.js</code>, CSP, assets, слушает <code>onDidReceiveMessage</code>.</p>
+              </div>
+              <div class="node" style="--tone: rgba(167, 139, 250, 0.42)">
+                <span class="tag">controller</span>
+                <h3>AgentController</h3>
+                <p>Маршрутизирует UI-команды, держит surfaces sidebar/editor и рассылает state или patch обратно.</p>
+              </div>
+              <div class="node" style="--tone: rgba(245, 158, 11, 0.42)">
+                <span class="tag">daemon bridge</span>
+                <h3>VscodeDaemonRuntimeBridge</h3>
+                <p>
+                  Синхронизирует настройки, вызывает JSON-RPC методы и регистрирует VS Code capabilities для daemon.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="arrow-row">
+            <div></div>
+            <div class="arrows">
+              <div class="arrow">spawn/connect</div>
+              <div class="arrow">JSON-RPC</div>
+              <div class="arrow">events</div>
+              <div class="arrow">callbacks</div>
+            </div>
+          </div>
+
+          <div class="lane">
+            <div class="lane-label">Daemon<small>долгоживущий backend workspace</small></div>
+            <div class="lane-flow">
+              <div class="node" style="--tone: rgba(245, 158, 11, 0.45)">
+                <span class="tag">process</span>
+                <h3>aist daemon --workspace</h3>
+                <p>Запускается расширением или подключается как существующий процесс для конкретного workspace.</p>
+              </div>
+              <div class="node" style="--tone: rgba(96, 165, 250, 0.38)">
+                <span class="tag">socket</span>
+                <h3>JSON-RPC 2.0</h3>
+                <p>
+                  Методы: <code>chat.ask</code>, <code>state.get</code>, <code>chat.get</code>,
+                  <code>approval.resolve</code>, <code>config.update</code>.
+                </p>
+              </div>
+              <div class="node" style="--tone: rgba(74, 222, 128, 0.38)">
+                <span class="tag">storage</span>
+                <h3>Chat / Run / Config repos</h3>
+                <p>Хранят чаты, историю, события рантайма, workspace/global config, memory и daemon log.</p>
+              </div>
+              <div class="node" style="--tone: rgba(251, 113, 133, 0.38)">
+                <span class="tag">events</span>
+                <h3>event broadcast</h3>
+                <p>
+                  Рассылает <code>run.*</code>, <code>tool.*</code>, <code>message.appended</code>,
+                  <code>state.changed</code> всем подписанным клиентам.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="arrow-row">
+            <div></div>
+            <div class="arrows">
+              <div class="arrow">startAsk</div>
+              <div class="arrow">model</div>
+              <div class="arrow">tools</div>
+              <div class="arrow">persist</div>
+            </div>
+          </div>
+
+          <div class="lane">
+            <div class="lane-label">Core AI agent<small>чистый runtime и adapters</small></div>
+            <div class="lane-flow">
+              <div class="node" style="--tone: rgba(167, 139, 250, 0.45)">
+                <span class="tag">runtime</span>
+                <h3>AgentRuntimeService</h3>
+                <p>Принимает run, ставит chat busy, готовит context/history/system prompt и запускает цикл модели.</p>
+              </div>
+              <div class="node" style="--tone: rgba(34, 211, 238, 0.44)">
+                <span class="tag">model</span>
+                <h3>OpenRouter / Codex transport</h3>
+                <p>Делает model request, поддерживает streaming, retry и telemetry modelRequest.</p>
+              </div>
+              <div class="node" style="--tone: rgba(74, 222, 128, 0.42)">
+                <span class="tag">tools</span>
+                <h3>ToolRunner + registry</h3>
+                <p>Выполняет filesystem tools, skills, approvals и preview edit через adapters.</p>
+              </div>
+              <div class="node" style="--tone: rgba(245, 158, 11, 0.42)">
+                <span class="tag">answer</span>
+                <h3>final message</h3>
+                <p>Сохраняет assistant answer, usage, history, reflection candidates и завершает run.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sequence">
+        <div class="section-header">
+          <h2>Что происходит после Send</h2>
+          <p>Основной сценарий вызова агента из VS Code.</p>
+        </div>
+        <div class="timeline">
+          <ol>
+            <li>
+              <strong>Пользователь вводит prompt в Composer.</strong> Компонент вызывает
+              <code>agentActions.ask(prompt)</code>, а facade отправляет <code>{ type: 'ask', prompt }</code> через
+              <code>vscode.postMessage</code>.
+            </li>
+            <li>
+              <strong>Extension host принимает сообщение.</strong> <code>webview.onDidReceiveMessage</code> передаёт
+              команду в <code>AgentController.handleWebviewMessage</code>.
+            </li>
+            <li>
+              <strong>Контроллер выбирает daemon route.</strong> Для <code>ask</code> он берёт
+              <code>surface.getChatId()</code>, синхронизирует legacy API key и вызывает
+              <code>daemonRuntime.ask(chatId, prompt)</code>.
+            </li>
+            <li>
+              <strong>Bridge отправляет JSON-RPC.</strong> <code>VscodeDaemonRuntimeBridge</code> делает
+              <code>config.update</code> для актуальных настроек и затем <code>chat.ask</code> по локальному socket.
+            </li>
+            <li>
+              <strong>Daemon принимает run.</strong> <code>AistDaemonServer.chatAsk</code> проверяет busy-state,
+              вызывает <code>runtime.startAsk</code>, регистрирует active run и сразу отвечает
+              <code>{ accepted: true, runId }</code>.
+            </li>
+            <li>
+              <strong>Core runtime выполняет agent loop.</strong> <code>AgentRuntimeService</code> добавляет user
+              message, собирает context, вызывает модель, исполняет tools, обрабатывает approval и повторяет цикл до
+              финального ответа.
+            </li>
+            <li>
+              <strong>Daemon транслирует события.</strong> Runtime events сохраняются в run repository и уходят как
+              JSON-RPC notification <code>event</code>: <code>run.started</code>, <code>message.appended</code>,
+              <code>tool.*</code>, <code>model.response</code>, <code>run.finished</code>.
+            </li>
+            <li>
+              <strong>Extension обновляет локальный chat store.</strong> Bridge по событию делает
+              <code>chat.get</code> или <code>state.get</code>, обновляет <code>DaemonChatStore</code> и уведомляет
+              <code>AgentController</code>.
+            </li>
+            <li>
+              <strong>Webview получает patch.</strong> <code>AgentController.postChatPatch</code> мапит daemon event в
+              <code>chat.patch</code>, отправляет во все surfaces, а React применяет <code>applyAgentPatch</code>.
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="runtime">
+        <div class="section-header">
+          <h2>Core agent loop</h2>
+          <p>Что именно делает AI runtime после принятия <code>chat.ask</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Итерационный цикл модели и инструментов</h3>
+          <p>
+            Core runtime специально отделён от VS Code: storage, model transport, tools, context providers и UI
+            callbacks передаются как адаптеры. Поэтому один и тот же агентный цикл можно запускать в daemon, CLI и
+            unit-тестах.
+          </p>
+          <div class="runtime-loop">
+            <div class="loop-step">
+              <b>1. Accept run</b><span>Проверка prompt, busy-state, создание runId, AbortController и telemetry.</span>
+            </div>
+            <div class="loop-step">
+              <b>2. Prepare context</b
+              ><span>System prompt, история чата, memory block, repo/editor context и context governance.</span>
+            </div>
+            <div class="loop-step">
+              <b>3. Request model</b
+              ><span>OpenRouter или Codex transport, streaming deltas, lifecycle status, retry до 3 попыток.</span>
+            </div>
+            <div class="loop-step">
+              <b>4. Execute tools</b
+              ><span
+                >Если модель вернула tool calls, ToolRunner выполняет их, пишет tool messages и ждёт approval при
+                необходимости.</span
+              >
+            </div>
+            <div class="loop-step">
+              <b>5. Finalize</b
+              ><span>Когда tool calls закончились, сохраняется assistant answer, usage, history и run.finished.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="state">
+        <div class="section-header">
+          <h2>Состояние, события и approvals</h2>
+          <p>Как UI остаётся синхронным с backend-ом без локальной бизнес-логики.</p>
+        </div>
+        <div class="grid-3">
+          <article class="card">
+            <h3>State snapshot</h3>
+            <p>
+              При открытии panel/sidebar extension отправляет полный <code>state</code>: активный чат, список чатов,
+              модели, настройки, permissions и runtime metadata.
+            </p>
+            <div class="pill-row">
+              <span class="pill">sendAgentState</span><span class="pill">state.get</span
+              ><span class="pill">chat.get</span>
+            </div>
+          </article>
+          <article class="card">
+            <h3>Incremental patches</h3>
+            <p>
+              Во время run extension не перерисовывает всё состояние: daemon event превращается в
+              <code>chat.patch</code>, а webview применяет его к текущему state.
+            </p>
+            <div class="pill-row">
+              <span class="pill">mapDaemonEventToChatPatch</span><span class="pill">applyAgentPatch</span>
+            </div>
+          </article>
+          <article class="card">
+            <h3>Approval round-trip</h3>
+            <p>
+              ToolRunner создаёт pending approval, webview показывает modal/action card, пользователь выбирает решение,
+              UI отправляет <code>resolveToolCall</code>, daemon вызывает <code>runtime.resolveToolCall</code>.
+            </p>
+            <div class="pill-row">
+              <span class="pill">approval.resolve</span><span class="pill">ToolApprovalDecision</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="legend">
+          <h3>Транспортные границы</h3>
+          <div class="legend-grid">
+            <div class="legend-item">
+              <span class="dot" style="--tone: var(--blue)"></span><b>Webview IPC</b><br />Команды UI идут через
+              <code>vscode.postMessage</code>, ответы — через <code>webview.postMessage</code>.
+            </div>
+            <div class="legend-item">
+              <span class="dot" style="--tone: var(--amber)"></span><b>Daemon JSON-RPC</b><br />Extension и daemon
+              говорят newline-delimited JSON-RPC 2.0 по socket.
+            </div>
+            <div class="legend-item">
+              <span class="dot" style="--tone: var(--green)"></span><b>Core adapters</b><br />Daemon внедряет
+              repositories, model client, tool runner, context providers и event sink.
+            </div>
+            <div class="legend-item">
+              <span class="dot" style="--tone: var(--rose)"></span><b>Events</b><br />Runtime progress возвращается как
+              daemon notifications, затем как webview patches.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="files">
+        <div class="section-header">
+          <h2>Ключевые файлы</h2>
+          <p>Где смотреть реализацию каждого слоя.</p>
+        </div>
+        <div class="source-map">
+          <div>
+            <h3>Frontend webview</h3>
+            <div class="file-list">
+              <div class="file">src/webview/app/App.tsx</div>
+              <div class="file">src/webview/shared/lib/vscode.ts</div>
+              <div class="file">src/webview/shared/lib/agentActions.ts</div>
+              <div class="file">src/webview/features/send-message/Composer.tsx</div>
+              <div class="file">src/webview/shared/lib/agentPatches/applyAgentPatch.ts</div>
+            </div>
+          </div>
+          <div>
+            <h3>Extension, daemon и core</h3>
+            <div class="file-list">
+              <div class="file">src/extension.ts</div>
+              <div class="file">src/extension/agent/agentController.ts</div>
+              <div class="file">src/extension/agent/webview/host.ts</div>
+              <div class="file">src/extension/agent/daemon/bridge.ts</div>
+              <div class="file">src/extension/agent/daemon/processManager.ts</div>
+              <div class="file">src/cli/daemonClient.ts</div>
+              <div class="file">src/cli/daemon.ts</div>
+              <div class="file">src/core/app/runtime/agentRuntime.ts</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="callout">
+          <strong>Главная идея архитектуры:</strong> webview — это тонкий интерактивный клиент, extension host — адаптер
+          VS Code и маршрутизатор surfaces, daemon — единый workspace backend с долговременным состоянием, а core
+          runtime — чистый агентный цикл с моделью, инструментами, approval и событиями. Поэтому активный run может
+          продолжаться даже при переподключении UI, а разные webview surfaces получают одинаковую картину через state и
+          patches.
+        </div>
+      </section>
+
+      <footer class="footer">
+        Сгенерировано по текущему коду AIST: VS Code webview, daemon JSON-RPC и core AgentRuntimeService.
+      </footer>
+    </main>
+  </body>
+</html>

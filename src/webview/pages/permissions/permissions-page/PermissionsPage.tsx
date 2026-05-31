@@ -79,6 +79,8 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
               chatId={activeChat.id}
               memoryItems={memoryItems}
               reflectionCandidates={activeChat.reflectionCandidates || []}
+              auxiliaryModels={auxiliaryModels}
+              models={models}
             />
           ) : null}
           {activePage === 'skills' ? <SkillsSettingsPage customSkills={customSkills} /> : null}

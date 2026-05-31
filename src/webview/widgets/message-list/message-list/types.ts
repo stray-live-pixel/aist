@@ -6,6 +6,7 @@ import type { Chat, ChatMessage, CompactPreviousChat } from '../../../shared/typ
  * необходимые для истории, sticky-инструкций, статуса активности и compacted-секции.
  */
 export type MessageListProps = {
+  chatId: string;
   messages: ChatMessage[];
   previousChat?: CompactPreviousChat;
   compactedAt?: number;

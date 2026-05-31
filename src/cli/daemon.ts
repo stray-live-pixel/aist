@@ -17,7 +17,7 @@ import {
   type AgentRuntimeToolCallHandler
 } from '../core/app/runtime/agentRuntime';
 import { ChatRepository } from '../core/entities/chat/chatRepository';
-import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/entities/memory/memory';
+import { AgentMemoryStore, createMemoryStorePaths } from '../core/entities/memory/memory';
 import { type AuxiliaryModelInvoker, createAuxiliaryModelInvoker } from '../core/entities/model/auxiliaryModel';
 import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
 import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
@@ -40,6 +40,7 @@ import {
   selectCompactionTailMessages,
   splitCompactionHistory
 } from '../core/features/compaction/compaction';
+import { analyzeMemoryChat, getRelevantMemoryPromptBlockBySubagent } from '../core/features/memory-subagent';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { buildFileAgentSystemPrompt } from '../core/features/system-prompt/filePromptConfig';
 import { type AgentLanguage } from '../core/features/system-prompt/prompts';
@@ -90,6 +91,7 @@ import {
   type DaemonChatDeleteResult,
   type DaemonChatGetResult,
   type DaemonChatListResult,
+  type DaemonChatMemoryAnalyzeResult,
   type DaemonChatSetModelResult,
   type DaemonChatSetModelSettingsResult,
   type DaemonChatStopResult,
@@ -391,6 +393,8 @@ export class AistDaemonServer {
         return this.chatSetModelSettings(params);
       case 'chat.compact':
         return this.chatCompact(params);
+      case 'chat.memoryAnalyze':
+        return this.chatMemoryAnalyze(params);
       case 'approval.resolve':
         return this.approvalResolve(params);
       case 'config.get':
@@ -608,6 +612,34 @@ export class AistDaemonServer {
     return {
       operationId: this.idFactory(),
       chat: toDaemonChat(updated)
+    };
+  }
+
+  private async chatMemoryAnalyze(params: unknown): Promise<DaemonChatMemoryAnalyzeResult> {
+    const input = requireRecord(params, 'chat.memoryAnalyze params');
+    const chat = await this.requireChat(requireString(input, 'chatId'));
+    const modelClient = this.options.modelClient || this.createRoutingModelClient();
+    const candidates = await analyzeMemoryChat({
+      analysis: {
+        chatId: chat.id,
+        messages: chat.messages,
+        memoryItems: this.memoryStore.list(),
+        chatModel: chat.model,
+        settings: await this.getMemorySubagentSettings(chat.model)
+      },
+      modelClient
+    });
+
+    if (candidates.length) {
+      await this.chatRepository.addReflectionCandidates(chat.id, candidates);
+    }
+
+    const updatedChat = await this.requireChat(chat.id);
+    await this.broadcastStateChanged('chat.memoryAnalyze');
+    return {
+      operationId: this.idFactory(),
+      chat: toDaemonChat(updatedChat),
+      candidates
     };
   }
 
@@ -892,7 +924,17 @@ export class AistDaemonServer {
       contextProviders: {
         getEditorContext: () => this.getClientEditorContext(),
         getRepoContextNote: (inputPrompt) => getRepoVerificationContextNote(this.workspaceRoot, inputPrompt),
-        getMemoryContextBlock: (inputPrompt) => getRelevantMemoryPromptBlock(this.memoryStore, inputPrompt)
+        getMemoryContextBlock: async (input) =>
+          getRelevantMemoryPromptBlockBySubagent({
+            selection: {
+              prompt: input.prompt,
+              chatHistory: input.chat.messages,
+              memoryItems: this.memoryStore.list(),
+              chatModel: input.chat.model,
+              settings: await this.getMemorySubagentSettings(input.chat.model)
+            },
+            modelClient
+          })
       },
       modelCatalog: {
         getOption: getDaemonModelOption
@@ -1360,25 +1402,28 @@ export class AistDaemonServer {
     );
   }
 
-  private async getAuxiliaryModelSetting(id: 'compaction' | 'tool', key: 'model'): Promise<string | undefined> {
+  private async getAuxiliaryModelSetting(
+    id: 'compaction' | 'tool' | 'memory',
+    key: 'model'
+  ): Promise<string | undefined> {
     return this.getStringSetting([
       `openrouterAgent.auxiliaryModels.${id}.${key}`,
       `auxiliaryModels.${id}.${key}`,
-      id === 'compaction' ? `compaction.${key}` : `toolModel.${key}`
+      getAuxiliaryLegacySettingKey(id, key)
     ]);
   }
 
-  private async getAuxiliaryReasoningEffort(id: 'compaction' | 'tool'): Promise<ReasoningEffort> {
+  private async getAuxiliaryReasoningEffort(id: 'compaction' | 'tool' | 'memory'): Promise<ReasoningEffort> {
     const value = await this.getStringSetting([
       `openrouterAgent.auxiliaryModels.${id}.reasoningEffort`,
       `auxiliaryModels.${id}.reasoningEffort`,
-      id === 'compaction' ? 'compaction.reasoningEffort' : 'toolModel.reasoningEffort'
+      getAuxiliaryLegacySettingKey(id, 'reasoningEffort')
     ]);
     return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
   }
 
   private async getAuxiliaryBooleanSetting(
-    id: 'compaction' | 'tool',
+    id: 'compaction' | 'tool' | 'memory',
     key: 'allowTools',
     fallback: boolean
   ): Promise<boolean> {
@@ -1386,7 +1431,7 @@ export class AistDaemonServer {
       [
         `openrouterAgent.auxiliaryModels.${id}.${key}`,
         `auxiliaryModels.${id}.${key}`,
-        id === 'compaction' ? `compaction.${key}` : `toolModel.${key}`
+        getAuxiliaryLegacySettingKey(id, key)
       ],
       fallback
     );
@@ -1406,6 +1451,15 @@ export class AistDaemonServer {
       model: await this.getAuxiliaryModelSetting('tool', 'model'),
       reasoningEffort: await this.getAuxiliaryReasoningEffort('tool'),
       allowTools: await this.getAuxiliaryBooleanSetting('tool', 'allowTools', false)
+    };
+  }
+
+  private async getMemorySubagentSettings(
+    chatModel: string
+  ): Promise<{ model: string; reasoningEffort: ReasoningEffort }> {
+    return {
+      model: (await this.getAuxiliaryModelSetting('memory', 'model')) || chatModel,
+      reasoningEffort: await this.getAuxiliaryReasoningEffort('memory')
     };
   }
 
@@ -1880,6 +1934,16 @@ function requireString(input: Record<string, unknown>, key: string): string {
 function optionalString(input: Record<string, unknown>, key: string): string | undefined {
   const value = input[key];
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function getAuxiliaryLegacySettingKey(id: 'compaction' | 'tool' | 'memory', key: string): string {
+  if (id === 'compaction') {
+    return `compaction.${key}`;
+  }
+  if (id === 'tool') {
+    return `toolModel.${key}`;
+  }
+  return `memorySubagent.${key}`;
 }
 
 function optionalNumber(input: Record<string, unknown>, key: string): number | undefined {

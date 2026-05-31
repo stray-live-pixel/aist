@@ -13,6 +13,7 @@ import type {
 } from '../core/processes/autonomous';
 import type { EditorContextInput } from '../core/shared/types/types';
 import type {
+  AgentReflectionCandidate,
   ApprovalPreviewResolution,
   ApprovalResolveRequest,
   ChatMessage,
@@ -193,6 +194,16 @@ export type DaemonChatCompactParams = {
 export type DaemonChatCompactResult = {
   readonly operationId: string;
   readonly chat: DaemonChat;
+};
+
+export type DaemonChatMemoryAnalyzeParams = {
+  readonly chatId: string;
+};
+
+export type DaemonChatMemoryAnalyzeResult = {
+  readonly operationId: string;
+  readonly chat: DaemonChat;
+  readonly candidates: readonly AgentReflectionCandidate[];
 };
 
 export type DaemonApprovalResolveParams = ApprovalResolveRequest & {

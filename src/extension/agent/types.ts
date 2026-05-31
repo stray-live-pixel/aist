@@ -126,6 +126,7 @@ export type WebviewMessage =
   | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
   | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }
   | { type: 'rejectReflectionCandidate'; chatId: string; candidateId: string }
+  | { type: 'runMemoryAnalysis'; chatId: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;

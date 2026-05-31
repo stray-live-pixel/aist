@@ -8,6 +8,7 @@ import type {
   DaemonChatCreateResult,
   DaemonChatDeleteResult,
   DaemonChatGetResult,
+  DaemonChatMemoryAnalyzeResult,
   DaemonChatSetModelResult,
   DaemonChatSetModelSettingsResult,
   DaemonChatStopResult,
@@ -34,6 +35,7 @@ import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { Chat } from '../../chats/types';
 import type { AistLogger } from '../../shared/logger';
 import { openWorkspaceFile as openWorkspaceFileFromWebview } from '../commands/openWorkspaceFile';
+import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
 import { getProviderProfiles } from '../config/providerProfiles';
 import { getAgentLanguage } from '../config/settings';
 import { getAgentSettingsSnapshot, getDefaultModelSettings } from '../config/settingsSnapshot';
@@ -62,6 +64,7 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void>;
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
+  analyzeMemoryChat(chatId: string): Promise<void>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   syncToolPermissions(): Promise<void>;
   refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;
@@ -196,6 +199,13 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     return { id: chat.id };
   }
 
+  async analyzeMemoryChat(chatId: string): Promise<void> {
+    const client = await this.getClient();
+    await this.syncSettings();
+    const result = await client.request<DaemonChatMemoryAnalyzeResult>('chat.memoryAnalyze', { chatId });
+    this.chats.upsert(result.chat);
+  }
+
   async resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void> {
     const client = await this.getClient();
     await client.request('approval.resolve', { messageId, ...decision });
@@ -317,6 +327,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       codexServiceTier: snapshot.codexServiceTier,
       streamingEnabled: snapshot.streamingEnabled,
       providerProfiles: getProviderProfiles(),
+      auxiliaryModels: getAuxiliaryModelsSettings(),
       language: getAgentLanguage(),
       toolPermissions:
         vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {},

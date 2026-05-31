@@ -127,7 +127,7 @@ export type AgentRuntimePromptProvider = {
 export type AgentRuntimeContextProviders = {
   getEditorContext?(): MaybePromise<EditorContextInput | null | undefined>;
   getRepoContextNote?(prompt: string): MaybePromise<string | undefined>;
-  getMemoryContextBlock?(prompt: string): MaybePromise<string | undefined>;
+  getMemoryContextBlock?(input: { prompt: string; chat: Chat; signal?: AbortSignal }): MaybePromise<string | undefined>;
 };
 
 export type AgentRuntimeModelCatalog = {
@@ -412,7 +412,7 @@ export class AgentRuntimeService {
     prompt: string,
     options: AgentRuntimeAskOptions
   ): Promise<OpenRouterMessage[]> {
-    const memoryContextBlock = await this.deps.contextProviders?.getMemoryContextBlock?.(prompt);
+    const memoryContextBlock = await this.deps.contextProviders?.getMemoryContextBlock?.({ prompt, chat });
     await this.appendMemoryMessageIfNeeded(chat.id, memoryContextBlock);
     const governedHistory = governModelContext({
       prompt,

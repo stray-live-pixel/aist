@@ -17,6 +17,7 @@ export function getAuxiliaryModelsSettings(): AuxiliaryModelsSettings {
 }
 
 export function getAuxiliaryModelSettings(id: 'compaction'): AuxiliaryModelSettings;
+export function getAuxiliaryModelSettings(id: 'memory'): AuxiliaryModelSettings;
 export function getAuxiliaryModelSettings(id: 'tool'): AuxiliaryToolModelSettings;
 export function getAuxiliaryModelSettings(id: AuxiliaryModelId): AuxiliaryModelSettings | AuxiliaryToolModelSettings {
   return getAuxiliaryModelsSettings()[id];
@@ -30,7 +31,7 @@ export async function setAuxiliaryModelSettings(
   const nextValue =
     id === 'tool'
       ? normalizeAuxiliaryToolModelSettings({ ...current.tool, ...settings })
-      : normalizeAuxiliaryModelSettings({ ...current.compaction, ...settings });
+      : normalizeAuxiliaryModelSettings({ ...current[id], ...settings });
   await updateAgentConfig({
     auxiliaryModels: {
       ...current,

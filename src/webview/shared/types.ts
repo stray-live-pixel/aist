@@ -179,7 +179,7 @@ export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 export type CodexServiceTier = 'auto' | 'priority';
 export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 export type AgentLanguage = 'ru' | 'en';
-export type AuxiliaryModelId = 'compaction' | 'tool';
+export type AuxiliaryModelId = 'compaction' | 'tool' | 'memory';
 export type AuxiliaryModelSettings = {
   model: string;
   reasoningEffort: ReasoningEffort;
@@ -194,6 +194,7 @@ export type AuxiliaryToolModelSettings = AuxiliaryModelSettings & {
 export type AuxiliaryModelsSettings = {
   compaction: AuxiliaryModelSettings;
   tool: AuxiliaryToolModelSettings;
+  memory: AuxiliaryModelSettings;
 };
 export type AgentModeId = string;
 export type ToolPermissionPresetId = string;
@@ -667,6 +668,7 @@ export type WebviewToExtensionMessage =
   | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
   | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }
   | { type: 'rejectReflectionCandidate'; chatId: string; candidateId: string }
+  | { type: 'runMemoryAnalysis'; chatId: string }
   | {
       type: 'addSkill';
       scope?: AgentItemScope;

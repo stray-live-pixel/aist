@@ -365,6 +365,12 @@ export class AgentController {
         this.sendState();
         return true;
       }
+      case 'runMemoryAnalysis':
+        await this.daemonRuntime.analyzeMemoryChat(message.chatId || surface.getChatId());
+        this.sidebarPage = 'settings';
+        this.postSidebarPage();
+        this.sendState();
+        return true;
       case 'resolveToolCall':
         await this.daemonRuntime.resolveToolCall(message.messageId, toToolApprovalDecision(message));
         return true;

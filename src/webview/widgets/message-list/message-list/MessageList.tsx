@@ -6,7 +6,8 @@
 import { type ReactNode, useLayoutEffect, useRef } from 'react';
 
 import { MessageCard } from '../../../entities/message';
-import { CopyMessageButton } from '../../../features';
+import { AnalyzeMemoryButton, CopyMessageButton } from '../../../features';
+import type { ChatMessage } from '../../../shared/types';
 import { ActivePlanWidget } from '../active-plan';
 import { AgentActivityStatus } from '../agent-activity-status';
 import { EmptyState } from '../empty-state';
@@ -22,6 +23,7 @@ import {
 } from './utils';
 
 export function MessageList({
+  chatId,
   messages,
   previousChat,
   compactedAt,
@@ -75,7 +77,13 @@ export function MessageList({
         {messages.length === 0 && !previousChat ? <EmptyState /> : null}
         {groups.map((group) => (
           <AnimatedMessageGroup key={getMessageGroupId(group)} animate={newGroupIds.has(getMessageGroupId(group))}>
-            {renderMessageGroup(group, getLastAssistantMessageId(messages), resolvedApprovalId)}
+            {renderMessageGroup({
+              group,
+              chatId,
+              lastAssistantMessageId: getLastAssistantMessageId(messages),
+              resolvedApprovalId,
+              busy
+            })}
           </AnimatedMessageGroup>
         ))}
         {busy || modelRequest?.phase === 'failed' ? (
@@ -100,7 +108,14 @@ function PreviousChatHistory({ chat, compactedAt, compactionModel }: PreviousCha
 
   return (
     <>
-      {groups.map((group) => renderMessageGroup(group, getLastAssistantMessageId(chat.messages)))}
+      {groups.map((group) =>
+        renderMessageGroup({
+          group,
+          chatId: chat.id,
+          lastAssistantMessageId: getLastAssistantMessageId(chat.messages),
+          busy: true
+        })
+      )}
       <div className={styles.compactionDivider}>
         <span className={styles.compactionLine} />
         <span className={styles.compactionLabel}>{label}</span>
@@ -129,26 +144,63 @@ function compactModelLabel(model: string): string {
   );
 }
 
-function renderMessageGroup(group: MessageGroup, lastAssistantMessageId?: string, resolvedApprovalId?: string) {
-  if (group.type === 'toolCalls') {
+function renderMessageGroup(input: {
+  group: MessageGroup;
+  chatId: string;
+  lastAssistantMessageId?: string;
+  resolvedApprovalId?: string;
+  busy: boolean;
+}) {
+  if (input.group.type === 'toolCalls') {
     return (
       <ToolCallsCut
-        key={group.id}
-        tools={group.tools}
-        userMessage={group.userMessage}
-        assistantMessage={group.assistantMessage}
-        active={group.active}
-        resolvedApprovalId={resolvedApprovalId}
+        key={input.group.id}
+        tools={input.group.tools}
+        userMessage={input.group.userMessage}
+        assistantMessage={input.group.assistantMessage}
+        active={input.group.active}
+        resolvedApprovalId={input.resolvedApprovalId}
       />
     );
   }
 
   return (
     <MessageCard
-      message={group.message}
-      defaultExpanded={isDefaultExpandedMessage(group.message, lastAssistantMessageId)}
-      collapseToolId={resolvedApprovalId}
-      actions={group.message.content ? <CopyMessageButton markdown={group.message.content} /> : null}
+      message={input.group.message}
+      defaultExpanded={isDefaultExpandedMessage(input.group.message, input.lastAssistantMessageId)}
+      collapseToolId={input.resolvedApprovalId}
+      actions={renderMessageActions({
+        chatId: input.chatId,
+        message: input.group.message,
+        lastAssistantMessageId: input.lastAssistantMessageId,
+        busy: input.busy
+      })}
     />
+  );
+}
+
+/**
+ * Что это: собирает действия карточки сообщения.
+ * Зачем нужно: после последнего ответа ассистента пользователь может вручную запустить анализ памяти, не открывая настройки.
+ */
+function renderMessageActions(input: {
+  chatId: string;
+  message: ChatMessage;
+  lastAssistantMessageId?: string;
+  busy: boolean;
+}) {
+  const canAnalyzeMemory =
+    input.message.role === 'assistant' && input.message.id === input.lastAssistantMessageId && !input.busy;
+  const canCopy = Boolean(input.message.content);
+
+  if (!canCopy && !canAnalyzeMemory) {
+    return null;
+  }
+
+  return (
+    <div className={styles.messageActions}>
+      {canAnalyzeMemory ? <AnalyzeMemoryButton chatId={input.chatId} disabled={input.busy} /> : null}
+      {canCopy ? <CopyMessageButton markdown={input.message.content || ''} /> : null}
+    </div>
   );
 }

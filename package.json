@@ -266,12 +266,41 @@
               "reasoningEffort": "auto",
               "allowTools": false,
               "overrides": []
+            },
+            "memory": {
+              "model": "",
+              "reasoningEffort": "auto",
+              "allowTools": false
             }
           },
           "markdownDescription": "Optional lightweight AI models for non-primary tasks. `compaction` is used when summarizing old context; `tool` configures the default `invoke_model` model; `tool.overrides` can assign different models to individual tools.",
           "properties": {
             "compaction": {
               "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "default": ""
+                },
+                "reasoningEffort": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "default": "auto"
+                },
+                "allowTools": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            },
+            "memory": {
+              "type": "object",
+              "markdownDescription": "AI subagent that selects relevant memory notes and proposes new memory candidates. Empty model means the current chat model is used.",
               "properties": {
                 "model": {
                   "type": "string",

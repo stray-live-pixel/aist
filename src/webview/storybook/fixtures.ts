@@ -541,7 +541,8 @@ export const storyAgentState: AgentState = {
   streamingEnabled: false,
   auxiliaryModels: {
     compaction: { model: '', reasoningEffort: 'auto', allowTools: false },
-    tool: { model: '', reasoningEffort: 'auto', allowTools: false, overrides: [] }
+    tool: { model: '', reasoningEffort: 'auto', allowTools: false, overrides: [] },
+    memory: { model: '', reasoningEffort: 'auto', allowTools: false }
   },
   compactionSettings: {
     enabled: true,
