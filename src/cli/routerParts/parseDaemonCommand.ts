@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { CliCommand } from './CliCommand';
 import { CliUsageError } from './CliUsageError';
 import { assertNoExtraArgs } from './assertNoExtraArgs';

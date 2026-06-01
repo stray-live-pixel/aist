@@ -1,4 +1,3 @@
-import path from 'node:path';
 import * as vscode from 'vscode';
 
 import { EditableDiffPreview } from './EditableDiffPreview';

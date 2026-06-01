@@ -1,5 +1,6 @@
 import { buildAgentSystemPrompt } from '../config/systemPrompt';
 import type { WebviewSurface } from '../types';
+import { postWebviewLoading } from '../webview/postWebviewLoading';
 import { sendAgentState } from '../webview/statePresenter';
 import type { AgentControllerCallbacks } from './AgentControllerCallbacks';
 import type { AgentControllerState } from './AgentControllerState';
@@ -20,12 +21,31 @@ export function sendControllerState({
   targetSurface?: WebviewSurface;
 }): void {
   const surfaces = targetSurface ? [targetSurface] : getSurfaces({ state, callbacks });
-  void Promise.all(surfaces.map((surface) => state.daemonRuntime.listSubagentRuns(surface.getChatId())))
-    .then((runsBySurface) => postState({ state, surfaces, runsBySurface }))
+  const readySurfaces = surfaces.filter((surface) => !postPendingChatCreationState({ surface }));
+  if (!readySurfaces.length) {
+    return;
+  }
+
+  void Promise.all(readySurfaces.map((surface) => state.daemonRuntime.listSubagentRuns(surface.getChatId())))
+    .then((runsBySurface) => postState({ state, surfaces: readySurfaces, runsBySurface }))
     .catch((error) => {
       state.logger.error('Failed to load subagent runs for webview state', error);
-      postState({ state, surfaces, runsBySurface: [] });
+      postState({ state, surfaces: readySurfaces, runsBySurface: [] });
     });
+}
+
+/**
+ * Что это: отправляет loading во временную вкладку создания чата и блокирует full state для неё.
+ * Зачем нужно: пока daemon создаёт чат в FS, editor не должен показывать активный соседний чат.
+ * Какую продуктовую проблему решает: пользователь видит честный статус «чат создаётся» без рассинхронизации.
+ */
+function postPendingChatCreationState({ surface }: { surface: WebviewSurface }): boolean {
+  if (!surface.isPendingChatCreation?.()) {
+    return false;
+  }
+
+  postWebviewLoading({ surface, message: surface.getPendingChatCreationMessage?.() || 'Creating chat...' });
+  return true;
 }
 
 /**

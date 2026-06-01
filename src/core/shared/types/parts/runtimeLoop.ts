@@ -1,5 +1,5 @@
 import type { ToolApprovalDecision } from './approval';
-import type { ChatMessage, ChatModelRequestStatus, ChatUsageEstimate } from './chat';
+import type { ChatMessage, ChatUsageEstimate } from './chat';
 import type { JsonObject } from './json';
 import type { ModelStreamCallbacks, ModelTransportMessage, OpenRouterMessage, ToolCall } from './model';
 import type { AgentRunActivity, AgentRunStatus } from './runtimeStatus';

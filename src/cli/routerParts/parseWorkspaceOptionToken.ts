@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { CliUsageError } from './CliUsageError';
 
 export function parseWorkspaceOptionToken(

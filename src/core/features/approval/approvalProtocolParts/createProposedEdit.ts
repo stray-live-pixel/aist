@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { ProposedFilesystemEdit } from './ProposedFilesystemEdit';
 
 export function createProposedEdit(

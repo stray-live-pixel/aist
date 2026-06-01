@@ -1,7 +1,13 @@
 import path from 'node:path';
 import * as vscode from 'vscode';
 
-import { deserializeAgentChatEditor, openAgentChatEditor, resolveAgentSidebarWebview } from '../webview/host';
+import type { WebviewSurface } from '../types';
+import {
+  deserializeAgentChatEditor,
+  openAgentChatEditor,
+  openPendingAgentChatEditor,
+  resolveAgentSidebarWebview
+} from '../webview/host';
 import type { AgentControllerCallbacks } from './AgentControllerCallbacks';
 import type { AgentControllerState } from './AgentControllerState';
 import { getWebviewHostDeps } from './getWebviewHostDeps';
@@ -94,8 +100,27 @@ export function openChatInEditorCommand({
   state: AgentControllerState;
   callbacks: AgentControllerCallbacks;
   chatId?: string;
-}): void {
-  openAgentChatEditor(chatId, getWebviewHostDeps({ state, callbacks }));
+}): WebviewSurface {
+  return openAgentChatEditor(chatId, getWebviewHostDeps({ state, callbacks }));
+}
+
+/**
+ * Что это: открывает временную editor вкладку для создаваемого чата.
+ * Зачем нужно: вкладка появляется сразу, а persisted chatId привязывается позже после daemon create.
+ * Какую продуктовую проблему решает: пользователь получает быстрый визуальный отклик на кнопку «Новый чат».
+ */
+export function openCreatingChatEditorCommand({
+  state,
+  callbacks,
+  title,
+  message
+}: {
+  state: AgentControllerState;
+  callbacks: AgentControllerCallbacks;
+  title: string;
+  message: string;
+}): WebviewSurface {
+  return openPendingAgentChatEditor({ deps: getWebviewHostDeps({ state, callbacks }), title, message });
 }
 
 /** Что это: восстанавливает chat editor после reload; зачем нужно: VS Code вызывает serializer; проблема: открытые диалоги не теряются при перезагрузке окна. */

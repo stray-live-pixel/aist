@@ -9,7 +9,7 @@ import { getRelevantMemoryPromptBlockBySubagent } from '../../core/features/memo
 import { buildFileAgentSystemPrompt } from '../../core/features/system-prompt/filePromptConfig';
 import { DefaultToolRegistry } from '../../core/features/tool-execution/toolRegistry';
 import { getRepoVerificationContextNote } from '../../core/shared/lib/repoMap';
-import { type Chat, type RuntimeEvent } from '../../core/shared/types/types';
+import { type RuntimeEvent } from '../../core/shared/types/types';
 import { createNodeFilesystemToolRunner } from '../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { CLI_APPROVAL_REQUIRED_EXIT_CODE } from './CLI_APPROVAL_REQUIRED_EXIT_CODE';
 import { CLI_NAME } from './CLI_NAME';

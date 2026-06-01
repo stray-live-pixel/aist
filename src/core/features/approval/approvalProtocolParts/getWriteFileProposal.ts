@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { type NodeFilesystemToolContext } from '../../../tools/fs/shared/nodeFilesystemToolContext';
 import { readTextFileIfExists } from '../../../tools/fs/shared/readTextFileIfExists';
 import { resolveWorkspacePath } from '../../../tools/fs/shared/resolveWorkspacePath';

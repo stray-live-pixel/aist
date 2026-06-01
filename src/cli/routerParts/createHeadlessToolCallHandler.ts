@@ -29,7 +29,7 @@ export function createHeadlessToolCallHandler(input: {
             toolName,
             tools: getHeadlessPermissionToolMetadata(input.toolRegistry)
           }),
-        requestApproval: async (request) => {
+        requestApproval: async (_request) => {
           if (input.approvalMode === 'deny') {
             return {
               approved: false,

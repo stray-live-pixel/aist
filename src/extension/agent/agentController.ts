@@ -2,9 +2,8 @@ import * as vscode from 'vscode';
 
 import type { DaemonEvent } from '../../cli/daemonProtocol';
 import { initializeTelemetryStore } from '../../core/features/telemetry/telemetry';
-import type { ModelProvider, ToolApprovalDecision } from '../../core/shared/types/types';
+import type { ToolApprovalDecision } from '../../core/shared/types/types';
 import type { AgentChatStore } from '../chats/chatDataStore';
-import type { ChatModelSettings } from '../chats/types';
 import type { AistLogger } from '../shared/logger';
 import type { AgentControllerCallbacks } from './agentController/AgentControllerCallbacks';
 import type { AgentControllerState } from './agentController/AgentControllerState';
@@ -18,6 +17,7 @@ import {
   openChatCommand,
   openChatInEditorCommand,
   openChatsCommand,
+  openCreatingChatEditorCommand,
   openSettingsCommand,
   openStorageCommand,
   resolveWebviewViewCommand
@@ -107,8 +107,8 @@ export class AgentController {
   }
 
   /** Открывает чат в editor webview panel. */
-  openChatInEditor(chatId?: string): void {
-    openChatInEditorCommand({ state: this.state, callbacks: this.callbacks, chatId });
+  openChatInEditor(chatId?: string): WebviewSurface {
+    return openChatInEditorCommand({ state: this.state, callbacks: this.callbacks, chatId });
   }
 
   /** Восстанавливает editor webview panel после reload. */
@@ -156,6 +156,8 @@ export class AgentController {
         void refreshControllerModels({ state: this.state, callbacks: this.callbacks, force, provider }),
       ask: (chatId, prompt, options) => this.ask(chatId, prompt, options),
       openChatInEditor: (chatId) => this.openChatInEditor(chatId),
+      openCreatingChatEditor: ({ title, message }) =>
+        openCreatingChatEditorCommand({ state: this.state, callbacks: this.callbacks, title, message }),
       retargetDeletedChat: (deletedChatId, nextChatId) =>
         retargetDeletedChat({ state: this.state, deletedChatId, nextChatId }),
       loginCodex: () => this.loginCodex(),

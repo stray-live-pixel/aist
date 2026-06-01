@@ -1,28 +1,10 @@
-import type { ConfigScope } from '../../core/app/config/config';
-import type { AgentMemoryItem } from '../../core/entities/memory/memory';
 import type {
-  AutonomousBackendEvent,
   AutonomousExportFormat,
   AutonomousLaunchOptions,
   AutonomousStartResult,
   AutonomousState,
   AutonomousStopResult
 } from '../../core/processes/autonomous';
-import type { EditorContextInput } from '../../core/shared/types/types';
-import type {
-  AgentReflectionCandidate,
-  ApprovalPreviewResolution,
-  ApprovalResolveRequest,
-  ChatMessage,
-  ChatModelSettings,
-  ChatSummary,
-  ChatVcsState,
-  JsonObject,
-  JsonValue,
-  OpenRouterModelOption,
-  RuntimeEvent,
-  SubagentRun
-} from '../../core/shared/types/types';
 
 export type DaemonAutonomousStateResult = {
   readonly operationId: string;

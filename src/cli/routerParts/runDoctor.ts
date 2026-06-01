@@ -1,4 +1,3 @@
-import { globalAistRoot, workspaceAistRoot } from '../../core/entities/storage/storage';
 import { DoctorCheck } from './DoctorCheck';
 import { DoctorResult } from './DoctorResult';
 import { RunCliOptions } from './RunCliOptions';

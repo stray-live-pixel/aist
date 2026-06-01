@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import path from 'node:path';
 
 import { createToolError } from '../../../shared/lib/toolErrors';
 import { type NodeFilesystemToolContext } from '../../../tools/fs/shared/nodeFilesystemToolContext';

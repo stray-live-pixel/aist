@@ -68,7 +68,6 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
     if (!state.activeChat.vcs?.branch) {
       agentActions.refreshVcs();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeChat.id]);
 
   useEffect(() => {

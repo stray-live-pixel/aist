@@ -42,7 +42,7 @@ export async function chatCreate(this: AistDaemonServer, params: unknown): Promi
   const model = optionalString(input, 'model') || fallbackSettings.model;
   const modelSettings = normalizeChatModelSettings(input.modelSettings, { ...fallbackSettings, model });
   const chat = await this.chatRepository.create({ model: modelSettings.model, modelSettings });
-  await this.broadcastStateChanged('chat.create');
+  await this.broadcastStateChanged('chat.create', { chatId: chat.id });
   return {
     operationId: this.idFactory(),
     chat: toDaemonChat(chat)

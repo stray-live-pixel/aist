@@ -1,4 +1,3 @@
-import { globalAistRoot, workspaceAistRoot } from '../../core/entities/storage/storage';
 import { DoctorResult } from './DoctorResult';
 
 export function formatDoctorOutput(result: DoctorResult): string {

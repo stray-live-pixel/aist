@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 export const DECLARATIVE_INSTRUCTION_FILES = [
   {
     path: '.aist-agent/instructions/project.md',

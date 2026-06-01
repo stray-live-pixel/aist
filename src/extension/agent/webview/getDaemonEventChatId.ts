@@ -2,8 +2,8 @@ import type { DaemonEvent } from '../../../cli/daemonProtocol';
 
 /**
  * Что это: достаёт chatId из разных форм daemon-событий.
- * Зачем нужно: часть runtime events хранит chatId на верхнем уровне, а run.started/run.finished — внутри run;
- * единый helper не даёт транспортному слою пропускать patch из-за различий формы события.
+ * Зачем нужно: runtime events и chat-scoped state.changed хранят chatId на верхнем уровне,
+ * а run.started/run.finished — внутри run; единый helper не даёт bridge делать полный refresh без необходимости.
  */
 export function getDaemonEventChatId(event: DaemonEvent): string | undefined {
   if ('chatId' in event && typeof event.chatId === 'string') {

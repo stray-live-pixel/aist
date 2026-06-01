@@ -1,13 +1,3 @@
-import {
-  globalAistRoot,
-  globalMemoryFile,
-  globalSettingsFile,
-  globalToolsDir,
-  workspaceAistRoot,
-  workspaceSettingsFile,
-  workspaceToolsDir
-} from '../../core/entities/storage/storage';
-
 export type CliPaths = {
   readonly workspaceRoot: string;
   readonly workspaceAistRoot: string;

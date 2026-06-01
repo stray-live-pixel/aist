@@ -1,5 +1,3 @@
-import type { JsonObject } from './json';
-
 export type ModelProvider = 'openrouter' | 'codex';
 export type CodexServiceTier = 'auto' | 'priority';
 export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh';

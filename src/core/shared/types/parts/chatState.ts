@@ -3,7 +3,7 @@ import type { ChatModelRequestStatus, ChatModelSettings } from './chatModel';
 import type { ChatContextEstimate, ChatPlan, ChatUsageEstimate } from './chatPlan';
 import type { OpenRouterMessage } from './model';
 import type { AgentReflectionCandidate } from './reflection';
-import type { AgentRunActivity, AgentRunStatus } from './runtimeStatus';
+import type { AgentRunActivity } from './runtimeStatus';
 
 export type ChatVcsState = {
   command: string;

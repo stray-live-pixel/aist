@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { type ApprovalPreviewFile } from '../../../shared/types/types';
 import { getChangedLineRange } from '../../../tools/shared/getChangedLineRange';
 import { ProposedFilesystemEdit } from './ProposedFilesystemEdit';

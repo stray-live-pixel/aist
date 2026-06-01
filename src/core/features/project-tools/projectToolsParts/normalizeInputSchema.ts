@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { ProjectToolDiagnostic } from './ProjectToolDiagnostic';
 import { isRecord } from './isRecord';
 import { isStringSchema } from './isStringSchema';

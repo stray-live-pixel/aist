@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { type FrontmatterValue } from '../../../shared/lib/frontmatter';
 import { type AutonomousDefinitionDiagnostic, type AutonomousStageContext } from '../types';
 import { asOptionalPositiveInteger } from './asOptionalPositiveInteger';

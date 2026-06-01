@@ -18,8 +18,7 @@ import {
   type AgentRuntimeAskOptions,
   type AgentRuntimeRunResult,
   type AgentRuntimeServiceDeps,
-  type AgentRuntimeTelemetryStatus,
-  MAX_MODEL_REQUEST_ATTEMPTS
+  type AgentRuntimeTelemetryStatus
 } from './agentRuntime/types';
 import { formatChatErrorMessage as formatChatErrorMessageStage, toRuntimeError } from './stages/finalizeRun';
 import { getPersistableHistory as getPersistableHistoryStage } from './stages/preparePrompt';
@@ -142,7 +141,6 @@ export class AgentRuntimeService {
     options: AgentRuntimeAskOptions
   ): Promise<void> {
     let reflectionOutcome: RunReflectionOutcome = { status: 'stopped' };
-    let telemetryStatus: AgentRuntimeTelemetryStatus = 'success';
     try {
       await startRun({ context: this.context, chat, runId, run, prompt: cleanPrompt, options });
       const initialHistory = await createInitialHistory({
@@ -180,13 +178,13 @@ export class AgentRuntimeService {
       });
     } catch (error) {
       const stopped = run.stopRequested || isAbortError(error);
-      telemetryStatus = stopped ? 'stopped' : 'error';
+      const runStatus: AgentRuntimeTelemetryStatus = stopped ? 'stopped' : 'error';
       reflectionOutcome = stopped
         ? { status: 'stopped' }
         : { status: 'error', error: formatChatErrorMessage(error, 'agent run failed') };
       const runtimeError = stopped ? undefined : toRuntimeError({ error });
       await handleRunError({ context: this.context, chat, runId, run, error, stopped });
-      await finishRun({ context: this.context, chat, runId, run, status: telemetryStatus, error: runtimeError });
+      await finishRun({ context: this.context, chat, runId, run, status: runStatus, error: runtimeError });
     } finally {
       this.context.activeRunsByChat.delete(chat.id);
       this.context.activeRunsById.delete(runId);

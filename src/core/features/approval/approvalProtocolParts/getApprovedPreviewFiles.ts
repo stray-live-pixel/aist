@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { createToolError } from '../../../shared/lib/toolErrors';
 import { type ToolApprovalRequest } from '../../../shared/types/types';
 import { NormalizedToolApprovalDecision } from './NormalizedToolApprovalDecision';

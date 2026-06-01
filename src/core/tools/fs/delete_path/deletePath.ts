@@ -134,7 +134,7 @@ function assertResolvedPathIsNotWorkspaceRoot({
  * нужно сложное удаление по маске, он должен использовать bash-инструмент.
  */
 function containsShellOrGlobPattern({ value }: { value: string }): boolean {
-  return /[*?\[\]{}]/.test(value);
+  return /[*?[\]{}]/.test(value);
 }
 
 /**

@@ -1,4 +1,3 @@
-import { globalSettingsFile, workspaceSettingsFile } from '../../core/entities/storage/storage';
 import { CliCommand } from './CliCommand';
 import { ConfigGetResult } from './ConfigGetResult';
 import { ConfigValueSource } from './ConfigValueSource';

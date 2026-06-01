@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { ProposedFilesystemEdit } from './ProposedFilesystemEdit';
 import { createUnifiedDiff } from './createUnifiedDiff';
 

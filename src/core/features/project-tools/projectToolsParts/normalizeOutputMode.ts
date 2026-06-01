@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { ProjectToolDiagnostic } from './ProjectToolDiagnostic';
 import { ProjectToolOutputMode } from './ProjectToolOutputMode';
 

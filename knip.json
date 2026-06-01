@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/extension.ts",
+    "src/cli/main.ts",
+    "src/cli/index.ts",
+    "src/core/index.ts",
+    "src/webview/app/index.tsx",
+    "playwright.component-screenshots.config.ts",
+    "src/**/*.test.ts",
+    "tests/**/*.spec.ts",
+    "tests/component-screenshots/harness.tsx",
+    "scripts/*.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "*.config.ts", ".storybook/**/*.{ts,tsx}", "scripts/*.mjs"]
+}

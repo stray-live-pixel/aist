@@ -97,6 +97,10 @@ describe('AIST daemon JSON-RPC local socket', () => {
     expect(events.items.map((event) => event.type)).toEqual(
       expect.arrayContaining(['state.changed', 'run.started', 'message.appended', 'run.finished'])
     );
+    const chatCreateEvent = events.items.find(
+      (event) => event.type === 'state.changed' && event.reason === 'chat.create'
+    );
+    expect(chatCreateEvent).toMatchObject({ chatId: created.chat.id });
 
     const restored = await client.request<DaemonChatGetResult>('chat.get', { chatId: created.chat.id });
     expect(restored.chat).toMatchObject({

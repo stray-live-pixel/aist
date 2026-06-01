@@ -36,10 +36,7 @@ export function MessageList({
   const hasRenderedRef = useRef(false);
   const groups = groupMessages(messages, busy);
   const groupIds = groups.map(getMessageGroupId);
-  const previousGroupIds = previousGroupIdsRef.current;
-  const newGroupIds = hasRenderedRef.current
-    ? new Set(groupIds.filter((groupId) => !previousGroupIds.has(groupId)))
-    : new Set<string>();
+  const [newGroupIds, setNewGroupIds] = useState<Set<string>>(new Set());
   const [selectedSubagentRunId, setSelectedSubagentRunId] = useState<string | undefined>();
   const pendingMemoryCandidates = useMemo(
     () => memoryReflectionCandidates.filter((candidate) => candidate.status === 'pending'),
@@ -48,6 +45,10 @@ export function MessageList({
   const memoryAnalysisRunning = subagentRuns.some((run) => run.kind === 'memory.analysis' && run.status === 'running');
 
   useLayoutEffect(() => {
+    const previousGroupIds = previousGroupIdsRef.current;
+    setNewGroupIds(
+      hasRenderedRef.current ? new Set(groupIds.filter((groupId) => !previousGroupIds.has(groupId))) : new Set()
+    );
     previousGroupIdsRef.current = new Set(groupIds);
     hasRenderedRef.current = true;
 

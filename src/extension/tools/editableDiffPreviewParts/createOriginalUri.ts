@@ -1,4 +1,3 @@
-import path from 'node:path';
 import * as vscode from 'vscode';
 
 import { DIFF_SCHEME } from './DIFF_SCHEME';

@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 export function formatHelpOutput(): string {
   return `AIST command line interface
 

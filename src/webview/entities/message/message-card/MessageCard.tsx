@@ -16,19 +16,26 @@ import { getMessageVariant, isCollapsibleMessage } from './utils';
  * Зачем нужно: единая точка рендеринга user/assistant/status/error/tool сообщений.
  * Tool-сообщения делегируются в ToolMessageCard для специфичной логики.
  */
-export function MessageCard({
-  message,
-  actions,
-  authorLabel,
-  defaultExpanded = true,
-  collapseToolId
-}: MessageCardProps) {
-  const { t } = useI18n();
-
+export function MessageCard({ message, collapseToolId, ...textMessageProps }: MessageCardProps) {
   if (message.role === 'tool') {
     return <ToolMessageCard message={message} collapseToolId={collapseToolId} />;
   }
 
+  return <TextMessageCard message={message} {...textMessageProps} />;
+}
+
+/**
+ * Что это: карточка обычного текстового сообщения без tool-specific ветки.
+ * Зачем нужно: hooks вызываются в стабильном порядке, а MessageCard остаётся простым маршрутизатором ролей.
+ * Какую продуктовую проблему решает: чат безопасно рендерит и сворачивает user/assistant/status/error сообщения.
+ */
+function TextMessageCard({
+  message,
+  actions,
+  authorLabel,
+  defaultExpanded = true
+}: Omit<MessageCardProps, 'collapseToolId'>) {
+  const { t } = useI18n();
   const variant = getMessageVariant(message, t, styles);
   const collapsible = isCollapsibleMessage(message);
   const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);

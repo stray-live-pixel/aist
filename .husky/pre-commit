@@ -1,4 +1,5 @@
 npm exec lint-staged
 npm run lint
+npm run check:unused
 npm run check:file-size
 npm test

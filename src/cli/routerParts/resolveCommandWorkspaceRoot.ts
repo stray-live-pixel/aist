@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import path from 'node:path';
 
 import { CliCommandError } from './CliCommandError';
 import { RunCliOptions } from './RunCliOptions';

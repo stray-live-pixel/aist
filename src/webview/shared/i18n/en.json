@@ -1,5 +1,6 @@
 {
   "app.loadingAgent": "Loading agent...",
+  "app.creatingChat": "Creating chat...",
   "common.add": "Add",
   "common.authorize": "Authorize",
   "common.authorized": "Authorized",

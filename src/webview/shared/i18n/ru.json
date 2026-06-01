@@ -1,5 +1,6 @@
 {
   "app.loadingAgent": "Загрузка агента...",
+  "app.creatingChat": "Чат создаётся...",
   "common.add": "Добавить",
   "common.authorize": "Авторизовать",
   "common.authorized": "Авторизован",

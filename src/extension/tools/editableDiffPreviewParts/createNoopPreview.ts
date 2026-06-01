@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { EditableDiffPreview } from './EditableDiffPreview';
 
 export function createNoopPreview(filePath: string): EditableDiffPreview {

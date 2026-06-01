@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { type AutonomousDefinitionDiagnostic } from '../types';
 
 export function toDiagnostic(

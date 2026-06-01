@@ -19,7 +19,7 @@ import { startAutonomousFlow } from './backend/startAutonomousFlow';
 import { startAutonomousRun } from './backend/startAutonomousRun';
 import { stopAutonomousSession } from './backend/stopAutonomousSession';
 import { waitForAutonomousSession } from './backend/waitForAutonomousSession';
-import { discoverAutonomousDefinitions, importLegacyDefinitions } from './discovery';
+import { importLegacyDefinitions } from './discovery';
 import {
   type CreateAutonomousFlowInput,
   type EditableAutonomousFlowDefinition,

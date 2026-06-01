@@ -23,13 +23,7 @@ import {
   duplicateProviderProfile,
   upsertProviderProfile
 } from '../../../config/providerProfiles';
-import {
-  addAgentMode,
-  deleteAgentMode,
-  setAgentLanguage,
-  setAgentMode,
-  setAgentModeInstructions
-} from '../../../config/settings';
+import { setAgentLanguage, setAgentMode } from '../../../config/settings';
 import { deleteAgentMemory, setAgentMemoryEnabled } from '../../../memory/memory';
 import { type AgentWebviewMessageDeps } from '../types';
 import { SettingsMessage } from './SettingsMessage';

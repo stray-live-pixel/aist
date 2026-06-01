@@ -30,4 +30,18 @@ describe('getDaemonEventChatId', () => {
 
     expect(getDaemonEventChatId(event)).toBe('chat-2');
   });
+
+  it('reads chatId from state.changed events after chat create', () => {
+    const event: DaemonEvent = {
+      type: 'state.changed',
+      workspaceRoot: '/workspace',
+      reason: 'chat.create',
+      chatId: 'chat-created',
+      activeRun: null,
+      activeRuns: [],
+      at: 1000
+    };
+
+    expect(getDaemonEventChatId(event)).toBe('chat-created');
+  });
 });

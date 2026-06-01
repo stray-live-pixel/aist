@@ -65,6 +65,7 @@ export type ExtensionToWebviewMessage =
     } & AgentState)
   | ChatPatchMessage
   | { type: 'page'; page: 'chat' | 'settings' | 'autonomous' }
+  | { type: 'loading'; message: string }
   | { type: 'showChats' }
   | { type: 'errorModal'; message: string }
   | { type: 'autonomous.state'; state: AutonomousState }

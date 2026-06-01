@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import type { ModelProvider } from '../../../core/shared/types/types';
+import { t } from '../../shared/i18n';
 import { getConfiguredModel, getDefaultModelSettings } from '../config/settingsSnapshot';
 import type { WebviewMessage, WebviewSurface } from '../types';
 import { handleAgentWebviewMessage } from '../webview/messages';
@@ -101,9 +102,14 @@ async function handleDaemonWebviewMessage({
       await callbacks.ask(surface.getChatId(), message.prompt, { skipUserMessage: message.continueWithoutUserPrompt });
       return true;
     case 'newChat': {
+      const pendingSurface = callbacks.openCreatingChatEditor({
+        title: t('status.creatingChatTitle'),
+        message: t('status.creatingChatMessage')
+      });
       const chat = await state.daemonRuntime.createChat(getDefaultModelSettings());
       state.sidebarPage = 'chat';
-      callbacks.openChatInEditor(chat.id);
+      pendingSurface.setChatId(chat.id);
+      callbacks.sendState(pendingSurface);
       callbacks.sendState();
       return true;
     }

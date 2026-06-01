@@ -1,4 +1,3 @@
-import { globalAistRoot, workspaceAistRoot } from '../../core/entities/storage/storage';
 import { CliPaths } from './CliPaths';
 import { DoctorCheck } from './DoctorCheck';
 

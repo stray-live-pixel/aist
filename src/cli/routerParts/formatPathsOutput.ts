@@ -1,12 +1,3 @@
-import {
-  globalAistRoot,
-  globalMemoryFile,
-  globalSettingsFile,
-  globalToolsDir,
-  workspaceAistRoot,
-  workspaceSettingsFile,
-  workspaceToolsDir
-} from '../../core/entities/storage/storage';
 import { CliPaths } from './CliPaths';
 
 export function formatPathsOutput(paths: CliPaths): string {

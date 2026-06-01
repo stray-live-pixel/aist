@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 export type ProposedFilesystemEdit = {
   path: string;
   oldContent: string | undefined;

@@ -18,14 +18,20 @@ export async function createChatCommand({
   callbacks: AgentControllerCallbacks;
 }): Promise<void> {
   state.logger.info('newChat command received');
+  vscode.window.setStatusBarMessage(t('status.creatingChat'), 1800);
+  const surface = callbacks.openCreatingChatEditor({
+    title: t('status.creatingChatTitle'),
+    message: t('status.creatingChatMessage')
+  });
   const chat = await state.daemonRuntime.createChat(getDefaultModelSettings());
   state.sidebarPage = 'chat';
+  surface.setChatId(chat.id);
   state.logger.info('Chat created from command', {
     chatId: chat.id,
     title: chat.title,
     chatCount: state.chats.getSummaries().length
   });
-  callbacks.openChatInEditor(chat.id);
+  callbacks.sendState(surface);
   callbacks.sendState();
   vscode.window.setStatusBarMessage(t('status.newChatCreated'), 1800);
 }

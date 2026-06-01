@@ -24,6 +24,7 @@ export function App() {
   const [page, setPage] = useState<'chat' | 'settings' | 'autonomous'>('chat');
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [autonomousError, setAutonomousError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState(() => translate('ru', 'app.loadingAgent'));
 
   useEffect(() => {
     const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
@@ -31,9 +32,13 @@ export function App() {
 
       if (message.type === 'state') {
         setState(message);
+        setLoadingMessage(translate(message.agentLanguage, 'app.loadingAgent'));
         if (message.viewKind === 'editor') {
           vscode.setState({ chatId: message.activeChat.id });
         }
+      } else if (message.type === 'loading') {
+        setState(null);
+        setLoadingMessage(message.message);
       } else if (message.type === 'chat.patch') {
         setState((current) => applyAgentPatch(current, message));
       } else if (message.type === 'page') {
@@ -71,7 +76,7 @@ export function App() {
         <div className={styles.loadingPage}>
           <div className={styles.loadingContent}>
             <Bot size={18} />
-            <span>{translate('ru', 'app.loadingAgent')}</span>
+            <span>{loadingMessage}</span>
           </div>
         </div>
         {modal}

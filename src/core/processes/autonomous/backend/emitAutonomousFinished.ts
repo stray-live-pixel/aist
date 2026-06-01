@@ -15,7 +15,7 @@ export async function emitAutonomousFinished({
   context: AutonomousBackendContext;
   sessionId: string;
 }): Promise<void> {
-  let status: AutonomousSessionStatus = 'finished';
+  let status: AutonomousSessionStatus;
 
   try {
     status = (await context.sessionStore.readSession(sessionId, 0)).meta.status;

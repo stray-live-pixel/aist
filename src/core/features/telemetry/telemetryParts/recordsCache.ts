@@ -1,3 +1,3 @@
 import { AgentRunTelemetryRecord } from './AgentRunTelemetryRecord';
 
-export let recordsCache: AgentRunTelemetryRecord[] = [];
+export const recordsCache: AgentRunTelemetryRecord[] = [];
