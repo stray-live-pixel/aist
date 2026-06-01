@@ -38,7 +38,6 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
   const chats = useSortedChats(state);
   const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
   const pendingApprovalId = pendingApproval?.id;
-
   useEffect(() => {
     if (pendingApprovalId) {
       setApprovalMinimized(false);
@@ -95,16 +94,20 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
   return (
     <div className={styles.root}>
       <MessageList
+        chatId={state.activeChat.id}
         messages={state.activeChat.messages}
         previousChat={state.activeChat.previousChat}
         compactedAt={state.activeChat.compactedAt}
         compactionModel={state.activeChat.compactionModel}
         activePlan={state.activeChat.activePlan}
         tools={state.tools}
+        assistantLabel={formatChatModelLabel(state.activeChat.model)}
         busy={state.activeChat.busy}
         activity={state.activeChat.activity}
         activityDetail={state.activeChat.activityDetail}
         modelRequest={state.activeChat.modelRequest}
+        subagentRuns={state.subagentRuns}
+        memoryReflectionCandidates={state.activeChat.reflectionCandidates || []}
         bottomOffset="composer"
         resolvedApprovalId={resolvedApprovalId}
       />
@@ -272,6 +275,15 @@ const FloatingChatActions = memo(function FloatingChatActions({
     </div>
   );
 });
+
+function formatChatModelLabel(model: string): string {
+  const cleanModel = model
+    .replace(/^openrouter[:/]/i, '')
+    .replace(/^codex[:/]/i, '')
+    .trim();
+
+  return cleanModel || model || 'Agent';
+}
 
 function useSortedChats(state: AgentState) {
   return useMemo(

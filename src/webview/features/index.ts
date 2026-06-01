@@ -1,3 +1,5 @@
+export { AnalyzeMemoryButton } from './analyze-memory';
+export type { AnalyzeMemoryButtonProps } from './analyze-memory';
 export { ToolPermissionSelect } from './configure-tool-permission';
 export type { ToolPermissionSelectProps } from './configure-tool-permission';
 export { CopyMessageButton } from './copy-message';

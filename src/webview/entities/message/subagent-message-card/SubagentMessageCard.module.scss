@@ -1,0 +1,188 @@
+.root {
+  border: 1px solid color-mix(in srgb, #22d3ee 34%, var(--agent-border));
+  border-radius: 24px;
+  corner-shape: squircle;
+  padding: 12px;
+  background: color-mix(in srgb, #22d3ee 8%, var(--vscode-editor-background));
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.14);
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, #22d3ee 30%, var(--agent-border));
+  border-radius: 999px;
+  color: color-mix(in srgb, #22d3ee 70%, var(--vscode-foreground));
+  background: color-mix(in srgb, #22d3ee 10%, var(--vscode-input-background));
+  flex-shrink: 0;
+}
+
+.titleGroup {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.titleRow strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  overflow-wrap: anywhere;
+}
+
+.runningLoader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 10px;
+  border: 1px solid var(--agent-border);
+  border-radius: 24px;
+  corner-shape: squircle;
+  background: var(--vscode-input-background);
+  color: var(--vscode-foreground);
+  padding: 8px 12px;
+}
+
+.runningLogo {
+  width: 80px;
+  height: 60px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  margin-bottom: 5px;
+}
+
+.runningContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.runningTitle {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.runningDetail {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.candidateList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.candidateIntro {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+}
+
+.candidateCard {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--agent-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-input-background) 72%, transparent);
+  min-width: 0;
+}
+
+.candidateBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.candidateTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.candidateTitleRow strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.candidateContent {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.candidateReason {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.candidateActions {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.candidateEmpty {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px dashed var(--agent-border);
+  border-radius: 14px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+
+@media (max-width: 520px) {
+  .candidateCard {
+    flex-direction: column;
+  }
+
+  .candidateActions {
+    flex-wrap: wrap;
+  }
+}
+

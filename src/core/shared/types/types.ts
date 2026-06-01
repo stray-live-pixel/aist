@@ -111,8 +111,45 @@ export type OpenRouterModelPricing = {
   completion?: number;
 };
 
-export type ChatMessageRole = 'user' | 'assistant' | 'status' | 'tool' | 'error';
+export type SubagentKind = 'memory.analysis';
+export type SubagentRunStatus = 'created' | 'running' | 'success' | 'error' | 'stopped';
+export type SubagentRunMode = 'single_model_call' | 'agent_loop';
+
+/**
+ * Что это: persisted запуск дочернего субагента.
+ * Зачем нужно: пользователь видит отдельную историю фонового помощника, а основной чат не смешивает её с model context.
+ */
+export type SubagentRun = {
+  id: string;
+  parentChatId: string;
+  kind: SubagentKind;
+  mode: SubagentRunMode;
+  title: string;
+  status: SubagentRunStatus;
+  model: string;
+  messages: ChatMessage[];
+  history: OpenRouterMessage[];
+  result?: JsonValue;
+  error?: string;
+  includeResultInParentModelContext: boolean;
+  startedAt: number;
+  finishedAt?: number;
+  updatedAt: number;
+};
+
+/**
+ * Что это: компактная ссылка из parent chat message на дочерний запуск.
+ * Зачем нужно: UI может открыть детали субагента, не добавляя его историю в основной model history.
+ */
+export type ChatMessageSubagentRef = {
+  runId: string;
+  kind: SubagentKind;
+  title: string;
+};
+
+export type ChatMessageRole = 'user' | 'assistant' | 'status' | 'tool' | 'error' | 'subagent';
 export type ChatToolStatus = 'waiting' | 'running' | 'done' | 'error' | 'denied';
+export type ChatSubagentStatus = 'running' | 'done' | 'error';
 export type ChatToolApprovalStatus = 'pending' | 'approved' | 'denied';
 
 export type ChatMessage = {
@@ -120,7 +157,7 @@ export type ChatMessage = {
   role: ChatMessageRole;
   content?: string;
   name?: string;
-  status?: ChatToolStatus;
+  status?: ChatToolStatus | ChatSubagentStatus;
   approval?: ChatToolApprovalStatus;
   reason?: string;
   nextStep?: string;
@@ -131,6 +168,9 @@ export type ChatMessage = {
   userComment?: string;
   usage?: ChatMessageUsageEstimate;
   marker?: string;
+  subagent?: ChatMessageSubagentRef;
+  subagentRunId?: string;
+  subagentKind?: SubagentKind;
   createdAt: number;
 };
 
@@ -149,6 +189,10 @@ export type AgentReflectionCandidateKind =
 
 export type AgentReflectionCandidateStatus = 'pending' | 'saved' | 'rejected';
 
+/**
+ * Что это: кандидат на сохранение в память, который пользователь должен подтвердить.
+ * Зачем нужно: предложения остаются reviewable и могут быть связаны с конкретным запуском субагента.
+ */
 export type AgentReflectionCandidate = {
   id: string;
   kind: AgentReflectionCandidateKind;
@@ -158,6 +202,7 @@ export type AgentReflectionCandidate = {
   scope?: 'global' | 'project' | 'local';
   status: AgentReflectionCandidateStatus;
   createdAt: number;
+  sourceSubagentRunId?: string;
 };
 
 export type ChatUsageEstimate = {

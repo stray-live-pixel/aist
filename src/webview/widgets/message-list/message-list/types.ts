@@ -1,4 +1,10 @@
-import type { Chat, ChatMessage, CompactPreviousChat } from '../../../shared/types';
+import type {
+  AgentReflectionCandidate,
+  Chat,
+  ChatMessage,
+  CompactPreviousChat,
+  SubagentRun
+} from '../../../shared/types';
 
 /**
  * Что это: props списка сообщений чата.
@@ -6,16 +12,20 @@ import type { Chat, ChatMessage, CompactPreviousChat } from '../../../shared/typ
  * необходимые для истории, sticky-инструкций, статуса активности и compacted-секции.
  */
 export type MessageListProps = {
+  chatId: string;
   messages: ChatMessage[];
   previousChat?: CompactPreviousChat;
   compactedAt?: number;
   compactionModel?: string;
   activePlan?: Chat['activePlan'];
   tools: string[];
+  assistantLabel?: string;
   busy: boolean;
   activity: Chat['activity'];
   activityDetail?: string;
   modelRequest?: Chat['modelRequest'];
+  subagentRuns?: SubagentRun[];
+  memoryReflectionCandidates?: AgentReflectionCandidate[];
   bottomOffset?: 'none' | 'composer';
   resolvedApprovalId?: string;
 };

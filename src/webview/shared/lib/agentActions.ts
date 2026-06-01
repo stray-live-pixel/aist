@@ -254,6 +254,10 @@ export const agentActions = {
     post({ type: 'rejectReflectionCandidate', chatId, candidateId });
   },
 
+  runMemoryAnalysis(chatId: string): void {
+    post({ type: 'runMemoryAnalysis', chatId });
+  },
+
   addSkill(
     scope: AgentItemScope,
     label: string,

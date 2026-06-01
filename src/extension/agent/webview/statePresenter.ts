@@ -1,6 +1,6 @@
 import type { SecretStore } from '../../../core/app/config/config';
 import { getTelemetryDashboardState } from '../../../core/features/telemetry/telemetry';
-import type { OpenRouterModelOption } from '../../../core/shared/types/types';
+import type { OpenRouterModelOption, SubagentRun } from '../../../core/shared/types/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
 import { getWorkspaceName } from '../../shared/workspace';
@@ -35,6 +35,7 @@ export type SendAgentStateParams = {
   secretStore: SecretStore;
   modelOptions: OpenRouterModelOption[];
   codexAuthenticated: boolean;
+  subagentRunsByChatId: Map<string, SubagentRun[]>;
   getSystemPrompt(): string;
 };
 
@@ -141,6 +142,7 @@ type StateContext = SendAgentStateParams & {
   projectInstructions: string;
   promptConfig: unknown;
   memoryItems: unknown;
+  subagentRunsByChatId: Map<string, SubagentRun[]>;
   instructionSources: unknown;
   auxiliaryModels: unknown;
   compactionSettings: unknown;
@@ -192,6 +194,7 @@ function postStateToSurface(surface: WebviewSurface, context: StateContext): voi
     projectInstructions: context.projectInstructions,
     promptConfig: context.promptConfig,
     memoryItems: context.memoryItems,
+    subagentRuns: context.subagentRunsByChatId.get(activeChat.id) || [],
     instructionSources: context.instructionSources,
     customSkills: context.customSkills,
     codexAuthenticated: context.codexAuthenticated,

@@ -16,7 +16,13 @@ import { getMessageVariant, isCollapsibleMessage } from './utils';
  * Зачем нужно: единая точка рендеринга user/assistant/status/error/tool сообщений.
  * Tool-сообщения делегируются в ToolMessageCard для специфичной логики.
  */
-export function MessageCard({ message, actions, defaultExpanded = true, collapseToolId }: MessageCardProps) {
+export function MessageCard({
+  message,
+  actions,
+  authorLabel,
+  defaultExpanded = true,
+  collapseToolId
+}: MessageCardProps) {
   const { t } = useI18n();
 
   if (message.role === 'tool') {
@@ -39,7 +45,7 @@ export function MessageCard({ message, actions, defaultExpanded = true, collapse
     <article className={rootClassName}>
       <MessageHeader
         icon={variant.icon}
-        label={variant.label}
+        label={authorLabel || variant.label}
         message={message}
         actions={actions}
         hasBody={hasBody}

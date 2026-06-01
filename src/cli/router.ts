@@ -16,7 +16,7 @@ import {
   type AgentRuntimeToolCallHandler
 } from '../core/app/runtime/agentRuntime';
 import { ChatRepository } from '../core/entities/chat/chatRepository';
-import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/entities/memory/memory';
+import { AgentMemoryStore, createMemoryStorePaths } from '../core/entities/memory/memory';
 import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
 import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
 import { DEFAULT_MODEL, FALLBACK_MODEL_OPTIONS } from '../core/entities/model/modelDefaults';
@@ -37,6 +37,7 @@ import {
   workspaceToolsDir
 } from '../core/entities/storage/storage';
 import { getToolExecutionRequirement } from '../core/features/approval/approvalProtocol';
+import { getRelevantMemoryPromptBlockBySubagent } from '../core/features/memory-subagent';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { buildFileAgentSystemPrompt } from '../core/features/system-prompt/filePromptConfig';
 import { type AgentLanguage } from '../core/features/system-prompt/prompts';
@@ -869,7 +870,17 @@ async function runChatAskCommand(
     },
     contextProviders: {
       getRepoContextNote: (inputPrompt) => getRepoVerificationContextNote(workspaceRoot, inputPrompt),
-      getMemoryContextBlock: (inputPrompt) => getRelevantMemoryPromptBlock(memoryStore, inputPrompt)
+      getMemoryContextBlock: (input) =>
+        getRelevantMemoryPromptBlockBySubagent({
+          selection: {
+            prompt: input.prompt,
+            chatHistory: input.chat.messages,
+            memoryItems: memoryStore.list(),
+            chatModel: input.chat.model,
+            settings: { model: input.chat.model, reasoningEffort: input.chat.modelSettings.reasoningEffort }
+          },
+          modelClient
+        })
     },
     modelCatalog: {
       getOption: getHeadlessModelOption

@@ -1,6 +1,6 @@
 import type { ReasoningEffort } from '../../../core/shared/types/types';
 
-export type AuxiliaryModelId = 'compaction' | 'tool';
+export type AuxiliaryModelId = 'compaction' | 'tool' | 'memory';
 
 export type AuxiliaryModelSettings = {
   model: string;
@@ -19,6 +19,8 @@ export type AuxiliaryToolModelSettings = AuxiliaryModelSettings & {
 export type AuxiliaryModelsSettings = {
   compaction: AuxiliaryModelSettings;
   tool: AuxiliaryToolModelSettings;
+  /** Настройки AI-субагента памяти; пустая model означает fallback на модель текущего чата. */
+  memory: AuxiliaryModelSettings;
 };
 
 export const DEFAULT_AUXILIARY_MODEL_SETTINGS: AuxiliaryModelSettings = {
@@ -34,7 +36,8 @@ export const DEFAULT_AUXILIARY_TOOL_MODEL_SETTINGS: AuxiliaryToolModelSettings =
 
 export const DEFAULT_AUXILIARY_MODELS_SETTINGS: AuxiliaryModelsSettings = {
   compaction: { ...DEFAULT_AUXILIARY_MODEL_SETTINGS },
-  tool: { ...DEFAULT_AUXILIARY_TOOL_MODEL_SETTINGS }
+  tool: { ...DEFAULT_AUXILIARY_TOOL_MODEL_SETTINGS },
+  memory: { ...DEFAULT_AUXILIARY_MODEL_SETTINGS }
 };
 
 export function normalizeAuxiliaryModelSettings(value: unknown): AuxiliaryModelSettings {
@@ -58,7 +61,8 @@ export function normalizeAuxiliaryModelsSettings(value: unknown): AuxiliaryModel
   const record = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   return {
     compaction: normalizeAuxiliaryModelSettings(record.compaction),
-    tool: normalizeAuxiliaryToolModelSettings(record.tool)
+    tool: normalizeAuxiliaryToolModelSettings(record.tool),
+    memory: normalizeAuxiliaryModelSettings(record.memory)
   };
 }
 

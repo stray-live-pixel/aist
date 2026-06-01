@@ -68,6 +68,11 @@
       "reasoningEffort": "medium",
       "allowTools": false,
       "overrides": []
+    },
+    "memory": {
+      "model": "",
+      "reasoningEffort": "auto",
+      "allowTools": false
     }
   },
   "customSkills": [
@@ -104,5 +109,13 @@
       "builtIn": true
     }
   ],
-  "activePresetId": "ai-coder"
+  "activePresetId": "ai-coder",
+  "compaction": {
+    "enabled": true,
+    "thresholdPercent": 70,
+    "keepLastMessages": 0,
+    "model": "codex:gpt-5.3-codex-spark",
+    "reasoningEffort": "auto",
+    "allowTools": false
+  }
 }

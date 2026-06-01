@@ -16,6 +16,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {
   args: {
+    chatId: 'story-chat',
     messages: [],
     tools: storyTools,
     busy: false,
@@ -30,6 +31,7 @@ export const Empty: Story = {
 
 export const WithMessages: Story = {
   args: {
+    chatId: 'story-chat',
     messages: storyMessages,
     tools: storyTools,
     busy: false,
@@ -44,6 +46,7 @@ export const WithMessages: Story = {
 
 export const AgentThinking: Story = {
   args: {
+    chatId: 'story-chat',
     messages: storyMessages,
     tools: storyTools,
     busy: true,

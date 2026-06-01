@@ -17,7 +17,7 @@ import {
   type AgentRuntimeToolCallHandler
 } from '../core/app/runtime/agentRuntime';
 import { ChatRepository } from '../core/entities/chat/chatRepository';
-import { AgentMemoryStore, createMemoryStorePaths, getRelevantMemoryPromptBlock } from '../core/entities/memory/memory';
+import { type AgentMemoryScope, AgentMemoryStore, createMemoryStorePaths } from '../core/entities/memory/memory';
 import { type AuxiliaryModelInvoker, createAuxiliaryModelInvoker } from '../core/entities/model/auxiliaryModel';
 import { CodexAuthSessionProvider } from '../core/entities/model/codexAuth';
 import { CodexResponsesTransport } from '../core/entities/model/codexTransport';
@@ -34,12 +34,15 @@ import {
   workspaceAistRoot,
   workspaceSettingsFile
 } from '../core/entities/storage/storage';
+import { SubagentRepository } from '../core/entities/subagent/subagentRepository';
 import { getToolExecutionRequirement, normalizeToolApprovalDecision } from '../core/features/approval/approvalProtocol';
 import {
   createCompactionMessages,
   selectCompactionTailMessages,
   splitCompactionHistory
 } from '../core/features/compaction/compaction';
+import { analyzeMemoryChatDetailed, getRelevantMemoryPromptBlockBySubagent } from '../core/features/memory-subagent';
+import { validateReflectionCandidates } from '../core/features/reflection/reflection';
 import { type AgentSkill, runNodeSkillTool } from '../core/features/skills/skills';
 import { buildFileAgentSystemPrompt } from '../core/features/system-prompt/filePromptConfig';
 import { type AgentLanguage } from '../core/features/system-prompt/prompts';
@@ -90,6 +93,9 @@ import {
   type DaemonChatDeleteResult,
   type DaemonChatGetResult,
   type DaemonChatListResult,
+  type DaemonChatMemoryAnalyzeResult,
+  type DaemonChatReflectionCandidateRejectResult,
+  type DaemonChatReflectionCandidateSaveResult,
   type DaemonChatSetModelResult,
   type DaemonChatSetModelSettingsResult,
   type DaemonChatStopResult,
@@ -103,6 +109,8 @@ import {
   type DaemonInitializeResult,
   type DaemonModelsResult,
   type DaemonState,
+  type DaemonSubagentGetResult,
+  type DaemonSubagentListResult,
   type JsonRpcErrorObject,
   type JsonRpcId,
   type JsonRpcRequest,
@@ -178,6 +186,7 @@ export class AistDaemonServer {
   private readonly logger: DaemonFileLogger;
   private readonly chatRepository: ChatRepository;
   private readonly runRepository: RunRepository;
+  private readonly subagentRepository: SubagentRepository;
   private readonly configStore: FileBackedConfigStore;
   private readonly memoryStore: AgentMemoryStore;
   private readonly toolRegistry: ToolRegistry;
@@ -206,6 +215,12 @@ export class AistDaemonServer {
     this.logger = new DaemonFileLogger(this.logFilePath);
     this.chatRepository = new ChatRepository({ workspaceRoot: this.workspaceRoot, homeDir: this.homeDir });
     this.runRepository = new RunRepository({ workspaceRoot: this.workspaceRoot, homeDir: this.homeDir });
+    this.subagentRepository = new SubagentRepository({
+      workspaceRoot: this.workspaceRoot,
+      homeDir: this.homeDir,
+      idFactory: this.idFactory,
+      now: this.now
+    });
     this.configStore = new FileBackedConfigStore({
       workspaceRoot: this.workspaceRoot,
       homeDir: this.homeDir,
@@ -391,6 +406,16 @@ export class AistDaemonServer {
         return this.chatSetModelSettings(params);
       case 'chat.compact':
         return this.chatCompact(params);
+      case 'chat.memoryAnalyze':
+        return this.chatMemoryAnalyze(params);
+      case 'chat.reflectionCandidate.save':
+        return this.chatReflectionCandidateSave(params);
+      case 'chat.reflectionCandidate.reject':
+        return this.chatReflectionCandidateReject(params);
+      case 'subagent.get':
+        return this.subagentGet(params);
+      case 'subagent.list':
+        return this.subagentList(params);
       case 'approval.resolve':
         return this.approvalResolve(params);
       case 'config.get':
@@ -608,6 +633,204 @@ export class AistDaemonServer {
     return {
       operationId: this.idFactory(),
       chat: toDaemonChat(updated)
+    };
+  }
+
+  private async chatMemoryAnalyze(params: unknown): Promise<DaemonChatMemoryAnalyzeResult> {
+    const input = requireRecord(params, 'chat.memoryAnalyze params');
+    const chat = await this.requireChat(requireString(input, 'chatId'));
+    const settings = await this.getMemorySubagentSettings(chat.model);
+    const modelClient = this.options.modelClient || this.createRoutingModelClient();
+    const startedAt = this.now();
+    const run = await this.subagentRepository.create({
+      parentChatId: chat.id,
+      kind: 'memory.analysis',
+      mode: 'single_model_call',
+      title: 'Субагент памяти',
+      status: 'running',
+      model: settings.model,
+      includeResultInParentModelContext: false,
+      startedAt
+    });
+    const subagentMessage = await this.chatRepository.appendMessage(chat.id, {
+      role: 'subagent',
+      status: 'running',
+      content: 'Субагент памяти анализирует чат.',
+      subagentRunId: run.id,
+      subagentKind: run.kind,
+      subagent: { runId: run.id, kind: run.kind, title: run.title },
+      result: { ok: true, subagentRunId: run.id, stage: 'running', candidateIds: [] }
+    });
+
+    await this.broadcastStateChanged('chat.memoryAnalyze.started');
+
+    try {
+      const analysis = await analyzeMemoryChatDetailed({
+        analysis: {
+          chatId: chat.id,
+          messages: chat.messages,
+          memoryItems: this.memoryStore.list(),
+          chatModel: chat.model,
+          settings
+        },
+        modelClient
+      });
+      const candidates = analysis.candidates.map((candidate) => ({
+        ...candidate,
+        sourceSubagentRunId: run.id
+      }));
+      const candidateIds = candidates.map((candidate) => candidate.id);
+
+      if (candidates.length) {
+        await this.chatRepository.addReflectionCandidates(chat.id, candidates);
+      }
+
+      const finishedAt = this.now();
+      const messages = createMemorySubagentMessages({
+        runId: run.id,
+        parentChatId: chat.id,
+        startedAt,
+        finishedAt,
+        candidateCount: candidates.length,
+        error: analysis.error,
+        responseContent: analysis.response?.content
+      });
+      await this.subagentRepository.update(run.id, {
+        status: analysis.error ? 'error' : 'success',
+        model: analysis.model,
+        history: analysis.history,
+        messages,
+        result: { ok: !analysis.error, candidateIds, candidateCount: candidates.length },
+        error: analysis.error,
+        finishedAt
+      });
+      await this.chatRepository.updateMessage(chat.id, subagentMessage.id, {
+        status: analysis.error ? 'error' : 'done',
+        content: analysis.error
+          ? `Субагент памяти завершился с ошибкой: ${analysis.error}`
+          : formatMemorySubagentSuccessText(candidates.length),
+        result: {
+          ok: !analysis.error,
+          subagentRunId: run.id,
+          candidateIds,
+          candidateCount: candidates.length,
+          error: analysis.error
+        }
+      });
+
+      const updatedChat = await this.requireChat(chat.id);
+      await this.broadcastStateChanged('chat.memoryAnalyze');
+      return {
+        operationId: this.idFactory(),
+        chat: toDaemonChat(updatedChat),
+        candidates
+      };
+    } catch (error) {
+      const finishedAt = this.now();
+      const message = formatError(error);
+      await this.subagentRepository.update(run.id, {
+        status: 'error',
+        messages: createMemorySubagentMessages({
+          runId: run.id,
+          parentChatId: chat.id,
+          startedAt,
+          finishedAt,
+          candidateCount: 0,
+          error: message
+        }),
+        result: { ok: false, candidateIds: [], candidateCount: 0, error: message },
+        error: message,
+        finishedAt
+      });
+      await this.chatRepository.updateMessage(chat.id, subagentMessage.id, {
+        status: 'error',
+        content: `Субагент памяти завершился с ошибкой: ${message}`,
+        result: { ok: false, subagentRunId: run.id, candidateIds: [], candidateCount: 0, error: message }
+      });
+      await this.broadcastStateChanged('chat.memoryAnalyze.failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Что это: подтверждение предложения memory-субагента через daemon source of truth.
+   * Зачем нужно: память пополняется только после user approval, а карточка предложения не возвращается при refresh.
+   */
+  private async chatReflectionCandidateSave(params: unknown): Promise<DaemonChatReflectionCandidateSaveResult> {
+    const input = requireRecord(params, 'chat.reflectionCandidate.save params');
+    const chatId = requireString(input, 'chatId');
+    const candidateId = requireString(input, 'candidateId');
+    const chat = await this.requireChat(chatId);
+    const candidate = chat.reflectionCandidates?.find((item) => item.id === candidateId && item.status === 'pending');
+    const validated = validateReflectionCandidates(candidate ? [candidate] : [])[0];
+
+    if (!candidate || !validated) {
+      await this.chatRepository.setReflectionCandidateStatus(chatId, candidateId, 'rejected');
+      const updatedChat = await this.requireChat(chatId);
+      await this.broadcastStateChanged('chat.reflectionCandidate.save.invalid');
+      return {
+        operationId: this.idFactory(),
+        chat: toDaemonChat(updatedChat),
+        candidate: undefined,
+        memoryItem: undefined
+      };
+    }
+
+    const memoryItem = await this.memoryStore.add({
+      scope: getReflectionMemoryScope(validated),
+      note: getReflectionMemoryNote(validated)
+    });
+    const updatedCandidate = await this.chatRepository.setReflectionCandidateStatus(chatId, candidateId, 'saved');
+    const updatedChat = await this.requireChat(chatId);
+    await this.broadcastStateChanged('chat.reflectionCandidate.save');
+
+    return {
+      operationId: this.idFactory(),
+      chat: toDaemonChat(updatedChat),
+      candidate: updatedCandidate,
+      memoryItem
+    };
+  }
+
+  /**
+   * Что это: отклонение предложения memory-субагента через persisted chat state.
+   * Зачем нужно: отказ пользователя должен переживать новые сообщения, refresh webview и перезапуск daemon.
+   */
+  private async chatReflectionCandidateReject(params: unknown): Promise<DaemonChatReflectionCandidateRejectResult> {
+    const input = requireRecord(params, 'chat.reflectionCandidate.reject params');
+    const chatId = requireString(input, 'chatId');
+    const candidateId = requireString(input, 'candidateId');
+    const candidate = await this.chatRepository.setReflectionCandidateStatus(chatId, candidateId, 'rejected');
+    const updatedChat = await this.requireChat(chatId);
+    await this.broadcastStateChanged('chat.reflectionCandidate.reject');
+
+    return {
+      operationId: this.idFactory(),
+      chat: toDaemonChat(updatedChat),
+      candidate
+    };
+  }
+
+  private async subagentGet(params: unknown): Promise<DaemonSubagentGetResult> {
+    const input = requireRecord(params, 'subagent.get params');
+    const runId = requireString(input, 'runId');
+    const run = await this.subagentRepository.get(runId);
+    if (!run) {
+      throw new DaemonRpcError(-32000, 'subagent.notFound', `Subagent run not found: ${runId}`, { runId });
+    }
+
+    return {
+      operationId: this.idFactory(),
+      run
+    };
+  }
+
+  private async subagentList(params: unknown): Promise<DaemonSubagentListResult> {
+    const input = requireRecord(params, 'subagent.list params');
+    const parentChatId = requireString(input, 'parentChatId');
+    return {
+      operationId: this.idFactory(),
+      runs: await this.subagentRepository.list(parentChatId)
     };
   }
 
@@ -892,7 +1115,17 @@ export class AistDaemonServer {
       contextProviders: {
         getEditorContext: () => this.getClientEditorContext(),
         getRepoContextNote: (inputPrompt) => getRepoVerificationContextNote(this.workspaceRoot, inputPrompt),
-        getMemoryContextBlock: (inputPrompt) => getRelevantMemoryPromptBlock(this.memoryStore, inputPrompt)
+        getMemoryContextBlock: async (input) =>
+          getRelevantMemoryPromptBlockBySubagent({
+            selection: {
+              prompt: input.prompt,
+              chatHistory: input.chat.messages,
+              memoryItems: this.memoryStore.list(),
+              chatModel: input.chat.model,
+              settings: await this.getMemorySubagentSettings(input.chat.model)
+            },
+            modelClient
+          })
       },
       modelCatalog: {
         getOption: getDaemonModelOption
@@ -1360,25 +1593,28 @@ export class AistDaemonServer {
     );
   }
 
-  private async getAuxiliaryModelSetting(id: 'compaction' | 'tool', key: 'model'): Promise<string | undefined> {
+  private async getAuxiliaryModelSetting(
+    id: 'compaction' | 'tool' | 'memory',
+    key: 'model'
+  ): Promise<string | undefined> {
     return this.getStringSetting([
       `openrouterAgent.auxiliaryModels.${id}.${key}`,
       `auxiliaryModels.${id}.${key}`,
-      id === 'compaction' ? `compaction.${key}` : `toolModel.${key}`
+      getAuxiliaryLegacySettingKey(id, key)
     ]);
   }
 
-  private async getAuxiliaryReasoningEffort(id: 'compaction' | 'tool'): Promise<ReasoningEffort> {
+  private async getAuxiliaryReasoningEffort(id: 'compaction' | 'tool' | 'memory'): Promise<ReasoningEffort> {
     const value = await this.getStringSetting([
       `openrouterAgent.auxiliaryModels.${id}.reasoningEffort`,
       `auxiliaryModels.${id}.reasoningEffort`,
-      id === 'compaction' ? 'compaction.reasoningEffort' : 'toolModel.reasoningEffort'
+      getAuxiliaryLegacySettingKey(id, 'reasoningEffort')
     ]);
     return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
   }
 
   private async getAuxiliaryBooleanSetting(
-    id: 'compaction' | 'tool',
+    id: 'compaction' | 'tool' | 'memory',
     key: 'allowTools',
     fallback: boolean
   ): Promise<boolean> {
@@ -1386,7 +1622,7 @@ export class AistDaemonServer {
       [
         `openrouterAgent.auxiliaryModels.${id}.${key}`,
         `auxiliaryModels.${id}.${key}`,
-        id === 'compaction' ? `compaction.${key}` : `toolModel.${key}`
+        getAuxiliaryLegacySettingKey(id, key)
       ],
       fallback
     );
@@ -1406,6 +1642,15 @@ export class AistDaemonServer {
       model: await this.getAuxiliaryModelSetting('tool', 'model'),
       reasoningEffort: await this.getAuxiliaryReasoningEffort('tool'),
       allowTools: await this.getAuxiliaryBooleanSetting('tool', 'allowTools', false)
+    };
+  }
+
+  private async getMemorySubagentSettings(
+    chatModel: string
+  ): Promise<{ model: string; reasoningEffort: ReasoningEffort }> {
+    return {
+      model: (await this.getAuxiliaryModelSetting('memory', 'model')) || chatModel,
+      reasoningEffort: await this.getAuxiliaryReasoningEffort('memory')
     };
   }
 
@@ -1807,6 +2052,78 @@ function normalizeChatModelSettings(value: unknown, fallback: ChatModelSettings)
   };
 }
 
+function createMemorySubagentMessages(input: {
+  runId: string;
+  parentChatId: string;
+  startedAt: number;
+  finishedAt: number;
+  candidateCount: number;
+  error?: string;
+  responseContent?: string;
+}) {
+  const taskMessage = {
+    id: `${input.runId}-task`,
+    role: 'user' as const,
+    content: 'Проанализируй текущий чат и предложи 0–3 безопасные заметки для долговременной памяти.',
+    createdAt: input.startedAt
+  };
+  const modelMessage = {
+    id: `${input.runId}-model`,
+    role: 'tool' as const,
+    name: 'memory.analysis',
+    status: input.error ? ('error' as const) : ('done' as const),
+    reason: 'Субагент получает историю чата и уже сохранённые заметки памяти.',
+    nextStep: 'Вернуть JSON-кандидаты, которые пользователь сможет сохранить или отклонить.',
+    args: { chatId: input.parentChatId, mode: 'single_model_call', tools: [] },
+    result: input.error ? { ok: false, error: input.error } : { ok: true, candidateCount: input.candidateCount },
+    modelResult: input.error ? { ok: false, error: input.error } : { ok: true, candidateCount: input.candidateCount },
+    createdAt: input.startedAt + 1
+  };
+  const finalMessage = {
+    id: `${input.runId}-${input.error ? 'error' : 'answer'}`,
+    role: input.error ? ('error' as const) : ('assistant' as const),
+    content: input.error
+      ? `Анализ памяти не завершился: ${input.error}`
+      : input.responseContent || formatMemorySubagentSuccessText(input.candidateCount),
+    createdAt: input.finishedAt
+  };
+
+  return [taskMessage, modelMessage, finalMessage];
+}
+
+function formatMemorySubagentSuccessText(candidateCount: number): string {
+  return candidateCount
+    ? `Субагент памяти завершил анализ: найдено предложений — ${candidateCount}.`
+    : 'Субагент памяти завершил анализ: новых безопасных заметок не найдено.';
+}
+
+/**
+ * Что это: выбор файла памяти для подтверждённого предложения.
+ * Зачем нужно: global сохраняет только явные пользовательские предпочтения, а проектные правила остаются в workspace памяти.
+ */
+function getReflectionMemoryScope(
+  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
+): AgentMemoryScope {
+  return candidate.kind === 'memory_preference' && candidate.scope === 'global' ? 'global' : 'project';
+}
+
+/**
+ * Что это: нормализация текста кандидата перед записью в память.
+ * Зачем нужно: в памяти хранится понятная заметка, а не технический enum из reflection-системы.
+ */
+function getReflectionMemoryNote(
+  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
+): string {
+  if (candidate.kind === 'verification_command') {
+    return `Verification command: ${candidate.content}`;
+  }
+  if (candidate.kind === 'declarative_definition') {
+    return `Possible declarative definition: ${candidate.content}`;
+  }
+
+  return candidate.content;
+}
+
 function fallbackModels(provider: ModelProvider): {
   readonly fallback: true;
   readonly models: readonly OpenRouterModelOption[];
@@ -1880,6 +2197,16 @@ function requireString(input: Record<string, unknown>, key: string): string {
 function optionalString(input: Record<string, unknown>, key: string): string | undefined {
   const value = input[key];
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function getAuxiliaryLegacySettingKey(id: 'compaction' | 'tool' | 'memory', key: string): string {
+  if (id === 'compaction') {
+    return `compaction.${key}`;
+  }
+  if (id === 'tool') {
+    return `toolModel.${key}`;
+  }
+  return `memorySubagent.${key}`;
 }
 
 function optionalNumber(input: Record<string, unknown>, key: string): number | undefined {

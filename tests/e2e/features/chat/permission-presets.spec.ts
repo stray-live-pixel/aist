@@ -61,7 +61,11 @@ test.describe('Фича: Chat / Permission presets', () => {
 
     await expect(webview.getByRole('dialog', { name: 'Требуется подтверждение' })).toBeHidden({ timeout: 5_000 });
     await expect(
-      webview.getByText('Инструмент write_file выполнен автоматически по выбранному permission preset.')
+      webview
+        .getByRole('article')
+        .filter({ hasText: 'Агент' })
+        .filter({ hasText: 'Инструмент write_file выполнен автоматически по выбранному permission preset.' })
+        .last()
     ).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => openRouterMock.requests.length).toBe(2);
     await expectAistScreenshot({ webview, name: 'chat-permission-fast-edit-auto.png' });

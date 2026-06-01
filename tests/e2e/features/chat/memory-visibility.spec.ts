@@ -1,5 +1,6 @@
 import { expect, expectAistScreenshot, openAistChat, test } from '../../fixtures';
 import type { MockModelRequest } from '../../sources/MockModelRequest';
+import { findPrimaryChatRequests } from '../memory-subagent/utils/findPrimaryChatRequests';
 
 const composerPlaceholder = 'Попросите агента проверить, создать, изменить или удалить файлы проекта...';
 const memoryNote = 'E2E memory visibility: всегда показывать примененную память в чате.';
@@ -99,8 +100,9 @@ test.describe('Фича: Chat / Memory visibility', () => {
     await expect(memoryArticle.getByText(memoryNote)).toBeVisible();
     await expectAistScreenshot({ webview, name: 'chat-memory-tool-expanded.png' });
 
-    await expect.poll(() => openRouterMock.requests.length).toBe(1);
-    const firstMemoryRequestMessages = getRequestMessages(openRouterMock.requests[0]);
+    await expect.poll(() => findPrimaryChatRequests({ requests: openRouterMock.requests }).length).toBe(1);
+    const [primaryChatRequest] = findPrimaryChatRequests({ requests: openRouterMock.requests });
+    const firstMemoryRequestMessages = getRequestMessages(primaryChatRequest);
     const userMessageIndex = firstMemoryRequestMessages.findIndex(
       (message) => message.role === 'user' && String(message.content || '').includes('memory visibility e2e')
     );

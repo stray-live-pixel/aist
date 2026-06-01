@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ConfigScope } from '../core/app/config/config';
+import type { AgentMemoryItem } from '../core/entities/memory/memory';
 import type {
   AutonomousBackendEvent,
   AutonomousExportFormat,
@@ -13,6 +14,7 @@ import type {
 } from '../core/processes/autonomous';
 import type { EditorContextInput } from '../core/shared/types/types';
 import type {
+  AgentReflectionCandidate,
   ApprovalPreviewResolution,
   ApprovalResolveRequest,
   ChatMessage,
@@ -22,7 +24,8 @@ import type {
   JsonObject,
   JsonValue,
   OpenRouterModelOption,
-  RuntimeEvent
+  RuntimeEvent,
+  SubagentRun
 } from '../core/shared/types/types';
 
 export const DAEMON_PROTOCOL_VERSION = 1;
@@ -193,6 +196,52 @@ export type DaemonChatCompactParams = {
 export type DaemonChatCompactResult = {
   readonly operationId: string;
   readonly chat: DaemonChat;
+};
+
+export type DaemonChatMemoryAnalyzeParams = {
+  readonly chatId: string;
+};
+
+export type DaemonChatMemoryAnalyzeResult = {
+  readonly operationId: string;
+  readonly chat: DaemonChat;
+  readonly candidates: readonly AgentReflectionCandidate[];
+};
+
+export type DaemonChatReflectionCandidateActionParams = {
+  readonly chatId: string;
+  readonly candidateId: string;
+};
+
+export type DaemonChatReflectionCandidateSaveResult = {
+  readonly operationId: string;
+  readonly chat: DaemonChat;
+  readonly candidate?: AgentReflectionCandidate;
+  readonly memoryItem?: AgentMemoryItem;
+};
+
+export type DaemonChatReflectionCandidateRejectResult = {
+  readonly operationId: string;
+  readonly chat: DaemonChat;
+  readonly candidate?: AgentReflectionCandidate;
+};
+
+export type DaemonSubagentGetParams = {
+  readonly runId: string;
+};
+
+export type DaemonSubagentGetResult = {
+  readonly operationId: string;
+  readonly run: SubagentRun;
+};
+
+export type DaemonSubagentListParams = {
+  readonly parentChatId: string;
+};
+
+export type DaemonSubagentListResult = {
+  readonly operationId: string;
+  readonly runs: readonly SubagentRun[];
 };
 
 export type DaemonApprovalResolveParams = ApprovalResolveRequest & {

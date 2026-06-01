@@ -129,6 +129,10 @@ export function globalWorkspaceRunsDir(workspaceRoot: string, homeDir?: string):
   return path.join(globalWorkspaceRoot(workspaceRoot, homeDir), 'runs');
 }
 
+export function globalWorkspaceSubagentsDir(workspaceRoot: string, homeDir?: string): string {
+  return path.join(globalWorkspaceRoot(workspaceRoot, homeDir), 'subagents');
+}
+
 export function globalWorkspaceTelemetryDir(workspaceRoot: string, homeDir?: string): string {
   return path.join(globalWorkspaceRoot(workspaceRoot, homeDir), 'telemetry');
 }

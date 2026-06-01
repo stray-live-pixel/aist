@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 
-import { validateReflectionCandidates } from '../../../../core/features/reflection/reflection';
 import { getErrorMessage } from '../../../shared/errors';
 import { t } from '../../../shared/i18n';
 import {
@@ -33,7 +32,7 @@ import {
   setAgentMode,
   setAgentModeInstructions
 } from '../../config/settings';
-import { type AgentMemoryScope, addAgentMemory, deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
+import { deleteAgentMemory, setAgentMemoryEnabled } from '../../memory/memory';
 import type { WebviewMessage } from '../../types';
 import type { AgentWebviewMessageDeps } from './types';
 
@@ -252,11 +251,11 @@ export async function handleWebviewSettingsMessage(
       deps.sendState();
       return;
     case 'saveReflectionCandidate':
-      await saveReflectionCandidate(message.chatId, message.candidateId, deps);
+      await deps.saveReflectionCandidate(message.chatId, message.candidateId);
       deps.sendState();
       return;
     case 'rejectReflectionCandidate':
-      deps.chats.setReflectionCandidateStatus(message.chatId, message.candidateId, 'rejected');
+      await deps.rejectReflectionCandidate(message.chatId, message.candidateId);
       deps.sendState();
       return;
   }
@@ -273,46 +272,6 @@ async function saveProviderProfileApiKeyFromMessage(
   }
 
   await saveProviderProfileApiKey({ profile, apiKey, secretStore: deps.secretStore });
-}
-
-async function saveReflectionCandidate(
-  chatId: string,
-  candidateId: string,
-  deps: AgentWebviewMessageDeps
-): Promise<void> {
-  const chat = deps.chats.getChat(chatId);
-  const candidate = chat?.reflectionCandidates?.find((item) => item.id === candidateId && item.status === 'pending');
-  const validated = validateReflectionCandidates(candidate ? [candidate] : [])[0];
-  if (!candidate || !validated) {
-    deps.chats.setReflectionCandidateStatus(chatId, candidateId, 'rejected');
-    return;
-  }
-
-  await addAgentMemory({
-    scope: getReflectionMemoryScope(validated),
-    note: getReflectionMemoryNote(validated)
-  });
-
-  deps.chats.setReflectionCandidateStatus(chatId, candidateId, 'saved');
-}
-
-function getReflectionMemoryScope(
-  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
-): AgentMemoryScope {
-  return candidate.kind === 'memory_preference' && candidate.scope === 'global' ? 'global' : 'project';
-}
-
-function getReflectionMemoryNote(
-  candidate: NonNullable<ReturnType<typeof validateReflectionCandidates>[number]>
-): string {
-  if (candidate.kind === 'verification_command') {
-    return `Verification command: ${candidate.content}`;
-  }
-  if (candidate.kind === 'declarative_definition') {
-    return `Possible declarative definition: ${candidate.content}`;
-  }
-
-  return candidate.content;
 }
 
 function updateWorkspaceSetting(key: string, value: unknown): Thenable<void> {

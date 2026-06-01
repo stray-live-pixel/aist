@@ -11,6 +11,8 @@ export type MessageCardProps = {
   message: ChatMessage;
   /** Опциональные действия (например, кнопка копирования) в заголовке. */
   actions?: ReactNode;
+  /** Пользовательский лейбл автора, например название модели вместо общего «Агент». */
+  authorLabel?: string;
   /** Начальное состояние раскрытости для collapsible-сообщений. */
   defaultExpanded?: boolean;
   /** ID tool-call, который нужно свернуть (пробрасывается в ToolMessageCard). */
