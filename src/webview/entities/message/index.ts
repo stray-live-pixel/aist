@@ -6,6 +6,9 @@ export type { MessageCardProps } from './message-card';
 export { ToolMessageCard } from './tool-message-card';
 export type { ToolMessageCardProps } from './tool-message-card';
 
+export { SubagentMessageCard } from './subagent-message-card';
+export type { SubagentMessageCardProps } from './subagent-message-card';
+
 export { ToolApprovalActions } from './tool-approval-actions';
 export type { ToolApprovalActionsProps } from './tool-approval-actions';
 

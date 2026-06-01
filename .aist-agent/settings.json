@@ -68,6 +68,11 @@
       "reasoningEffort": "medium",
       "allowTools": false,
       "overrides": []
+    },
+    "memory": {
+      "model": "",
+      "reasoningEffort": "auto",
+      "allowTools": false
     }
   },
   "customSkills": [

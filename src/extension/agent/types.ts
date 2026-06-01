@@ -68,7 +68,7 @@ export type WebviewMessage =
   | { type: 'deleteProviderProfile'; profileId: string }
   | {
       type: 'setAuxiliaryModelSettings';
-      id: 'compaction' | 'tool';
+      id: 'compaction' | 'tool' | 'memory';
       settings: Partial<{ model: string; reasoningEffort: ReasoningEffort; allowTools: boolean }>;
     }
   | {

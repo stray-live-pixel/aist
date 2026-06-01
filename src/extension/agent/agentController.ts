@@ -297,6 +297,9 @@ export class AgentController {
       },
       ask: (chatId, prompt) => this.ask(chatId, prompt),
       compactChat: (chatId, trigger) => this.daemonRuntime.compactChat(chatId, trigger),
+      saveReflectionCandidate: (chatId, candidateId) => this.daemonRuntime.saveReflectionCandidate(chatId, candidateId),
+      rejectReflectionCandidate: (chatId, candidateId) =>
+        this.daemonRuntime.rejectReflectionCandidate(chatId, candidateId),
       openChatInEditor: (chatId) => this.openChatInEditor(chatId),
       retargetDeletedChat: (deletedChatId, nextChatId) => this.retargetDeletedChat(deletedChatId, nextChatId),
       loginCodex: () => this.loginCodex(),
@@ -367,9 +370,7 @@ export class AgentController {
       }
       case 'runMemoryAnalysis':
         await this.daemonRuntime.analyzeMemoryChat(message.chatId || surface.getChatId());
-        this.sidebarPage = 'settings';
-        this.postSidebarPage();
-        this.sendState();
+        this.sendState(surface);
         return true;
       case 'resolveToolCall':
         await this.daemonRuntime.resolveToolCall(message.messageId, toToolApprovalDecision(message));
@@ -554,16 +555,37 @@ export class AgentController {
   }
 
   private sendState(targetSurface?: WebviewSurface): void {
-    sendAgentState({
-      extensionVersion: String(this.context.extension.packageJSON?.version || '0.0.0'),
-      surfaces: targetSurface ? [targetSurface] : this.getSurfaces(),
-      chats: this.chats,
-      logger: this.logger,
-      secretStore: this.secretStore,
-      modelOptions: this.modelOptions,
-      codexAuthenticated: this.codexAuthenticated,
-      getSystemPrompt: () => buildAgentSystemPrompt()
-    });
+    const surfaces = targetSurface ? [targetSurface] : this.getSurfaces();
+    void Promise.all(surfaces.map((surface) => this.daemonRuntime.listSubagentRuns(surface.getChatId())))
+      .then((runsBySurface) => {
+        sendAgentState({
+          extensionVersion: String(this.context.extension.packageJSON?.version || '0.0.0'),
+          surfaces,
+          chats: this.chats,
+          logger: this.logger,
+          secretStore: this.secretStore,
+          modelOptions: this.modelOptions,
+          codexAuthenticated: this.codexAuthenticated,
+          subagentRunsByChatId: new Map(
+            surfaces.map((surface, index) => [surface.getChatId(), [...runsBySurface[index]]])
+          ),
+          getSystemPrompt: () => buildAgentSystemPrompt()
+        });
+      })
+      .catch((error) => {
+        this.logger.error('Failed to load subagent runs for webview state', error);
+        sendAgentState({
+          extensionVersion: String(this.context.extension.packageJSON?.version || '0.0.0'),
+          surfaces,
+          chats: this.chats,
+          logger: this.logger,
+          secretStore: this.secretStore,
+          modelOptions: this.modelOptions,
+          codexAuthenticated: this.codexAuthenticated,
+          subagentRunsByChatId: new Map(),
+          getSystemPrompt: () => buildAgentSystemPrompt()
+        });
+      });
   }
 
   private async refreshModels(force = false, provider: ModelProvider | 'all' = 'all'): Promise<void> {

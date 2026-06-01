@@ -9,6 +9,8 @@ import type {
   DaemonChatDeleteResult,
   DaemonChatGetResult,
   DaemonChatMemoryAnalyzeResult,
+  DaemonChatReflectionCandidateRejectResult,
+  DaemonChatReflectionCandidateSaveResult,
   DaemonChatSetModelResult,
   DaemonChatSetModelSettingsResult,
   DaemonChatStopResult,
@@ -22,13 +24,16 @@ import type {
   DaemonEvent,
   DaemonInitializeResult,
   DaemonModelsResult,
-  DaemonState
+  DaemonState,
+  DaemonSubagentGetResult,
+  DaemonSubagentListResult
 } from '../../../cli/daemonProtocol';
 import type {
   ChatModelSettings,
   JsonObject,
   ModelProvider,
   OpenRouterModelOption,
+  SubagentRun,
   ToolApprovalDecision
 } from '../../../core/shared/types/types';
 import type { AgentChatStore } from '../../chats/chatDataStore';
@@ -65,6 +70,10 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   analyzeMemoryChat(chatId: string): Promise<void>;
+  saveReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
+  rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
+  listSubagentRuns(parentChatId: string): Promise<readonly SubagentRun[]>;
+  getSubagentRun(runId: string): Promise<SubagentRun | undefined>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   syncToolPermissions(): Promise<void>;
   refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;
@@ -95,6 +104,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   private readonly previewHandles = new Map<string, VscodePreviewEdit>();
   private client: DaemonJsonRpcClient | undefined;
   private readonly eventListeners = new Set<(event: DaemonEvent) => void>();
+  private readonly subagentRunsByParentChat = new Map<string, SubagentRun[]>();
   private lastSyncedSettings = '';
   private refreshQueue = Promise.resolve();
   private disposed = false;
@@ -204,6 +214,50 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     await this.syncSettings();
     const result = await client.request<DaemonChatMemoryAnalyzeResult>('chat.memoryAnalyze', { chatId });
     this.chats.upsert(result.chat);
+    await this.refreshSubagentRuns(chatId);
+  }
+
+  async saveReflectionCandidate(chatId: string, candidateId: string): Promise<void> {
+    const client = await this.getClient();
+    const result = await client.request<DaemonChatReflectionCandidateSaveResult>('chat.reflectionCandidate.save', {
+      chatId,
+      candidateId
+    });
+    this.chats.upsert(result.chat);
+  }
+
+  async rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void> {
+    const client = await this.getClient();
+    const result = await client.request<DaemonChatReflectionCandidateRejectResult>('chat.reflectionCandidate.reject', {
+      chatId,
+      candidateId
+    });
+    this.chats.upsert(result.chat);
+  }
+
+  async listSubagentRuns(parentChatId: string): Promise<readonly SubagentRun[]> {
+    if (!this.subagentRunsByParentChat.has(parentChatId)) {
+      await this.refreshSubagentRuns(parentChatId);
+    }
+
+    return this.subagentRunsByParentChat.get(parentChatId) || [];
+  }
+
+  async getSubagentRun(runId: string): Promise<SubagentRun | undefined> {
+    for (const runs of this.subagentRunsByParentChat.values()) {
+      const cached = runs.find((run) => run.id === runId);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    const client = await this.getClient();
+    const result = await client.request<DaemonSubagentGetResult>('subagent.get', { runId });
+    this.subagentRunsByParentChat.set(
+      result.run.parentChatId,
+      upsertSubagentRun(this.subagentRunsByParentChat.get(result.run.parentChatId) || [], result.run)
+    );
+    return result.run;
   }
 
   async resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void> {
@@ -311,6 +365,13 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     const client = await this.getClient();
     const result = await client.request<DaemonChatGetResult>('chat.get', { chatId });
     this.chats.upsert(result.chat);
+    await this.refreshSubagentRuns(chatId);
+  }
+
+  private async refreshSubagentRuns(parentChatId: string): Promise<void> {
+    const client = await this.getClient();
+    const result = await client.request<DaemonSubagentListResult>('subagent.list', { parentChatId });
+    this.subagentRunsByParentChat.set(parentChatId, [...result.runs]);
   }
 
   private getDefaultModelSettings(): ChatModelSettings {
@@ -406,6 +467,12 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   private saveActiveChatId(chatId: string): Thenable<void> {
     return this.context.workspaceState.update(DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY, chatId);
   }
+}
+
+function upsertSubagentRun(runs: SubagentRun[], nextRun: SubagentRun): SubagentRun[] {
+  const nextRuns = runs.filter((run) => run.id !== nextRun.id);
+  nextRuns.push(nextRun);
+  return nextRuns.sort((left, right) => right.updatedAt - left.updatedAt || right.startedAt - left.startedAt);
 }
 
 function getWorkspaceRoot(): string {

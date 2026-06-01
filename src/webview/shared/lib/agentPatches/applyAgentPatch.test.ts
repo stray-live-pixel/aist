@@ -177,6 +177,7 @@ function createState(): AgentState {
       activeInstructionRefs: []
     },
     memoryItems: [],
+    subagentRuns: [],
     instructionSources: [],
     customSkills: [],
     codexAuthenticated: false,

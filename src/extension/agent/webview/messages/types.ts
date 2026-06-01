@@ -16,6 +16,8 @@ export type AgentWebviewMessageDeps = {
   refreshCodexAuthState(): void;
   ask(chatId: string, prompt: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
+  saveReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
+  rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
   openChatInEditor(chatId?: string): void;
   retargetDeletedChat(deletedChatId: string, nextChatId: string): void;
   loginCodex(): Promise<void>;

@@ -15,6 +15,7 @@ import {
 } from '../../shared/lib/fileRepository';
 import type {
   AgentReflectionCandidate,
+  AgentReflectionCandidateStatus,
   Chat,
   ChatContextEstimate,
   ChatMessage,
@@ -303,6 +304,29 @@ export class ChatRepository {
     await this.updateState(chatId, {
       reflectionCandidates: [...(chat.reflectionCandidates || []), ...candidates]
     });
+  }
+
+  /**
+   * Что это: persisted-обновление решения пользователя по предложению памяти.
+   * Зачем нужно: карточка memory-субагента должна исчезать после save/reject и не возвращаться при следующем refresh чата.
+   */
+  async setReflectionCandidateStatus(
+    chatId: string,
+    candidateId: string,
+    status: AgentReflectionCandidateStatus
+  ): Promise<AgentReflectionCandidate | undefined> {
+    const chat = await this.requireChat(chatId);
+    const candidates = chat.reflectionCandidates || [];
+    const candidate = candidates.find((item) => item.id === candidateId);
+    if (!candidate) {
+      return undefined;
+    }
+
+    const nextCandidate = { ...candidate, status };
+    await this.updateState(chatId, {
+      reflectionCandidates: candidates.map((item) => (item.id === candidateId ? nextCandidate : item))
+    });
+    return nextCandidate;
   }
 
   async appendMessage(chatId: string, message: ChatMessageInput): Promise<ChatMessage> {

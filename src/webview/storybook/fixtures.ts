@@ -579,6 +579,7 @@ export const storyAgentState: AgentState = {
       updatedAt: storyNow - 1000 * 60 * 30
     }
   ],
+  subagentRuns: [],
   instructionSources: storyInstructionSources,
   customSkills: storyCustomSkills,
   codexAuthenticated: true,
