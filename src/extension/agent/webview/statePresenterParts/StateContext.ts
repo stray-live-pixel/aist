@@ -1,0 +1,32 @@
+import { type SubagentRun } from '../../../../core/shared/types/types';
+import { getDefaultModelSettings } from '../../config/settingsSnapshot';
+import { getDaemonTools } from '../../daemon/toolCatalog';
+import { SendAgentStateParams } from './SendAgentStateParams';
+
+export type StateContext = SendAgentStateParams & {
+  configuredModel: string;
+  defaultModelSettings: ReturnType<typeof getDefaultModelSettings>;
+  maxToolIterations: number;
+  reasoningEffort: string;
+  codexServiceTier: string;
+  editorContextMode: string;
+  streamingEnabled: boolean;
+  language: string;
+  activeMode: { id: string };
+  agentModes: unknown;
+  customSkills: unknown;
+  tools: ReturnType<typeof getDaemonTools>;
+  agentConfigScope: string;
+  projectInstructions: string;
+  promptConfig: unknown;
+  memoryItems: unknown;
+  subagentRunsByChatId: Map<string, SubagentRun[]>;
+  instructionSources: unknown;
+  auxiliaryModels: unknown;
+  compactionSettings: unknown;
+  approvalNotificationSettings: unknown;
+  composerUiSettings: unknown;
+  telemetry: unknown;
+  projectToolDiagnostics: unknown;
+  providerProfiles: unknown;
+};

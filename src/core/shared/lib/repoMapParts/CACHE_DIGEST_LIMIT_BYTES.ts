@@ -1,0 +1,1 @@
+export const CACHE_DIGEST_LIMIT_BYTES = 256 * 1024;

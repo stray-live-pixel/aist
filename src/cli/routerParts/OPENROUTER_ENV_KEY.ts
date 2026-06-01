@@ -1,0 +1,1 @@
+export const OPENROUTER_ENV_KEY = 'OPENROUTER_API_KEY';

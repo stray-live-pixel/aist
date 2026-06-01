@@ -1,0 +1,21 @@
+export const STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'be',
+  'by',
+  'for',
+  'from',
+  'in',
+  'is',
+  'it',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'use',
+  'with'
+]);

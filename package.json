@@ -565,6 +565,7 @@
     "build:storybook": "storybook build",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",
+    "check:file-size": "node scripts/check-file-size.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "install:e2e:vscode": "node scripts/install-e2e-vscode.mjs",

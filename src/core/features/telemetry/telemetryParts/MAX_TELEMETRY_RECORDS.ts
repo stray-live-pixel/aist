@@ -1,0 +1,1 @@
+export const MAX_TELEMETRY_RECORDS = 100;
