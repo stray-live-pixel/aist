@@ -107,12 +107,15 @@ describe('AIST daemon JSON-RPC local socket', () => {
     expect(restored.chat).toMatchObject({
       id: created.chat.id,
       lastAnswer: 'Daemon final answer.',
-      busy: false,
-      messages: [
-        { role: 'user', content: 'Hello daemon' },
-        { role: 'assistant', content: 'Daemon final answer.' }
-      ]
+      busy: false
     });
+    expect(restored.chat.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: 'Hello daemon' }),
+        expect.objectContaining({ role: 'tool', name: 'get_relevant_memory', status: 'done' }),
+        expect.objectContaining({ role: 'assistant', content: 'Daemon final answer.' })
+      ])
+    );
     const finalState = await client.request<DaemonState>('state.get');
     expect(finalState.activeRun).toBeNull();
     expect(finalState.activeRuns).toEqual([]);
@@ -331,7 +334,9 @@ describe('AIST daemon JSON-RPC local socket', () => {
 
     await events.waitFor((event) => event.type === 'run.finished' && event.run.id === ask.runId);
     const restored = await client.request<DaemonChatGetResult>('chat.get', { chatId: created.chat.id });
-    const toolMessage = restored.chat.messages.find((message) => message.role === 'tool');
+    const toolMessage = restored.chat.messages.find(
+      (message) => message.role === 'tool' && message.name === 'write_file'
+    );
     expect(toolMessage).toMatchObject({
       name: 'write_file',
       status: 'done',

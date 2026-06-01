@@ -19,10 +19,17 @@ import { useAgentState } from '../../shared/lib/agentState';
 import type { AgentState } from '../../shared/types';
 import { CompactNavigationButton } from '../../shared/ui';
 import { MessageList } from '../../widgets/message-list';
-import { AgentSettingsSummary, ComposerContextSummary } from './AgentSettingsSummary';
+import {
+  AgentSettingsSummary,
+  ComposerContextSummary,
+  ModelSettingsPanel,
+  ModelSettingsToggleButton
+} from './AgentSettingsSummary';
 import { ApprovalPromptModal } from './ApprovalPromptModal';
 import { ChatListModal } from './ChatListModal';
 import styles from './ChatPage.module.scss';
+import { applyChatTransientState, clearConfirmedTransientState } from './applyChatTransientState';
+import type { ChatTransientState } from './chatTransientState';
 
 /**
  * Что это: корневая страница активного чата.
@@ -30,14 +37,25 @@ import styles from './ChatPage.module.scss';
  */
 export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void }) {
   const state = useAgentState();
+  const [transient, setTransient] = useState<ChatTransientState>({});
+  const transientView = useMemo(
+    () => applyChatTransientState({ chat: state.activeChat, transient }),
+    [state.activeChat, transient]
+  );
   const [chatsOpen, setChatsOpen] = useState(false);
   const [approvalMinimized, setApprovalMinimized] = useState(false);
   const [vcsPanelOpen, setVcsPanelOpen] = useState(false);
+  const [modelPanelOpen, setModelPanelOpen] = useState(false);
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
   const chats = useSortedChats(state);
   const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
   const pendingApprovalId = pendingApproval?.id;
+
+  useEffect(() => {
+    setTransient((current) => clearConfirmedTransientState({ chat: state.activeChat, transient: current }));
+  }, [state.activeChat]);
+
   useEffect(() => {
     if (pendingApprovalId) {
       setApprovalMinimized(false);
@@ -89,22 +107,43 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
     setVcsPanelOpen((current) => !current);
   }
 
-  const composerMinimized = state.activeChat.busy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
+  function toggleModelPanel() {
+    setModelPanelOpen((current) => !current);
+  }
+
+  const composerMinimized = transientView.busy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
+
+  function handleSubmitPrompt(prompt: string, options: { continueWithoutUserPrompt?: boolean } = {}) {
+    const visiblePrompt = options.continueWithoutUserPrompt ? '' : prompt.trim();
+    if (visiblePrompt) {
+      setTransient((current) => ({
+        ...current,
+        submittingChatId: state.activeChat.id,
+        submittingPrompt: visiblePrompt
+      }));
+    }
+    agentActions.ask(prompt, options);
+  }
+
+  function handleStopRequested() {
+    setTransient((current) => ({ ...current, stoppingChatId: state.activeChat.id }));
+    agentActions.stop(state.activeChat.id);
+  }
 
   return (
     <div className={styles.root}>
       <MessageList
         chatId={state.activeChat.id}
-        messages={state.activeChat.messages}
+        messages={transientView.messages}
         previousChat={state.activeChat.previousChat}
         compactedAt={state.activeChat.compactedAt}
         compactionModel={state.activeChat.compactionModel}
         activePlan={state.activeChat.activePlan}
         tools={state.tools}
         assistantLabel={formatChatModelLabel(state.activeChat.model)}
-        busy={state.activeChat.busy}
-        activity={state.activeChat.activity}
-        activityDetail={state.activeChat.activityDetail}
+        busy={transientView.busy}
+        activity={transientView.activity}
+        activityDetail={transientView.activityDetail}
         modelRequest={state.activeChat.modelRequest}
         subagentRuns={state.subagentRuns}
         memoryReflectionCandidates={state.activeChat.reflectionCandidates || []}
@@ -113,10 +152,12 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
       />
       <Composer
         chatId={state.activeChat.id}
-        busy={state.activeChat.busy}
+        busy={transientView.busy}
         floating
         minimized={composerMinimized}
         gradientWhileBusy={state.composerUiSettings.gradientWhileBusy}
+        onSubmitPrompt={handleSubmitPrompt}
+        onStopRequested={handleStopRequested}
         settings={<AgentSettingsSummary state={state} onOpen={onOpenSettingsPage} />}
         headerActions={
           <>
@@ -130,10 +171,16 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
             />
           </>
         }
-        footer={<ComposerContextSummary state={state} />}
+        footer={
+          <ComposerContextSummary
+            state={state}
+            modelControl={<ModelSettingsToggleButton state={state} open={modelPanelOpen} onToggle={toggleModelPanel} />}
+          />
+        }
         notice={
-          vcsPanelOpen || (pendingApproval && approvalMinimized) ? (
+          modelPanelOpen || vcsPanelOpen || (pendingApproval && approvalMinimized) ? (
             <div className={styles.composerNoticeStack}>
+              {modelPanelOpen ? <ModelSettingsPanel state={state} minimized={composerMinimized} /> : null}
               {vcsPanelOpen ? <VcsControls state={state} minimized={composerMinimized} /> : null}
               {pendingApproval && approvalMinimized ? (
                 <ApprovalPromptModal

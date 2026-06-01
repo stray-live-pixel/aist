@@ -595,17 +595,19 @@ describe('CLI commands', () => {
         stderr: getOutput.stderr
       })
     ).toBe(0);
-    expect(JSON.parse(getOutput.stdoutText())).toMatchObject({
-      chat: {
-        id: chat.id,
-        lastAnswer: 'Fake final answer.',
-        busy: false,
-        messages: [
-          { role: 'user', content: 'Prompt from stdin' },
-          { role: 'assistant', content: 'Fake final answer.' }
-        ]
-      }
+    const restoredChat = JSON.parse(getOutput.stdoutText()).chat;
+    expect(restoredChat).toMatchObject({
+      id: chat.id,
+      lastAnswer: 'Fake final answer.',
+      busy: false
     });
+    expect(restoredChat.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: 'Prompt from stdin' }),
+        expect.objectContaining({ role: 'tool', name: 'get_relevant_memory', status: 'done' }),
+        expect.objectContaining({ role: 'assistant', content: 'Fake final answer.' })
+      ])
+    );
 
     const restoredRun = await new RunRepository({ workspaceRoot, homeDir }).get(started!.run.id);
     expect(restoredRun?.meta).toMatchObject({ chatId: chat.id, status: 'completed' });

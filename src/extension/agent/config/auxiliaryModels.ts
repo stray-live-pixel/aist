@@ -67,7 +67,7 @@ export function normalizeAuxiliaryModelsSettings(value: unknown): AuxiliaryModel
 }
 
 export function normalizeAuxiliaryReasoningEffort(value: unknown): ReasoningEffort {
-  return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+  return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'auto';
 }
 
 function normalizeAuxiliaryToolOverrides(value: unknown): AuxiliaryToolModelOverride[] {

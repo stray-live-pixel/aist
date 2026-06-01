@@ -7,6 +7,7 @@ import type {
   OpenRouterMessage,
   OpenRouterModelOption,
   OpenRouterTool,
+  ReasoningEffort,
   ToolCall
 } from '../../shared/types/types';
 import { CODEX_RESPONSES_URL, DEFAULT_CODEX_MODEL, FALLBACK_MODEL_OPTIONS } from './modelDefaults';
@@ -132,6 +133,7 @@ export class CodexResponsesTransport implements ModelClient, ModelCatalogClient 
     requestOptions?: ModelRequestOptions
   ): Promise<OpenRouterMessage> {
     const codexServiceTier = requestOptions?.codexServiceTier || this.options.serviceTier || 'auto';
+    const codexReasoningEffort = toCodexReasoningEffort(requestOptions?.reasoningEffort);
     const auth = await this.options.tokenProvider.getToken();
     const model = stripCodexPrefix(modelOverride || this.defaultModel);
     const payload = toCodexPayload(messages);
@@ -153,6 +155,7 @@ export class CodexResponsesTransport implements ModelClient, ModelCatalogClient 
           store: false,
           stream: true,
           ...(codexServiceTier === 'priority' ? { service_tier: 'priority' } : {}),
+          ...(codexReasoningEffort ? { reasoning: { effort: codexReasoningEffort } } : {}),
           instructions: payload.instructions,
           input: payload.input,
           ...(tools?.length ? { tools: tools.map(toCodexTool), tool_choice: 'auto' } : {})
@@ -506,6 +509,22 @@ function stringifyToolArguments(value: string | Record<string, unknown> | undefi
   }
 
   return JSON.stringify(value || {});
+}
+
+/**
+ * Преобразует настройку усилия рассуждения в payload ChatGPT Codex.
+ *
+ * auto означает «пусть backend выберет сам», поэтому поле не отправляем; xhigh
+ * оставляем как отдельный максимальный режим, доступный только Codex-моделям.
+ */
+function toCodexReasoningEffort(
+  reasoningEffort: ReasoningEffort | undefined
+): Exclude<ReasoningEffort, 'auto'> | undefined {
+  if (!reasoningEffort || reasoningEffort === 'auto') {
+    return undefined;
+  }
+
+  return reasoningEffort;
 }
 
 function stripCodexPrefix(modelId: string): string {

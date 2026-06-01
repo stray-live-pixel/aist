@@ -1211,7 +1211,7 @@ async function getHeadlessLanguage(configStore: FileBackedConfigStore): Promise<
 
 async function getHeadlessReasoningEffort(configStore: FileBackedConfigStore): Promise<ReasoningEffort> {
   const value = await getStringSetting(configStore, ['openrouterAgent.reasoningEffort', 'reasoningEffort']);
-  return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+  return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'auto';
 }
 
 async function getHeadlessCodexServiceTier(configStore: FileBackedConfigStore): Promise<CodexServiceTier> {

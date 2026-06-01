@@ -46,6 +46,7 @@
   "reasoning.low": "Низкое",
   "reasoning.medium": "Среднее",
   "reasoning.high": "Высокое",
+  "reasoning.xhigh": "Максимальное",
   "reasoning.autoDetailed": "Авто рассуждение",
   "reasoning.lowDetailed": "Низкое рассуждение",
   "reasoning.mediumDetailed": "Среднее рассуждение",

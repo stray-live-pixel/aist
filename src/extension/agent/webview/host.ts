@@ -4,9 +4,8 @@ import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
 import { getWebviewHtml } from '../../shared/webviewHtml';
 import type { WebviewMessage, WebviewSurface } from '../types';
+import { AGENT_CHAT_EDITOR_VIEW_TYPE } from './chatEditorViewType';
 import { createSidebarSurface } from './surfaces';
-
-export const AGENT_CHAT_EDITOR_VIEW_TYPE = 'openrouterAgentChat';
 
 export type AgentChatEditorWebviewState = {
   readonly chatId?: string;

@@ -24,8 +24,8 @@ import type { VscodeDaemonRuntimeBridge } from './daemon/bridge';
 import { refreshDaemonToolCatalog } from './daemon/toolCatalog';
 import type { WebviewMessage, WebviewSurface } from './types';
 import { type ChatVcsService, buildMergeToMainPrompt, createChatVcsService } from './vcs/chatVcs';
+import { AGENT_CHAT_EDITOR_VIEW_TYPE } from './webview/chatEditorViewType';
 import {
-  AGENT_CHAT_EDITOR_VIEW_TYPE,
   createSidebar,
   deserializeAgentChatEditor,
   openAgentChatEditor,

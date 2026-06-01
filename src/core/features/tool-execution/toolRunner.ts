@@ -720,8 +720,8 @@ const defaultActivityFormatter: ToolRunnerActivityFormatter = {
   runningTool: (toolName, reason) => `Running tool ${toolName}: ${reason}`
 };
 
-function normalizeReasoningEffort(value: unknown): 'auto' | 'low' | 'medium' | 'high' | undefined {
-  if (value === 'low' || value === 'medium' || value === 'high' || value === 'auto') {
+function normalizeReasoningEffort(value: unknown): 'auto' | 'low' | 'medium' | 'high' | 'xhigh' | undefined {
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' || value === 'auto') {
     return value;
   }
   return undefined;

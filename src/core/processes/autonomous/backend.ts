@@ -430,7 +430,7 @@ export class AutonomousBackend {
 
   private async getReasoningEffort(): Promise<ReasoningEffort> {
     const value = await this.getStringSetting(['openrouterAgent.reasoningEffort', 'reasoningEffort']);
-    return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+    return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'auto';
   }
 
   private async getCodexServiceTier(): Promise<CodexServiceTier> {

@@ -50,6 +50,8 @@ export function Composer({
   floating = false,
   minimized = false,
   gradientWhileBusy = true,
+  onSubmitPrompt,
+  onStopRequested,
   settings,
   headerActions,
   footer,
@@ -94,6 +96,24 @@ export function Composer({
     });
   }
 
+  function submitPrompt(value: string, options: { continueWithoutUserPrompt?: boolean } = {}) {
+    if (onSubmitPrompt) {
+      onSubmitPrompt(value, options);
+      return;
+    }
+
+    agentActions.ask(value, options);
+  }
+
+  function requestStop() {
+    if (onStopRequested) {
+      onStopRequested();
+      return;
+    }
+
+    agentActions.stop(chatId);
+  }
+
   function sendPrompt() {
     if (busy) {
       return;
@@ -102,7 +122,7 @@ export function Composer({
     const typedPrompt = prompt.trim();
 
     if (!typedPrompt) {
-      agentActions.ask(DEFAULT_CONTINUE_PROMPT, { continueWithoutUserPrompt: true });
+      submitPrompt(DEFAULT_CONTINUE_PROMPT, { continueWithoutUserPrompt: true });
       return;
     }
 
@@ -118,7 +138,7 @@ export function Composer({
     window.setTimeout(() => {
       setSentComposer((current) => (current?.id === nextAnimationId ? null : current));
     }, COMPOSER_TRANSITION_MS);
-    agentActions.ask(typedPrompt);
+    submitPrompt(typedPrompt);
   }
 
   function navigateHistory(direction: 'older' | 'newer') {
@@ -250,7 +270,7 @@ export function Composer({
         leadingIcon={busy ? <Square size={12} /> : <SendHorizontal size={15} />}
         title={busy ? t('composer.stop') : t('composer.send')}
         aria-label={busy ? t('composer.stopGeneration') : t('composer.sendMessage')}
-        onClick={busy ? () => agentActions.stop(chatId) : sendPrompt}
+        onClick={busy ? requestStop : sendPrompt}
       />
     </>
   );

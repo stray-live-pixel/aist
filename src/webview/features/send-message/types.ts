@@ -15,6 +15,10 @@ export type ComposerProps = {
   minimized?: boolean;
   /** Включает анимированный градиент на свернутой полоске во время работы агента. */
   gradientWhileBusy?: boolean;
+  /** Вызывается перед IPC-отправкой prompt, чтобы родитель мог мгновенно показать pending-состояние. */
+  onSubmitPrompt?(prompt: string, options?: { continueWithoutUserPrompt?: boolean }): void;
+  /** Вызывается при stop, чтобы родитель мог сразу показать состояние остановки. */
+  onStopRequested?(): void;
   /** Слот кратких настроек агента над textarea. */
   settings?: ReactNode;
   /** Слот дополнительных действий справа в верхней строке composer. */

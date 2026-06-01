@@ -210,7 +210,7 @@ export type ModelOption = {
 };
 
 export type ToolPermissionMode = 'ask' | 'auto';
-export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh';
 export type CodexServiceTier = 'auto' | 'priority';
 export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 export type AgentLanguage = 'ru' | 'en';

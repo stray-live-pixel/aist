@@ -1,4 +1,4 @@
-import { Archive, Brain, Coins, FileText, LoaderCircle, RotateCcw, Settings2, ShieldCheck } from 'lucide-react';
+import { Archive, Brain, Coins, Cpu, FileText, LoaderCircle, RotateCcw, Settings2, ShieldCheck } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -38,7 +38,8 @@ const REASONING_DISPLAY_LABELS: Record<ReasoningEffort, string> = {
   auto: 'Auto',
   low: 'Low',
   medium: 'Med',
-  high: 'High'
+  high: 'High',
+  xhigh: 'XHigh'
 };
 
 const CODEX_TIER_DISPLAY_LABELS: Record<CodexServiceTier, string> = {
@@ -81,51 +82,17 @@ export const AgentSettingsSummary = memo(function AgentSettingsSummary({
 
 /**
  * Что это: нижняя строка быстрых controls composer.
- * Зачем нужно: показывает модель, reasoning, preset доступов и стоимость без расширения основного composer.
+ * Зачем нужно: оставляет внизу только часто меняемые разрешения и короткие метаданные, чтобы поле ввода не перегружалось модельными настройками.
  */
-export const ComposerContextSummary = memo(function ComposerContextSummary({ state }: { state: AgentState }) {
+export const ComposerContextSummary = memo(function ComposerContextSummary({
+  state,
+  modelControl
+}: {
+  state: AgentState;
+  modelControl?: React.ReactNode;
+}) {
   const { t } = useI18n();
-  const [selectedProviderProfileId, setSelectedProviderProfileId] = useState<string | undefined>();
-  const activeProvider = getActiveModelProvider(
-    state.activeChat.modelSettings.model,
-    state.models,
-    state.providerProfiles
-  );
-  const selectedProviderProfile = getSelectedProviderProfile(
-    state.providerProfiles,
-    selectedProviderProfileId,
-    activeProvider
-  );
-  const providerOptions = useMemo(() => getProviderOptions(state.providerProfiles), [state.providerProfiles]);
-  const providerModelOptions = useMemo(
-    () => getProviderModelOptions(state.models, selectedProviderProfile?.provider || activeProvider),
-    [activeProvider, selectedProviderProfile?.provider, state.models]
-  );
-  const modelDisplayLabels = useMemo(() => getModelDisplayLabels(providerModelOptions), [providerModelOptions]);
-  const chatModelSettings = state.activeChat.modelSettings;
-  const modelSettingsModified = !areModelSettingsEqual(chatModelSettings, state.defaultModelSettings);
-  const activeModel = state.models.find((model) => model.id === chatModelSettings.model);
-  const codexServiceTierOptions = getCodexServiceTierOptions(activeModel);
-  useEffect(() => {
-    if (!selectedProviderProfile || state.activeChat.busy) {
-      return;
-    }
-
-    if (!providerModelOptions.length) {
-      agentActions.refreshModelsForProvider(selectedProviderProfile.provider);
-    }
-  }, [providerModelOptions.length, selectedProviderProfile, state.activeChat.busy]);
-
-  const permissionOptions = useMemo(
-    () => [
-      ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
-      ...state.toolPermissionPresets.map((preset) => ({
-        value: preset.id,
-        label: t(`settings.preset.${preset.id}.label` as never)
-      }))
-    ],
-    [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
-  );
+  const permissionOptions = usePermissionOptions({ state, t });
   const permissionDisplayLabels = useMemo(
     () => getPermissionDisplayLabels(permissionOptions, state.activeToolPermissionPresetId),
     [permissionOptions, state.activeToolPermissionPresetId]
@@ -133,75 +100,7 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
 
   return (
     <CompactControlGroup className={styles.contextSummaryRoot}>
-      <Select
-        className={`${styles.compactSelect} ${styles.providerSelect}`}
-        size="sm"
-        leadingIcon={<Settings2 size={12} />}
-        aria-label={t('modelSelect.provider')}
-        title={t('modelSelect.provider')}
-        value={selectedProviderProfile?.id || ''}
-        disabled={state.activeChat.busy}
-        onChange={(event) => {
-          const nextProfile = state.providerProfiles.find((profile) => profile.id === event.target.value);
-          setSelectedProviderProfileId(nextProfile?.id);
-          if (nextProfile) {
-            agentActions.refreshModelsForProvider(nextProfile.provider);
-          }
-        }}
-        options={providerOptions}
-      />
-      <Select
-        className={`${styles.compactSelect} ${styles.modelSelect}`}
-        size="sm"
-        aria-label={t('summary.model')}
-        title={t('summary.model')}
-        value={
-          providerModelOptions.some((option) => option.value === chatModelSettings.model) ? chatModelSettings.model : ''
-        }
-        placeholder={providerModelOptions.length ? t('modelSelect.chooseModel') : t('modelSelect.loadingModels')}
-        disabled={state.activeChat.busy || !providerModelOptions.length}
-        onChange={(event) => agentActions.setChatModelSettings({ model: event.target.value })}
-        options={providerModelOptions}
-        displayLabels={modelDisplayLabels}
-      />
-      <Select
-        className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
-        size="sm"
-        leadingIcon={<Brain size={12} />}
-        aria-label={t('summary.reasoningEffort')}
-        title={t('summary.reasoningEffort')}
-        value={chatModelSettings.reasoningEffort}
-        disabled={state.activeChat.busy}
-        onChange={(event) =>
-          agentActions.setChatModelSettings({ reasoningEffort: event.target.value as ReasoningEffort })
-        }
-        options={getReasoningOptions()}
-        displayLabels={REASONING_DISPLAY_LABELS}
-      />
-      {codexServiceTierOptions ? (
-        <Select
-          className={`${styles.compactSelect} ${styles.speedCompactSelect}`}
-          size="sm"
-          leadingIcon={<Settings2 size={12} />}
-          aria-label="Codex speed"
-          title="Codex speed"
-          value={chatModelSettings.codexServiceTier}
-          disabled={state.activeChat.busy}
-          onChange={(event) =>
-            agentActions.setChatModelSettings({ codexServiceTier: event.target.value as CodexServiceTier })
-          }
-          options={codexServiceTierOptions}
-          displayLabels={CODEX_TIER_DISPLAY_LABELS}
-        />
-      ) : null}
-      {modelSettingsModified ? (
-        <CompactNavigationButton
-          icon={<RotateCcw size={12} />}
-          title={t('settings.resetChatModelSettings')}
-          disabled={state.activeChat.busy}
-          onClick={() => agentActions.resetChatModelSettings()}
-        />
-      ) : null}
+      {modelControl ? <div className={styles.modelSummarySlot}>{modelControl}</div> : null}
       <Select
         className={`${styles.compactSelect} ${styles.permissionsCompactSelect}`}
         size="sm"
@@ -220,6 +119,122 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({ sta
         />
       ) : null}
     </CompactControlGroup>
+  );
+});
+
+/**
+ * Что это: плавающая панель основных настроек рабочей модели.
+ * Зачем нужно: переносит редко меняемые provider/model/reasoning/speed из нижней строки composer в раскрываемое меню.
+ */
+export const ModelSettingsPanel = memo(function ModelSettingsPanel({
+  state,
+  minimized
+}: {
+  state: AgentState;
+  minimized: boolean;
+}) {
+  const { t } = useI18n();
+  const modelControls = useModelControls({ state });
+  const className = [styles.modelControlsFloat, minimized ? styles.modelControlsFloatCollapsed : undefined]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div className={className} aria-label={t('summary.model')} aria-hidden={minimized}>
+      <Select
+        className={`${styles.compactSelect} ${styles.providerSelect}`}
+        size="sm"
+        leadingIcon={<Settings2 size={12} />}
+        aria-label={t('modelSelect.provider')}
+        title={t('modelSelect.provider')}
+        value={modelControls.selectedProviderProfile?.id || ''}
+        disabled={state.activeChat.busy}
+        onChange={(event) => modelControls.selectProviderProfile({ profileId: event.target.value })}
+        options={modelControls.providerOptions}
+      />
+      <Select
+        className={`${styles.compactSelect} ${styles.modelSelect}`}
+        size="sm"
+        leadingIcon={<Cpu size={12} />}
+        aria-label={t('summary.model')}
+        title={t('summary.model')}
+        value={modelControls.modelValue}
+        placeholder={
+          modelControls.providerModelOptions.length ? t('modelSelect.chooseModel') : t('modelSelect.loadingModels')
+        }
+        disabled={state.activeChat.busy || !modelControls.providerModelOptions.length}
+        onChange={(event) => agentActions.setChatModelSettings({ model: event.target.value })}
+        options={modelControls.providerModelOptions}
+        displayLabels={modelControls.modelDisplayLabels}
+      />
+      <Select
+        className={`${styles.compactSelect} ${styles.reasoningCompactSelect}`}
+        size="sm"
+        leadingIcon={<Brain size={12} />}
+        aria-label={t('summary.reasoningEffort')}
+        title={t('summary.reasoningEffort')}
+        value={modelControls.chatModelSettings.reasoningEffort}
+        disabled={state.activeChat.busy}
+        onChange={(event) =>
+          agentActions.setChatModelSettings({ reasoningEffort: event.target.value as ReasoningEffort })
+        }
+        options={getReasoningOptions({ model: modelControls.activeModel })}
+        displayLabels={REASONING_DISPLAY_LABELS}
+      />
+      {modelControls.codexServiceTierOptions ? (
+        <Select
+          className={`${styles.compactSelect} ${styles.speedCompactSelect}`}
+          size="sm"
+          leadingIcon={<Settings2 size={12} />}
+          aria-label="Codex speed"
+          title="Codex speed"
+          value={modelControls.chatModelSettings.codexServiceTier}
+          disabled={state.activeChat.busy}
+          onChange={(event) =>
+            agentActions.setChatModelSettings({ codexServiceTier: event.target.value as CodexServiceTier })
+          }
+          options={modelControls.codexServiceTierOptions}
+          displayLabels={CODEX_TIER_DISPLAY_LABELS}
+        />
+      ) : null}
+      {modelControls.modelSettingsModified ? (
+        <CompactNavigationButton
+          icon={<RotateCcw size={12} />}
+          title={t('settings.resetChatModelSettings')}
+          disabled={state.activeChat.busy}
+          onClick={() => agentActions.resetChatModelSettings()}
+        />
+      ) : null}
+    </div>
+  );
+});
+
+/**
+ * Что это: кнопка открытия меню модели со всей важной сводкой в подписи.
+ * Зачем нужно: пользователь видит текущую рабочую модель без пяти отдельных селектов в нижней части composer.
+ */
+export const ModelSettingsToggleButton = memo(function ModelSettingsToggleButton({
+  state,
+  open,
+  onToggle
+}: {
+  state: AgentState;
+  open: boolean;
+  onToggle(): void;
+}) {
+  const { t } = useI18n();
+  const label = getModelSettingsSummaryLabel({ state });
+  const title = `${open ? 'Hide' : 'Show'} model controls: ${getModelSettingsTitle({ state })}`;
+
+  return (
+    <CompactNavigationButton
+      className={open ? `${styles.modelSummaryButton} ${styles.modelSummaryButtonOpen}` : styles.modelSummaryButton}
+      icon={<Cpu size={12} />}
+      label={label || t('summary.model')}
+      title={title}
+      disabled={state.activeChat.busy}
+      onClick={onToggle}
+    />
   );
 });
 
@@ -251,6 +266,111 @@ const ComposerContextControls = memo(function ComposerContextControls({ state }:
   );
 });
 
+type Translate = ReturnType<typeof useI18n>['t'];
+
+function usePermissionOptions({ state, t }: { state: AgentState; t: Translate }): SelectOption[] {
+  return useMemo(
+    () => [
+      ...(state.activeToolPermissionPresetId === 'custom' ? [{ value: 'custom', label: t('common.custom') }] : []),
+      ...state.toolPermissionPresets.map((preset) => ({
+        value: preset.id,
+        label: t(`settings.preset.${preset.id}.label` as never)
+      }))
+    ],
+    [state.activeToolPermissionPresetId, state.toolPermissionPresets, t]
+  );
+}
+
+function useModelControls({ state }: { state: AgentState }) {
+  const [selectedProviderProfileId, setSelectedProviderProfileId] = useState<string | undefined>();
+  const activeProvider = getActiveModelProvider(
+    state.activeChat.modelSettings.model,
+    state.models,
+    state.providerProfiles
+  );
+  const selectedProviderProfile = getSelectedProviderProfile(
+    state.providerProfiles,
+    selectedProviderProfileId,
+    activeProvider
+  );
+  const providerOptions = useMemo(() => getProviderOptions(state.providerProfiles), [state.providerProfiles]);
+  const providerModelOptions = useMemo(
+    () => getProviderModelOptions(state.models, selectedProviderProfile?.provider || activeProvider),
+    [activeProvider, selectedProviderProfile?.provider, state.models]
+  );
+  const modelDisplayLabels = useMemo(() => getModelDisplayLabels(providerModelOptions), [providerModelOptions]);
+  const chatModelSettings = state.activeChat.modelSettings;
+  const activeModel = state.models.find((model) => model.id === chatModelSettings.model);
+  const codexServiceTierOptions = getCodexServiceTierOptions(activeModel);
+  const modelSettingsModified = !areModelSettingsEqual(chatModelSettings, state.defaultModelSettings);
+
+  useEffect(() => {
+    if (!selectedProviderProfile || state.activeChat.busy) {
+      return;
+    }
+
+    if (!providerModelOptions.length) {
+      agentActions.refreshModelsForProvider(selectedProviderProfile.provider);
+    }
+  }, [providerModelOptions.length, selectedProviderProfile, state.activeChat.busy]);
+
+  function selectProviderProfile({ profileId }: { profileId: string }) {
+    const nextProfile = state.providerProfiles.find((profile) => profile.id === profileId);
+    setSelectedProviderProfileId(nextProfile?.id);
+    if (nextProfile) {
+      agentActions.refreshModelsForProvider(nextProfile.provider);
+    }
+  }
+
+  return {
+    selectedProviderProfile,
+    providerOptions,
+    providerModelOptions,
+    modelDisplayLabels,
+    chatModelSettings,
+    activeModel,
+    codexServiceTierOptions,
+    modelSettingsModified,
+    modelValue: providerModelOptions.some((option) => option.value === chatModelSettings.model)
+      ? chatModelSettings.model
+      : '',
+    selectProviderProfile
+  };
+}
+
+function getModelSettingsSummaryLabel({ state }: { state: AgentState }): string {
+  const provider = getModelProviderLabel({ state });
+  const model = compactModelLabel(getModelLabel({ state }));
+  const reasoning = REASONING_DISPLAY_LABELS[state.activeChat.modelSettings.reasoningEffort];
+  const speed = CODEX_TIER_DISPLAY_LABELS[state.activeChat.modelSettings.codexServiceTier];
+
+  return [provider, model, reasoning, speed].filter(Boolean).join(' · ');
+}
+
+function getModelSettingsTitle({ state }: { state: AgentState }): string {
+  const provider = getModelProviderLabel({ state });
+  const model = getModelLabel({ state });
+  const reasoning = REASONING_DISPLAY_LABELS[state.activeChat.modelSettings.reasoningEffort];
+  const speed = CODEX_TIER_DISPLAY_LABELS[state.activeChat.modelSettings.codexServiceTier];
+
+  return `Provider: ${provider}\nModel: ${model}\nReasoning: ${reasoning}\nSpeed: ${speed}`;
+}
+
+function getModelProviderLabel({ state }: { state: AgentState }): string {
+  const activeModel = state.models.find((model) => model.id === state.activeChat.modelSettings.model);
+  const provider =
+    activeModel?.provider ||
+    getActiveModelProvider(state.activeChat.modelSettings.model, state.models, state.providerProfiles);
+  const profile = state.providerProfiles.find((item) => item.provider === provider);
+
+  return profile?.name || provider || 'Provider';
+}
+
+function getModelLabel({ state }: { state: AgentState }): string {
+  const activeModel = state.models.find((model) => model.id === state.activeChat.modelSettings.model);
+  return activeModel?.name || state.activeChat.modelSettings.model;
+}
+
 function areModelSettingsEqual(
   left: AgentState['activeChat']['modelSettings'],
   right: AgentState['defaultModelSettings']
@@ -265,13 +385,15 @@ function areModelSettingsEqual(
   );
 }
 
-function getReasoningOptions(): SelectOption[] {
-  return [
+export function getReasoningOptions({ model }: { model: ModelOption | undefined }): SelectOption[] {
+  const baseOptions: SelectOption[] = [
     { value: 'auto', label: 'auto' },
     { value: 'low', label: 'low' },
     { value: 'medium', label: 'medium' },
     { value: 'high', label: 'high' }
   ];
+
+  return model?.provider === 'codex' ? [...baseOptions, { value: 'xhigh', label: 'xhigh' }] : baseOptions;
 }
 
 /**

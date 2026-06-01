@@ -403,7 +403,10 @@ function normalizeModelSettings(value: unknown, fallback: ChatModelSettings): Ch
   return {
     model: typeof settings.model === 'string' && settings.model.trim() ? settings.model : fallback.model,
     reasoningEffort:
-      settings.reasoningEffort === 'low' || settings.reasoningEffort === 'medium' || settings.reasoningEffort === 'high'
+      settings.reasoningEffort === 'low' ||
+      settings.reasoningEffort === 'medium' ||
+      settings.reasoningEffort === 'high' ||
+      settings.reasoningEffort === 'xhigh'
         ? settings.reasoningEffort
         : 'auto',
     codexServiceTier: settings.codexServiceTier === 'priority' ? 'priority' : 'auto',

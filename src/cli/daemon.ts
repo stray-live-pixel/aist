@@ -1571,7 +1571,7 @@ export class AistDaemonServer {
 
   private async getReasoningEffort(): Promise<ReasoningEffort> {
     const value = await this.getStringSetting(['openrouterAgent.reasoningEffort', 'reasoningEffort']);
-    return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+    return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'auto';
   }
 
   private async getCodexServiceTier(): Promise<CodexServiceTier> {
@@ -1610,7 +1610,7 @@ export class AistDaemonServer {
       `auxiliaryModels.${id}.reasoningEffort`,
       getAuxiliaryLegacySettingKey(id, 'reasoningEffort')
     ]);
-    return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+    return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'auto';
   }
 
   private async getAuxiliaryBooleanSetting(
@@ -1698,7 +1698,10 @@ export class AistDaemonServer {
       }
       const model = typeof record.model === 'string' && record.model.trim() ? record.model.trim() : undefined;
       const reasoningEffort: ReasoningEffort =
-        record.reasoningEffort === 'low' || record.reasoningEffort === 'medium' || record.reasoningEffort === 'high'
+        record.reasoningEffort === 'low' ||
+        record.reasoningEffort === 'medium' ||
+        record.reasoningEffort === 'high' ||
+        record.reasoningEffort === 'xhigh'
           ? record.reasoningEffort
           : 'auto';
       overrides.push({
@@ -2032,7 +2035,10 @@ function normalizeDaemonSkill(value: unknown): AgentSkill | undefined {
 function normalizeChatModelSettings(value: unknown, fallback: ChatModelSettings): ChatModelSettings {
   const record = value && typeof value === 'object' ? (value as Partial<ChatModelSettings>) : {};
   const reasoningEffort: ReasoningEffort =
-    record.reasoningEffort === 'low' || record.reasoningEffort === 'medium' || record.reasoningEffort === 'high'
+    record.reasoningEffort === 'low' ||
+    record.reasoningEffort === 'medium' ||
+    record.reasoningEffort === 'high' ||
+    record.reasoningEffort === 'xhigh'
       ? record.reasoningEffort
       : 'auto';
   const codexServiceTier: CodexServiceTier = record.codexServiceTier === 'priority' ? 'priority' : 'auto';

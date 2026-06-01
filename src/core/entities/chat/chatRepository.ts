@@ -628,6 +628,7 @@ function normalizeModelSettings(value: unknown, fallbackModel: string): ChatMode
     settings.reasoningEffort === 'low' ||
     settings.reasoningEffort === 'medium' ||
     settings.reasoningEffort === 'high' ||
+    settings.reasoningEffort === 'xhigh' ||
     settings.reasoningEffort === 'auto'
       ? settings.reasoningEffort
       : 'auto';

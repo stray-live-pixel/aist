@@ -305,7 +305,7 @@ export class AgentRuntimeService {
     let telemetryStatus: AgentRuntimeTelemetryStatus = 'success';
     try {
       await this.startRun(chat, runId, run, cleanPrompt, options);
-      const initialHistory = await this.createInitialHistory(chat, cleanPrompt, options);
+      const initialHistory = await this.createInitialHistory(chat, runId, cleanPrompt, options);
       const result = await this.runLoopWithRetries(chat, initialHistory, runId, run);
       const resultHistory = options.skipUserMessage
         ? removeLastSyntheticUserPrompt(result.history, cleanPrompt)
@@ -409,11 +409,29 @@ export class AgentRuntimeService {
 
   private async createInitialHistory(
     chat: Chat,
+    runId: string,
     prompt: string,
     options: AgentRuntimeAskOptions
   ): Promise<OpenRouterMessage[]> {
-    const memoryContextBlock = await this.deps.contextProviders?.getMemoryContextBlock?.({ prompt, chat });
-    await this.appendMemoryMessageIfNeeded(chat.id, memoryContextBlock);
+    const memoryToolMessage = await this.appendMemorySearchStartedMessage({ runId, chatId: chat.id, prompt });
+    let memoryContextBlock: string | undefined;
+    try {
+      memoryContextBlock = await this.deps.contextProviders?.getMemoryContextBlock?.({ prompt, chat });
+      await this.completeMemorySearchMessage({
+        runId,
+        chatId: chat.id,
+        messageId: memoryToolMessage?.id,
+        memoryContextBlock
+      });
+    } catch (error) {
+      await this.failMemorySearchMessage({
+        runId,
+        chatId: chat.id,
+        messageId: memoryToolMessage?.id,
+        error
+      });
+      throw error;
+    }
     const governedHistory = governModelContext({
       prompt,
       history: chat.history,
@@ -426,19 +444,82 @@ export class AgentRuntimeService {
     return governedHistory;
   }
 
-  private async appendMemoryMessageIfNeeded(chatId: string, memoryContextBlock: string | undefined): Promise<void> {
-    const memoryNotes = memoryContextBlock?.trim();
-    if (!memoryNotes) {
+  /**
+   * Что это: добавляет видимый tool-call поиска памяти до обращения к memory-субагенту.
+   * Зачем нужно: пользователь видит, что AIST сначала подбирает релевантные заметки, а не зависает перед основным ответом.
+   */
+  private async appendMemorySearchStartedMessage(input: {
+    runId: string;
+    chatId: string;
+    prompt: string;
+  }): Promise<ChatMessage | undefined> {
+    if (!this.deps.contextProviders?.getMemoryContextBlock) {
+      return undefined;
+    }
+
+    return this.appendMessage(input.runId, input.chatId, {
+      role: 'tool',
+      name: MEMORY_TOOL_NAME,
+      status: 'running',
+      reason: 'Нужно найти релевантные заметки памяти перед ответом на текущий запрос пользователя.',
+      nextStep: 'После подбора памяти основной агент продолжит стандартный запрос к модели.',
+      args: { query: input.prompt }
+    });
+  }
+
+  /**
+   * Что это: завершает видимый tool-call поиска памяти.
+   * Зачем нужно: в чате остаётся понятный результат — найдены заметки для контекста или подходящей памяти нет.
+   */
+  private async completeMemorySearchMessage(input: {
+    runId: string;
+    chatId: string;
+    messageId: string | undefined;
+    memoryContextBlock: string | undefined;
+  }): Promise<void> {
+    if (!input.messageId) {
       return;
     }
 
-    await this.deps.chatRepository.appendMessage(chatId, {
-      role: 'tool',
-      name: MEMORY_TOOL_NAME,
+    const memoryNotes = input.memoryContextBlock?.trim() || '';
+    const result = createMemoryToolResult({ memoryNotes });
+    await this.deps.chatRepository.updateMessage(input.chatId, input.messageId, {
       status: 'done',
-      args: { query: 'current user request' },
-      result: createMemoryToolResult({ memoryNotes }),
-      modelResult: createMemoryToolResult({ memoryNotes })
+      result,
+      modelResult: result
+    });
+    await this.emit(input.runId, {
+      type: 'chat.updated',
+      chatId: input.chatId,
+      reason: 'memory.search.completed',
+      at: this.now()
+    });
+  }
+
+  /**
+   * Что это: переводит видимый tool-call памяти в ошибку.
+   * Зачем нужно: если memory-субагент упал, пользователь видит конкретный сломанный шаг, а не вечный loader.
+   */
+  private async failMemorySearchMessage(input: {
+    runId: string;
+    chatId: string;
+    messageId: string | undefined;
+    error: unknown;
+  }): Promise<void> {
+    if (!input.messageId) {
+      return;
+    }
+
+    await this.deps.chatRepository.updateMessage(input.chatId, input.messageId, {
+      status: 'error',
+      result: { ok: false, error: getErrorMessage(input.error) },
+      modelResult: { ok: false, error: getErrorMessage(input.error) }
+    });
+    await this.emit(input.runId, {
+      type: 'chat.updated',
+      chatId: input.chatId,
+      reason: 'memory.search.failed',
+      at: this.now()
     });
   }
 
@@ -1119,14 +1200,33 @@ function createWorkingMessages(systemPrompt: string, initialHistory: OpenRouterM
   return [{ role: 'system', content: systemPrompt }, ...initialHistory.filter((message) => message.role !== 'system')];
 }
 
+/**
+ * Что это: формирует результат видимого tool-call памяти.
+ * Зачем нужно: пользователь и основная модель получают один источник правды о найденных заметках и правилах их применения.
+ */
 function createMemoryToolResult(input: { memoryNotes: string }): Record<string, unknown> {
+  const noteCount = countMemoryNotes({ memoryNotes: input.memoryNotes });
+
   return {
     ok: true,
     source: 'user-approved-memory',
+    found: noteCount > 0,
+    noteCount,
     policy:
       'Use these notes only when they fit the current task. They are lower priority than system, developer, and explicit user instructions.',
     notes: input.memoryNotes
   };
+}
+
+/**
+ * Что это: считает отдельные заметки в блоке памяти.
+ * Зачем нужно: карточка tool-call может явно показать, нашёл ли memory-субагент полезный контекст.
+ */
+function countMemoryNotes(input: { memoryNotes: string }): number {
+  return input.memoryNotes
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- ')).length;
 }
 
 function removeLastSyntheticUserPrompt(messages: OpenRouterMessage[], prompt: string): OpenRouterMessage[] {

@@ -12,6 +12,7 @@ import type {
 } from '../../shared/types';
 import { Card, Select, type SelectCategory, type SelectOption, Switch, Text } from '../../shared/ui';
 import styles from './RequestSettingsPanel.module.scss';
+import { getReasoningOptions } from './getReasoningOptions';
 
 type RequestSettingsPanelProps = {
   state: AgentState;
@@ -32,6 +33,7 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
   const disabled = scope === 'chat' && state.activeChat.busy;
   const settings = scope === 'chat' ? state.activeChat.modelSettings : state.defaultModelSettings;
   const modelOptions = useMemo(() => getModelOptions(state, settings.model), [state.models, settings.model]);
+  const selectedModel = useMemo(() => getSelectedModel(state, settings.model), [state.models, settings.model]);
   const modelCategories = useMemo(
     () => (state.models.length ? getModelCategories(state.models) : undefined),
     [state.models]
@@ -86,7 +88,7 @@ export const RequestSettingsPanel = memo(function RequestSettingsPanel({
           value={settings.reasoningEffort}
           disabled={disabled}
           onChange={(event) => updateSettings({ reasoningEffort: event.target.value as ReasoningEffort })}
-          options={getReasoningOptions(t)}
+          options={getReasoningOptions({ t, model: selectedModel })}
           searchable={false}
         />
         <Select
@@ -132,6 +134,10 @@ function getSettingsUpdater(scope: 'chat' | 'default'): (patch: Partial<ChatMode
   };
 }
 
+function getSelectedModel(state: AgentState, currentModel: string): ModelOption | undefined {
+  return state.models.find((model) => model.id === currentModel);
+}
+
 function getModelOptions(state: AgentState, currentModel: string): SelectOption[] {
   return state.models.length
     ? state.models.map((model) => ({
@@ -149,15 +155,6 @@ function getModelCategories(models: ModelOption[]): SelectCategory[] {
     { id: 'codex', label: 'ChatGPT Codex' }
   ];
   return categories.filter((category) => providers.has(category.id as NonNullable<ModelOption['provider']>));
-}
-
-function getReasoningOptions(t: (key: TranslationKey) => string): SelectOption[] {
-  return [
-    { value: 'auto', label: t('reasoning.auto') },
-    { value: 'low', label: t('reasoning.low') },
-    { value: 'medium', label: t('reasoning.medium') },
-    { value: 'high', label: t('reasoning.high') }
-  ];
 }
 
 function getEditorContextOptions(t: (key: TranslationKey) => string): SelectOption[] {

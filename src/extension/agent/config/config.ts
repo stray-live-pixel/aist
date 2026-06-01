@@ -7,7 +7,7 @@ import type { CodexServiceTier, EditorContextMode, ReasoningEffort } from '../..
  * доверяет raw-значению и отправляет провайдеру только поддерживаемые варианты.
  */
 export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
-  return value === 'low' || value === 'medium' || value === 'high' ? value : 'auto';
+  return value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh' ? value : 'auto';
 }
 
 /**

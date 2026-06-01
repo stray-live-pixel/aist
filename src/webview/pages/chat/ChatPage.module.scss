@@ -22,7 +22,8 @@
   gap: 8px;
 }
 
-.vcsControlsFloat {
+.vcsControlsFloat,
+.modelControlsFloat {
   display: flex;
   width: fit-content;
   max-width: 100%;
@@ -51,11 +52,29 @@
     filter 220ms ease;
 }
 
-.vcsControlsFloatCollapsed {
+.vcsControlsFloatCollapsed,
+.modelControlsFloatCollapsed {
   opacity: 0;
   filter: blur(1px);
   pointer-events: none;
   transform: translate3d(0, 8px, 0) scale(0.96);
+}
+
+.modelControlsFloat {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  border-radius: 16px;
+  padding: 6px;
+}
+
+.modelControlsFloat .compactSelect {
+  min-width: 5rem;
+  flex: 1 1 8rem;
+}
+
+.modelControlsFloat .modelSelect {
+  flex-basis: 14rem;
 }
 
 .vcsBranchButton {
@@ -106,9 +125,22 @@
 }
 
 .contextSummaryRoot {
+  width: 100%;
   min-width: 0;
   flex-wrap: nowrap;
+  justify-content: flex-start;
   overflow: hidden;
+}
+
+.modelSummarySlot {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.modelSummarySlot > * {
+  min-width: 0;
 }
 
 .compactSelect {
@@ -134,13 +166,53 @@
 }
 
 .permissionsCompactSelect {
-  width: clamp(5rem, 11vw, 6.4rem);
+  width: fit-content;
+  min-width: 3.2rem;
+  max-width: 100%;
+  flex: 0 1 auto;
 }
 
 .profileSummaryButton,
 .compactChatButton,
 .hideComposerNarrow {
   flex-shrink: 0;
+}
+
+.profileSummaryButton {
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  justify-content: flex-start;
+}
+
+.profileSummaryButton span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modelSummaryButton {
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  justify-content: flex-start;
+}
+
+.modelSummaryButtonOpen {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 76%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent);
+}
+
+.modelSummaryButton span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compactionSpinner {
@@ -157,14 +229,12 @@
     gap: 4px;
   }
 
-  .profileSummaryButton,
   .compactChatButton {
     width: 26px;
     justify-content: center;
     padding: 0;
   }
 
-  .profileSummaryButton span:last-child,
   .compactChatButton span:last-child {
     display: none;
   }
@@ -539,7 +609,8 @@
     animation-duration: 1ms;
   }
 
-  .vcsControlsFloat {
+  .vcsControlsFloat,
+  .modelControlsFloat {
     transition-duration: 1ms;
   }
 

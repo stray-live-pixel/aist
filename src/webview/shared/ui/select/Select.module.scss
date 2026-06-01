@@ -37,10 +37,10 @@
   min-width: 0;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--vscode-dropdown-border, var(--agent-border));
-  border-radius: 14px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 999px;
   color: var(--vscode-dropdown-foreground);
-  background: color-mix(in srgb, var(--vscode-dropdown-background) 92%, transparent);
+  background: color-mix(in srgb, var(--vscode-input-background) 70%, transparent);
   box-shadow: none;
   outline: none;
   padding: 0 36px 0 12px;
@@ -55,7 +55,8 @@
 }
 
 .trigger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--vscode-dropdown-background) 82%, var(--vscode-list-hoverBackground));
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 38%, var(--agent-input-border));
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
 }
 
 .trigger:active:not(:disabled) {
@@ -65,9 +66,7 @@
 .trigger:focus-visible,
 .open .trigger {
   border-color: var(--vscode-focusBorder);
-  box-shadow:
-    0 0 0 1px var(--vscode-focusBorder),
-    0 0 0 4px color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent);
 }
 
 .trigger:disabled {
@@ -99,7 +98,7 @@
 }
 
 .withIcon {
-  padding-left: 10px;
+  padding-left: 11px;
 }
 
 .chevron {
@@ -338,11 +337,11 @@
 }
 
 .sm .trigger {
-  height: 28px;
-  border-radius: 10px;
+  height: 26px;
+  border-radius: 999px;
   gap: 6px;
   padding-right: 28px;
-  padding-left: 8px;
+  padding-left: 9px;
 }
 
 .sm .value {
@@ -351,7 +350,7 @@
 }
 
 .sm .withIcon {
-  padding-left: 8px;
+  padding-left: 9px;
 }
 
 .sm .chevron {

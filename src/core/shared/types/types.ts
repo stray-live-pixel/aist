@@ -15,7 +15,7 @@ export type JsonObject = {
 
 export type ModelProvider = 'openrouter' | 'codex';
 export type CodexServiceTier = 'auto' | 'priority';
-export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh';
 export type EditorContextMode = 'auto' | 'selection' | 'file' | 'off';
 
 /**

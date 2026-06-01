@@ -25,7 +25,8 @@
     "onCommand:openrouterAgent.editSelection",
     "onCommand:openrouterAgent.codexLogin",
     "onCommand:openrouterAgent.codexLogout",
-    "onView:openrouterAgent.chats"
+    "onView:openrouterAgent.chats",
+    "onWebviewPanel:openrouterAgentChat"
   ],
   "main": "./dist/extension.js",
   "bin": {
@@ -224,7 +225,8 @@
             "auto",
             "low",
             "medium",
-            "high"
+            "high",
+            "xhigh"
           ],
           "default": "auto",
           "description": "Reasoning effort sent to OpenRouter. Auto does not send a reasoning parameter."
@@ -288,7 +290,8 @@
                     "auto",
                     "low",
                     "medium",
-                    "high"
+                    "high",
+                    "xhigh"
                   ],
                   "default": "auto"
                 },
@@ -312,7 +315,8 @@
                     "auto",
                     "low",
                     "medium",
-                    "high"
+                    "high",
+                    "xhigh"
                   ],
                   "default": "auto"
                 },
@@ -335,7 +339,8 @@
                     "auto",
                     "low",
                     "medium",
-                    "high"
+                    "high",
+                    "xhigh"
                   ],
                   "default": "auto"
                 },
@@ -366,7 +371,8 @@
                           "auto",
                           "low",
                           "medium",
-                          "high"
+                          "high",
+                          "xhigh"
                         ],
                         "default": "auto"
                       },
