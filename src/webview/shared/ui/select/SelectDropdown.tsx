@@ -1,9 +1,10 @@
-import { Check, ChevronDown, Search } from 'lucide-react';
 import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 import { classNames } from '../lib/classNames';
 import styles from './Select.module.scss';
+import { SelectOptionGroup } from './SelectOptionGroup';
+import { SelectSearchBox } from './SelectSearchBox';
 import type { DropdownPosition, OptionGroup, SelectOption, SelectSize } from './types';
 
 /**
@@ -94,125 +95,11 @@ export function SelectDropdown({
   );
 }
 
-/** Что это: search box dropdown; зачем нужно: длинные списки моделей фильтруются без отдельного UI; проблема: Enter выбирает первый enabled option. */
-function SelectSearchBox({
-  filteredOptions,
-  onQueryChange,
-  onSelectValue,
-  query,
-  searchPlaceholder,
-  searchRef
-}: {
-  filteredOptions: SelectOption[];
-  onQueryChange(value: string): void;
-  onSelectValue(value: string): void;
-  query: string;
-  searchPlaceholder: string;
-  searchRef: RefObject<HTMLInputElement | null>;
-}) {
-  return (
-    <span className={styles.searchBox}>
-      <Search size={14} className={styles.searchIcon} />
-      <input
-        ref={searchRef}
-        className={styles.searchInput}
-        placeholder={searchPlaceholder}
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            const firstEnabled = filteredOptions.find((option) => !option.disabled);
-            if (firstEnabled) onSelectValue(firstEnabled.value);
-          }
-        }}
-      />
-    </span>
-  );
-}
-
-/** Что это: category group в dropdown; зачем нужно: group header и options живут вместе; проблема: collapse state применяется только к своей категории. */
-function SelectOptionGroup({
-  collapsed,
-  currentValue,
-  group,
-  onSelectValue,
-  onToggleCategory
-}: {
-  collapsed: boolean;
-  currentValue?: string;
-  group: OptionGroup;
-  onSelectValue(value: string): void;
-  onToggleCategory(categoryId: string): void;
-}) {
-  return (
-    <span className={styles.optionGroup}>
-      {group.category ? (
-        <SelectCategoryButton collapsed={collapsed} group={group} onToggleCategory={onToggleCategory} />
-      ) : null}
-      {!collapsed
-        ? group.options.map((option) => (
-            <SelectOptionButton
-              key={option.value}
-              active={option.value === currentValue}
-              option={option}
-              onSelectValue={onSelectValue}
-            />
-          ))
-        : null}
-    </span>
-  );
-}
-
-/** Что это: кнопка категории dropdown; зачем нужно: пользователь сворачивает большие группы; проблема: длинные списки остаются компактными. */
-function SelectCategoryButton({
-  collapsed,
-  group,
-  onToggleCategory
-}: {
-  collapsed: boolean;
-  group: OptionGroup;
-  onToggleCategory(categoryId: string): void;
-}) {
-  return (
-    <button
-      type="button"
-      className={styles.categoryButton}
-      aria-expanded={!collapsed}
-      onClick={() => onToggleCategory(group.category!.id)}
-    >
-      <ChevronDown className={styles.categoryChevron} size={12} />
-      <span className={styles.categoryLabel}>{group.category!.label}</span>
-      <span className={styles.categoryCount}>{group.options.length}</span>
-    </button>
-  );
-}
-
-/** Что это: одна option-кнопка dropdown; зачем нужно: active/disabled/focus states едины для всех списков; проблема: выбор модели не дублирует JSX. */
-function SelectOptionButton({
-  active,
-  option,
-  onSelectValue
-}: {
-  active: boolean;
-  option: SelectOption;
-  onSelectValue(value: string): void;
-}) {
-  return (
-    <button
-      type="button"
-      className={classNames(styles.option, active && styles.optionActive)}
-      disabled={option.disabled}
-      role="option"
-      aria-selected={active}
-      onClick={() => onSelectValue(option.value)}
-    >
-      <Check size={14} className={classNames(styles.check, active && styles.checkVisible)} />
-      <span className={styles.optionLabel}>{option.label}</span>
-    </button>
-  );
-}
-
-/** Что это: inline-style fixed dropdown; зачем нужно: React style не принимает undefined numeric layout как готовый object; проблема: portal появляется в правильной позиции. */
+/**
+ * Что это: inline-style fixed dropdown.
+ * Зачем нужно: React style получает готовые координаты portal dropdown.
+ * Какую продуктовую проблему решает: dropdown появляется в правильной позиции и не ломает layout webview.
+ */
 function toDropdownStyle({ dropdownPosition }: { dropdownPosition?: DropdownPosition }) {
   return dropdownPosition
     ? {
