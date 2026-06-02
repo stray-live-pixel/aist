@@ -12,15 +12,14 @@ import type { CreateChatInput } from './CreateChatInput';
 import { DEFAULT_TITLE } from './DEFAULT_TITLE';
 import type { StoredChatMeta } from './StoredChatMeta';
 import { createChatMessage } from './createChatMessage';
-import { getChat } from './getChat';
 import { getChatHistoryPath } from './getChatHistoryPath';
 import { getChatMessagesPath } from './getChatMessagesPath';
 import { getChatPath } from './getChatPath';
 import { normalizeModelSettings } from './normalizeModelSettings';
 import { normalizeState } from './normalizeState';
 import { normalizeUsage } from './normalizeUsage';
-import { rebuildChatIndex } from './rebuildChatIndex';
 import { replaceChatJsonl } from './replaceChatJsonl';
+import { updateChatIndexAfterCreate } from './updateChatIndexAfterCreate';
 import { writeChatMeta } from './writeChatMeta';
 import { writeChatState } from './writeChatState';
 
@@ -44,22 +43,29 @@ export async function createChat({
     throw new FileRepositoryError('repository.conflict', `Chat already exists: ${chatId}`, { id: chatId });
   }
 
+  const meta = createInitialMeta({ context, input, chatId, now });
+  const state = normalizeState({ state: input.state });
+  const chat = createInitialChat({ meta, state });
+
   await safeMkdir(chatPath);
-  await writeChatMeta({ context, meta: createInitialMeta({ context, input, chatId, now }) });
-  await writeChatState({ context, chatId, state: normalizeState({ state: input.state }) });
+  await writeChatMeta({ context, meta });
+  await writeChatState({ context, chatId, state });
   await replaceChatJsonl({ context, chatId, fileName: 'messages.jsonl', entries: [] });
   await replaceChatJsonl({ context, chatId, fileName: 'history.jsonl', entries: [] });
 
   for (const message of input.messages || []) {
-    await appendJsonl(getChatMessagesPath({ context, chatId }), createChatMessage({ context, message, now }));
+    const chatMessage = createChatMessage({ context, message, now });
+    chat.messages.push(chatMessage);
+    await appendJsonl(getChatMessagesPath({ context, chatId }), chatMessage);
   }
 
   for (const historyMessage of input.history || []) {
+    chat.history.push(historyMessage);
     await appendJsonl(getChatHistoryPath({ context, chatId }), historyMessage);
   }
 
-  await rebuildChatIndex({ context });
-  return (await getChat({ context, chatId }))!;
+  await updateChatIndexAfterCreate({ context, chat });
+  return chat;
 }
 
 /**
@@ -93,4 +99,36 @@ function createInitialMeta({
     createdAt: now || context.now(),
     updatedAt: now || context.now()
   });
+}
+
+/**
+ * Что это: собирает возвращаемый Chat из уже записываемых meta/state данных.
+ * Зачем нужно: createChat не перечитывает только что созданные файлы и не замедляет кнопку «Новый чат».
+ * Какую продуктовую проблему решает: UI получает созданный чат быстро, а FS всё равно остаётся источником правды.
+ */
+function createInitialChat({ meta, state }: { meta: StoredChatMeta; state: ReturnType<typeof normalizeState> }): Chat {
+  return {
+    id: meta.id,
+    title: meta.title,
+    model: meta.model,
+    modelSettings: normalizeModelSettings({ value: meta.modelSettings, fallbackModel: meta.model }),
+    previousChatId: meta.previousChatId,
+    compactedAt: meta.compactedAt,
+    compactionModel: meta.compactionModel,
+    vcs: meta.vcs,
+    messages: [],
+    history: [],
+    lastAnswer: meta.lastAnswer,
+    activity: state.activity,
+    activityDetail: state.activityDetail,
+    modelRequest: state.modelRequest,
+    busy: state.busy,
+    context: state.context,
+    contextLength: state.contextLength,
+    activePlan: state.activePlan,
+    reflectionCandidates: state.reflectionCandidates,
+    usage: meta.usage,
+    createdAt: meta.createdAt,
+    updatedAt: meta.updatedAt
+  };
 }

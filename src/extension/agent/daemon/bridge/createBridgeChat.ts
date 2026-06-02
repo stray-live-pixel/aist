@@ -5,7 +5,6 @@ import type { BridgeRuntimeContext } from './BridgeRuntimeContext';
 import { getBridgeClient } from './getBridgeClient';
 import { getBridgeDefaultModelSettings } from './getBridgeDefaultModelSettings';
 import { saveActiveChatId } from './saveActiveChatId';
-import { syncBridgeSettings } from './syncBridgeSettings';
 
 /**
  * Что это: создаёт persisted-chat через daemon и активирует его в extension store.
@@ -20,7 +19,6 @@ export async function createBridgeChat({
   settings?: ChatModelSettings;
 }): Promise<Chat> {
   const client = await getBridgeClient({ context });
-  await syncBridgeSettings({ context });
   const result = await client.request<DaemonChatCreateResult>('chat.create', {
     model: settings.model,
     modelSettings: settings

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { globalWorkspaceChatsDir } from '../../storage/storage';
 import { ChatRepository } from '../chatRepository';
+import type { StoredChatIndex } from '../chatRepository/StoredChatIndex';
 import { createIdFactory, createWorkspaceRoot, expectJsonFile, expectJsonlFile, tempDirs } from './helpers';
 
 describe('ChatRepository', () => {
@@ -59,8 +60,14 @@ describe('ChatRepository', () => {
       })
     ]);
 
+    now = 1600;
+    const secondChat = await repository.create({ model: 'model-b' });
+    const indexPath = path.join(globalWorkspaceChatsDir(workspaceRoot), 'index.json');
+    const index = JSON.parse(fs.readFileSync(indexPath, 'utf8')) as StoredChatIndex;
+    expect(index.chats.map((summary) => summary.id)).toEqual([secondChat.id, 'chat-1']);
+
     const chatRoot = path.join(globalWorkspaceChatsDir(workspaceRoot), chat.id);
-    expectJsonFile(path.join(globalWorkspaceChatsDir(workspaceRoot), 'index.json'));
+    expectJsonFile(indexPath);
     expectJsonFile(path.join(chatRoot, 'meta.json'));
     expectJsonFile(path.join(chatRoot, 'state.json'));
     expectJsonlFile(path.join(chatRoot, 'messages.jsonl'), 2);

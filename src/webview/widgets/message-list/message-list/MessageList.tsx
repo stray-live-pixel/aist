@@ -2,6 +2,7 @@ export { MessageList } from './MessageListParts/MessageList';
 export { AnimatedMessageGroup } from './MessageListParts/AnimatedMessageGroup';
 export { SubagentDetailsModal } from './MessageListParts/SubagentDetailsModal';
 export { getMessageGroupId } from './MessageListParts/getMessageGroupId';
+export { getMessageGroupIdsSignature } from './MessageListParts/getMessageGroupIdsSignature';
 export { PreviousChatHistory } from './MessageListParts/PreviousChatHistory';
 export { formatCompactionDividerLabel } from './MessageListParts/formatCompactionDividerLabel';
 export { compactModelLabel } from './MessageListParts/compactModelLabel';

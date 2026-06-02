@@ -10,6 +10,7 @@ import { AnimatedMessageGroup } from './AnimatedMessageGroup';
 import { PreviousChatHistory } from './PreviousChatHistory';
 import { SubagentDetailsModal } from './SubagentDetailsModal';
 import { getMessageGroupId } from './getMessageGroupId';
+import { getMessageGroupIdsSignature } from './getMessageGroupIdsSignature';
 import { renderMessageGroup } from './renderMessageGroup';
 
 export function MessageList({
@@ -36,6 +37,7 @@ export function MessageList({
   const hasRenderedRef = useRef(false);
   const groups = groupMessages(messages, busy);
   const groupIds = groups.map(getMessageGroupId);
+  const groupIdsSignature = getMessageGroupIdsSignature({ groupIds });
   const [newGroupIds, setNewGroupIds] = useState<Set<string>>(new Set());
   const [selectedSubagentRunId, setSelectedSubagentRunId] = useState<string | undefined>();
   const pendingMemoryCandidates = useMemo(
@@ -46,9 +48,13 @@ export function MessageList({
 
   useLayoutEffect(() => {
     const previousGroupIds = previousGroupIdsRef.current;
-    setNewGroupIds(
-      hasRenderedRef.current ? new Set(groupIds.filter((groupId) => !previousGroupIds.has(groupId))) : new Set()
-    );
+    const nextNewGroupIds = hasRenderedRef.current
+      ? new Set(groupIds.filter((groupId) => !previousGroupIds.has(groupId)))
+      : new Set<string>();
+
+    // Обновляем анимационное состояние только при реальном изменении состава групп,
+    // иначе пустой чат зацикливает React и webview перестаёт показывать историю.
+    setNewGroupIds(nextNewGroupIds);
     previousGroupIdsRef.current = new Set(groupIds);
     hasRenderedRef.current = true;
 
@@ -57,7 +63,7 @@ export function MessageList({
     }
 
     scrollToBottom(scrollRef.current);
-  });
+  }, [groupIdsSignature]);
 
   function handleScroll() {
     shouldStickToBottomRef.current = isNearBottom(scrollRef.current);
