@@ -1,6 +1,6 @@
 import { useI18n } from '../../shared/i18n';
 import styles from './Composer.module.scss';
-import { ComposerFooterActions, ComposerHeaderActions } from './Composer/ComposerActions';
+import { ComposerFooterActions } from './Composer/ComposerActions';
 import { ComposerShell } from './Composer/ComposerShell';
 import { useComposerController } from './Composer/useComposerController';
 import { PromptHistoryModal } from './PromptHistoryModal';
@@ -26,10 +26,14 @@ export function Composer({
 }: ComposerProps) {
   const { t } = useI18n();
   const controller = useComposerController({ chatId, busy, onSubmitPrompt, onStopRequested });
-  const composerHeaderActions = (
-    <ComposerHeaderActions headerActions={headerActions} onOpenHistory={controller.openHistory} />
+  const actions = (
+    <ComposerFooterActions
+      busy={busy}
+      onOpenHistory={controller.openHistory}
+      onSend={controller.sendPrompt}
+      onStop={controller.requestStop}
+    />
   );
-  const actions = <ComposerFooterActions busy={busy} onSend={controller.sendPrompt} onStop={controller.requestStop} />;
   const commonShellProps = {
     busy,
     floating,
@@ -40,7 +44,7 @@ export function Composer({
     notice,
     fallback: t('composer.noSettings'),
     placeholder: t('composer.placeholder'),
-    headerActions: composerHeaderActions,
+    headerActions,
     actions
   };
 

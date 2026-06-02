@@ -145,16 +145,14 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
         onStopRequested={handleStopRequested}
         settings={<AgentSettingsSummary state={state} onOpen={onOpenSettingsPage} />}
         headerActions={
-          <>
-            <VcsToggleButton state={state} open={vcsPanelOpen} onToggle={toggleVcsPanel} />
-            <FloatingChatActions
-              extensionVersion={state.extensionVersion}
-              onNewChat={() => agentActions.newChat()}
-              onOpenChats={() => setChatsOpen(true)}
-              onOpenSettings={onOpenSettingsPage}
-              activeChatId={state.activeChat.id}
-            />
-          </>
+          <FloatingChatActions
+            extensionVersion={state.extensionVersion}
+            onNewChat={() => agentActions.newChat()}
+            onOpenChats={() => setChatsOpen(true)}
+            onOpenSettings={onOpenSettingsPage}
+            activeChatId={state.activeChat.id}
+            vcsToggle={<VcsToggleButton state={state} open={vcsPanelOpen} onToggle={toggleVcsPanel} />}
+          />
         }
         footer={
           <ComposerContextSummary

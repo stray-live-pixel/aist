@@ -1,5 +1,5 @@
 import { Braces, ExternalLink, MessageSquare, Plus, Settings } from 'lucide-react';
-import { memo } from 'react';
+import { type ReactNode, memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
@@ -11,7 +11,8 @@ export const FloatingChatActions = memo(function FloatingChatActions({
   onNewChat,
   onOpenChats,
   onOpenSettings,
-  activeChatId
+  activeChatId,
+  vcsToggle
 }: {
   /** Версия остаётся рядом с навигацией: это metadata composer, но выглядит как control для единообразия панели. */
   extensionVersion: string;
@@ -19,12 +20,15 @@ export const FloatingChatActions = memo(function FloatingChatActions({
   onOpenChats(): void;
   onOpenSettings(): void;
   activeChatId: string;
+  /** Кнопка ветки передаётся слотом, чтобы порядок всех composer-actions оставался в одном месте. */
+  vcsToggle: ReactNode;
 }) {
   const { t } = useI18n();
   const versionLabel = `v${extensionVersion}`;
 
   return (
     <div className={styles.floatingActions}>
+      <CompactNavigationButton icon={<Plus size={12} />} title={t('chat.newChat')} onClick={onNewChat} />
       <CompactNavigationButton icon={<MessageSquare size={12} />} title={t('chat.openChats')} onClick={onOpenChats} />
       <CompactNavigationButton
         className={styles.hideComposerNarrow}
@@ -38,8 +42,8 @@ export const FloatingChatActions = memo(function FloatingChatActions({
         title={t('chat.openJson')}
         onClick={() => agentActions.openChatJson(activeChatId)}
       />
-      <CompactNavigationButton icon={<Plus size={12} />} title={t('chat.newChat')} onClick={onNewChat} />
       <CompactNavigationButton icon={<Settings size={12} />} title={t('chat.openSettings')} onClick={onOpenSettings} />
+      {vcsToggle}
       <CompactNavigationButton
         className={styles.hideComposerNarrow}
         label={versionLabel}

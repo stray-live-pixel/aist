@@ -5,6 +5,7 @@ import { classNames } from '../lib/classNames';
 import styles from './Select.module.scss';
 import { SelectOptionGroup } from './SelectOptionGroup';
 import { SelectSearchBox } from './SelectSearchBox';
+import { getDropdownStyle } from './getDropdownStyle';
 import type { DropdownPosition, OptionGroup, SelectOption, SelectSize } from './types';
 
 /**
@@ -61,7 +62,7 @@ export function SelectDropdown({
         size === 'sm' && styles.dropdownSm,
         dropdownPosition?.placement === 'top' && styles.dropdownTop
       )}
-      style={toDropdownStyle({ dropdownPosition })}
+      style={getDropdownStyle({ dropdownPosition })}
       role="presentation"
     >
       {searchable ? (
@@ -93,21 +94,4 @@ export function SelectDropdown({
     </span>,
     document.body
   );
-}
-
-/**
- * Что это: inline-style fixed dropdown.
- * Зачем нужно: React style получает готовые координаты portal dropdown.
- * Какую продуктовую проблему решает: dropdown появляется в правильной позиции и не ломает layout webview.
- */
-function toDropdownStyle({ dropdownPosition }: { dropdownPosition?: DropdownPosition }) {
-  return dropdownPosition
-    ? {
-        top: dropdownPosition.top,
-        left: dropdownPosition.left,
-        width: dropdownPosition.width,
-        height: dropdownPosition.maxHeight,
-        maxHeight: dropdownPosition.maxHeight
-      }
-    : undefined;
 }
