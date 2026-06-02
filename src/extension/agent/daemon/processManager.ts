@@ -1,41 +1,21 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import fs from 'node:fs';
-import path from 'node:path';
 import * as vscode from 'vscode';
 
 import { DaemonJsonRpcClient } from '../../../cli/daemonClient';
 import { getDaemonSocketPath } from '../../../cli/daemonProtocol';
-import type { AistLogger } from '../../shared/logger';
+import { CONNECT_POLL_MS, CONNECT_TIMEOUT_MS, MAX_RESTART_DELAY_MS } from './processManager/constants';
+import { delay } from './processManager/delay';
+import { resolveDaemonCommand } from './processManager/resolveDaemonCommand';
+import type { DaemonCommand, DaemonProcessStatus, VscodeDaemonProcessManagerOptions } from './processManager/types';
 
-export type DaemonProcessStatus = {
-  state: 'idle' | 'starting' | 'running' | 'error';
-  socketPath: string;
-  command?: string;
-  args?: readonly string[];
-  message?: string;
-  restartCount: number;
-};
+export type { DaemonCommand, DaemonProcessStatus, VscodeDaemonProcessManagerOptions } from './processManager/types';
 
-export type DaemonCommand = {
-  command: string;
-  args: string[];
-  displayPath: string;
-};
-
-export type VscodeDaemonProcessManagerOptions = {
-  context: vscode.ExtensionContext;
-  workspaceRoot: string;
-  logger: AistLogger;
-  spawnProcess?: typeof spawn;
-  connectClient?: (socketPath: string) => Promise<DaemonJsonRpcClient>;
-  existsSync?: (filePath: string) => boolean;
-  setTimeout?: typeof setTimeout;
-};
-
-const CONNECT_TIMEOUT_MS = 8000;
-const CONNECT_POLL_MS = 150;
-const MAX_RESTART_DELAY_MS = 5000;
-
+/**
+ * Что это: lifecycle-manager локального AIST daemon внутри VS Code.
+ * Зачем нужно: extension получает готовый JSON-RPC client и автоматически поднимает daemon при необходимости.
+ * Какую проблему решает: UI не знает про spawn, socket polling и restart после падения процесса.
+ */
 export class VscodeDaemonProcessManager implements vscode.Disposable {
   readonly socketPath: string;
 
@@ -57,11 +37,7 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
     this.connectClient = options.connectClient || ((socketPath) => DaemonJsonRpcClient.connect({ socketPath }));
     this.existsSync = options.existsSync || fs.existsSync;
     this.setTimer = options.setTimeout || setTimeout;
-    this.statusValue = {
-      state: 'idle',
-      socketPath: this.socketPath,
-      restartCount: this.restartCount
-    };
+    this.statusValue = { state: 'idle', socketPath: this.socketPath, restartCount: this.restartCount };
   }
 
   get status(): DaemonProcessStatus {
@@ -107,7 +83,6 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
 
   private async start(): Promise<DaemonJsonRpcClient> {
     this.setStatus({ state: 'starting', message: 'Connecting to AIST daemon.' });
-
     const existing = await this.tryConnect();
     if (existing) {
       this.setStatus({ state: 'running', message: 'Connected to existing AIST daemon.' });
@@ -122,89 +97,33 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
       message: `Starting AIST daemon: ${daemonCommand.displayPath}`
     });
     this.spawnDaemon(daemonCommand);
+    return this.finishStartedDaemon({ daemonCommand });
+  }
 
-    let client: DaemonJsonRpcClient;
+  private async finishStartedDaemon({ daemonCommand }: { daemonCommand: DaemonCommand }): Promise<DaemonJsonRpcClient> {
     try {
-      client = await this.waitForDaemon();
+      const client = await this.waitForDaemon();
+      this.setStatus({
+        state: 'running',
+        command: daemonCommand.command,
+        args: daemonCommand.args,
+        message: 'AIST daemon is running.'
+      });
+      return client;
     } catch (error) {
       this.child?.kill();
       this.child = undefined;
       this.setStatus({ state: 'error', message: error instanceof Error ? error.message : String(error) });
       throw error;
     }
-    this.setStatus({
-      state: 'running',
-      command: daemonCommand.command,
-      args: daemonCommand.args,
-      message: 'AIST daemon is running.'
-    });
-    return client;
   }
 
   private resolveDaemonCommand(): DaemonCommand {
-    const configured = vscode.workspace.getConfiguration('openrouterAgent').get<string>('daemonBinaryPath')?.trim();
-    const workspaceBin = path.join(
-      this.options.workspaceRoot,
-      'node_modules',
-      '.bin',
-      process.platform === 'win32' ? 'aist.cmd' : 'aist'
-    );
-    const bundledCli = path.join(this.options.context.extensionPath, 'dist', 'cli', 'main.js');
-    const bundledBin = path.join(
-      this.options.context.extensionPath,
-      process.platform === 'win32' ? 'aist.cmd' : 'aist'
-    );
-    const candidate = [configured, bundledBin, workspaceBin, this.findOnPath('aist')].find((item): item is string =>
-      Boolean(item && this.existsSync(item))
-    );
-
-    if (candidate) {
-      return this.toDaemonCommand(candidate);
-    }
-
-    if (this.existsSync(bundledCli)) {
-      return {
-        command: process.execPath,
-        args: [bundledCli, 'daemon', '--workspace', this.options.workspaceRoot],
-        displayPath: bundledCli
-      };
-    }
-
-    return {
-      command: 'aist',
-      args: ['daemon', '--workspace', this.options.workspaceRoot],
-      displayPath: 'aist'
-    };
-  }
-
-  private toDaemonCommand(candidate: string): DaemonCommand {
-    if (candidate.endsWith('.js')) {
-      return {
-        command: process.execPath,
-        args: [candidate, 'daemon', '--workspace', this.options.workspaceRoot],
-        displayPath: candidate
-      };
-    }
-
-    return {
-      command: candidate,
-      args: ['daemon', '--workspace', this.options.workspaceRoot],
-      displayPath: candidate
-    };
-  }
-
-  private findOnPath(binaryName: string): string | undefined {
-    const pathValue = process.env.PATH || '';
-    const suffixes = process.platform === 'win32' ? ['.cmd', '.exe', ''] : [''];
-    for (const directory of pathValue.split(path.delimiter)) {
-      for (const suffix of suffixes) {
-        const candidate = path.join(directory, `${binaryName}${suffix}`);
-        if (this.existsSync(candidate)) {
-          return candidate;
-        }
-      }
-    }
-    return undefined;
+    return resolveDaemonCommand({
+      context: this.options.context,
+      workspaceRoot: this.options.workspaceRoot,
+      existsSync: this.existsSync
+    });
   }
 
   private spawnDaemon(daemonCommand: DaemonCommand): void {
@@ -220,19 +139,29 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
       this.setStatus({ state: 'error', message: error.message });
       this.options.logger.error('Failed to start AIST daemon', error);
     });
-    this.child.on('exit', (code, signal) => {
-      this.child = undefined;
-      this.client?.close();
-      this.client = undefined;
-      if (this.disposed) {
-        return;
-      }
+    this.child.on('exit', (code, signal) => this.handleDaemonExit({ code, signal, stderr }));
+  }
 
-      const message = `AIST daemon exited (${code ?? signal ?? 'unknown'}).${stderr ? ` ${stderr.trim()}` : ''}`;
-      this.setStatus({ state: 'error', message });
-      this.options.logger.error('AIST daemon exited', { code, signal, stderr: stderr.trim() });
-      this.scheduleRestart();
-    });
+  private handleDaemonExit({
+    code,
+    signal,
+    stderr
+  }: {
+    code: number | null;
+    signal: string | null;
+    stderr: string;
+  }): void {
+    this.child = undefined;
+    this.client?.close();
+    this.client = undefined;
+    if (this.disposed) {
+      return;
+    }
+
+    const message = `AIST daemon exited (${code ?? signal ?? 'unknown'}).${stderr ? ` ${stderr.trim()}` : ''}`;
+    this.setStatus({ state: 'error', message });
+    this.options.logger.error('AIST daemon exited', { code, signal, stderr: stderr.trim() });
+    this.scheduleRestart();
   }
 
   private async waitForDaemon(): Promise<DaemonJsonRpcClient> {
@@ -246,7 +175,7 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
       if (client) {
         return client;
       }
-      await delay(CONNECT_POLL_MS);
+      await delay({ ms: CONNECT_POLL_MS });
     }
 
     const message = lastError instanceof Error ? lastError.message : 'socket did not become available';
@@ -278,15 +207,6 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
   }
 
   private setStatus(patch: Partial<DaemonProcessStatus>): void {
-    this.statusValue = {
-      ...this.statusValue,
-      ...patch,
-      socketPath: this.socketPath,
-      restartCount: this.restartCount
-    };
+    this.statusValue = { ...this.statusValue, ...patch, socketPath: this.socketPath, restartCount: this.restartCount };
   }
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

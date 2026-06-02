@@ -6,7 +6,7 @@ import type { ChildProcess } from 'node:child_process';
  */
 export async function waitForCdp({
   port,
-  process,
+  process: _process,
   logs,
   timeout = 60_000
 }: {

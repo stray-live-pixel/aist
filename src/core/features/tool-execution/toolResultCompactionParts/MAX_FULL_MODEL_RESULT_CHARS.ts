@@ -1,0 +1,1 @@
+export const MAX_FULL_MODEL_RESULT_CHARS = 60000;

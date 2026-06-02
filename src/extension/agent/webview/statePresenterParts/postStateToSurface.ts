@@ -1,0 +1,77 @@
+import { getWorkspaceName } from '../../../shared/workspace';
+import {
+  getActiveToolPermissionPresetId,
+  getToolPermissionItems,
+  getToolPermissionPresets
+} from '../../../tools/permissions';
+import { mergeModels } from '../../models/models';
+import { type WebviewSurface } from '../../types';
+import { mapChatToWebviewActiveChat } from '../stateMapping';
+import { StateContext } from './StateContext';
+
+export function postStateToSurface(surface: WebviewSurface, context: StateContext): void {
+  const activeChat = context.chats.getChat(surface.getChatId()) || context.chats.getActiveChat();
+  const models = mergeModels(context.modelOptions, context.configuredModel, activeChat.model);
+  const activeModel = models.find((model) => model.id === activeChat.model);
+  const previousChat = activeChat.previousChatId ? context.chats.getChat(activeChat.previousChatId) : undefined;
+  const webviewActiveChat = mapChatToWebviewActiveChat({
+    chat: activeChat,
+    previousChat,
+    systemPrompt: context.getSystemPrompt(),
+    activeModel
+  });
+
+  const stateMessage = {
+    type: 'state',
+    viewKind: surface.kind,
+    extensionVersion: context.extensionVersion,
+    workspaceName: getWorkspaceName(),
+    tools: context.tools.map((tool) => tool.function.name),
+    chats: context.chats.getSummaries(),
+    activeChat: webviewActiveChat,
+    models,
+    providerProfiles: context.providerProfiles,
+    defaultModelSettings: context.defaultModelSettings,
+    maxToolIterations: context.maxToolIterations,
+    reasoningEffort: context.reasoningEffort,
+    codexServiceTier: context.codexServiceTier,
+    editorContextMode: context.editorContextMode,
+    streamingEnabled: context.streamingEnabled,
+    auxiliaryModels: context.auxiliaryModels,
+    compactionSettings: context.compactionSettings,
+    approvalNotificationSettings: context.approvalNotificationSettings,
+    composerUiSettings: context.composerUiSettings,
+    telemetry: context.telemetry,
+    projectToolDiagnostics: context.projectToolDiagnostics,
+    agentLanguage: context.language,
+    agentMode: context.activeMode.id,
+    agentModes: context.agentModes,
+    agentConfigScope: context.agentConfigScope,
+    projectInstructions: context.projectInstructions,
+    promptConfig: context.promptConfig,
+    memoryItems: context.memoryItems,
+    subagentRuns: context.subagentRunsByChatId.get(activeChat.id) || [],
+    instructionSources: context.instructionSources,
+    customSkills: context.customSkills,
+    codexAuthenticated: context.codexAuthenticated,
+    toolPermissions: getToolPermissionItems(),
+    toolPermissionPresets: getToolPermissionPresets(),
+    activeToolPermissionPresetId: getActiveToolPermissionPresetId()
+  } as const;
+
+  void surface.webview.postMessage(stateMessage).then(
+    (delivered) => {
+      context.logger.info('State posted to webview', {
+        surfaceId: surface.id,
+        kind: surface.kind,
+        chatId: activeChat.id,
+        chatCount: stateMessage.chats.length,
+        messageCount: webviewActiveChat.messages.length,
+        delivered
+      });
+    },
+    (error) => {
+      context.logger.error('Failed to post state to webview', error);
+    }
+  );
+}

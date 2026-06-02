@@ -1,5 +1,5 @@
 import type { useI18n } from '../../../shared/i18n';
-import type { AgentItemRef, AgentItemScope, ToolPermissionMode } from '../../../shared/types';
+import type { AgentItemRef, AgentItemScope } from '../../../shared/types';
 
 /**
  * Что это: локализованное имя scope инструкции/роли.

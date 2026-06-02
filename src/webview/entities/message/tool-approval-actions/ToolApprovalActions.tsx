@@ -41,6 +41,7 @@ export function ToolApprovalActions({
       rememberGlobal: cleanRememberGlobal || undefined,
       rememberProject: cleanRememberProject || undefined
     });
+    onResolved?.();
   }
 
   return (

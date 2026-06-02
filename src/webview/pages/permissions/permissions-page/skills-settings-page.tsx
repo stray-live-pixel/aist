@@ -3,7 +3,7 @@ import { memo, useCallback, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentItemScope, AgentSkill, ToolPermissionMode } from '../../../shared/types';
+import type { AgentSkill, ToolPermissionMode } from '../../../shared/types';
 import { Button, Card, Select, TextArea, TextField } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
 import { BehaviorScopeTabs, type BehaviorTab } from './behavior-scope-tabs';

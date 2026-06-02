@@ -10,18 +10,21 @@ import type {
 import {
   AutonomousBackend,
   type AutonomousExportFormat,
-  type AutonomousLaunchOptions,
-  AutonomousSessionStore
+  type AutonomousLaunchOptions
 } from '../../core/processes/autonomous';
 import type { VscodeDaemonRuntimeBridge } from '../agent/daemon/bridge';
 import type { AistLogger } from '../shared/logger';
 import { getWebviewHtml } from '../shared/webviewHtml';
 import { getWorkspaceFolder, getWorkspaceName } from '../shared/workspace';
+import { confirmAutonomousFlowDelete } from './controller/confirmAutonomousFlowDelete';
+import { openAutonomousSessionExportDocument } from './controller/openAutonomousSessionExportDocument';
+import { revealAutonomousSessionDirectory } from './controller/revealAutonomousSessionDirectory';
 import type { AutonomousWebviewToExtensionMessage } from './messages';
 
 /**
- * VS Code shell для autonomous runner. Бизнес-логика живёт в core backend или
- * daemon; controller только открывает panel и маршрутизирует webview IPC.
+ * Что это: VS Code shell для autonomous runner.
+ * Зачем нужно: controller открывает panel и маршрутизирует webview IPC в daemon или local backend.
+ * Какую проблему решает: бизнес-логика автономных запусков остаётся в core/backend, а UI получает единый state.
  */
 export class AutonomousController implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
@@ -82,15 +85,12 @@ export class AutonomousController implements vscode.Disposable {
         await this.sendState();
       } else if (message.type === 'autonomous.importLegacy') {
         await this.getBackend().importLegacyDefinitions();
-        await this.sendState();
       } else if (message.type === 'autonomous.createFlow') {
         await this.getBackend().createFlow(message.flow);
-        await this.sendState();
       } else if (message.type === 'autonomous.deleteFlow') {
         await this.deleteFlow(message.flowId);
       } else if (message.type === 'autonomous.saveFlow') {
         await this.getBackend().saveFlow(message.flow);
-        await this.sendState();
       } else if (message.type === 'autonomous.startFlow') {
         await this.startFlow(message.flowId, message.launch);
       } else if (message.type === 'autonomous.startRun') {
@@ -98,14 +98,12 @@ export class AutonomousController implements vscode.Disposable {
       } else if (message.type === 'autonomous.stopSession') {
         await this.stopSession(message.sessionId);
       } else if (message.type === 'autonomous.revealSession') {
-        await this.revealSession(message.sessionId);
+        await revealAutonomousSessionDirectory({ sessionId: message.sessionId });
       } else if (message.type === 'autonomous.exportSession') {
         await this.exportSession(message.sessionId, message.format);
       }
     } catch (error) {
-      const text = error instanceof Error ? error.message : String(error);
-      this.logger.error('Autonomous webview message failed', error);
-      await this.panel?.webview.postMessage({ type: 'autonomous.error', message: text });
+      await this.reportMessageError({ error });
     } finally {
       await this.sendState();
     }
@@ -118,7 +116,6 @@ export class AutonomousController implements vscode.Disposable {
     } else {
       await this.getBackend().startFlow(flowId, launch);
     }
-    await this.sendState();
   }
 
   private async startRun(runId: string, launch: AutonomousLaunchOptions): Promise<void> {
@@ -128,7 +125,6 @@ export class AutonomousController implements vscode.Disposable {
     } else {
       await this.getBackend().startRun(runId, launch);
     }
-    await this.sendState();
   }
 
   private async stopSession(sessionId: string): Promise<void> {
@@ -141,36 +137,16 @@ export class AutonomousController implements vscode.Disposable {
   }
 
   private async deleteFlow(flowId: string): Promise<void> {
-    const confirmation = 'Удалить flow';
-    // Подтверждение держим на стороне extension, потому что это действие меняет
-    // workspace-файлы, а browser confirm внутри webview может быть отключён/не показан.
-    const selected = await vscode.window.showWarningMessage(
-      `Удалить flow ${flowId}? Это удалит каталог definition из .aist-agent/autonomous/flows.`,
-      { modal: true },
-      confirmation
-    );
-    if (selected !== confirmation) {
+    if (!(await confirmAutonomousFlowDelete({ flowId }))) {
       return;
     }
 
     await this.getBackend().deleteFlow(flowId);
-    await this.sendState();
-  }
-
-  private async revealSession(sessionId: string): Promise<void> {
-    const sessionUri = vscode.Uri.file(
-      new AutonomousSessionStore(getWorkspaceFolder().uri.fsPath).rootPath + `/${sessionId}`
-    );
-    await vscode.env.openExternal(sessionUri);
   }
 
   private async exportSession(sessionId: string, format: 'markdown' | 'json'): Promise<void> {
-    const result = await this.exportSessionDocument(sessionId, format);
-    const document = await vscode.workspace.openTextDocument({
-      language: format === 'markdown' ? 'markdown' : 'json',
-      content: result
-    });
-    await vscode.window.showTextDocument(document);
+    const content = await this.exportSessionDocument(sessionId, format);
+    await openAutonomousSessionExportDocument({ content, format });
   }
 
   private async postPage(): Promise<void> {
@@ -238,5 +214,11 @@ export class AutonomousController implements vscode.Disposable {
     }
 
     return (await this.getBackend().exportSession(sessionId, format)).content;
+  }
+
+  private async reportMessageError({ error }: { error: unknown }): Promise<void> {
+    const text = error instanceof Error ? error.message : String(error);
+    this.logger.error('Autonomous webview message failed', error);
+    await this.panel?.webview.postMessage({ type: 'autonomous.error', message: text });
   }
 }

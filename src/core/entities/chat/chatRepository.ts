@@ -1,18 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 
-import {
-  FileRepositoryError,
-  assertRepositoryId,
-  childPath,
-  listDirectoryNames,
-  pathExists,
-  readJsonFile,
-  readJsonlFile,
-  removeUndefined,
-  sortByUpdatedAtDesc
-} from '../../shared/lib/fileRepository';
 import type {
   AgentReflectionCandidate,
   AgentReflectionCandidateStatus,
@@ -20,711 +7,188 @@ import type {
   ChatContextEstimate,
   ChatMessage,
   ChatModelRequestStatus,
-  ChatModelSettings,
   ChatPlan,
   ChatSummary,
   ChatUsageEstimate,
-  ChatVcsState,
   OpenRouterMessage
 } from '../../shared/types/types';
-import { appendJsonl, globalWorkspaceChatsDir, safeMkdir, writeJsonAtomic } from '../storage/storage';
+import { globalWorkspaceChatsDir } from '../storage/storage';
+import type { ChatMessageInput } from './chatRepository/ChatMessageInput';
+import type { ChatMetadataPatch } from './chatRepository/ChatMetadataPatch';
+import type { ChatRepositoryContext } from './chatRepository/ChatRepositoryContext';
+import type { ChatRepositoryOptions } from './chatRepository/ChatRepositoryOptions';
+import type { ChatStatePatch } from './chatRepository/ChatStatePatch';
+import type { CreateChatInput } from './chatRepository/CreateChatInput';
+import { addChatUsage } from './chatRepository/addChatUsage';
+import { addReflectionCandidates } from './chatRepository/addReflectionCandidates';
+import { appendChatHistory } from './chatRepository/appendChatHistory';
+import { appendChatHistoryBatch } from './chatRepository/appendChatHistoryBatch';
+import { appendChatMessage } from './chatRepository/appendChatMessage';
+import { clearChat } from './chatRepository/clearChat';
+import { createChat } from './chatRepository/createChat';
+import { deleteChat } from './chatRepository/deleteChat';
+import { getChat } from './chatRepository/getChat';
+import { listChats } from './chatRepository/listChats';
+import { rebuildChatIndex } from './chatRepository/rebuildChatIndex';
+import { setChatHistory } from './chatRepository/setChatHistory';
+import { setReflectionCandidateStatus } from './chatRepository/setReflectionCandidateStatus';
+import { updateChatMessage } from './chatRepository/updateChatMessage';
+import { updateChatMetadata } from './chatRepository/updateChatMetadata';
+import { updateChatModelRequest } from './chatRepository/updateChatModelRequest';
+import { updateChatState } from './chatRepository/updateChatState';
 
-const CHAT_SCHEMA_VERSION = 1;
-const DEFAULT_TITLE = 'New chat';
-
-export type ChatRepositoryOptions = {
-  workspaceRoot: string;
-  homeDir?: string;
-  idFactory?: () => string;
-  now?: () => number;
-};
-
-export type CreateChatInput = {
-  id?: string;
-  title?: string;
-  model: string;
-  modelSettings?: ChatModelSettings;
-  previousChatId?: string;
-  compactedAt?: number;
-  compactionModel?: string;
-  vcs?: ChatVcsState;
-  lastAnswer?: string;
-  usage?: Partial<ChatUsageEstimate>;
-  messages?: ChatMessageInput[];
-  history?: OpenRouterMessage[];
-  state?: ChatStatePatch;
-};
-
-export type ChatMetadataPatch = Partial<
-  Pick<
-    Chat,
-    | 'title'
-    | 'model'
-    | 'modelSettings'
-    | 'previousChatId'
-    | 'compactedAt'
-    | 'compactionModel'
-    | 'vcs'
-    | 'lastAnswer'
-    | 'usage'
-  >
->;
-
-export type ChatStatePatch = Partial<
-  Pick<
-    Chat,
-    | 'busy'
-    | 'activity'
-    | 'activityDetail'
-    | 'modelRequest'
-    | 'context'
-    | 'contextLength'
-    | 'activePlan'
-    | 'reflectionCandidates'
-  >
->;
-
-export type ChatMessageInput = Omit<ChatMessage, 'id' | 'createdAt'> & Partial<Pick<ChatMessage, 'id' | 'createdAt'>>;
-
-type StoredChatMeta = {
-  schemaVersion: number;
-  id: string;
-  title: string;
-  model: string;
-  modelSettings?: ChatModelSettings;
-  previousChatId?: string;
-  compactedAt?: number;
-  compactionModel?: string;
-  vcs?: ChatVcsState;
-  lastAnswer: string;
-  usage: ChatUsageEstimate;
-  createdAt: number;
-  updatedAt: number;
-};
-
-type StoredChatState = {
-  schemaVersion: number;
-  busy: boolean;
-  activity?: Chat['activity'];
-  activityDetail?: string;
-  modelRequest?: ChatModelRequestStatus;
-  context?: ChatContextEstimate;
-  contextLength?: number;
-  activePlan?: ChatPlan;
-  reflectionCandidates?: AgentReflectionCandidate[];
-};
-
-type StoredChatIndex = {
-  schemaVersion: number;
-  updatedAt: number;
-  chats: ChatSummary[];
-};
+export type { ChatMessageInput, ChatMetadataPatch, ChatRepositoryOptions, ChatStatePatch, CreateChatInput };
 
 /**
- * File-backed source of truth for CLI chats.
- *
- * Инварианты:
- * - `meta.json`, `state.json` и `index.json` пишутся только atomic temp+rename.
- * - `messages.jsonl` и `history.jsonl` хранят текущую материализованную историю:
- *   append используется для новых записей, а runtime может переписать файл для
- *   tool status updates, clear и context compaction.
- * - `index.json` ускоряет списки, но rebuild всегда идёт из каталогов chat,
- *   поэтому повреждение index не теряет пользовательские сообщения.
- * - Secrets сюда не принимаются: repository пишет только chat metadata, UI
- *   messages, compact model history и runtime state.
+ * Что это: файловый источник правды для CLI-чатов.
+ * Зачем нужно: публичный фасад сохраняет прежний API, а сценарии записи вынесены в маленькие файлы.
+ * Какую продуктовую проблему решает: история, state, model history и индекс чатов остаются консистентными и поддерживаемыми.
  */
 export class ChatRepository {
   readonly rootPath: string;
   private readonly idFactory: () => string;
   private readonly now: () => number;
 
+  /** Создаёт репозиторий для конкретного workspace и homeDir. */
   constructor(options: ChatRepositoryOptions) {
     this.rootPath = globalWorkspaceChatsDir(options.workspaceRoot, options.homeDir);
     this.idFactory = options.idFactory || randomUUID;
     this.now = options.now || Date.now;
   }
 
-  async create(input: CreateChatInput): Promise<Chat> {
-    const now = this.now();
-    const chatId = assertRepositoryId(input.id || this.idFactory(), 'chat');
-    const chatPath = this.chatPath(chatId);
-    if (await pathExists(chatPath)) {
-      throw new FileRepositoryError('repository.conflict', `Chat already exists: ${chatId}`, { id: chatId });
-    }
-
-    await safeMkdir(chatPath);
-    const meta: StoredChatMeta = removeUndefined({
-      schemaVersion: CHAT_SCHEMA_VERSION,
-      id: chatId,
-      title: input.title || DEFAULT_TITLE,
-      model: input.model,
-      modelSettings: normalizeModelSettings(input.modelSettings, input.model),
-      previousChatId: input.previousChatId,
-      compactedAt: input.compactedAt,
-      compactionModel: input.compactionModel,
-      vcs: input.vcs,
-      lastAnswer: input.lastAnswer || '',
-      usage: normalizeUsage(input.usage),
-      createdAt: now,
-      updatedAt: now
-    });
-    await this.writeMeta(meta);
-    await this.writeState(chatId, normalizeState(input.state));
-    await this.replaceJsonl(chatId, 'messages.jsonl', []);
-    await this.replaceJsonl(chatId, 'history.jsonl', []);
-
-    for (const message of input.messages || []) {
-      await appendJsonl(this.messagesPath(chatId), this.createMessage(message, now));
-    }
-
-    for (const historyMessage of input.history || []) {
-      await appendJsonl(this.historyPath(chatId), historyMessage);
-    }
-
-    await this.rebuildIndex();
-    return (await this.get(chatId))!;
+  /** Создаёт новый чат и стартовые storage-файлы. */
+  create(input: CreateChatInput): Promise<Chat> {
+    return createChat({ context: this.context(), input });
   }
 
-  async list(): Promise<ChatSummary[]> {
-    if (!(await pathExists(this.rootPath))) {
-      return [];
-    }
-
-    const index = await this.readUsableIndex();
-    if (index) {
-      return sortSummaries(index.chats);
-    }
-
-    return this.rebuildIndex();
+  /** Возвращает summaries для списка чатов. */
+  list(): Promise<ChatSummary[]> {
+    return listChats({ context: this.context() });
   }
 
-  async get(chatId: string): Promise<Chat | undefined> {
-    const safeChatId = assertRepositoryId(chatId, 'chat');
-    const meta = await readJsonFile<StoredChatMeta>(this.metaPath(safeChatId));
-    if (!meta) {
-      return undefined;
-    }
-
-    return this.readChatFromMeta(meta);
+  /** Возвращает полный чат или undefined, если чат отсутствует. */
+  get(chatId: string): Promise<Chat | undefined> {
+    return getChat({ context: this.context(), chatId });
   }
 
-  async update(chatId: string, patch: ChatMetadataPatch): Promise<Chat> {
-    const meta = await this.requireMeta(chatId);
-    const now = this.now();
-    const nextMeta: StoredChatMeta = removeUndefined({
-      ...meta,
-      ...patch,
-      usage: patch.usage ? normalizeUsage(patch.usage) : meta.usage,
-      updatedAt: now
-    });
-
-    await this.writeMeta(nextMeta);
-    await this.rebuildIndex();
-    return this.requireChat(chatId);
+  /** Обновляет persisted-метаданные чата. */
+  update(chatId: string, patch: ChatMetadataPatch): Promise<Chat> {
+    return updateChatMetadata({ context: this.context(), chatId, patch });
   }
 
-  async clear(chatId: string): Promise<Chat> {
-    const meta = await this.requireMeta(chatId);
-    const now = this.now();
-
-    await this.writeMeta({
-      ...meta,
-      title: DEFAULT_TITLE,
-      lastAnswer: '',
-      usage: normalizeUsage(undefined),
-      updatedAt: now
-    });
-    await this.writeState(meta.id, normalizeState(undefined));
-    await this.replaceJsonl(meta.id, 'messages.jsonl', []);
-    await this.replaceJsonl(meta.id, 'history.jsonl', []);
-    await this.rebuildIndex();
-
-    return this.requireChat(meta.id);
+  /** Очищает сообщения, историю модели и transient-state чата. */
+  clear(chatId: string): Promise<Chat> {
+    return clearChat({ context: this.context(), chatId });
   }
 
-  async delete(chatId: string): Promise<void> {
-    const safeChatId = assertRepositoryId(chatId, 'chat');
-    await fs.promises.rm(this.chatPath(safeChatId), { recursive: true, force: true });
-    await this.rebuildIndex();
+  /** Удаляет чат из файлового хранилища. */
+  delete(chatId: string): Promise<void> {
+    return deleteChat({ context: this.context(), chatId });
   }
 
-  async updateState(chatId: string, patch: ChatStatePatch): Promise<Chat> {
-    const meta = await this.requireMeta(chatId);
-    const currentState = await this.readState(meta.id);
-    await this.writeState(meta.id, normalizeState({ ...currentState, ...patch }));
-    await this.touch(meta);
-    await this.rebuildIndex();
-    return this.requireChat(chatId);
+  /** Обновляет runtime-state чата. */
+  updateState(chatId: string, patch: ChatStatePatch): Promise<Chat> {
+    return updateChatState({ context: this.context(), chatId, patch });
   }
 
-  async setBusy(chatId: string, busy: boolean): Promise<void> {
-    await this.updateState(chatId, { busy });
+  /** Устанавливает busy-флаг выполнения агента. */
+  setBusy(chatId: string, busy: boolean): Promise<void> {
+    return this.updateState(chatId, { busy }).then(() => undefined);
   }
 
-  async setActivity(chatId: string, activity: Chat['activity'], detail?: string): Promise<void> {
-    await this.updateState(chatId, { activity, activityDetail: detail });
+  /** Устанавливает activity и человекочитаемую деталь статуса. */
+  setActivity(chatId: string, activity: Chat['activity'], detail?: string): Promise<void> {
+    return this.updateState(chatId, { activity, activityDetail: detail }).then(() => undefined);
   }
 
-  async setActivityDetail(chatId: string, detail: string | undefined): Promise<void> {
-    await this.updateState(chatId, { activityDetail: detail });
+  /** Обновляет только detail текущего статуса агента. */
+  setActivityDetail(chatId: string, detail: string | undefined): Promise<void> {
+    return this.updateState(chatId, { activityDetail: detail }).then(() => undefined);
   }
 
-  async setModelRequest(chatId: string, modelRequest: ChatModelRequestStatus | undefined): Promise<void> {
-    await this.updateState(chatId, { modelRequest });
+  /** Устанавливает полный статус model request. */
+  setModelRequest(chatId: string, modelRequest: ChatModelRequestStatus | undefined): Promise<void> {
+    return this.updateState(chatId, { modelRequest }).then(() => undefined);
   }
 
-  async updateModelRequest(
+  /** Частично обновляет текущий model request, если он есть. */
+  updateModelRequest(
     chatId: string,
     patch: Partial<NonNullable<Chat['modelRequest']>>
   ): Promise<ChatModelRequestStatus | undefined> {
-    const chat = await this.requireChat(chatId);
-    if (!chat.modelRequest) {
-      return undefined;
-    }
-
-    const nextRequest = { ...chat.modelRequest, ...patch };
-    await this.updateState(chatId, { modelRequest: nextRequest });
-    return nextRequest;
+    return updateChatModelRequest({ context: this.context(), chatId, patch });
   }
 
-  async setContext(chatId: string, context: ChatContextEstimate | undefined): Promise<void> {
-    await this.updateState(chatId, { context, contextLength: context?.tokens });
+  /** Сохраняет оценку контекста и синхронный contextLength. */
+  setContext(chatId: string, context: ChatContextEstimate | undefined): Promise<void> {
+    return this.updateState(chatId, { context, contextLength: context?.tokens }).then(() => undefined);
   }
 
-  async setActivePlan(chatId: string, activePlan: ChatPlan | undefined): Promise<void> {
-    await this.updateState(chatId, { activePlan });
+  /** Сохраняет активный план агента для виджета прогресса. */
+  setActivePlan(chatId: string, activePlan: ChatPlan | undefined): Promise<void> {
+    return this.updateState(chatId, { activePlan }).then(() => undefined);
   }
 
-  async addReflectionCandidates(chatId: string, candidates: AgentReflectionCandidate[]): Promise<void> {
-    if (!candidates.length) {
-      return;
-    }
-
-    const chat = await this.requireChat(chatId);
-    await this.updateState(chatId, {
-      reflectionCandidates: [...(chat.reflectionCandidates || []), ...candidates]
-    });
+  /** Добавляет предложения памяти от reflection-субагента. */
+  addReflectionCandidates(chatId: string, candidates: AgentReflectionCandidate[]): Promise<void> {
+    return addReflectionCandidates({ context: this.context(), chatId, candidates });
   }
 
-  /**
-   * Что это: persisted-обновление решения пользователя по предложению памяти.
-   * Зачем нужно: карточка memory-субагента должна исчезать после save/reject и не возвращаться при следующем refresh чата.
-   */
-  async setReflectionCandidateStatus(
+  /** Сохраняет статус обработки предложения памяти. */
+  setReflectionCandidateStatus(
     chatId: string,
     candidateId: string,
     status: AgentReflectionCandidateStatus
   ): Promise<AgentReflectionCandidate | undefined> {
-    const chat = await this.requireChat(chatId);
-    const candidates = chat.reflectionCandidates || [];
-    const candidate = candidates.find((item) => item.id === candidateId);
-    if (!candidate) {
-      return undefined;
-    }
-
-    const nextCandidate = { ...candidate, status };
-    await this.updateState(chatId, {
-      reflectionCandidates: candidates.map((item) => (item.id === candidateId ? nextCandidate : item))
-    });
-    return nextCandidate;
+    return setReflectionCandidateStatus({ context: this.context(), chatId, candidateId, status });
   }
 
-  async appendMessage(chatId: string, message: ChatMessageInput): Promise<ChatMessage> {
-    const meta = await this.requireMeta(chatId);
-    const now = this.now();
-    const nextMessage = this.createMessage(message, now);
-
-    await appendJsonl(this.messagesPath(meta.id), nextMessage);
-    const title =
-      meta.title === DEFAULT_TITLE && nextMessage.role === 'user' && nextMessage.content
-        ? toSingleLinePreview(nextMessage.content, 50) || meta.title
-        : meta.title;
-    await this.writeMeta({ ...meta, title, updatedAt: now });
-    await this.rebuildIndex();
-    return nextMessage;
+  /** Добавляет новое UI-сообщение в чат. */
+  appendMessage(chatId: string, message: ChatMessageInput): Promise<ChatMessage> {
+    return appendChatMessage({ context: this.context(), chatId, message });
   }
 
-  async updateMessage(
+  /** Обновляет существующее UI-сообщение по id. */
+  updateMessage(
     chatId: string,
     messageId: string,
     patch: Partial<Omit<ChatMessage, 'id' | 'createdAt'>>
   ): Promise<ChatMessage> {
-    const meta = await this.requireMeta(chatId);
-    const messages = await readJsonlFile<ChatMessage>(this.messagesPath(meta.id));
-    const index = messages.findIndex((message) => message.id === messageId);
-    if (index === -1) {
-      throw new FileRepositoryError('repository.readFailed', `Message not found: ${messageId}`, {
-        id: messageId
-      });
-    }
-
-    const nextMessage = { ...messages[index], ...patch };
-    messages[index] = nextMessage;
-    await this.replaceJsonl(meta.id, 'messages.jsonl', messages);
-    await this.touch(meta);
-    await this.rebuildIndex();
-    return nextMessage;
+    return updateChatMessage({ context: this.context(), chatId, messageId, patch });
   }
 
-  async appendHistory(chatId: string, message: OpenRouterMessage): Promise<void> {
-    const meta = await this.requireMeta(chatId);
-    await appendJsonl(this.historyPath(meta.id), message);
-    await this.touch(meta);
-    await this.rebuildIndex();
+  /** Добавляет одно сообщение в model history. */
+  appendHistory(chatId: string, message: OpenRouterMessage): Promise<void> {
+    return appendChatHistory({ context: this.context(), chatId, message });
   }
 
-  async appendHistoryBatch(chatId: string, messages: OpenRouterMessage[]): Promise<void> {
-    const meta = await this.requireMeta(chatId);
-    for (const message of messages) {
-      await appendJsonl(this.historyPath(meta.id), message);
-    }
-    await this.touch(meta);
-    await this.rebuildIndex();
+  /** Добавляет несколько сообщений в model history. */
+  appendHistoryBatch(chatId: string, messages: OpenRouterMessage[]): Promise<void> {
+    return appendChatHistoryBatch({ context: this.context(), chatId, messages });
   }
 
-  async setHistory(chatId: string, history: OpenRouterMessage[]): Promise<void> {
-    const meta = await this.requireMeta(chatId);
-    await this.replaceJsonl(meta.id, 'history.jsonl', history);
-    await this.touch(meta);
-    await this.rebuildIndex();
+  /** Полностью заменяет model history после compaction. */
+  setHistory(chatId: string, history: OpenRouterMessage[]): Promise<void> {
+    return setChatHistory({ context: this.context(), chatId, history });
   }
 
-  async setLastAnswer(chatId: string, answer: string): Promise<void> {
-    await this.update(chatId, { lastAnswer: answer });
+  /** Обновляет последний ответ ассистента в метаданных. */
+  setLastAnswer(chatId: string, answer: string): Promise<void> {
+    return this.update(chatId, { lastAnswer: answer }).then(() => undefined);
   }
 
-  async addUsage(chatId: string, usage: Partial<ChatUsageEstimate>): Promise<ChatUsageEstimate> {
-    const chat = await this.requireChat(chatId);
-    const currentCost = chat.usage.costUsd;
-    const nextCost =
-      currentCost === undefined && usage.costUsd === undefined ? undefined : (currentCost || 0) + (usage.costUsd || 0);
-    const nextUsage = normalizeUsage({
-      promptTokens: chat.usage.promptTokens + (usage.promptTokens || 0),
-      completionTokens: chat.usage.completionTokens + (usage.completionTokens || 0),
-      totalTokens: chat.usage.totalTokens + (usage.totalTokens || 0),
-      costUsd: nextCost
-    });
-    await this.update(chatId, { usage: nextUsage });
-    return nextUsage;
+  /** Накопительно добавляет usage модели к чату. */
+  addUsage(chatId: string, usage: Partial<ChatUsageEstimate>): Promise<ChatUsageEstimate> {
+    return addChatUsage({ context: this.context(), chatId, usage });
   }
 
-  async rebuildIndex(): Promise<ChatSummary[]> {
-    const chatIds = await this.listChatIds();
-    const chats: Chat[] = [];
-    for (const chatId of chatIds) {
-      const chat = await this.get(chatId);
-      if (chat) {
-        chats.push(chat);
-      }
-    }
-
-    const summaries = sortSummaries(chats.map(toSummary));
-    await safeMkdir(this.rootPath);
-    await writeJsonAtomic(this.indexPath(), {
-      schemaVersion: CHAT_SCHEMA_VERSION,
-      updatedAt: this.now(),
-      chats: summaries
-    } satisfies StoredChatIndex);
-    return summaries;
+  /** Пересобирает индекс чатов из файлового источника правды. */
+  rebuildIndex(): Promise<ChatSummary[]> {
+    return rebuildChatIndex({ context: this.context() });
   }
 
-  private async requireChat(chatId: string): Promise<Chat> {
-    const chat = await this.get(chatId);
-    if (!chat) {
-      throw new FileRepositoryError('repository.readFailed', `Chat not found: ${chatId}`, { id: chatId });
-    }
-
-    return chat;
+  /** Собирает контекст для сценарных функций без раскрытия private-полей наружу. */
+  private context(): ChatRepositoryContext {
+    return { rootPath: this.rootPath, idFactory: this.idFactory, now: this.now };
   }
-
-  private async requireMeta(chatId: string): Promise<StoredChatMeta> {
-    const safeChatId = assertRepositoryId(chatId, 'chat');
-    const meta = await readJsonFile<StoredChatMeta>(this.metaPath(safeChatId));
-    if (!meta) {
-      throw new FileRepositoryError('repository.readFailed', `Chat not found: ${safeChatId}`, { id: safeChatId });
-    }
-
-    return normalizeMeta(meta);
-  }
-
-  private async readChatFromMeta(meta: StoredChatMeta): Promise<Chat> {
-    const normalizedMeta = normalizeMeta(meta);
-    const messages = await readJsonlFile<ChatMessage>(this.messagesPath(normalizedMeta.id));
-    const history = await readJsonlFile<OpenRouterMessage>(this.historyPath(normalizedMeta.id));
-    const state = await this.readState(normalizedMeta.id);
-
-    return {
-      id: normalizedMeta.id,
-      title: normalizedMeta.title,
-      model: normalizedMeta.model,
-      modelSettings: normalizedMeta.modelSettings || normalizeModelSettings(undefined, normalizedMeta.model),
-      previousChatId: normalizedMeta.previousChatId,
-      compactedAt: normalizedMeta.compactedAt,
-      compactionModel: normalizedMeta.compactionModel,
-      vcs: normalizedMeta.vcs,
-      messages,
-      history,
-      lastAnswer: normalizedMeta.lastAnswer,
-      busy: state.busy,
-      activity: state.activity,
-      activityDetail: state.activityDetail,
-      modelRequest: state.modelRequest,
-      context: state.context,
-      contextLength: state.contextLength,
-      activePlan: state.activePlan,
-      reflectionCandidates: state.reflectionCandidates,
-      usage: normalizedMeta.usage,
-      createdAt: normalizedMeta.createdAt,
-      updatedAt: normalizedMeta.updatedAt
-    };
-  }
-
-  private async readState(chatId: string): Promise<StoredChatState> {
-    const rawState = await readJsonFile<Partial<StoredChatState>>(this.statePath(chatId));
-    return normalizeState(rawState);
-  }
-
-  private async readUsableIndex(): Promise<StoredChatIndex | undefined> {
-    let index: StoredChatIndex | undefined;
-    try {
-      index = await readJsonFile<StoredChatIndex>(this.indexPath());
-    } catch (error) {
-      if (error instanceof FileRepositoryError && error.code === 'repository.invalidJson') {
-        return undefined;
-      }
-
-      throw error;
-    }
-
-    if (!index || index.schemaVersion !== CHAT_SCHEMA_VERSION || !Array.isArray(index.chats)) {
-      return undefined;
-    }
-
-    const indexIds = new Set(index.chats.map((chat) => chat.id));
-    const sourceIds = await this.listChatIds();
-    if (indexIds.size !== sourceIds.length || sourceIds.some((chatId) => !indexIds.has(chatId))) {
-      return undefined;
-    }
-
-    return index;
-  }
-
-  private async listChatIds(): Promise<string[]> {
-    const directoryNames = await listDirectoryNames(this.rootPath);
-    const chatIds: string[] = [];
-    for (const directoryName of directoryNames) {
-      const chatId = assertRepositoryId(directoryName, 'chat');
-      if (await pathExists(this.metaPath(chatId))) {
-        chatIds.push(chatId);
-      }
-    }
-
-    return chatIds.sort();
-  }
-
-  private createMessage(message: ChatMessageInput, now: number): ChatMessage {
-    return {
-      ...message,
-      id: message.id || this.idFactory(),
-      createdAt: message.createdAt || now
-    };
-  }
-
-  private async touch(meta: StoredChatMeta): Promise<void> {
-    await this.writeMeta({ ...meta, updatedAt: this.now() });
-  }
-
-  private writeMeta(meta: StoredChatMeta): Promise<void> {
-    return writeJsonAtomic(this.metaPath(meta.id), normalizeMeta(meta));
-  }
-
-  private writeState(chatId: string, state: StoredChatState): Promise<void> {
-    return writeJsonAtomic(this.statePath(chatId), state);
-  }
-
-  private async replaceJsonl(
-    chatId: string,
-    fileName: 'messages.jsonl' | 'history.jsonl',
-    entries: unknown[]
-  ): Promise<void> {
-    const targetPath = path.join(this.chatPath(chatId), fileName);
-    const tempPath = path.join(
-      path.dirname(targetPath),
-      `.${fileName}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
-    );
-    const content = entries.length ? `${entries.map((entry) => JSON.stringify(entry)).join('\n')}\n` : '';
-
-    try {
-      await fs.promises.writeFile(tempPath, content, 'utf8');
-      await fs.promises.rename(tempPath, targetPath);
-    } catch (error) {
-      await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
-      throw error;
-    }
-  }
-
-  private chatPath(chatId: string): string {
-    return childPath(this.rootPath, assertRepositoryId(chatId, 'chat'));
-  }
-
-  private metaPath(chatId: string): string {
-    return path.join(this.chatPath(chatId), 'meta.json');
-  }
-
-  private messagesPath(chatId: string): string {
-    return path.join(this.chatPath(chatId), 'messages.jsonl');
-  }
-
-  private historyPath(chatId: string): string {
-    return path.join(this.chatPath(chatId), 'history.jsonl');
-  }
-
-  private statePath(chatId: string): string {
-    return path.join(this.chatPath(chatId), 'state.json');
-  }
-
-  private indexPath(): string {
-    return path.join(this.rootPath, 'index.json');
-  }
-}
-
-function normalizeMeta(meta: StoredChatMeta): StoredChatMeta {
-  return removeUndefined({
-    schemaVersion: CHAT_SCHEMA_VERSION,
-    id: assertRepositoryId(meta.id, 'chat'),
-    title: typeof meta.title === 'string' && meta.title.trim() ? meta.title : DEFAULT_TITLE,
-    model: typeof meta.model === 'string' && meta.model.trim() ? meta.model : 'unknown',
-    modelSettings: normalizeModelSettings(meta.modelSettings, meta.model),
-    previousChatId: meta.previousChatId,
-    compactedAt: meta.compactedAt,
-    compactionModel:
-      typeof meta.compactionModel === 'string' && meta.compactionModel.trim() ? meta.compactionModel.trim() : undefined,
-    vcs: normalizeVcsState(meta.vcs),
-    lastAnswer: typeof meta.lastAnswer === 'string' ? meta.lastAnswer : '',
-    usage: normalizeUsage(meta.usage),
-    createdAt: normalizeTimestamp(meta.createdAt),
-    updatedAt: normalizeTimestamp(meta.updatedAt || meta.createdAt)
-  });
-}
-
-function normalizeState(state: Partial<StoredChatState> | ChatStatePatch | undefined): StoredChatState {
-  return removeUndefined({
-    schemaVersion: CHAT_SCHEMA_VERSION,
-    busy: Boolean(state?.busy),
-    activity: state?.activity,
-    activityDetail: state?.activityDetail,
-    modelRequest: state?.modelRequest,
-    context: state?.context,
-    contextLength: state?.contextLength,
-    activePlan: state?.activePlan,
-    reflectionCandidates: state?.reflectionCandidates
-  });
-}
-
-function normalizeModelSettings(value: unknown, fallbackModel: string): ChatModelSettings {
-  const settings = value && typeof value === 'object' ? (value as Partial<ChatModelSettings>) : {};
-  const model = typeof settings.model === 'string' && settings.model.trim() ? settings.model : fallbackModel;
-  const reasoningEffort: ChatModelSettings['reasoningEffort'] =
-    settings.reasoningEffort === 'low' ||
-    settings.reasoningEffort === 'medium' ||
-    settings.reasoningEffort === 'high' ||
-    settings.reasoningEffort === 'xhigh' ||
-    settings.reasoningEffort === 'auto'
-      ? settings.reasoningEffort
-      : 'auto';
-  const codexServiceTier: ChatModelSettings['codexServiceTier'] =
-    settings.codexServiceTier === 'priority' ? 'priority' : 'auto';
-  const editorContextMode: ChatModelSettings['editorContextMode'] =
-    settings.editorContextMode === 'selection' ||
-    settings.editorContextMode === 'file' ||
-    settings.editorContextMode === 'off' ||
-    settings.editorContextMode === 'auto'
-      ? settings.editorContextMode
-      : 'auto';
-  return {
-    model: typeof model === 'string' && model.trim() ? model : 'unknown',
-    reasoningEffort,
-    codexServiceTier,
-    maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
-    editorContextMode,
-    streamingEnabled: settings.streamingEnabled === true
-  };
-}
-
-function normalizeVcsState(value: unknown): ChatVcsState | undefined {
-  if (!value || typeof value !== 'object') {
-    return undefined;
-  }
-
-  const state = value as Partial<ChatVcsState>;
-  if (typeof state.command !== 'string' || typeof state.branch !== 'string') {
-    return undefined;
-  }
-
-  return removeUndefined({
-    command: state.command,
-    branch: state.branch,
-    baseBranch: typeof state.baseBranch === 'string' ? state.baseBranch : undefined,
-    isolated: Boolean(state.isolated)
-  });
-}
-
-function normalizeUsage(usage: Partial<ChatUsageEstimate> | undefined): ChatUsageEstimate {
-  return removeUndefined({
-    promptTokens: usage?.promptTokens || 0,
-    completionTokens: usage?.completionTokens || 0,
-    totalTokens: usage?.totalTokens || 0,
-    costUsd: usage?.costUsd
-  });
-}
-
-function normalizeTimestamp(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
-}
-
-function toSummary(chat: Chat): ChatSummary {
-  return {
-    id: chat.id,
-    title: getChatTitle(chat),
-    model: chat.model,
-    modelSettings: chat.modelSettings,
-    previousChatId: chat.previousChatId,
-    compactedAt: chat.compactedAt,
-    compactionModel: chat.compactionModel,
-    vcs: chat.vcs,
-    messageCount: chat.messages.filter((message) => message.role === 'user' || message.role === 'assistant').length,
-    lastUserMessage: getLastUserMessage(chat),
-    busy: chat.busy,
-    lastMessageAt: getLastMessageAt(chat),
-    updatedAt: chat.updatedAt
-  };
-}
-
-function getLastMessageAt(chat: Chat): number {
-  return chat.messages.at(-1)?.createdAt || chat.createdAt;
-}
-
-function getChatTitle(chat: Chat): string {
-  const firstUserMessage = chat.messages.find((message) => message.role === 'user' && message.content?.trim());
-  return firstUserMessage ? toSingleLinePreview(firstUserMessage.content || '', 50) || chat.title : chat.title;
-}
-
-function getLastUserMessage(chat: Chat): string {
-  const lastUserMessage = [...chat.messages]
-    .reverse()
-    .find((message) => message.role === 'user' && message.content?.trim());
-  return lastUserMessage ? toSingleLinePreview(lastUserMessage.content || '', 50) : '';
-}
-
-function toSingleLinePreview(value: string, maxLength: number): string {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-}
-
-function sortSummaries(summaries: ChatSummary[]): ChatSummary[] {
-  return sortByUpdatedAtDesc(summaries.map((summary) => ({ ...summary, createdAt: summary.lastMessageAt })));
 }

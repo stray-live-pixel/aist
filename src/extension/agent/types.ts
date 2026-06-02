@@ -177,4 +177,8 @@ export type WebviewSurface = {
   webview: vscode.Webview;
   getChatId(): string;
   setChatId(chatId: string): void;
+  /** Временный editor surface открыт до записи чата в FS и показывает пользователю loading-состояние. */
+  isPendingChatCreation?(): boolean;
+  /** Текст loading-состояния для временной вкладки создания чата. */
+  getPendingChatCreationMessage?(): string;
 };

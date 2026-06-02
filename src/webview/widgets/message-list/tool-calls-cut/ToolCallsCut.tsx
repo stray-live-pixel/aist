@@ -19,16 +19,17 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active, res
   const previousToolIdsRef = useRef<Set<string>>(new Set());
   const hasRenderedRef = useRef(false);
   const toolIds = tools.map((tool) => tool.id);
-  const previousToolIds = previousToolIdsRef.current;
-  const newToolIds = hasRenderedRef.current
-    ? new Set(toolIds.filter((toolId) => !previousToolIds.has(toolId)))
-    : new Set<string>();
+  const [newToolIds, setNewToolIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setOpen(shouldBeOpen);
   }, [shouldBeOpen]);
 
   useEffect(() => {
+    const previousToolIds = previousToolIdsRef.current;
+    setNewToolIds(
+      hasRenderedRef.current ? new Set(toolIds.filter((toolId) => !previousToolIds.has(toolId))) : new Set()
+    );
     previousToolIdsRef.current = new Set(toolIds);
     hasRenderedRef.current = true;
   }, [toolIds]);

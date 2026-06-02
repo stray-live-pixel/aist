@@ -58,7 +58,7 @@ export function assertRepositoryId(id: string, label: string): string {
     id.includes('\0') ||
     id.includes('/') ||
     id.includes('\\') ||
-    /[\u0000-\u001f]/.test(id)
+    hasControlCharacter({ value: id })
   ) {
     throw new FileRepositoryError('repository.invalidId', `${label} id is not safe for file storage paths.`, { id });
   }
@@ -172,6 +172,15 @@ export function sortByUpdatedAtDesc<T extends { updatedAt: number; createdAt?: n
 
 export function childPath(rootPath: string, id: string, fileName?: string): string {
   return fileName ? path.join(rootPath, id, fileName) : path.join(rootPath, id);
+}
+
+/**
+ * Что это: проверяет, есть ли в id управляющие символы ASCII.
+ * Зачем нужно: такие символы невидимы в UI и опасны как часть пути хранения.
+ * Какую продуктовую проблему решает: repository id остаётся безопасным и понятным для диагностики.
+ */
+function hasControlCharacter({ value }: { value: string }): boolean {
+  return [...value].some((character) => character.charCodeAt(0) <= 31);
 }
 
 function isMissingFileError(cause: unknown): boolean {

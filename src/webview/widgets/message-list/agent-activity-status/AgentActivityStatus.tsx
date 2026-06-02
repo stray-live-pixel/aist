@@ -37,7 +37,7 @@ export function AgentActivityStatus({ activity, detail, modelRequest }: AgentAct
 }
 
 function useModelRequestElapsed(modelRequest: AgentActivityStatusProps['modelRequest']): number {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(modelRequest?.durationMs ? modelRequest.startedAt + modelRequest.durationMs : 0);
   const running =
     modelRequest &&
     modelRequest.durationMs === undefined &&
@@ -50,6 +50,7 @@ function useModelRequestElapsed(modelRequest: AgentActivityStatusProps['modelReq
       return;
     }
 
+    setNow(Date.now());
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, [running, modelRequest?.startedAt]);

@@ -1,0 +1,1 @@
+export const CLI_APPROVAL_REQUIRED_EXIT_CODE = 3;

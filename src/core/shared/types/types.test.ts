@@ -32,6 +32,7 @@ type ExpectedRuntimeEventType = (typeof runtimeEventTypes)[number];
 
 describe('core runtime contracts', () => {
   it('keeps RuntimeEvent as an exhaustive discriminated union', () => {
+    expect(runtimeEventTypes).toContain('run.started');
     expectTypeOf<RuntimeEventType>().toEqualTypeOf<ExpectedRuntimeEventType>();
     expectTypeOf<Extract<RuntimeEvent, { type: 'tool.call.approvalRequested' }>>().toMatchTypeOf<{
       approvalId: string;

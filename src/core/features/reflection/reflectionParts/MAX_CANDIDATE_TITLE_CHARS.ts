@@ -1,0 +1,1 @@
+export const MAX_CANDIDATE_TITLE_CHARS = 80;

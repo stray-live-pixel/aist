@@ -149,7 +149,6 @@ function useApprovalNotifications(message: ChatMessage, settings: AgentState['ap
     }
     // notificationKey намеренно стабилен по message.id и approval-status: backend patches могут менять объект message,
     // но продуктово это всё тот же approval prompt и повторять системный баннер нельзя.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canNotify, notificationKey, settings.systemNotifications]);
 
   useEffect(() => {

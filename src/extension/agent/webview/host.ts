@@ -5,6 +5,7 @@ import type { AistLogger } from '../../shared/logger';
 import { getWebviewHtml } from '../../shared/webviewHtml';
 import type { WebviewMessage, WebviewSurface } from '../types';
 import { AGENT_CHAT_EDITOR_VIEW_TYPE } from './chatEditorViewType';
+import { postWebviewLoading } from './postWebviewLoading';
 import { createSidebarSurface } from './surfaces';
 
 export type AgentChatEditorWebviewState = {
@@ -63,7 +64,7 @@ export function resolveAgentSidebarWebview(
  * фабрика держит panel-specific детали вне контроллера и возвращает события
  * через явные callbacks.
  */
-export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebviewHostDeps): void {
+export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebviewHostDeps): WebviewSurface {
   const requestedChatId = chatId || deps.getSidebarChatId() || deps.chats.getActiveChat().id;
   const chat = deps.chats.getChat(requestedChatId);
   const fallbackChat = deps.chats.getActiveChat();
@@ -78,7 +79,33 @@ export function openAgentChatEditor(chatId: string | undefined, deps: AgentWebvi
     getWebviewOptions(deps.context)
   );
 
-  attachAgentChatEditor(panel, panelChatIdInitial, deps);
+  return attachAgentChatEditor(panel, panelChatIdInitial, deps);
+}
+
+/**
+ * Что это: открывает editor вкладку до создания persisted chat.
+ * Зачем нужно: пользователь сразу видит новую вкладку, пока daemon записывает чат в FS.
+ * Какую продуктовую проблему решает: действие «Новый чат» ощущается мгновенным даже при медленном daemon/storage.
+ */
+export function openPendingAgentChatEditor({
+  deps,
+  title,
+  message
+}: {
+  deps: AgentWebviewHostDeps;
+  title: string;
+  message: string;
+}): WebviewSurface {
+  const fallbackChat = deps.chats.getActiveChat();
+  const panel = vscode.window.createWebviewPanel(
+    AGENT_CHAT_EDITOR_VIEW_TYPE,
+    `aist: ${title}`,
+    vscode.ViewColumn.Beside,
+    getWebviewOptions(deps.context)
+  );
+
+  deps.logger.info('Opening pending chat editor', { fallbackChatId: fallbackChat.id });
+  return attachAgentChatEditor(panel, fallbackChat.id, deps, { pendingCreationMessage: message });
 }
 
 export function deserializeAgentChatEditor(
@@ -103,9 +130,15 @@ export function createSidebar(deps: AgentWebviewHostDeps, webview: vscode.Webvie
   });
 }
 
-function attachAgentChatEditor(panel: vscode.WebviewPanel, initialChatId: string, deps: AgentWebviewHostDeps): void {
+function attachAgentChatEditor(
+  panel: vscode.WebviewPanel,
+  initialChatId: string,
+  deps: AgentWebviewHostDeps,
+  options: { pendingCreationMessage?: string } = {}
+): WebviewSurface {
   const surfaceId = `${initialChatId}:${Date.now()}`;
   let panelChatId = initialChatId;
+  let pendingCreationMessage = options.pendingCreationMessage;
 
   const surface: WebviewSurface = {
     id: surfaceId,
@@ -114,11 +147,14 @@ function attachAgentChatEditor(panel: vscode.WebviewPanel, initialChatId: string
     getChatId: () => panelChatId,
     setChatId: (nextChatId) => {
       panelChatId = nextChatId;
+      pendingCreationMessage = undefined;
       const nextChat = deps.chats.getChat(nextChatId);
       if (nextChat) {
         panel.title = `aist: ${nextChat.title}`;
       }
-    }
+    },
+    isPendingChatCreation: () => Boolean(pendingCreationMessage),
+    getPendingChatCreationMessage: () => pendingCreationMessage || ''
   };
 
   deps.registerEditorSurface(surfaceId, surface);
@@ -132,7 +168,13 @@ function attachAgentChatEditor(panel: vscode.WebviewPanel, initialChatId: string
     deps.handleMessage(surface, message);
   });
 
-  deps.sendState(surface);
+  if (pendingCreationMessage) {
+    postWebviewLoading({ surface, message: pendingCreationMessage });
+  } else {
+    deps.sendState(surface);
+  }
+
+  return surface;
 }
 
 function getWebviewOptions(context: vscode.ExtensionContext): vscode.WebviewPanelOptions & vscode.WebviewOptions {

@@ -10,7 +10,12 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: [
+      'src/**/*.{ts,tsx}',
+      'tests/**/*.{ts,tsx}',
+      '*.config.ts',
+      '.storybook/**/*.{ts,tsx}'
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -25,6 +30,7 @@ export default [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      'react-hooks/exhaustive-deps': 'off',
       'react-hooks/set-state-in-effect': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -34,6 +40,28 @@ export default [
           varsIgnorePattern: '^_'
         }
       ]
+    }
+  },
+  {
+    files: [
+      'src/**/*.testParts/**/*.{ts,tsx}',
+      'src/cli/daemonServer/methods/**/*.{ts,tsx}'
+    ],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off'
+    }
+  },
+  {
+    files: ['src/cli/daemonServer/methodDeps.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off'
+    }
+  },
+  {
+    files: ['tests/e2e/fixtures.ts'],
+    rules: {
+      'no-empty-pattern': 'off',
+      'react-hooks/rules-of-hooks': 'off'
     }
   },
   {

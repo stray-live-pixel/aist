@@ -1,0 +1,1 @@
+export const MAX_BASH_STREAM_MODEL_CHARS = 30000;

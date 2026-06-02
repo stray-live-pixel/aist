@@ -1,50 +1,35 @@
 import * as vscode from 'vscode';
 
-import type { DaemonJsonRpcClient } from '../../../cli/daemonClient';
-import type {
-  DaemonChatAskResult,
-  DaemonChatClearResult,
-  DaemonChatCompactResult,
-  DaemonChatCreateResult,
-  DaemonChatDeleteResult,
-  DaemonChatGetResult,
-  DaemonChatMemoryAnalyzeResult,
-  DaemonChatReflectionCandidateRejectResult,
-  DaemonChatReflectionCandidateSaveResult,
-  DaemonChatSetModelResult,
-  DaemonChatSetModelSettingsResult,
-  DaemonChatStopResult,
-  DaemonClientCapabilitiesResult,
-  DaemonClientNotificationParams,
-  DaemonClientOpenWorkspaceFileParams,
-  DaemonClientPreviewApproveParams,
-  DaemonClientPreviewCleanupParams,
-  DaemonClientPreviewPrepareParams,
-  DaemonConfigUpdateResult,
-  DaemonEvent,
-  DaemonInitializeResult,
-  DaemonModelsResult,
-  DaemonState,
-  DaemonSubagentGetResult,
-  DaemonSubagentListResult
-} from '../../../cli/daemonProtocol';
+import type { DaemonEvent } from '../../../cli/daemonProtocol';
 import type {
   ChatModelSettings,
-  JsonObject,
   ModelProvider,
   OpenRouterModelOption,
   SubagentRun,
   ToolApprovalDecision
 } from '../../../core/shared/types/types';
-import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { Chat } from '../../chats/types';
 import type { AistLogger } from '../../shared/logger';
-import { openWorkspaceFile as openWorkspaceFileFromWebview } from '../commands/openWorkspaceFile';
-import { getAuxiliaryModelsSettings } from '../config/auxiliaryModelSettings';
-import { getProviderProfiles } from '../config/providerProfiles';
-import { getAgentLanguage } from '../config/settings';
-import { getAgentSettingsSnapshot, getDefaultModelSettings } from '../config/settingsSnapshot';
-import { getDaemonEventChatId } from '../webview/getDaemonEventChatId';
+import type { BridgeRuntimeContext, BridgeRuntimeState } from './bridge/BridgeRuntimeContext';
+import { DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY } from './bridge/DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY';
+import type { VscodeDaemonRuntimeBridge } from './bridge/VscodeDaemonRuntimeBridge';
+import { askBridgeChat } from './bridge/askBridgeChat';
+import { compactBridgeChat } from './bridge/compactBridgeChat';
+import { createBridgeChat } from './bridge/createBridgeChat';
+import { deleteBridgeChat } from './bridge/deleteBridgeChat';
+import { disposeBridgeRuntime } from './bridge/disposeBridgeRuntime';
+import { getBridgeDefaultModelSettings } from './bridge/getBridgeDefaultModelSettings';
+import { getWorkspaceRoot } from './bridge/getWorkspaceRoot';
+import { initializeBridgeRuntime } from './bridge/initializeBridgeRuntime';
+import {
+  analyzeBridgeMemoryChat,
+  rejectBridgeReflectionCandidate,
+  saveBridgeReflectionCandidate
+} from './bridge/memoryBridgeActions';
+import { refreshBridgeState } from './bridge/refreshBridgeState';
+import { clearBridgeChat, setBridgeModel, setBridgeModelSettings, stopBridgeChat } from './bridge/simpleChatRequests';
+import { getBridgeSubagentRun, listBridgeSubagentRuns } from './bridge/subagentBridgeActions';
+import { refreshBridgeModels, resolveBridgeToolCall, syncBridgeToolPermissions } from './bridge/toolBridgeActions';
 import { DaemonChatStore } from './chatStore';
 import { VscodeDaemonProcessManager } from './processManager';
 import {
@@ -54,33 +39,14 @@ import {
   VscodeStatusNotificationAdapter
 } from './vscodeAdapters';
 
-export const DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY = 'daemonRuntime.activeChatId';
+export { DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY };
+export type { VscodeDaemonRuntimeBridge };
 
-export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
-  mode: 'daemon';
-  workspaceRoot: string;
-  chats: AgentChatStore;
-  processManager: VscodeDaemonProcessManager;
-  createChat(settings?: ChatModelSettings): Promise<Chat>;
-  deleteChat(chatId: string, fallbackModel?: string): Promise<Chat>;
-  clearChat(chatId: string): Promise<void>;
-  setModel(chatId: string, model: string): Promise<void>;
-  setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): Promise<void>;
-  ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void>;
-  stop(chatId?: string): Promise<void>;
-  compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
-  analyzeMemoryChat(chatId: string): Promise<void>;
-  saveReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
-  rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
-  listSubagentRuns(parentChatId: string): Promise<readonly SubagentRun[]>;
-  getSubagentRun(runId: string): Promise<SubagentRun | undefined>;
-  resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
-  syncToolPermissions(): Promise<void>;
-  refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;
-  refreshState(): Promise<void>;
-  onEvent(listener: (event: DaemonEvent) => void): () => void;
-};
-
+/**
+ * Что это: фабрика daemon runtime bridge для VS Code extension.
+ * Зачем нужно: bootstrap extension создаёт process manager, bridge и регистрирует disposable в subscriptions.
+ * Какую продуктовую проблему решает: daemon runtime включается одной точкой входа без знания деталей JSON-RPC.
+ */
 export async function createVscodeDaemonRuntimeBridge(
   context: vscode.ExtensionContext,
   logger: AistLogger,
@@ -94,391 +60,162 @@ export async function createVscodeDaemonRuntimeBridge(
   return bridge;
 }
 
+/**
+ * Что это: thin facade над сценарными bridge-функциями.
+ * Зачем нужно: публичный AgentChatStore-compatible API остаётся классом, а детали вынесены в маленькие файлы.
+ * Какую продуктовую проблему решает: extension-контроллеры не меняются, но daemon bridge становится поддерживаемым.
+ */
 class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   readonly mode = 'daemon' as const;
   readonly chats = new DaemonChatStore();
+  private readonly runtimeContext: BridgeRuntimeContext;
 
-  private readonly activeEditorContextProvider = new VscodeActiveEditorContextAdapter();
-  private readonly previewEditProvider = new VscodePreviewEditAdapter();
-  private readonly notifier = new VscodeStatusNotificationAdapter();
-  private readonly previewHandles = new Map<string, VscodePreviewEdit>();
-  private client: DaemonJsonRpcClient | undefined;
-  private readonly eventListeners = new Set<(event: DaemonEvent) => void>();
-  private readonly subagentRunsByParentChat = new Map<string, SubagentRun[]>();
-  private lastSyncedSettings = '';
-  private refreshQueue = Promise.resolve();
-  private disposed = false;
-
+  /** Собирает единый runtime context для всех вынесенных bridge-сценариев. */
   constructor(
-    private readonly context: vscode.ExtensionContext,
-    private readonly logger: AistLogger,
+    extensionContext: vscode.ExtensionContext,
+    logger: AistLogger,
     readonly processManager: VscodeDaemonProcessManager,
     readonly workspaceRoot: string,
     private readonly defaultModel: string
-  ) {}
-
-  async initialize(): Promise<void> {
-    const client = await this.getClient();
-    await client.request<DaemonInitializeResult>('initialize');
-    await this.refreshState();
-    if (!this.chats.getSummaries().length) {
-      await this.createChat(this.getDefaultModelSettings());
-    }
-    this.logger.info('VS Code daemon runtime bridge initialized', {
-      workspaceRoot: this.workspaceRoot,
-      chatCount: this.chats.getSummaries().length,
-      socketPath: this.processManager.socketPath
-    });
+  ) {
+    this.runtimeContext = this.createRuntimeContext({ extensionContext, logger });
   }
 
+  /** Инициализирует daemon client, state и стартовый чат. */
+  initialize(): Promise<void> {
+    return initializeBridgeRuntime({ context: this.runtimeContext });
+  }
+
+  /** Очищает preview handles, JSON-RPC client и process manager. */
   dispose(): void {
-    this.disposed = true;
-    for (const handle of this.previewHandles.values()) {
-      void handle.cleanup();
-    }
-    this.previewHandles.clear();
-    this.client?.close();
-    this.processManager.dispose();
+    disposeBridgeRuntime({ context: this.runtimeContext });
   }
 
-  async createChat(settings: ChatModelSettings = this.getDefaultModelSettings()): Promise<Chat> {
-    const client = await this.getClient();
-    await this.syncSettings();
-    const result = await client.request<DaemonChatCreateResult>('chat.create', {
-      model: settings.model,
-      modelSettings: settings
-    });
-    const chat = this.chats.upsert(result.chat);
-    this.chats.setActiveChat(chat.id);
-    await this.saveActiveChatId(chat.id);
-    return chat;
+  /** Создаёт persisted chat через daemon. */
+  createChat(settings?: ChatModelSettings): Promise<Chat> {
+    return createBridgeChat({ context: this.runtimeContext, settings: settings || this.getDefaultModelSettings() });
   }
 
-  async deleteChat(chatId: string, fallbackModel: string = this.defaultModel): Promise<Chat> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatDeleteResult>('chat.delete', { chatId });
-    await this.refreshState(result.nextChatId);
-    if (!this.chats.getSummaries().length) {
-      return this.createChat({ ...this.getDefaultModelSettings(), model: fallbackModel });
-    }
-    const active = result.nextChatId ? this.chats.setActiveChat(result.nextChatId) : this.chats.getActiveChat();
-    await this.saveActiveChatId(active.id);
-    return active;
+  /** Удаляет persisted chat через daemon. */
+  deleteChat(chatId: string, fallbackModel?: string): Promise<Chat> {
+    return deleteBridgeChat({ context: this.runtimeContext, chatId, fallbackModel });
   }
 
-  async clearChat(chatId: string): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatClearResult>('chat.clear', { chatId });
-    this.chats.upsert(result.chat);
+  /** Очищает chat history/state через daemon. */
+  clearChat(chatId: string): Promise<void> {
+    return clearBridgeChat({ context: this.runtimeContext, chatId });
   }
 
-  async setModel(chatId: string, model: string): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatSetModelResult>('chat.setModel', { chatId, model });
-    this.chats.upsert(result.chat);
+  /** Меняет model id чата через daemon. */
+  setModel(chatId: string, model: string): Promise<void> {
+    return setBridgeModel({ context: this.runtimeContext, chatId, model });
   }
 
-  async setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatSetModelSettingsResult>('chat.setModelSettings', {
-      chatId,
-      settings
-    });
-    this.chats.upsert(result.chat);
+  /** Меняет model settings чата через daemon. */
+  setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): Promise<void> {
+    return setBridgeModelSettings({ context: this.runtimeContext, chatId, settings });
   }
 
-  async ask(chatId: string, prompt: string, options: { skipUserMessage?: boolean } = {}): Promise<void> {
-    const client = await this.getClient();
-    await this.syncSettings();
-    await client.request<DaemonChatAskResult>('chat.ask', { chatId, prompt, skipUserMessage: options.skipUserMessage });
-    await this.refreshChat(chatId);
+  /** Отправляет prompt в daemon runtime. */
+  ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void> {
+    return askBridgeChat({ context: this.runtimeContext, chatId, prompt, options });
   }
 
-  async stop(chatId?: string): Promise<void> {
-    const client = await this.getClient();
-    await client.request<DaemonChatStopResult>('chat.stop', chatId ? { chatId } : undefined);
-    await this.refreshState();
+  /** Останавливает daemon runtime для конкретного или активного чата. */
+  stop(chatId?: string): Promise<void> {
+    return stopBridgeChat({ context: this.runtimeContext, chatId });
   }
 
-  async compactChat(chatId: string, _trigger: 'manual' | 'auto'): Promise<{ id: string }> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatCompactResult>('chat.compact', { chatId });
-    const chat = this.chats.upsert(result.chat);
-    this.chats.setActiveChat(chat.id);
-    await this.saveActiveChatId(chat.id);
-    return { id: chat.id };
+  /** Запускает compaction и активирует compacted chat. */
+  compactChat(chatId: string, _trigger: 'manual' | 'auto'): Promise<{ id: string }> {
+    return compactBridgeChat({ context: this.runtimeContext, chatId });
   }
 
-  async analyzeMemoryChat(chatId: string): Promise<void> {
-    const client = await this.getClient();
-    await this.syncSettings();
-    const result = await client.request<DaemonChatMemoryAnalyzeResult>('chat.memoryAnalyze', { chatId });
-    this.chats.upsert(result.chat);
-    await this.refreshSubagentRuns(chatId);
+  /** Запускает memory analysis для чата. */
+  analyzeMemoryChat(chatId: string): Promise<void> {
+    return analyzeBridgeMemoryChat({ context: this.runtimeContext, chatId });
   }
 
-  async saveReflectionCandidate(chatId: string, candidateId: string): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatReflectionCandidateSaveResult>('chat.reflectionCandidate.save', {
-      chatId,
-      candidateId
-    });
-    this.chats.upsert(result.chat);
+  /** Сохраняет reflection candidate в память. */
+  saveReflectionCandidate(chatId: string, candidateId: string): Promise<void> {
+    return saveBridgeReflectionCandidate({ context: this.runtimeContext, chatId, candidateId });
   }
 
-  async rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatReflectionCandidateRejectResult>('chat.reflectionCandidate.reject', {
-      chatId,
-      candidateId
-    });
-    this.chats.upsert(result.chat);
+  /** Отклоняет reflection candidate. */
+  rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void> {
+    return rejectBridgeReflectionCandidate({ context: this.runtimeContext, chatId, candidateId });
   }
 
-  async listSubagentRuns(parentChatId: string): Promise<readonly SubagentRun[]> {
-    if (!this.subagentRunsByParentChat.has(parentChatId)) {
-      await this.refreshSubagentRuns(parentChatId);
-    }
-
-    return this.subagentRunsByParentChat.get(parentChatId) || [];
+  /** Возвращает subagent runs для parent chat. */
+  listSubagentRuns(parentChatId: string): Promise<readonly SubagentRun[]> {
+    return listBridgeSubagentRuns({ context: this.runtimeContext, parentChatId });
   }
 
-  async getSubagentRun(runId: string): Promise<SubagentRun | undefined> {
-    for (const runs of this.subagentRunsByParentChat.values()) {
-      const cached = runs.find((run) => run.id === runId);
-      if (cached) {
-        return cached;
-      }
-    }
-
-    const client = await this.getClient();
-    const result = await client.request<DaemonSubagentGetResult>('subagent.get', { runId });
-    this.subagentRunsByParentChat.set(
-      result.run.parentChatId,
-      upsertSubagentRun(this.subagentRunsByParentChat.get(result.run.parentChatId) || [], result.run)
-    );
-    return result.run;
+  /** Возвращает subagent run по id. */
+  getSubagentRun(runId: string): Promise<SubagentRun | undefined> {
+    return getBridgeSubagentRun({ context: this.runtimeContext, runId });
   }
 
-  async resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void> {
-    const client = await this.getClient();
-    await client.request('approval.resolve', { messageId, ...decision });
+  /** Разрешает tool approval в daemon. */
+  resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void> {
+    return resolveBridgeToolCall({ context: this.runtimeContext, messageId, decision });
   }
 
-  async syncToolPermissions(): Promise<void> {
-    const toolPermissions =
-      vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {};
-    await this.updateDaemonConfig('toolPermissions', toolPermissions);
+  /** Синхронизирует tool permissions в daemon. */
+  syncToolPermissions(): Promise<void> {
+    return syncBridgeToolPermissions({ context: this.runtimeContext });
   }
 
-  async refreshModels(
-    force = false,
-    provider: ModelProvider | 'all' = 'all'
-  ): Promise<readonly OpenRouterModelOption[]> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonModelsResult>(force ? 'models.refresh' : 'models.list', {
-      provider
-    });
-    return result.models;
+  /** Обновляет список моделей daemon/provider. */
+  refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]> {
+    return refreshBridgeModels({ context: this.runtimeContext, force, provider });
   }
 
+  /** Обновляет полный daemon state. */
+  refreshState(): Promise<void> {
+    return refreshBridgeState({ context: this.runtimeContext });
+  }
+
+  /** Подписывает controller на daemon events после refresh store. */
   onEvent(listener: (event: DaemonEvent) => void): () => void {
-    this.eventListeners.add(listener);
-    return () => {
-      this.eventListeners.delete(listener);
-    };
+    this.runtimeContext.state.eventListeners.add(listener);
+    return () => this.runtimeContext.state.eventListeners.delete(listener);
   }
 
-  async refreshState(activeChatId?: string): Promise<void> {
-    const client = await this.getClient();
-    const state = await client.request<DaemonState>('state.get');
-    const chats = await Promise.all(
-      state.chats.map(async (summary) => {
-        const result = await client.request<DaemonChatGetResult>('chat.get', { chatId: summary.id });
-        return result.chat;
-      })
-    );
-    const savedActiveChatId = this.context.workspaceState.get<string>(DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY);
-    this.chats.replaceAll(chats, activeChatId || savedActiveChatId || state.activeRun?.chatId);
-  }
-
-  private async getClient(): Promise<DaemonJsonRpcClient> {
-    const client = await this.processManager.getClient();
-    if (client !== this.client) {
-      this.client = client;
-      await this.registerCapabilities(client);
-      await client.subscribe();
-      client.onEvent((event) => this.queueRefresh(event));
-    }
-    return client;
-  }
-
-  private async registerCapabilities(client: DaemonJsonRpcClient): Promise<void> {
-    client.onRequest(
-      'client.activeEditorContext',
-      async () => this.activeEditorContextProvider.getEditorContext() || null
-    );
-    client.onRequest('client.notification', async (params) => this.handleNotification(params));
-    client.onRequest('client.openWorkspaceFile', async (params) => this.openWorkspaceFile(params));
-    client.onRequest('client.previewEdit.prepare', async (params) => this.preparePreview(params));
-    client.onRequest('client.previewEdit.approve', async (params) => this.approvePreview(params));
-    client.onRequest('client.previewEdit.cleanup', async (params) => this.cleanupPreview(params));
-    await client.request<DaemonClientCapabilitiesResult>('client.capabilities', {
-      capabilities: {
-        activeEditorContext: true,
-        notifications: true,
-        openWorkspaceFile: true,
-        vscodeEditableDiffPreview: true
-      }
-    });
-  }
-
-  private queueRefresh(event: DaemonEvent): void {
-    if (this.disposed) {
-      return;
-    }
-
-    if (event.type.startsWith('autonomous.')) {
-      return;
-    }
-
-    this.refreshQueue = this.refreshQueue
-      .then(async () => {
-        const chatId = getDaemonEventChatId(event);
-        if (chatId) {
-          await this.refreshChat(chatId);
-        } else {
-          await this.refreshState();
-        }
-        this.notifyEventListeners(event);
-      })
-      .catch((error) => this.logger.error('Failed to refresh daemon state after event', error));
-  }
-
-  private notifyEventListeners(event: DaemonEvent): void {
-    for (const listener of [...this.eventListeners]) {
-      listener(event);
-    }
-  }
-
-  private async refreshChat(chatId: string): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonChatGetResult>('chat.get', { chatId });
-    this.chats.upsert(result.chat);
-    await this.refreshSubagentRuns(chatId);
-  }
-
-  private async refreshSubagentRuns(parentChatId: string): Promise<void> {
-    const client = await this.getClient();
-    const result = await client.request<DaemonSubagentListResult>('subagent.list', { parentChatId });
-    this.subagentRunsByParentChat.set(parentChatId, [...result.runs]);
-  }
-
+  /** Возвращает default settings с fallback model. */
   private getDefaultModelSettings(): ChatModelSettings {
-    const settings = getDefaultModelSettings();
-    return { ...settings, model: settings.model || this.defaultModel };
+    return getBridgeDefaultModelSettings({ context: this.runtimeContext });
   }
 
-  private async syncSettings(): Promise<void> {
-    const snapshot = getAgentSettingsSnapshot();
-    const payload = {
-      model: snapshot.configuredModel,
-      maxToolIterations: snapshot.maxToolIterations,
-      reasoningEffort: snapshot.reasoningEffort,
-      codexServiceTier: snapshot.codexServiceTier,
-      streamingEnabled: snapshot.streamingEnabled,
-      providerProfiles: getProviderProfiles(),
-      auxiliaryModels: getAuxiliaryModelsSettings(),
-      language: getAgentLanguage(),
-      toolPermissions:
-        vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {},
-      projectToolDisabledIds:
-        vscode.workspace.getConfiguration('openrouterAgent').get<readonly string[]>('projectToolDisabledIds') || []
+  /** Создаёт общий context и mutable state для сценарных функций. */
+  private createRuntimeContext({
+    extensionContext,
+    logger
+  }: {
+    extensionContext: vscode.ExtensionContext;
+    logger: AistLogger;
+  }): BridgeRuntimeContext {
+    const state: BridgeRuntimeState = {
+      client: undefined,
+      eventListeners: new Set<(event: DaemonEvent) => void>(),
+      subagentRunsByParentChat: new Map<string, SubagentRun[]>(),
+      lastSyncedSettings: '',
+      refreshQueue: Promise.resolve(),
+      disposed: false,
+      previewHandles: new Map<string, VscodePreviewEdit>()
     };
-    const serialized = JSON.stringify(payload);
-    if (serialized === this.lastSyncedSettings) {
-      return;
-    }
 
-    for (const [key, value] of Object.entries(payload)) {
-      await this.updateDaemonConfig(key, value);
-    }
-    this.lastSyncedSettings = serialized;
-  }
-
-  private async updateDaemonConfig(key: string, value: unknown): Promise<void> {
-    const client = await this.getClient();
-    await client.request<DaemonConfigUpdateResult>('config.update', {
-      key,
-      value,
-      scope: 'workspace'
-    });
-  }
-
-  private async handleNotification(params: DaemonClientNotificationParams): Promise<{ shown: boolean }> {
-    if (params.level === 'warning') {
-      this.notifier.showWarning(params.message);
-    } else {
-      this.notifier.setStatus(params.message, params.timeoutMs || 2400);
-    }
-    return { shown: true };
-  }
-
-  private async openWorkspaceFile(params: DaemonClientOpenWorkspaceFileParams): Promise<{ opened: boolean }> {
-    await openWorkspaceFileFromWebview({
-      filePath: params.path,
-      line: params.line,
-      column: params.column,
-      endLine: params.endLine,
-      endColumn: params.endColumn,
-      logger: this.logger
-    });
-    return { opened: true };
-  }
-
-  private async preparePreview(params: DaemonClientPreviewPrepareParams): Promise<{ preview?: JsonObject }> {
-    const preview = await this.previewEditProvider.prepare(params.toolName, params.args);
-    if (!preview) {
-      return {};
-    }
-
-    this.previewHandles.set(params.previewId, preview);
     return {
-      preview: preview.preview as JsonObject
+      extensionContext,
+      logger,
+      processManager: this.processManager,
+      workspaceRoot: this.workspaceRoot,
+      defaultModel: this.defaultModel,
+      chats: this.chats,
+      activeEditorContextProvider: new VscodeActiveEditorContextAdapter(),
+      previewEditProvider: new VscodePreviewEditAdapter(),
+      notifier: new VscodeStatusNotificationAdapter(),
+      state
     };
   }
-
-  private async approvePreview(params: DaemonClientPreviewApproveParams): Promise<JsonObject> {
-    const preview = this.previewHandles.get(params.previewId);
-    if (!preview) {
-      return { ok: false, error: 'Preview is no longer available.' };
-    }
-
-    return (await preview.approve()) as JsonObject;
-  }
-
-  private async cleanupPreview(params: DaemonClientPreviewCleanupParams): Promise<{ ok: true }> {
-    const preview = this.previewHandles.get(params.previewId);
-    this.previewHandles.delete(params.previewId);
-    await preview?.cleanup();
-    return { ok: true };
-  }
-
-  private saveActiveChatId(chatId: string): Thenable<void> {
-    return this.context.workspaceState.update(DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY, chatId);
-  }
-}
-
-function upsertSubagentRun(runs: SubagentRun[], nextRun: SubagentRun): SubagentRun[] {
-  const nextRuns = runs.filter((run) => run.id !== nextRun.id);
-  nextRuns.push(nextRun);
-  return nextRuns.sort((left, right) => right.updatedAt - left.updatedAt || right.startedAt - left.startedAt);
-}
-
-function getWorkspaceRoot(): string {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
-    throw new Error('Open a VS Code workspace folder before using the AIST daemon runtime.');
-  }
-  return folder.uri.fsPath;
 }

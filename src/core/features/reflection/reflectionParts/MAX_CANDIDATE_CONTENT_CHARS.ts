@@ -1,0 +1,1 @@
+export const MAX_CANDIDATE_CONTENT_CHARS = 700;

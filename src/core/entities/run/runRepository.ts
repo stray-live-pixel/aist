@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
 
 import {
   FileRepositoryError,
   assertRepositoryId,
-  childPath,
   listDirectoryNames,
   pathExists,
   readJsonFile,
@@ -12,104 +10,49 @@ import {
   removeUndefined,
   sortByUpdatedAtDesc
 } from '../../shared/lib/fileRepository';
-import type {
-  AgentRunStatus,
-  ChatUsageEstimate,
-  JsonValue,
-  RuntimeEvent,
-  RuntimeToolCallSnapshot,
-  RuntimeToolResult,
-  ToolApprovalDecision,
-  ToolApprovalRequest
-} from '../../shared/types/types';
+import type { JsonValue, RuntimeEvent } from '../../shared/types/types';
 import { appendJsonl, globalWorkspaceRunsDir, safeMkdir, writeJsonAtomic } from '../storage/storage';
+import { RUN_SCHEMA_VERSION } from './runRepository/constants';
+import { createRunEventMetaPatch } from './runRepository/createRunEventMetaPatch';
+import { getRuntimeEventRunId } from './runRepository/getRuntimeEventRunId';
+import { normalizeRunMeta } from './runRepository/normalizeRunMeta';
+import { normalizeRunUsage } from './runRepository/normalizeRunUsage';
+import {
+  getRunApprovalsPath,
+  getRunEventsPath,
+  getRunMetaPath,
+  getRunPath,
+  getRunTelemetryPath,
+  getRunToolResultsPath
+} from './runRepository/paths';
+import type {
+  CreateRunInput,
+  RunApprovalInput,
+  RunApprovalLogEntry,
+  RunMetadata,
+  RunMetadataPatch,
+  RunRecord,
+  RunRepositoryOptions,
+  RunToolResultInput,
+  RunToolResultLogEntry
+} from './runRepository/types';
 
-const RUN_SCHEMA_VERSION = 1;
-
-export type RunRepositoryOptions = {
-  workspaceRoot: string;
-  homeDir?: string;
-  idFactory?: () => string;
-  now?: () => number;
-};
-
-export type CreateRunInput = {
-  id?: string;
-  chatId: string;
-  prompt?: string;
-  model?: string;
-  status?: AgentRunStatus;
-  startedAt?: number;
-};
-
-export type RunMetadataPatch = Partial<
-  Pick<RunMetadata, 'chatId' | 'status' | 'prompt' | 'model' | 'startedAt' | 'finishedAt' | 'usage' | 'error'>
->;
-
-export type RunMetadata = {
-  schemaVersion: number;
-  id: string;
-  chatId: string;
-  status: AgentRunStatus;
-  prompt?: string;
-  model?: string;
-  startedAt: number;
-  finishedAt?: number;
-  updatedAt: number;
-  usage?: ChatUsageEstimate;
-  error?: { message: string; code?: string };
-};
-
-export type RunApprovalLogEntry = {
-  id: string;
-  runId: string;
-  chatId?: string;
-  approvalId?: string;
-  messageId?: string;
-  status?: 'requested' | ToolApprovalRequest['status'];
-  approval?: ToolApprovalRequest;
-  toolCall?: RuntimeToolCallSnapshot;
-  decision?: ToolApprovalDecision;
-  createdAt: number;
-  resolvedAt?: number;
-};
-
-export type RunApprovalInput = Omit<RunApprovalLogEntry, 'id' | 'runId' | 'createdAt'> &
-  Partial<Pick<RunApprovalLogEntry, 'id' | 'createdAt'>>;
-
-export type RunToolResultLogEntry = {
-  id: string;
-  runId: string;
-  chatId?: string;
-  messageId?: string;
-  toolCall?: RuntimeToolCallSnapshot;
-  result: RuntimeToolResult;
-  modelResult?: RuntimeToolResult;
-  createdAt: number;
-};
-
-export type RunToolResultInput = Omit<RunToolResultLogEntry, 'id' | 'runId' | 'createdAt'> &
-  Partial<Pick<RunToolResultLogEntry, 'id' | 'createdAt'>>;
-
-export type RunRecord = {
-  meta: RunMetadata;
-  events: RuntimeEvent[];
-  approvals: RunApprovalLogEntry[];
-  toolResults: RunToolResultLogEntry[];
-  telemetry?: JsonValue;
-};
+export type {
+  CreateRunInput,
+  RunApprovalInput,
+  RunApprovalLogEntry,
+  RunMetadata,
+  RunMetadataPatch,
+  RunRecord,
+  RunRepositoryOptions,
+  RunToolResultInput,
+  RunToolResultLogEntry
+} from './runRepository/types';
 
 /**
- * File-backed source of truth for CLI/backend runs.
- *
- * Инварианты:
- * - `meta.json` и `telemetry.json` пишутся atomic temp+rename, потому что это
- *   последние снимки состояния run и агрегатов.
- * - `events.jsonl`, `approvals.jsonl` и `tool-results.jsonl` append-only:
- *   клиенты могут replay-ить запуск без риска потерять порядок runtime событий.
- * - Полные tool outputs лежат в `tool-results.jsonl`; model-visible compact
- *   results остаются рядом как `modelResult`, чтобы не раздувать history.
- * - Secrets не являются частью run record и не принимаются отдельными методами.
+ * Что это: файловый источник правды для CLI/backend запусков агента.
+ * Зачем нужно: runtime пишет события, approval и результаты tools в append-only логи, а meta хранит быстрый статус.
+ * Какую проблему решает: запуск можно восстановить после перезапуска daemon без потери аудита и telemetry.
  */
 export class RunRepository {
   readonly rootPath: string;
@@ -125,21 +68,23 @@ export class RunRepository {
   async create(input: CreateRunInput): Promise<RunMetadata> {
     const now = this.now();
     const runId = assertRepositoryId(input.id || this.idFactory(), 'run');
-    const runPath = this.runPath(runId);
+    const runPath = getRunPath({ rootPath: this.rootPath, runId });
     if (await pathExists(runPath)) {
       throw new FileRepositoryError('repository.conflict', `Run already exists: ${runId}`, { id: runId });
     }
 
     await safeMkdir(runPath);
     const meta = normalizeRunMeta({
-      schemaVersion: RUN_SCHEMA_VERSION,
-      id: runId,
-      chatId: input.chatId,
-      status: input.status || 'running',
-      prompt: input.prompt,
-      model: input.model,
-      startedAt: input.startedAt || now,
-      updatedAt: now
+      meta: {
+        schemaVersion: RUN_SCHEMA_VERSION,
+        id: runId,
+        chatId: input.chatId,
+        status: input.status || 'running',
+        prompt: input.prompt,
+        model: input.model,
+        startedAt: input.startedAt || now,
+        updatedAt: now
+      }
     });
     await this.writeMeta(meta);
     return meta;
@@ -165,20 +110,26 @@ export class RunRepository {
       return undefined;
     }
 
-    const events = await readJsonlFile<RuntimeEvent>(this.eventsPath(safeRunId));
-    const approvals = await readJsonlFile<RunApprovalLogEntry>(this.approvalsPath(safeRunId));
-    const toolResults = await readJsonlFile<RunToolResultLogEntry>(this.toolResultsPath(safeRunId));
-    const telemetry = await readJsonFile<JsonValue>(this.telemetryPath(safeRunId));
+    const events = await readJsonlFile<RuntimeEvent>(getRunEventsPath({ rootPath: this.rootPath, runId: safeRunId }));
+    const approvals = await readJsonlFile<RunApprovalLogEntry>(
+      getRunApprovalsPath({ rootPath: this.rootPath, runId: safeRunId })
+    );
+    const toolResults = await readJsonlFile<RunToolResultLogEntry>(
+      getRunToolResultsPath({ rootPath: this.rootPath, runId: safeRunId })
+    );
+    const telemetry = await readJsonFile<JsonValue>(getRunTelemetryPath({ rootPath: this.rootPath, runId: safeRunId }));
     return { meta, events, approvals, toolResults, telemetry };
   }
 
   async update(runId: string, patch: RunMetadataPatch): Promise<RunMetadata> {
     const meta = await this.requireMeta(runId);
     const nextMeta = normalizeRunMeta({
-      ...meta,
-      ...patch,
-      usage: patch.usage ? normalizeUsage(patch.usage) : meta.usage,
-      updatedAt: this.now()
+      meta: {
+        ...meta,
+        ...patch,
+        usage: patch.usage ? normalizeRunUsage({ usage: patch.usage }) : meta.usage,
+        updatedAt: this.now()
+      }
     });
     await this.writeMeta(nextMeta);
     return nextMeta;
@@ -186,15 +137,17 @@ export class RunRepository {
 
   async appendEvent(runId: string, event: RuntimeEvent): Promise<void> {
     const meta = await this.requireMeta(runId);
-    const eventRunId = getRuntimeEventRunId(event);
+    const eventRunId = getRuntimeEventRunId({ event });
     if (eventRunId && eventRunId !== meta.id) {
       throw new FileRepositoryError('repository.invalidId', `Runtime event belongs to another run: ${eventRunId}`, {
         id: eventRunId
       });
     }
 
-    await appendJsonl(this.eventsPath(meta.id), event);
-    await this.writeMeta(normalizeRunMeta({ ...meta, ...eventMetaPatch(event), updatedAt: this.now() }));
+    await appendJsonl(getRunEventsPath({ rootPath: this.rootPath, runId: meta.id }), event);
+    await this.writeMeta(
+      normalizeRunMeta({ meta: { ...meta, ...createRunEventMetaPatch({ event }), updatedAt: this.now() } })
+    );
   }
 
   async appendApproval(runId: string, approval: RunApprovalInput): Promise<RunApprovalLogEntry> {
@@ -205,7 +158,7 @@ export class RunRepository {
       runId: meta.id,
       createdAt: approval.createdAt || this.now()
     });
-    await appendJsonl(this.approvalsPath(meta.id), entry);
+    await appendJsonl(getRunApprovalsPath({ rootPath: this.rootPath, runId: meta.id }), entry);
     await this.touch(meta);
     return entry;
   }
@@ -218,14 +171,14 @@ export class RunRepository {
       runId: meta.id,
       createdAt: result.createdAt || this.now()
     });
-    await appendJsonl(this.toolResultsPath(meta.id), entry);
+    await appendJsonl(getRunToolResultsPath({ rootPath: this.rootPath, runId: meta.id }), entry);
     await this.touch(meta);
     return entry;
   }
 
   async setTelemetry(runId: string, telemetry: JsonValue): Promise<void> {
     const meta = await this.requireMeta(runId);
-    await writeJsonAtomic(this.telemetryPath(meta.id), telemetry);
+    await writeJsonAtomic(getRunTelemetryPath({ rootPath: this.rootPath, runId: meta.id }), telemetry);
     await this.touch(meta);
   }
 
@@ -241,8 +194,8 @@ export class RunRepository {
 
   private async getMeta(runId: string): Promise<RunMetadata | undefined> {
     const safeRunId = assertRepositoryId(runId, 'run');
-    const meta = await readJsonFile<RunMetadata>(this.metaPath(safeRunId));
-    return meta ? normalizeRunMeta(meta) : undefined;
+    const meta = await readJsonFile<RunMetadata>(getRunMetaPath({ rootPath: this.rootPath, runId: safeRunId }));
+    return meta ? normalizeRunMeta({ meta }) : undefined;
   }
 
   private async touch(meta: RunMetadata): Promise<void> {
@@ -250,7 +203,7 @@ export class RunRepository {
   }
 
   private writeMeta(meta: RunMetadata): Promise<void> {
-    return writeJsonAtomic(this.metaPath(meta.id), normalizeRunMeta(meta));
+    return writeJsonAtomic(getRunMetaPath({ rootPath: this.rootPath, runId: meta.id }), normalizeRunMeta({ meta }));
   }
 
   private async listRunIds(): Promise<string[]> {
@@ -258,141 +211,11 @@ export class RunRepository {
     const runIds: string[] = [];
     for (const directoryName of directoryNames) {
       const runId = assertRepositoryId(directoryName, 'run');
-      if (await pathExists(this.metaPath(runId))) {
+      if (await pathExists(getRunMetaPath({ rootPath: this.rootPath, runId }))) {
         runIds.push(runId);
       }
     }
 
     return runIds.sort();
   }
-
-  private runPath(runId: string): string {
-    return childPath(this.rootPath, assertRepositoryId(runId, 'run'));
-  }
-
-  private metaPath(runId: string): string {
-    return path.join(this.runPath(runId), 'meta.json');
-  }
-
-  private eventsPath(runId: string): string {
-    return path.join(this.runPath(runId), 'events.jsonl');
-  }
-
-  private approvalsPath(runId: string): string {
-    return path.join(this.runPath(runId), 'approvals.jsonl');
-  }
-
-  private toolResultsPath(runId: string): string {
-    return path.join(this.runPath(runId), 'tool-results.jsonl');
-  }
-
-  private telemetryPath(runId: string): string {
-    return path.join(this.runPath(runId), 'telemetry.json');
-  }
-}
-
-function normalizeRunMeta(meta: RunMetadata): RunMetadata {
-  return removeUndefined({
-    schemaVersion: RUN_SCHEMA_VERSION,
-    id: assertRepositoryId(meta.id, 'run'),
-    chatId: assertRepositoryId(meta.chatId, 'chat'),
-    status: normalizeRunStatus(meta.status),
-    prompt: meta.prompt,
-    model: meta.model,
-    startedAt: normalizeTimestamp(meta.startedAt),
-    finishedAt: meta.finishedAt,
-    updatedAt: normalizeTimestamp(meta.updatedAt || meta.startedAt),
-    usage: meta.usage ? normalizeUsage(meta.usage) : undefined,
-    error: meta.error
-  });
-}
-
-function eventMetaPatch(event: RuntimeEvent): Partial<RunMetadata> {
-  switch (event.type) {
-    case 'run.started':
-      return {
-        status: event.run.status,
-        chatId: event.run.chatId,
-        prompt: event.run.prompt,
-        model: event.run.model,
-        startedAt: event.run.startedAt,
-        finishedAt: event.run.finishedAt,
-        usage: event.run.usage
-      };
-    case 'run.activity':
-      if (event.activity === 'waitingForApproval') {
-        return { status: 'waitingForApproval' };
-      }
-      if (event.activity === 'stopping') {
-        return { status: 'stopping' };
-      }
-      return {};
-    case 'run.completed':
-      return {
-        status: 'completed',
-        chatId: event.run.chatId,
-        model: event.run.model,
-        finishedAt: event.run.finishedAt || event.at,
-        usage: event.usage
-      };
-    case 'run.failed':
-      return {
-        status: 'failed',
-        chatId: event.chatId,
-        finishedAt: event.at,
-        error: { message: event.error.message, code: event.error.code }
-      };
-    case 'run.stopped':
-      return { status: 'stopped', chatId: event.chatId, finishedAt: event.at };
-    case 'run.finished':
-      return {
-        status: event.status,
-        chatId: event.run.chatId,
-        model: event.run.model,
-        finishedAt: event.run.finishedAt || event.at,
-        usage: event.usage
-      };
-    case 'run.error':
-      return {
-        status: 'failed',
-        chatId: event.chatId,
-        finishedAt: event.at,
-        error: { message: event.error.message, code: event.error.code }
-      };
-    default:
-      return {};
-  }
-}
-
-function getRuntimeEventRunId(event: RuntimeEvent): string | undefined {
-  switch (event.type) {
-    case 'run.started':
-    case 'run.completed':
-    case 'run.finished':
-      return event.run.id;
-    case 'message.appended':
-    case 'chat.updated':
-      return undefined;
-    default:
-      return event.runId;
-  }
-}
-
-function normalizeRunStatus(status: unknown): AgentRunStatus {
-  return ['running', 'waitingForApproval', 'stopping', 'completed', 'failed', 'stopped'].includes(String(status))
-    ? (status as AgentRunStatus)
-    : 'running';
-}
-
-function normalizeUsage(usage: Partial<ChatUsageEstimate>): ChatUsageEstimate {
-  return removeUndefined({
-    promptTokens: usage.promptTokens || 0,
-    completionTokens: usage.completionTokens || 0,
-    totalTokens: usage.totalTokens || 0,
-    costUsd: usage.costUsd
-  });
-}
-
-function normalizeTimestamp(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
 }

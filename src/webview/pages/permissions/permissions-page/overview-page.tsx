@@ -17,7 +17,7 @@ import styles from '../PermissionsPage.module.scss';
  * Зачем нужно: overview агрегирует ключевые факты, но не меняет состояние, поэтому memo уменьшает шум render при переключении дочерних форм.
  */
 export const OverviewPage = memo(function OverviewPage({
-  state,
+  state: _state,
   agentConfigScope,
   activePermissionPresetId,
   activeMode,
