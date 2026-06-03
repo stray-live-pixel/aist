@@ -33,7 +33,9 @@ describe('buildIsolationSystemPrompt', () => {
 
     expect(prompt).toContain('Keep every isolated-agent PR small, simple, and complete');
     expect(prompt).toContain('decompose it into simple finished subtasks');
-    expect(prompt).toContain('prefer parallel isolated-agent PRs when independent');
-    expect(prompt).toContain('otherwise complete them sequentially as separate small PRs');
+    expect(prompt).toContain('execute the decomposed subtasks iteratively in a loop');
+    expect(prompt).toContain('commit it, mark it done, and only then move to the next subtask');
+    expect(prompt).toContain('Prefer parallel isolated-agent PRs when independent subtasks');
+    expect(prompt).toContain('separate checkpoint commits in this run');
   });
 });

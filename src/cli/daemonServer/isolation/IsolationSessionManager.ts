@@ -69,6 +69,15 @@ export class IsolationSessionManager {
     return this.sessions.get(sessionId) || null;
   }
 
+  /**
+   * Что это: отдаёт git-сервис isolated lifecycle внутренним daemon-adapter'ам.
+   * Зачем нужно: runtime tool может создавать checkpoint-коммиты, не дублируя git-команды.
+   * Какую продуктовую проблему решает: один git-сервис остаётся источником правды для worktree, commit и PR операций.
+   */
+  getGitService(): IsolationGitService {
+    return this.gitService;
+  }
+
   async start(params: DaemonIsolationStartParams): Promise<IsolationSessionSummary> {
     const prompt = params.prompt.trim();
     if (!prompt) {

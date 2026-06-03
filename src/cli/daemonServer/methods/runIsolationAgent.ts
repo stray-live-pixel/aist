@@ -3,12 +3,14 @@ import path from 'node:path';
 import { AgentRuntimeService, type AgentRuntimeTelemetryStatus } from '../../../core/app/runtime/agentRuntime';
 import { buildFileAgentSystemPrompt } from '../../../core/features/system-prompt/filePromptConfig/buildFileAgentSystemPrompt';
 import { DefaultToolRegistry } from '../../../core/features/tool-execution/toolRegistry';
+import { nodeFilesystemTools } from '../../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import { getRepoVerificationContextNote } from '../../../core/shared/lib/repoMap';
 import type { RuntimeEvent } from '../../../core/shared/types/types';
 import type { AistDaemonServer } from '../AistDaemonServer';
 import type { IsolationAgentRunInput } from '../isolation/IsolationSessionManager';
 import { createFileBackedRuntimeChatRepository } from '../createFileBackedRuntimeChatRepository';
 import { createIsolatedToolCallHandler } from '../isolation/runtime/createIsolatedToolCallHandler';
+import { createIsolationCommitTool } from '../isolation/tools/createIsolationCommitTool';
 import { getDaemonModelOption } from '../modelOptions';
 import { buildIsolationSystemPrompt } from './runIsolationAgentParts/buildIsolationSystemPrompt';
 
@@ -25,7 +27,9 @@ export async function runIsolationAgent(
   const skills = await this.getConfiguredSkills();
   const config = await this.getRuntimeConfig();
   const chatId = input.session.chatId || `isolation-${input.session.sessionId}`;
-  const toolRegistry = new DefaultToolRegistry();
+  const toolRegistry = new DefaultToolRegistry({
+    builtinTools: [...nodeFilesystemTools, createIsolationCommitTool()]
+  });
   const chatRepository = createFileBackedRuntimeChatRepository({ repository: this.chatRepository });
   let finalStatus: AgentRuntimeTelemetryStatus | undefined;
 
@@ -40,6 +44,8 @@ export async function runIsolationAgent(
       worktreePath: input.worktreePath,
       containerName: input.containerName,
       dockerProvider: input.dockerProvider,
+      gitService: this.isolationSessions.getGitService(),
+      sessionId: input.session.sessionId,
       emitLog: (level, message) => this.isolationSessions.log(input.session.sessionId, level, message),
       getSkills: () => this.getConfiguredSkills(),
       getAuxiliaryToolSettings: (toolName) => this.getAuxiliaryToolSettings(toolName),
@@ -49,7 +55,8 @@ export async function runIsolationAgent(
     configProvider: {
       getSnapshot: async () => ({
         ...(await this.getRuntimeConfig()),
-        toolsDisabled: false
+        toolsDisabled: false,
+        auxiliaryModelToolEnabled: true
       })
     },
     promptProvider: {

@@ -9,12 +9,17 @@ import type { ToolRegistry } from '../../../../core/features/tool-execution/tool
 import { ToolRunner, type ToolRunnerAuxiliaryModelSettings } from '../../../../core/features/tool-execution/toolRunner';
 import { createNodeFilesystemToolRunner } from '../../../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
 import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
+import { IsolationGitService } from '../git/IsolationGitService';
+import { runCreateIsolationCommitTool } from '../tools/runCreateIsolationCommitTool';
+import { auxiliaryModelSpawnAgent } from './auxiliaryModelSpawnAgent';
 
 export function createIsolatedToolCallHandler({
   registry,
   worktreePath,
   containerName,
   dockerProvider,
+  gitService,
+  sessionId,
   emitLog,
   getSkills,
   getAuxiliaryToolSettings,
@@ -25,6 +30,8 @@ export function createIsolatedToolCallHandler({
   worktreePath: string;
   containerName: string;
   dockerProvider: LocalDockerIsolationProvider;
+  gitService: IsolationGitService;
+  sessionId: string;
   emitLog?: (level: 'info' | 'warn' | 'error', message: string) => Promise<void>;
   getSkills: () => Promise<readonly AgentSkill[]>;
   getAuxiliaryToolSettings: (toolName: string) => Promise<ToolRunnerAuxiliaryModelSettings>;
@@ -52,6 +59,9 @@ export function createIsolatedToolCallHandler({
           if (toolName === 'run_bash_script') {
             return runBashInContainer({ dockerProvider, containerName, args, emitLog });
           }
+          if (toolName === 'create_isolation_commit') {
+            return runCreateIsolationCommitTool({ gitService, worktreePath, sessionId, args });
+          }
           return hostFilesystemRunner(toolName, args);
         }
       },
@@ -67,6 +77,9 @@ export function createIsolatedToolCallHandler({
           })
       },
       auxiliaryModel,
+      agentService: {
+        spawn: (input) => auxiliaryModelSpawnAgent({ auxiliaryModel, input })
+      },
       getAuxiliaryModelSettings: (toolName) => getAuxiliaryToolSettings(toolName),
       events: params.events,
       runRepository: params.runRepository,

@@ -23,6 +23,17 @@ export type IsolationGitFinalizeResult = {
   readonly prError?: string;
 };
 
+/**
+ * Что это: результат checkpoint-коммита isolated-подзадачи.
+ * Зачем нужно: runtime возвращает модели commit sha сразу после завершения шага.
+ * Какую продуктовую проблему решает: каждая подзадача получает отдельную трассируемую точку в git history.
+ */
+export type IsolationGitCheckpointResult = {
+  readonly changed: boolean;
+  readonly commitSha?: string;
+  readonly headSha: string;
+};
+
 export type IsolationGitFinalizeStage = 'committing' | 'pushing' | 'creating_pr';
 
 export class IsolationGitService {
@@ -109,13 +120,14 @@ export class IsolationGitService {
       return { changed: false, headSha, pushed: false, ...prResult };
     }
 
-    await onStage?.('committing', 'Creating git commit.');
-    await this.git({ cwd: worktreePath, args: ['add', '-A'] });
-    await this.git({
-      cwd: worktreePath,
-      args: ['commit', '-m', createCommitMessage({ prompt, sessionId })]
+    await onStage?.('committing', 'Creating final git commit.');
+    const checkpoint = await this.commitCheckpoint({
+      worktreePath,
+      title: 'AIST isolated final changes',
+      summary: prompt,
+      sessionId
     });
-    const commitSha = await this.revParse({ cwd: worktreePath, ref: 'HEAD' });
+    const commitSha = checkpoint.commitSha;
 
     if (remoteName) {
       await onStage?.('pushing', `Pushing branch to ${remoteName}.`);
@@ -135,10 +147,37 @@ export class IsolationGitService {
       changed: true,
       fallbackArtifactPath,
       commitSha,
-      headSha: commitSha,
+      headSha: checkpoint.headSha,
       pushed: Boolean(remoteName),
       ...prResult
     };
+  }
+
+  /**
+   * Что это: создаёт commit для одной завершённой isolated-подзадачи.
+   * Зачем нужно: агент фиксирует прогресс до перехода к следующей итерации большой задачи.
+   * Какую продуктовую проблему решает: пользователь может сопоставить каждый commit с конкретной подзадачей.
+   */
+  async commitCheckpoint({
+    worktreePath,
+    title,
+    summary,
+    sessionId
+  }: {
+    worktreePath: string;
+    title: string;
+    summary: string;
+    sessionId: string;
+  }): Promise<IsolationGitCheckpointResult> {
+    const changed = await this.hasChanges(worktreePath);
+    if (!changed) {
+      return { changed: false, headSha: await this.revParse({ cwd: worktreePath, ref: 'HEAD' }) };
+    }
+
+    await this.git({ cwd: worktreePath, args: ['add', '-A'] });
+    await this.git({ cwd: worktreePath, args: ['commit', '-m', createSubtaskCommitMessage({ title, summary, sessionId })] });
+    const commitSha = await this.revParse({ cwd: worktreePath, ref: 'HEAD' });
+    return { changed: true, commitSha, headSha: commitSha };
   }
 
   async removeWorktree(worktreePath: string): Promise<void> {
@@ -270,9 +309,17 @@ export class IsolationGitService {
   }
 }
 
-function createCommitMessage({ prompt, sessionId }: { prompt: string; sessionId: string }): string {
-  const firstLine = prompt.replace(/\s+/g, ' ').trim().slice(0, 72);
-  return `${firstLine || 'AIST isolated agent changes'}\n\nAIST isolated session: ${sessionId}`;
+function createSubtaskCommitMessage({
+  title,
+  summary,
+  sessionId
+}: {
+  title: string;
+  summary: string;
+  sessionId: string;
+}): string {
+  const firstLine = title.replace(/\s+/g, ' ').trim().slice(0, 72) || 'AIST isolated subtask';
+  return `${firstLine}\n\n${summary.trim() || 'Completed isolated subtask.'}\n\nAIST isolated session: ${sessionId}`;
 }
 
 function formatError(error: unknown): string {
