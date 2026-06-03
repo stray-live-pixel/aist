@@ -9,12 +9,15 @@ import type {
   IsolationSessionSummary
 } from '../../daemonProtocol';
 import { LocalDockerIsolationProvider } from './LocalDockerIsolationProvider';
-import { IsolationGitService } from './git/IsolationGitService';
+import { finalizeContainerRepository } from './git/finalizeContainerRepository';
+import { getIsolationBaseSha } from './git/getIsolationBaseSha';
+import { getIsolationRemoteName } from './git/getIsolationRemoteName';
+import { getIsolationRepositoryUrl } from './git/getIsolationRepositoryUrl';
 
 export type IsolationAgentRunInput = {
   /** Снимок сессии с chatId стандартного чата для live-наблюдения. */
   readonly session: IsolationSessionSummary;
-  readonly worktreePath: string;
+  readonly repositoryUrl: string;
   readonly containerName: string;
   readonly dockerProvider: LocalDockerIsolationProvider;
   readonly registerStopHandler?: (handler: () => void) => void;
@@ -40,10 +43,8 @@ type IsolationSessionManagerOptions = {
  */
 export class IsolationSessionManager {
   private readonly dockerProvider: LocalDockerIsolationProvider;
-  private readonly gitService: IsolationGitService;
   private readonly sessionsFile: string;
   private readonly eventsDir: string;
-  private readonly worktreesRoot: string;
   private readonly stopHandlers = new Map<string, () => void>();
   private sessions = new Map<string, IsolationSessionSummary>();
 
@@ -51,13 +52,7 @@ export class IsolationSessionManager {
     const root = path.join(globalWorkspaceRoot(options.workspaceRoot, options.homeDir), 'isolation');
     this.sessionsFile = path.join(root, 'sessions.json');
     this.eventsDir = path.join(root, 'events');
-    this.worktreesRoot = path.join(root, 'worktrees');
     this.dockerProvider = new LocalDockerIsolationProvider({ env: options.env });
-    this.gitService = new IsolationGitService({
-      workspaceRoot: options.workspaceRoot,
-      worktreesRoot: this.worktreesRoot,
-      env: options.env
-    });
     this.load();
   }
 
@@ -148,10 +143,6 @@ export class IsolationSessionManager {
     this.stopHandlers.get(sessionId)?.();
     await this.destroyContainer(session);
     this.stopHandlers.delete(sessionId);
-    if (session.worktreePath) {
-      await this.log(sessionId, 'info', `Removing isolated worktree ${session.worktreePath}.`);
-      await this.gitService.removeWorktree(session.worktreePath);
-    }
     const destroyed = await this.updateSession(sessionId, {
       status: 'destroyed',
       containerId: undefined,
@@ -197,57 +188,13 @@ export class IsolationSessionManager {
   }
 
   private async provision(sessionId: string): Promise<void> {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      return;
-    }
-
     try {
-      await this.updateSession(sessionId, { status: 'creating', error: undefined });
-      await this.updateSession(sessionId, { status: 'preparing', stage: 'Preparing isolated git worktree.' });
-      await this.log(sessionId, 'info', `Preparing isolated worktree for ${session.branchName}.`);
-      const worktree = await this.gitService.prepareWorktree({
-        sessionId,
-        branchName: session.branchName,
-        baseRef: session.baseRef,
-        continueExisting: session.attempt > 1
-      });
-      let currentSession = await this.updateSession(sessionId, {
-        worktreePath: worktree.worktreePath,
-        baseRef: worktree.baseRef,
-        baseSha: worktree.baseSha,
-        remoteName: worktree.remoteName,
-        stage: 'Worktree ready.'
-      });
-      if (this.shouldAbortProvision(sessionId)) {
-        return;
-      }
-
-      await this.log(sessionId, 'info', 'Checking local Docker daemon.');
-      await this.dockerProvider.healthcheck();
-      if (this.shouldAbortProvision(sessionId)) {
-        return;
-      }
-      await this.log(sessionId, 'info', 'Starting isolated Docker container.');
-      const container = await this.dockerProvider.start({
-        sessionId,
-        worktreePath: worktree.worktreePath
-      });
-      if (this.shouldAbortProvision(sessionId)) {
-        await this.dockerProvider.destroy(container.containerName).catch(() => undefined);
-        return;
-      }
-      currentSession = await this.updateSession(sessionId, {
-        status: 'running_agent',
-        stage: 'Agent is working in isolated environment.',
-        containerId: container.containerId,
-        containerName: container.containerName,
-        startedAt: this.options.now()
-      });
-      await this.log(sessionId, 'info', 'Container is running. Starting isolated agent runtime.');
+      const session = await this.prepareContainerSession(sessionId);
+      const container = await this.startContainerSession(session);
+      const currentSession = await this.markAgentRunning({ sessionId, container });
       const runResult = await this.options.runAgent({
         session: currentSession,
-        worktreePath: worktree.worktreePath,
+        repositoryUrl: await this.getRepositoryUrl(currentSession),
         containerName: container.containerName,
         dockerProvider: this.dockerProvider,
         registerStopHandler: (handler) => this.stopHandlers.set(sessionId, handler)
@@ -256,72 +203,186 @@ export class IsolationSessionManager {
       if (this.shouldAbortProvision(sessionId)) {
         return;
       }
-      currentSession = await this.updateSession(sessionId, {
-        status: 'post_processing',
-        stage: 'Finalizing git changes.',
-        lastRunId: runResult.runId
-      });
-      await this.destroyContainer(currentSession);
-      await this.updateSession(sessionId, { status: 'committing', stage: 'Creating commit and PR.' });
-      const finalized = await this.gitService.finalize({
-        worktreePath: worktree.worktreePath,
-        branchName: currentSession.branchName,
-        remoteName: currentSession.remoteName,
-        prompt: currentSession.prompt,
-        fallbackAnswer: runResult.answer,
-        sessionId,
-        onStage: async (status, stage) => {
-          await this.updateSession(sessionId, { status, stage });
-          await this.log(sessionId, 'info', stage);
-        }
-      });
-      await this.log(
-        sessionId,
-        'info',
-        finalized.changed
-          ? `Created commit ${finalized.commitSha || 'unknown'}.`
-          : 'Agent finished without file changes and fallback artifact could not be created.'
-      );
-      if (finalized.fallbackArtifactPath) {
-        await this.log(sessionId, 'info', `Fallback review artifact created: ${finalized.fallbackArtifactPath}`);
-      }
-      if (finalized.pushed) {
-        await this.log(sessionId, 'info', `Pushed branch ${currentSession.branchName}.`);
-      }
-      if (finalized.prUrl) {
-        await this.log(sessionId, 'info', `Pull request is ready: ${finalized.prUrl}`);
-      } else if (finalized.prError) {
-        await this.log(sessionId, 'warn', `Pull request was not created: ${finalized.prError}`);
-      } else if (!currentSession.remoteName) {
-        await this.log(sessionId, 'warn', 'No git remote is configured, so PR creation was skipped.');
-      }
-      await this.updateSession(sessionId, {
-        status: 'ready_for_review',
-        stage: 'Ready for review.',
-        containerId: undefined,
-        containerName: undefined,
-        commitSha: finalized.commitSha,
-        headSha: finalized.headSha,
-        prUrl: finalized.prUrl,
-        finishedAt: this.options.now()
-      });
+      await this.finalizeContainerSession({ sessionId, runResult });
     } catch (error) {
-      this.stopHandlers.delete(sessionId);
-      await this.log(sessionId, 'error', formatError(error));
-      const failedSession = this.sessions.get(sessionId);
-      if (failedSession?.status === 'destroyed' || failedSession?.status === 'stopping') {
-        return;
-      }
-      if (failedSession) {
-        await this.destroyContainer(failedSession);
-      }
-      await this.updateSession(sessionId, {
-        status: 'failed',
-        stage: 'Failed.',
-        error: formatError(error),
-        finishedAt: this.options.now()
-      });
+      await this.failSession({ sessionId, error });
     }
+  }
+
+  /**
+   * Что это: собирает git metadata и проверяет Docker перед запуском автономного контейнера.
+   * Зачем нужно: локальный host теперь только сообщает repo URL/base metadata, а не готовит worktree.
+   * Какую продуктовую проблему решает: запуск отделён от файловой системы компьютера пользователя.
+   */
+  private async prepareContainerSession(sessionId: string): Promise<IsolationSessionSummary> {
+    const session = this.requireSession(sessionId);
+    await this.updateSession(sessionId, { status: 'creating', error: undefined });
+    await this.updateSession(sessionId, { status: 'preparing', stage: 'Resolving GitHub repository for autonomous container.' });
+    await this.log(sessionId, 'info', `Preparing autonomous Docker clone for ${session.branchName}.`);
+    const remoteName = await getIsolationRemoteName({ workspaceRoot: this.options.workspaceRoot, env: this.options.env });
+    if (!remoteName) {
+      throw new Error('Git remote is required for autonomous isolated containers. Add origin remote and retry.');
+    }
+    const baseRef = session.baseRef || 'HEAD';
+    const baseSha = await getIsolationBaseSha({
+      workspaceRoot: this.options.workspaceRoot,
+      baseRef,
+      env: this.options.env
+    });
+    const prepared = await this.updateSession(sessionId, {
+      baseRef,
+      baseSha,
+      remoteName,
+      stage: 'Repository metadata resolved.'
+    });
+    await this.log(sessionId, 'info', 'Checking local Docker daemon.');
+    await this.dockerProvider.healthcheck();
+    return prepared;
+  }
+
+  /**
+   * Что это: стартует контейнер, который сам клонирует repo и создаёт ветку.
+   * Зачем нужно: host не передаёт worktree через mount и не устанавливает зависимости за контейнер.
+   * Какую продуктовую проблему решает: тот же provider можно заменить на удалённый Docker/server runner.
+   */
+  private async startContainerSession(session: IsolationSessionSummary) {
+    if (this.shouldAbortProvision(session.sessionId)) {
+      throw new Error('Isolation session was stopped before container start.');
+    }
+    const repositoryUrl = await this.getRepositoryUrl(session);
+    await this.log(session.sessionId, 'info', `Starting autonomous Docker container from ${repositoryUrl}.`);
+    return this.dockerProvider.start({
+      sessionId: session.sessionId,
+      repositoryUrl,
+      branchName: session.branchName,
+      baseRef: session.baseRef === 'HEAD' ? undefined : session.baseRef,
+      env: await this.getContainerEnv()
+    });
+  }
+
+  private async markAgentRunning({
+    sessionId,
+    container
+  }: {
+    sessionId: string;
+    container: { readonly containerId: string; readonly containerName: string };
+  }): Promise<IsolationSessionSummary> {
+    if (this.shouldAbortProvision(sessionId)) {
+      await this.dockerProvider.destroy(container.containerName).catch(() => undefined);
+      throw new Error('Isolation session was stopped after container start.');
+    }
+    const currentSession = await this.updateSession(sessionId, {
+      status: 'running_agent',
+      stage: 'Agent is working in autonomous Docker container.',
+      containerId: container.containerId,
+      containerName: container.containerName,
+      startedAt: this.options.now()
+    });
+    await this.log(sessionId, 'info', 'Container is ready. Starting isolated agent CLI inside container.');
+    return currentSession;
+  }
+
+  private async finalizeContainerSession({
+    sessionId,
+    runResult
+  }: {
+    sessionId: string;
+    runResult: { runId?: string; answer?: string };
+  }): Promise<void> {
+    const currentSession = await this.updateSession(sessionId, {
+      status: 'post_processing',
+      stage: 'Finalizing git changes inside container.',
+      lastRunId: runResult.runId
+    });
+    if (!currentSession.containerName) {
+      throw new Error('Container name is missing before isolation finalization.');
+    }
+    await this.updateSession(sessionId, { status: 'committing', stage: 'Creating commit and PR.' });
+    const finalized = await finalizeContainerRepository({
+      dockerProvider: this.dockerProvider,
+      containerName: currentSession.containerName,
+      branchName: currentSession.branchName,
+      prompt: currentSession.prompt,
+      fallbackAnswer: runResult.answer,
+      sessionId,
+      onStage: async (status, stage) => {
+        await this.updateSession(sessionId, { status, stage });
+        await this.log(sessionId, 'info', stage);
+      }
+    });
+    await this.logFinalizationResult({ session: currentSession, finalized });
+    await this.destroyContainer(currentSession);
+    await this.updateSession(sessionId, {
+      status: 'ready_for_review',
+      stage: 'Ready for review.',
+      containerId: undefined,
+      containerName: undefined,
+      commitSha: finalized.commitSha,
+      headSha: finalized.headSha,
+      prUrl: finalized.prUrl,
+      finishedAt: this.options.now()
+    });
+  }
+
+  private async logFinalizationResult({
+    session,
+    finalized
+  }: {
+    session: IsolationSessionSummary;
+    finalized: Awaited<ReturnType<typeof finalizeContainerRepository>>;
+  }): Promise<void> {
+    await this.log(
+      session.sessionId,
+      'info',
+      finalized.changed
+        ? `Created commit ${finalized.commitSha || 'unknown'}.`
+        : 'Agent finished without file changes and fallback artifact could not be created.'
+    );
+    if (finalized.fallbackArtifactPath) {
+      await this.log(session.sessionId, 'info', `Fallback review artifact created: ${finalized.fallbackArtifactPath}`);
+    }
+    if (finalized.pushed) {
+      await this.log(session.sessionId, 'info', `Pushed branch ${session.branchName}.`);
+    }
+    if (finalized.prUrl) {
+      await this.log(session.sessionId, 'info', `Pull request is ready: ${finalized.prUrl}`);
+    } else if (finalized.prError) {
+      await this.log(session.sessionId, 'warn', `Pull request was not created: ${finalized.prError}`);
+    }
+  }
+
+  private async failSession({ sessionId, error }: { sessionId: string; error: unknown }): Promise<void> {
+    this.stopHandlers.delete(sessionId);
+    await this.log(sessionId, 'error', formatError(error));
+    const failedSession = this.sessions.get(sessionId);
+    if (failedSession?.status === 'destroyed' || failedSession?.status === 'stopping') {
+      return;
+    }
+    if (failedSession) {
+      await this.destroyContainer(failedSession);
+    }
+    await this.updateSession(sessionId, {
+      status: 'failed',
+      stage: 'Failed.',
+      error: formatError(error),
+      finishedAt: this.options.now()
+    });
+  }
+
+  private async getRepositoryUrl(session: IsolationSessionSummary): Promise<string> {
+    const remoteName = session.remoteName || (await getIsolationRemoteName({ workspaceRoot: this.options.workspaceRoot, env: this.options.env }));
+    if (!remoteName) {
+      throw new Error('Git remote is required for autonomous isolated containers.');
+    }
+    return getIsolationRepositoryUrl({ workspaceRoot: this.options.workspaceRoot, remoteName, env: this.options.env });
+  }
+
+  private async getContainerEnv(): Promise<Record<string, string | undefined>> {
+    return {
+      OPENROUTER_API_KEY: this.options.env.OPENROUTER_API_KEY,
+      GH_TOKEN: this.options.env.GH_TOKEN || this.options.env.GITHUB_TOKEN,
+      GITHUB_TOKEN: this.options.env.GITHUB_TOKEN || this.options.env.GH_TOKEN
+    };
   }
 
   private async destroyContainer(session: IsolationSessionSummary): Promise<void> {

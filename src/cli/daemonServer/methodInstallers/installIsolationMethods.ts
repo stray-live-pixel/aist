@@ -6,7 +6,7 @@ import { isolationList } from '../methods/isolationList';
 import { isolationStart } from '../methods/isolationStart';
 import { isolationStatus } from '../methods/isolationStatus';
 import { isolationStop } from '../methods/isolationStop';
-import { handleIsolationRuntimeEvent, runIsolationAgent } from '../methods/runIsolationAgent';
+import { handleContainerIsolationEvent, handleIsolationRuntimeEvent, runIsolationAgent } from '../methods/runIsolationAgent';
 
 export function installIsolationMethods(): void {
   AistDaemonServer.prototype.isolationContinue = isolationContinue;
@@ -17,6 +17,7 @@ export function installIsolationMethods(): void {
   AistDaemonServer.prototype.isolationStatus = isolationStatus;
   AistDaemonServer.prototype.isolationStop = isolationStop;
   AistDaemonServer.prototype.runIsolationAgent = runIsolationAgent;
+  AistDaemonServer.prototype.handleContainerIsolationEvent = handleContainerIsolationEvent;
   AistDaemonServer.prototype.handleIsolationRuntimeEvent = handleIsolationRuntimeEvent;
 }
 
@@ -30,6 +31,7 @@ declare module '../AistDaemonServer' {
     isolationStatus: typeof isolationStatus;
     isolationStop: typeof isolationStop;
     runIsolationAgent: typeof runIsolationAgent;
+    handleContainerIsolationEvent: typeof handleContainerIsolationEvent;
     handleIsolationRuntimeEvent: typeof handleIsolationRuntimeEvent;
   }
 }
