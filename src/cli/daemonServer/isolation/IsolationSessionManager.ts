@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { AuxiliaryModelInvoker } from '../../../core/entities/model/auxiliaryModel';
 import { appendJsonl, globalWorkspaceRoot, safeMkdir, writeJsonAtomic } from '../../../core/entities/storage/storage';
 import type {
   DaemonIsolationEvent,
@@ -24,6 +25,7 @@ type IsolationSessionManagerOptions = {
   readonly workspaceRoot: string;
   readonly homeDir: string;
   readonly env: Record<string, string | undefined>;
+  readonly auxiliaryModel?: AuxiliaryModelInvoker;
   readonly now: () => number;
   readonly idFactory: () => string;
   readonly emit: (event: DaemonIsolationEvent) => void;
@@ -56,7 +58,8 @@ export class IsolationSessionManager {
     this.gitService = new IsolationGitService({
       workspaceRoot: options.workspaceRoot,
       worktreesRoot: this.worktreesRoot,
-      env: options.env
+      env: options.env,
+      auxiliaryModel: options.auxiliaryModel
     });
     this.load();
   }
