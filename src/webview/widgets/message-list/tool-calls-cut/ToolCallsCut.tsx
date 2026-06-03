@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageCard } from '../../../entities/message';
 import { useI18n } from '../../../shared/i18n';
 import styles from './ToolCallsCut.module.scss';
+import { getToolCallIdsSignature } from './getToolCallIdsSignature';
 import type { ToolCallsCutHeaderProps, ToolCallsCutProps } from './types';
 import { formatToolCallsMeta } from './utils';
 
@@ -18,7 +19,7 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active, res
   const [open, setOpen] = useState(shouldBeOpen);
   const previousToolIdsRef = useRef<Set<string>>(new Set());
   const hasRenderedRef = useRef(false);
-  const toolIds = tools.map((tool) => tool.id);
+  const toolIdsSignature = getToolCallIdsSignature({ tools });
   const [newToolIds, setNewToolIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -26,13 +27,19 @@ export function ToolCallsCut({ tools, userMessage, assistantMessage, active, res
   }, [shouldBeOpen]);
 
   useEffect(() => {
+    const toolIds = tools.map((tool) => tool.id);
     const previousToolIds = previousToolIdsRef.current;
-    setNewToolIds(
-      hasRenderedRef.current ? new Set(toolIds.filter((toolId) => !previousToolIds.has(toolId))) : new Set()
-    );
+    const nextNewToolIds = hasRenderedRef.current
+      ? new Set(toolIds.filter((toolId) => !previousToolIds.has(toolId)))
+      : new Set<string>();
+
+    // Новые tool-card анимируем только при изменении состава группы.
+    // Без стабильной зависимости раскрытый cut мог бесконечно обновлять state
+    // и нагружать CPU, особенно когда параллельно открыто несколько агентов.
+    setNewToolIds(nextNewToolIds);
     previousToolIdsRef.current = new Set(toolIds);
     hasRenderedRef.current = true;
-  }, [toolIds]);
+  }, [toolIdsSignature]);
 
   if (!tools.length) {
     return null;

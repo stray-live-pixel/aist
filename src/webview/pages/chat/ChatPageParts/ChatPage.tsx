@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Composer } from '../../../features';
 import { agentActions } from '../../../shared/lib/agentActions';
 import { useAgentState } from '../../../shared/lib/agentState';
+import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerformanceMetric';
 import { MessageList } from '../../../widgets/message-list';
 import {
   AgentSettingsSummary,
@@ -23,6 +24,11 @@ import { useSortedChats } from './useSortedChats';
 
 export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void }) {
   const state = useAgentState();
+  useRenderPerformanceMetric({
+    component: 'ChatPage',
+    chatId: state.activeChat.id,
+    messageCount: state.activeChat.messages.length
+  });
   const [transient, setTransient] = useState<ChatTransientState>({});
   const transientView = useMemo(
     () => applyChatTransientState({ chat: state.activeChat, transient }),

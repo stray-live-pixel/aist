@@ -202,7 +202,8 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       lastSyncedSettings: '',
       refreshQueue: Promise.resolve(),
       disposed: false,
-      previewHandles: new Map<string, VscodePreviewEdit>()
+      previewHandles: new Map<string, VscodePreviewEdit>(),
+      agentRequestStartedAtByRunId: new Map()
     };
 
     return {

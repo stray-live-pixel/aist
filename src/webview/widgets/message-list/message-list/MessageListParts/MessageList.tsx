@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { useRenderPerformanceMetric } from '../../../../shared/lib/useRenderPerformanceMetric';
 import { ActivePlanWidget } from '../../active-plan';
 import { AgentActivityStatus } from '../../agent-activity-status';
 import { EmptyState } from '../../empty-state';
@@ -31,13 +32,15 @@ export function MessageList({
   bottomOffset = 'none',
   resolvedApprovalId
 }: MessageListProps) {
+  useRenderPerformanceMetric({ component: 'MessageList', chatId, messageCount: messages.length });
   const scrollRef = useRef<HTMLElement>(null);
   const shouldStickToBottomRef = useRef(true);
   const previousGroupIdsRef = useRef<Set<string>>(new Set());
   const hasRenderedRef = useRef(false);
-  const groups = groupMessages(messages, busy);
-  const groupIds = groups.map(getMessageGroupId);
-  const groupIdsSignature = getMessageGroupIdsSignature({ groupIds });
+  const groups = useMemo(() => groupMessages(messages, busy), [messages, busy]);
+  const lastAssistantMessageId = useMemo(() => getLastAssistantMessageId(messages), [messages]);
+  const groupIds = useMemo(() => groups.map(getMessageGroupId), [groups]);
+  const groupIdsSignature = useMemo(() => getMessageGroupIdsSignature({ groupIds }), [groupIds]);
   const [newGroupIds, setNewGroupIds] = useState<Set<string>>(new Set());
   const [selectedSubagentRunId, setSelectedSubagentRunId] = useState<string | undefined>();
   const pendingMemoryCandidates = useMemo(
@@ -87,7 +90,7 @@ export function MessageList({
               group,
               chatId,
               assistantLabel,
-              lastAssistantMessageId: getLastAssistantMessageId(messages),
+              lastAssistantMessageId,
               resolvedApprovalId,
               busy,
               memoryAnalysisRunning,

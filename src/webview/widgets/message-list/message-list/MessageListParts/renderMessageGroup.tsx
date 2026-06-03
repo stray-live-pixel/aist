@@ -1,5 +1,5 @@
 import { MessageCard, SubagentMessageCard } from '../../../../entities/message';
-import { type AgentReflectionCandidate, type SubagentRun } from '../../../../shared/types';
+import { type AgentReflectionCandidate, type ChatMessage, type SubagentRun } from '../../../../shared/types';
 import { ToolCallsCut } from '../../tool-calls-cut';
 import { type MessageGroup } from '../types';
 import { isDefaultExpandedMessage } from '../utils';
@@ -43,12 +43,20 @@ export function renderMessageGroup(input: {
     );
   }
 
+  const actionsSignature = getMessageActionsSignature({
+    message: input.group.message,
+    lastAssistantMessageId: input.lastAssistantMessageId,
+    busy: input.busy,
+    memoryAnalysisRunning: input.memoryAnalysisRunning === true
+  });
+
   return (
     <MessageCard
       message={input.group.message}
       authorLabel={input.group.message.role === 'assistant' ? input.assistantLabel : undefined}
       defaultExpanded={isDefaultExpandedMessage(input.group.message, input.lastAssistantMessageId)}
       collapseToolId={input.resolvedApprovalId}
+      actionsSignature={actionsSignature}
       actions={renderMessageActions({
         chatId: input.chatId,
         message: input.group.message,
@@ -58,4 +66,26 @@ export function renderMessageGroup(input: {
       })}
     />
   );
+}
+
+/**
+ * Что это: компактная подпись набора действий карточки.
+ * Зачем нужно: ReactNode кнопок создаётся заново при каждом render списка,
+ * но старой карточке важно ререндериться только когда набор действий реально изменился.
+ * Какую продуктовую проблему решает: большой чат не тратит CPU на повторный markdown-render старых сообщений.
+ */
+function getMessageActionsSignature(input: {
+  message: ChatMessage;
+  lastAssistantMessageId?: string;
+  busy: boolean;
+  memoryAnalysisRunning: boolean;
+}): string {
+  const canAnalyzeMemory =
+    input.message.role === 'assistant' &&
+    input.message.id === input.lastAssistantMessageId &&
+    !input.busy &&
+    !input.memoryAnalysisRunning;
+  const canCopy = Boolean(input.message.content);
+
+  return `${canCopy ? 'copy' : ''}:${canAnalyzeMemory ? 'memory' : ''}`;
 }

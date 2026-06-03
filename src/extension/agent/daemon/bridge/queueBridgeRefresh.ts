@@ -2,6 +2,7 @@ import type { DaemonEvent } from '../../../../cli/daemonProtocol';
 import { getDaemonEventChatId } from '../../webview/getDaemonEventChatId';
 import type { BridgeRuntimeContext } from './BridgeRuntimeContext';
 import { notifyBridgeEventListeners } from './notifyBridgeEventListeners';
+import { recordAgentRequestPerformanceFromEvent } from './recordAgentRequestPerformanceFromEvent';
 import { refreshBridgeChat } from './refreshBridgeChat';
 import { refreshBridgeState } from './refreshBridgeState';
 
@@ -23,6 +24,7 @@ export function queueBridgeRefresh({ context, event }: { context: BridgeRuntimeC
       } else {
         await refreshBridgeState({ context });
       }
+      recordAgentRequestPerformanceFromEvent({ context, event });
       notifyBridgeEventListeners({ context, event });
     })
     .catch((error) => context.logger.error('Failed to refresh daemon state after event', error));

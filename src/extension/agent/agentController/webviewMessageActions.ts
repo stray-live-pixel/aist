@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { recordPerformanceTelemetry } from '../../../core/features/performanceTelemetry';
 import type { ModelProvider } from '../../../core/shared/types/types';
 import { t } from '../../shared/i18n';
 import { getConfiguredModel, getDefaultModelSettings } from '../config/settingsSnapshot';
@@ -7,6 +8,7 @@ import type { WebviewMessage, WebviewSurface } from '../types';
 import { handleAgentWebviewMessage } from '../webview/messages';
 import type { AgentControllerCallbacks } from './AgentControllerCallbacks';
 import type { AgentControllerState } from './AgentControllerState';
+import { createChatFromDaemonWebview } from './createChatFromDaemonWebview';
 import { reportControllerError } from './reportControllerError';
 import { toToolApprovalDecision } from './toToolApprovalDecision';
 
@@ -23,6 +25,11 @@ export async function handleWebviewMessage({
   message: WebviewMessage;
 }): Promise<void> {
   try {
+    if (message.type === 'performance.renderMetric') {
+      recordRenderPerformanceMessage({ state, surface, message });
+      return;
+    }
+
     await handleWebviewMessageUnsafe({ state, callbacks, surface, message });
   } catch (error) {
     await state.daemonRuntime
@@ -32,6 +39,38 @@ export async function handleWebviewMessage({
     state.logger.error('Unhandled webview message error', error);
     callbacks.sendState(surface);
   }
+}
+
+/**
+ * Что это: сохраняет batched render-метрику из webview.
+ * Зачем нужно: React-компоненты сообщают количество ререндеров без частых FS-записей.
+ * Какую продуктовую проблему решает: можно увидеть, какой UI-компонент стал bottleneck после изменения.
+ */
+function recordRenderPerformanceMessage({
+  state,
+  surface,
+  message
+}: {
+  state: AgentControllerState;
+  surface: WebviewSurface;
+  message: Extract<WebviewMessage, { type: 'performance.renderMetric' }>;
+}): void {
+  recordPerformanceTelemetry({
+    operation: 'webview.render',
+    extensionVersion: String(state.context.extension.packageJSON?.version || '0.0.0'),
+    workspaceRoot: state.daemonRuntime.workspaceRoot,
+    chatId: message.chatId || surface.getChatId(),
+    surfaceId: surface.id,
+    surfaceKind: surface.kind,
+    startedAt: message.startedAt,
+    finishedAt: message.finishedAt,
+    durationMs: message.durationMs,
+    status: 'success',
+    renderCount: message.renderCount,
+    messageCount: message.messageCount,
+    reason: message.component,
+    meta: { component: message.component, maxRenderDurationMs: message.maxRenderDurationMs }
+  });
 }
 
 /** Что это: dispatch webview message между daemon-only командами и общими handlers; зачем нужно: сохранить совместимость старого UI API; проблема: каждый webview action попадает в правильный backend. */
@@ -101,18 +140,14 @@ async function handleDaemonWebviewMessage({
     case 'ask':
       await callbacks.ask(surface.getChatId(), message.prompt, { skipUserMessage: message.continueWithoutUserPrompt });
       return true;
-    case 'newChat': {
-      const pendingSurface = callbacks.openCreatingChatEditor({
-        title: t('status.creatingChatTitle'),
-        message: t('status.creatingChatMessage')
+    case 'newChat':
+      await createChatFromDaemonWebview({
+        state,
+        callbacks,
+        surface,
+        loadingMessage: t('status.creatingChatMessage')
       });
-      const chat = await state.daemonRuntime.createChat(getDefaultModelSettings());
-      state.sidebarPage = 'chat';
-      pendingSurface.setChatId(chat.id);
-      callbacks.sendState(pendingSurface);
-      callbacks.sendState();
       return true;
-    }
     case 'deleteChat': {
       const nextChat = await state.daemonRuntime.deleteChat(message.chatId, getConfiguredModel());
       callbacks.retargetDeletedChat(message.chatId, nextChat.id);

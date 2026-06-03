@@ -25,7 +25,7 @@ import type {
   ReasoningEffort
 } from './model';
 import type { SubagentRun } from './subagent';
-import type { AgentTelemetryDashboard } from './telemetry';
+import type { AgentTelemetryDashboard, PerformanceTelemetryDashboard } from './telemetry';
 
 export type AgentState = {
   viewKind: 'sidebar' | 'editor';
@@ -50,6 +50,7 @@ export type AgentState = {
   approvalNotificationSettings: ApprovalNotificationSettings;
   composerUiSettings: ComposerUiSettings;
   telemetry: AgentTelemetryDashboard;
+  performanceTelemetry: PerformanceTelemetryDashboard;
   agentLanguage: AgentLanguage;
   agentMode: AgentModeId;
   agentModes: AgentMode[];

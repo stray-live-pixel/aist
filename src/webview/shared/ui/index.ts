@@ -27,6 +27,8 @@ export { ComposerFrame } from './composer-frame';
 export type { ComposerFrameProps } from './composer-frame';
 export { EmptyState } from './empty-state';
 export type { EmptyStateProps } from './empty-state';
+export { InfoTile } from './info-tile';
+export type { InfoTileProps, InfoTileTone } from './info-tile';
 export { KeyboardShortcut, Keycap } from './keyboard-shortcut';
 export { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from './modal';
 export type { ModalSize, ModalTone } from './modal';

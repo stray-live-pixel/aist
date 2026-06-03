@@ -27,6 +27,7 @@ export type StateContext = SendAgentStateParams & {
   approvalNotificationSettings: unknown;
   composerUiSettings: unknown;
   telemetry: unknown;
+  performanceTelemetry: unknown;
   projectToolDiagnostics: unknown;
   providerProfiles: unknown;
 };

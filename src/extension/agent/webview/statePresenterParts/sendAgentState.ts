@@ -1,3 +1,4 @@
+import { getPerformanceTelemetryDashboardState } from '../../../../core/features/performanceTelemetry';
 import { getTelemetryDashboardState } from '../../../../core/features/telemetry/telemetry';
 import { getAgentSkills } from '../../../skills/skills';
 import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '../../config/agentConfigStore';
@@ -39,6 +40,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const composerUiSettings = getComposerUiSettings();
   const projectToolDiagnostics = getDaemonToolCatalog().snapshot().diagnostics;
   const telemetry = getTelemetryDashboardState();
+  const performanceTelemetry = getPerformanceTelemetryDashboardState();
 
   void buildProviderProfilesWithApiKeyStatus(params)
     .then((providerProfiles) => {
@@ -67,6 +69,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
           approvalNotificationSettings,
           composerUiSettings,
           telemetry,
+          performanceTelemetry,
           projectToolDiagnostics,
           providerProfiles
         });

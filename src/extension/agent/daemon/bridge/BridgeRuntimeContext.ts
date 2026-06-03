@@ -2,6 +2,7 @@ import type * as vscode from 'vscode';
 
 import type { DaemonJsonRpcClient } from '../../../../cli/daemonClient';
 import type { DaemonEvent } from '../../../../cli/daemonProtocol';
+import type { PerformanceTelemetryRecord } from '../../../../core/features/performanceTelemetry';
 import type { SubagentRun } from '../../../../core/shared/types/types';
 import type { AistLogger } from '../../../shared/logger';
 import type { DaemonChatStore } from '../chatStore';
@@ -26,6 +27,10 @@ export type BridgeRuntimeState = {
   refreshQueue: Promise<void>;
   disposed: boolean;
   previewHandles: Map<string, VscodePreviewEdit>;
+  agentRequestStartedAtByRunId: Map<
+    string,
+    Pick<PerformanceTelemetryRecord, 'startedAt' | 'chatId' | 'extensionVersion' | 'workspaceRoot'>
+  >;
 };
 
 /**

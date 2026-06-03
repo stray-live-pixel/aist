@@ -1,5 +1,5 @@
 import { ChevronRight, Code2 } from 'lucide-react';
-import { type MouseEvent, useEffect, useState } from 'react';
+import { type MouseEvent, memo, useEffect, useMemo, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import type { ChatMessage } from '../../../shared/types';
@@ -17,6 +17,7 @@ import { ToolResultPreview } from '../tool-result-preview';
 import { asString, getToolResult } from '../tool-value';
 import { WorkspaceFileLink } from '../workspace-file-link';
 import styles from './ToolMessageCard.module.scss';
+import { areToolMessageCardPropsEqual } from './areToolMessageCardPropsEqual';
 import type { ToolMessageCardProps } from './types';
 import { TONE_CLASS_MAP } from './utils';
 
@@ -25,11 +26,13 @@ import { TONE_CLASS_MAP } from './utils';
  * Зачем нужно: первая строка остаётся компактной, а тяжёлые детали рендерятся только после раскрытия.
  * Пример: шеврон раскрывает preview результата, READ FILE открывает файл, а </> показывает сырой JSON.
  */
-export function ToolMessageCard({ message, collapseToolId }: ToolMessageCardProps) {
+export const ToolMessageCard = memo(ToolMessageCardView, areToolMessageCardPropsEqual);
+
+function ToolMessageCardView({ message, collapseToolId }: ToolMessageCardProps) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(message.approval === 'pending');
   const [rawOpen, setRawOpen] = useState(false);
-  const model = buildToolDisplayModel(message, t);
+  const model = useMemo(() => buildToolDisplayModel(message, t), [message, t]);
   const isRunning = message.status === 'running' || message.status === 'waiting';
   const needsApproval = message.approval === 'pending';
 

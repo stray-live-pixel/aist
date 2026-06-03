@@ -23,6 +23,7 @@
 .shell {
   display: grid;
   grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  align-items: start;
   gap: 14px;
   max-width: 1120px;
   margin: 0 auto;
@@ -89,6 +90,11 @@
   border-color: color-mix(in srgb, var(--vscode-focusBorder) 50%, var(--agent-border));
   color: var(--vscode-foreground);
   background: color-mix(in srgb, var(--vscode-focusBorder) 14%, var(--vscode-editor-background));
+}
+
+.navButtonStandalone {
+  border-color: var(--agent-border);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 24%, transparent);
 }
 
 .navIcon {
@@ -381,6 +387,118 @@
   background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
 }
 
+.performanceIntroRow {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.performanceOperationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.performanceOperationTile {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--vscode-textLink-foreground) 22%, var(--agent-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 7%, var(--vscode-input-background));
+  padding: 9px 10px;
+}
+
+.performanceOperationTitle {
+  overflow: hidden;
+  color: var(--vscode-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.performanceOperationMeta {
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.performanceChartList {
+  display: grid;
+  gap: 9px;
+}
+
+.performanceChartRow {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  border: 1px solid var(--agent-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--vscode-input-background) 52%, transparent);
+  padding: 9px 10px;
+}
+
+.performanceChartHeader {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.performanceChartLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.performanceChartBadges,
+.performanceChartStats {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.performanceChartBadges {
+  justify-content: flex-end;
+}
+
+.performanceBarTrack {
+  overflow: hidden;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, var(--vscode-focusBorder) 18%, var(--agent-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 62%, transparent);
+}
+
+.performanceBarFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--vscode-textLink-foreground) 72%, transparent),
+    color-mix(in srgb, var(--vscode-focusBorder) 76%, var(--vscode-textLink-foreground))
+  );
+}
+
+.performanceChartStats {
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
 .markdownPreview {
   overflow: auto;
   max-height: 340px;
@@ -515,6 +633,206 @@
   gap: 6px;
 }
 
+.overviewRoot {
+  gap: 12px;
+}
+
+.compactOverviewCard {
+  padding: 12px;
+}
+
+.compactOverviewCard > div:last-child {
+  margin-top: 10px;
+}
+
+.overviewHero {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--vscode-textLink-foreground) 18%, var(--agent-border));
+  border-radius: 18px;
+  corner-shape: squircle;
+  background:
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--vscode-textLink-foreground) 15%, transparent),
+      transparent 34%
+    ),
+    color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 18%, transparent);
+  padding: 10px 12px;
+}
+
+.overviewHeroMain {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.overviewHeaderActions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.overviewInlineHint {
+  display: inline-flex;
+  align-items: center;
+  color: var(--vscode-textLink-foreground);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: help;
+}
+
+.overviewPrimaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overviewTileGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overviewTileGridCompact {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.overviewRequestLead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--vscode-focusBorder) 20%, var(--agent-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-focusBorder) 6%, var(--vscode-input-background));
+  padding: 9px 10px;
+}
+
+.overviewRequestModelIcon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--vscode-textLink-foreground) 28%, var(--agent-border));
+  border-radius: 14px;
+  color: var(--vscode-textLink-foreground);
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 9%, transparent);
+}
+
+.overviewRequestModelText {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.overviewCardHint {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.overviewCardHint > svg {
+  flex-shrink: 0;
+}
+
+.overviewInstructionList {
+  display: grid;
+  gap: 8px;
+}
+
+.overviewInstructionCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  border: 1px solid var(--agent-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-input-background) 48%, transparent);
+  padding: 9px 10px;
+}
+
+.overviewInstructionCardMain {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.overviewInstructionCardHeader {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.overviewInstructionOrigin {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.overviewInstructionPreview {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  border-left: 2px solid color-mix(in srgb, var(--vscode-textLink-foreground) 30%, var(--agent-border));
+  color: var(--vscode-descriptionForeground);
+  padding-left: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.overviewInstructionCardActions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.overviewModalHeaderActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.overviewModalBody {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.overviewInstructionModalBody {
+  display: grid;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.overviewInstructionModalBody > pre {
+  max-height: none;
+}
+
 @media (max-width: 760px) {
   .shell {
     grid-template-columns: 1fr;
@@ -533,7 +851,56 @@
     grid-template-columns: 1fr;
   }
 
-  .metricsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .metricsGrid,
+  .performanceOperationGrid,
+  .overviewPrimaryGrid,
+  .overviewTileGrid,
+  .overviewTileGridCompact {
+    grid-template-columns: 1fr;
   }
+
+  .overviewInstructionCard {
+    grid-template-columns: 1fr;
+  }
+
+  .overviewHeaderActions {
+    justify-content: flex-start;
+  }
+
+  .overviewInstructionCardActions {
+    justify-content: stretch;
+  }
+
+  .overviewInstructionCardActions > * {
+    flex: 1 1 160px;
+  }
+}
+
+@media (max-width: 420px) {
+  .overviewHero,
+  .overviewRequestLead,
+  .overviewInstructionCard {
+    border-radius: 16px;
+    padding: 10px;
+  }
+
+  .overviewRequestLead {
+    grid-template-columns: 1fr;
+  }
+
+  .overviewHeaderActions,
+  .overviewHeaderActions > *,
+  .overviewInstructionCardActions > * {
+    width: 100%;
+  }
+
+  .performanceChartHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .performanceChartBadges {
+    justify-content: flex-start;
+  }
+
 }

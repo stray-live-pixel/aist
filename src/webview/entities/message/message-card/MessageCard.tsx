@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, memo, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -16,7 +16,14 @@ import { getMessageVariant, isCollapsibleMessage } from './utils';
  * Зачем нужно: единая точка рендеринга user/assistant/status/error/tool сообщений.
  * Tool-сообщения делегируются в ToolMessageCard для специфичной логики.
  */
-export function MessageCard({ message, collapseToolId, ...textMessageProps }: MessageCardProps) {
+export const MessageCard = memo(MessageCardView, areMessageCardPropsEqual);
+
+function MessageCardView({
+  message,
+  collapseToolId,
+  actionsSignature: _actionsSignature,
+  ...textMessageProps
+}: MessageCardProps) {
   if (message.role === 'tool') {
     return <ToolMessageCard message={message} collapseToolId={collapseToolId} />;
   }
@@ -120,3 +127,20 @@ type MessageHeaderProps = {
   expanded: boolean;
   onToggle(): void;
 };
+
+/**
+ * Что это: правило повторного рендера message-card.
+ * Зачем нужно: старые markdown/tool карточки не должны заново парситься,
+ * когда backend обновляет соседний tool-call или статус активности.
+ * Какую продуктовую проблему решает: несколько параллельных агентов не забивают CPU
+ * повторным рендером всей истории чата.
+ */
+function areMessageCardPropsEqual(previous: MessageCardProps, next: MessageCardProps): boolean {
+  return (
+    previous.message === next.message &&
+    previous.actionsSignature === next.actionsSignature &&
+    previous.authorLabel === next.authorLabel &&
+    previous.defaultExpanded === next.defaultExpanded &&
+    previous.collapseToolId === next.collapseToolId
+  );
+}

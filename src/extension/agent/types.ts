@@ -42,6 +42,17 @@ export type AgentRun = CoreAgentRun<AgentRunTelemetryDraft>;
  */
 export type WebviewMessage =
   | { type: 'webviewReady' }
+  | {
+      type: 'performance.renderMetric';
+      component: string;
+      chatId?: string;
+      messageCount?: number;
+      startedAt: number;
+      finishedAt: number;
+      durationMs: number;
+      renderCount: number;
+      maxRenderDurationMs: number;
+    }
   | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }

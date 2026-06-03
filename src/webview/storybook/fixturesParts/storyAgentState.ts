@@ -117,5 +117,18 @@ export const storyAgentState: AgentState = {
     jsonExport: '{}\n',
     markdownExport: '# AIST Telemetry\n'
   },
+  performanceTelemetry: {
+    storagePath: '/Users/example/.aist-agent/performance-telemetry',
+    recentRecords: [],
+    summary: [],
+    byChat: [],
+    byDay: [],
+    byWeek: [],
+    byMonth: [],
+    byVersion: [],
+    blockers: [],
+    jsonExport: '{}\n',
+    markdownExport: '# AIST performance telemetry\n'
+  },
   projectToolDiagnostics: []
 };

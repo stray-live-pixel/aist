@@ -71,8 +71,21 @@ export type ExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string };
 
+export type WebviewRenderPerformanceMetric = {
+  type: 'performance.renderMetric';
+  component: string;
+  chatId?: string;
+  messageCount?: number;
+  startedAt: number;
+  finishedAt: number;
+  durationMs: number;
+  renderCount: number;
+  maxRenderDurationMs: number;
+};
+
 export type WebviewToExtensionMessage =
   | { type: 'webviewReady' }
+  | WebviewRenderPerformanceMetric
   | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }

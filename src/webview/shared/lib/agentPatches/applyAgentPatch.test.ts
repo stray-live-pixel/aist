@@ -162,6 +162,18 @@ function createState(): AgentState {
       jsonExport: '{}',
       markdownExport: ''
     },
+    performanceTelemetry: {
+      recentRecords: [],
+      summary: [],
+      byChat: [],
+      byDay: [],
+      byWeek: [],
+      byMonth: [],
+      byVersion: [],
+      blockers: [],
+      jsonExport: '{}',
+      markdownExport: ''
+    },
     projectToolDiagnostics: [],
     agentLanguage: 'ru',
     agentMode: 'default',

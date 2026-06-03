@@ -44,7 +44,8 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     toolPermissionPresets,
     activeToolPermissionPresetId,
     projectToolDiagnostics,
-    telemetry
+    telemetry,
+    performanceTelemetry
   } = state;
   const activeMode = useMemo(
     () => agentModes.find((mode) => mode.id === agentMode) || agentModes[0],
@@ -53,13 +54,13 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
   const content = (
     <main className={variant === 'embedded' ? styles.mainEmbedded : styles.main}>
       <div className={`${styles.shell} ${variant === 'embedded' ? styles.embeddedShell : ''}`}>
-        <SettingsSidebar activePage={activePage} onChange={setActivePage} />
+        <SettingsSidebar
+          activePage={activePage}
+          onChange={setActivePage}
+          onClose={variant === 'page' ? onBack : undefined}
+        />
         <div className={styles.content}>
-          <SettingsHeader
-            activePage={activePage}
-            onBack={variant === 'page' ? onBack : undefined}
-            compact={variant === 'embedded'}
-          />
+          <SettingsHeader activePage={activePage} />
           {activePage === 'overview' ? (
             <OverviewPage
               state={state}
@@ -69,6 +70,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
               customSkills={customSkills}
               instructionSources={instructionSources}
               codexAuthenticated={codexAuthenticated}
+              onNavigate={setActivePage}
             />
           ) : null}
           {activePage === 'instructions' ? <InstructionsSettingsPage promptConfig={promptConfig} /> : null}
@@ -96,7 +98,9 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
             <ProviderSettingsPage state={state} profiles={providerProfiles} codexAuthenticated={codexAuthenticated} />
           ) : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
-          {activePage === 'telemetry' ? <TelemetrySettingsPage telemetry={telemetry} /> : null}
+          {activePage === 'telemetry' ? (
+            <TelemetrySettingsPage telemetry={telemetry} performanceTelemetry={performanceTelemetry} />
+          ) : null}
           {activePage === 'compaction' ? (
             <CompactionSettingsPage settings={compactionSettings} auxiliaryModels={auxiliaryModels} models={models} />
           ) : null}

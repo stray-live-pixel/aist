@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { initializePerformanceTelemetryStore } from './core/features/performanceTelemetry';
 import { AgentController } from './extension/agent/agentController';
 import { type VscodeDaemonRuntimeBridge, createVscodeDaemonRuntimeBridge } from './extension/agent/daemon/bridge';
 import { AutonomousController } from './extension/autonomous/controller';
@@ -8,6 +9,7 @@ import { createLogger } from './extension/shared/logger';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const logger = createLogger();
+  initializePerformanceTelemetryStore();
   const viewContribution = getViewContribution(context, 'openrouterAgent.chats');
 
   logger.info('Activating extension', {

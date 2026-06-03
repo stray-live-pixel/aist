@@ -1,3 +1,4 @@
+import { recordPerformanceTelemetry } from '../../../../core/features/performanceTelemetry';
 import { getWorkspaceName } from '../../../shared/workspace';
 import {
   getActiveToolPermissionPresetId,
@@ -21,6 +22,7 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
     activeModel
   });
 
+  const postedAt = Date.now();
   const stateMessage = {
     type: 'state',
     viewKind: surface.kind,
@@ -42,6 +44,7 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
     approvalNotificationSettings: context.approvalNotificationSettings,
     composerUiSettings: context.composerUiSettings,
     telemetry: context.telemetry,
+    performanceTelemetry: context.performanceTelemetry,
     projectToolDiagnostics: context.projectToolDiagnostics,
     agentLanguage: context.language,
     agentMode: context.activeMode.id,
@@ -61,6 +64,7 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
 
   void surface.webview.postMessage(stateMessage).then(
     (delivered) => {
+      recordStatePostPerformance({ context, surface, chatId: activeChat.id, postedAt, status: 'success' });
       context.logger.info('State posted to webview', {
         surfaceId: surface.id,
         kind: surface.kind,
@@ -71,7 +75,38 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
       });
     },
     (error) => {
+      recordStatePostPerformance({ context, surface, chatId: activeChat.id, postedAt, status: 'error' });
       context.logger.error('Failed to post state to webview', error);
     }
   );
+}
+
+/**
+ * Что это: фиксирует latency отправки полного state в конкретную webview surface.
+ * Зачем нужно: большой snapshot чата может тормозить extension/webview при параллельных агентах.
+ * Какую продуктовую проблему решает: аналитика показывает, когда bottleneck — не модель, а доставка UI-state.
+ */
+function recordStatePostPerformance({
+  context,
+  surface,
+  chatId,
+  postedAt,
+  status
+}: {
+  context: StateContext;
+  surface: WebviewSurface;
+  chatId: string;
+  postedAt: number;
+  status: 'success' | 'error';
+}): void {
+  recordPerformanceTelemetry({
+    operation: 'webview.state',
+    extensionVersion: context.extensionVersion,
+    chatId,
+    surfaceId: surface.id,
+    surfaceKind: surface.kind,
+    startedAt: postedAt,
+    finishedAt: Date.now(),
+    status
+  });
 }

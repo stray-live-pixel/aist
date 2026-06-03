@@ -1,4 +1,4 @@
-import type { AgentItemScope, AgentMemoryScope, ToolPermissionMode } from '../../types';
+import type { AgentItemScope, AgentMemoryScope, ToolPermissionMode, WebviewRenderPerformanceMetric } from '../../types';
 import { post } from './post';
 
 /**
@@ -7,6 +7,9 @@ import { post } from './post';
  * Какую проблему решает: UI-компоненты вызывают продуктовые действия без сборки IPC payload вручную.
  */
 export const workflowActions = {
+  reportRenderPerformance(metric: Omit<WebviewRenderPerformanceMetric, 'type'>): void {
+    post({ message: { type: 'performance.renderMetric', ...metric } });
+  },
   setMemoryEnabled(scope: AgentMemoryScope, id: string, enabled: boolean): void {
     post({ message: { type: 'setMemoryEnabled', scope, id, enabled } });
   },

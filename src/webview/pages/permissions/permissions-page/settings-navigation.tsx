@@ -2,7 +2,6 @@ import { ArrowLeft } from 'lucide-react';
 import { memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
-import { IconButton } from '../../../shared/ui/IconButton';
 import styles from '../PermissionsPage.module.scss';
 import { NAV_GROUPS, NAV_ITEMS } from './navItems';
 import type { SettingsPageId } from './types';
@@ -13,14 +12,29 @@ import type { SettingsPageId } from './types';
  */
 export const SettingsSidebar = memo(function SettingsSidebar({
   activePage,
-  onChange
+  onChange,
+  onClose
 }: {
   activePage: SettingsPageId;
   onChange(page: SettingsPageId): void;
+  onClose?(): void;
 }) {
   const { t } = useI18n();
   return (
     <aside className={styles.sidebar}>
+      {onClose ? (
+        <button
+          type="button"
+          className={`${styles.navButton} ${styles.navButtonStandalone}`}
+          title={t('common.closeSettings')}
+          onClick={onClose}
+        >
+          <span className={styles.navIcon}>
+            <ArrowLeft size={15} />
+          </span>
+          <span>{t('common.close')}</span>
+        </button>
+      ) : null}
       {NAV_GROUPS.map((group) => (
         <section key={group.titleKey} className={styles.sidebarPanel}>
           <div className={styles.sidebarTitle}>{t(group.titleKey)}</div>
@@ -45,38 +59,11 @@ export const SettingsSidebar = memo(function SettingsSidebar({
 });
 
 /**
- * Что это: заголовок текущего раздела с опциональной кнопкой возврата.
- * Зачем нужно: в embedded-варианте заголовок компактный и без back-кнопки, но текст берётся из того же NAV_ITEMS.
+ * Что это: заголовок текущего раздела.
+ * Зачем нужно: основная область показывает только смысл активной настройки, а закрытие страницы живёт в sidebar как отдельное действие.
  */
-export const SettingsHeader = memo(function SettingsHeader({
-  activePage,
-  onBack,
-  compact = false
-}: {
-  activePage: SettingsPageId;
-  onBack?(): void;
-  compact?: boolean;
-}) {
-  const { t } = useI18n();
-  const item = NAV_ITEMS.find((navItem) => navItem.id === activePage) || NAV_ITEMS[0];
-
-  if (compact) {
-    return <PageIntro activePage={activePage} />;
-  }
-
-  return (
-    <div className={styles.headerRow}>
-      {onBack ? (
-        <IconButton title={t('common.backToChat')} onClick={onBack}>
-          <ArrowLeft size={15} />
-        </IconButton>
-      ) : null}
-      <header className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{t(item.labelKey)}</h1>
-        <p className={styles.pageDescription}>{t(item.descriptionKey)}</p>
-      </header>
-    </div>
-  );
+export const SettingsHeader = memo(function SettingsHeader({ activePage }: { activePage: SettingsPageId }) {
+  return <PageIntro activePage={activePage} />;
 });
 
 /**

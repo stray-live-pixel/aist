@@ -1,5 +1,6 @@
 import type { AgentControllerCallbacks } from './AgentControllerCallbacks';
 import type { AgentControllerState } from './AgentControllerState';
+import { hasPendingChatCreationSurface } from './hasPendingChatCreationSurface';
 
 /**
  * Что это: реагирует на изменение chat store и отправляет полный state, если patch не покрывает изменение.
@@ -15,8 +16,14 @@ export function handleChatStoreChange({
 }): void {
   queueMicrotask(() => {
     if (state.suppressedChatStoreStateBroadcasts > 0) {
+      // Горячий путь backend patch: не логируем каждый пропуск full state,
+      // иначе параллельные агенты нагружают OutputChannel и console без пользы для пользователя.
       state.suppressedChatStoreStateBroadcasts -= 1;
-      state.logger.info('Full state broadcast skipped because chat.patch will cover this backend update');
+      return;
+    }
+    if (hasPendingChatCreationSurface({ state })) {
+      // Во время создания новой вкладки surface ещё держит fallback chatId старого чата.
+      // Полный state придёт вручную сразу после привязки реального chatId.
       return;
     }
     callbacks.sendState();
