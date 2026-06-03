@@ -184,6 +184,7 @@ export type WebviewMessage =
   | { type: 'isolation.destroy'; sessionId: string }
   | { type: 'isolation.openWorktree'; sessionId: string }
   | { type: 'isolation.openPr'; sessionId: string }
+  | { type: 'isolation.openChat'; sessionId: string }
   | { type: 'isolation.loadEvents'; sessionId: string }
   | { type: 'isolation.refresh' };
 

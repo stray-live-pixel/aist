@@ -241,6 +241,17 @@ async function handleDaemonWebviewMessage({
       await vscode.env.openExternal(vscode.Uri.parse(session.prUrl));
       return true;
     }
+    case 'isolation.openChat': {
+      const session = state.daemonRuntime
+        .listIsolationSessions()
+        .find((candidate) => candidate.sessionId === message.sessionId);
+      if (!session?.chatId || !state.chats.getChat(session.chatId)) {
+        vscode.window.showWarningMessage('Isolated agent chat is not ready yet.');
+        return true;
+      }
+      callbacks.openChatInEditor(session.chatId);
+      return true;
+    }
     case 'isolation.loadEvents': {
       const events = await state.daemonRuntime.getIsolationEvents(message.sessionId);
       await surface.webview.postMessage({

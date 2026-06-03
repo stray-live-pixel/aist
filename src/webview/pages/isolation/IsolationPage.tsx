@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { agentActions } from '../../shared/lib/agentActions';
 import { useAgentState } from '../../shared/lib/agentState';
+import { isIsolationSessionActive } from '../../shared/lib/isolation';
 import type { IsolationSessionEvent, IsolationSessionStatus, IsolationSessionSummary } from '../../shared/types';
 import { Badge, Button, Text, TextArea } from '../../shared/ui';
 import type { BadgeTone } from '../../shared/ui';
@@ -20,7 +21,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
   const selectedSession = useMemo(
     () =>
       sessions.find((session) => session.sessionId === selectedSessionId) ||
-      sessions.find((session) => isActiveStatus(session.status)) ||
+      sessions.find((session) => isIsolationSessionActive({ status: session.status })) ||
       sessions[0],
     [selectedSessionId, sessions]
   );
@@ -37,7 +38,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
     }
 
     agentActions.loadIsolationSessionEvents(selectedSession.sessionId);
-    if (!isActiveStatus(selectedSession.status)) {
+    if (!isIsolationSessionActive({ status: selectedSession.status })) {
       return;
     }
 
@@ -93,9 +94,15 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
         />
-        <Button variant="primary" leadingIcon={<Play size={14} />} disabled={!prompt.trim()} onClick={start}>
-          Start detached run
-        </Button>
+        <div className={styles.launchActions}>
+          <Button variant="primary" leadingIcon={<Play size={14} />} disabled={!prompt.trim()} onClick={start}>
+            Start detached run
+          </Button>
+          <Text variant="caption">
+            AIST will create a standard chat for this Docker run. Open that chat to watch tool calls and answer flow
+            as if the agent worked locally.
+          </Text>
+        </div>
       </section>
 
       <section className={styles.sessions}>
@@ -114,6 +121,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
 
               <div className={styles.metaGrid}>
                 <Meta label="Session" value={session.sessionId} />
+                <Meta label="Chat" value={session.chatId || 'creating'} />
                 <Meta label="Container" value={session.containerName || session.containerId || 'not created'} />
                 <Meta label="Worktree" value={session.worktreePath || 'pending'} />
                 <Meta label="Commit" value={session.commitSha || 'pending'} />
@@ -121,6 +129,23 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
               </div>
 
               {session.stage ? <div className={styles.stage}>{session.stage}</div> : null}
+
+              <div className={styles.chatHint}>
+                <MessageSquare size={14} />
+                <span>
+                  Standard chat is the primary live view for this Docker agent. Daemon logs below are kept for
+                  diagnostics only.
+                </span>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  leadingIcon={<MessageSquare size={13} />}
+                  disabled={!session.chatId}
+                  onClick={() => agentActions.openIsolationChat(session.sessionId)}
+                >
+                  Open standard chat
+                </Button>
+              </div>
 
               {session.error ? <div className={styles.error}>{session.error}</div> : null}
 
@@ -140,14 +165,23 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                 ) : null}
                 <Button
                   size="sm"
-                  variant={selectedSessionId === session.sessionId ? 'primary' : 'ghost'}
+                  variant="primary"
                   leadingIcon={<MessageSquare size={13} />}
+                  disabled={!session.chatId}
+                  onClick={() => agentActions.openIsolationChat(session.sessionId)}
+                >
+                  Open standard chat
+                </Button>
+                <Button
+                  size="sm"
+                  variant={selectedSessionId === session.sessionId ? 'secondary' : 'ghost'}
+                  leadingIcon={<Server size={13} />}
                   onClick={() => {
                     setSelectedSessionId(session.sessionId);
                     agentActions.loadIsolationSessionEvents(session.sessionId);
                   }}
                 >
-                  Agent chat
+                  Logs
                 </Button>
                 {session.prUrl ? (
                   <Button
@@ -158,7 +192,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                     Open PR
                   </Button>
                 ) : null}
-                {isActiveStatus(session.status) ? (
+                {isIsolationSessionActive({ status: session.status }) ? (
                   <Button
                     size="sm"
                     variant="danger"
@@ -189,7 +223,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                 <TextArea
                   rows={2}
                   placeholder="Add follow-up instructions for this branch..."
-                  disabled={isActiveStatus(session.status)}
+                  disabled={isIsolationSessionActive({ status: session.status })}
                   value={continueBySessionId[session.sessionId] || ''}
                   onChange={(event) =>
                     setContinueBySessionId((current) => ({
@@ -201,7 +235,10 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                 <Button
                   size="sm"
                   leadingIcon={<Play size={13} />}
-                  disabled={isActiveStatus(session.status) || !(continueBySessionId[session.sessionId] || '').trim()}
+                  disabled={
+                    isIsolationSessionActive({ status: session.status }) ||
+                    !(continueBySessionId[session.sessionId] || '').trim()
+                  }
                   onClick={() => continueSession(session.sessionId)}
                 >
                   Continue
@@ -239,11 +276,11 @@ function IsolationEventChat({
   const sortedEvents = useMemo(() => [...events].sort((left, right) => left.at - right.at), [events]);
 
   return (
-    <section className={styles.eventChat} aria-label={`Agent chat for ${session.branchName}`}>
+    <section className={styles.eventChat} aria-label={`Daemon logs for ${session.branchName}`}>
       <div className={styles.eventChatHeader}>
-        <MessageSquare size={14} />
+        <Server size={14} />
         <div>
-          <strong>Agent chat</strong>
+          <strong>Daemon logs</strong>
           <span>{sortedEvents.length ? `${sortedEvents.length} events` : 'Waiting for first event...'}</span>
         </div>
         <Button
@@ -272,8 +309,8 @@ function IsolationEventChat({
           ))
         ) : (
           <div className={styles.eventEmpty}>
-            <MessageSquare size={18} />
-            <span>The daemon has not returned events for this session yet.</span>
+            <Server size={18} />
+            <span>The daemon has not returned logs for this session yet.</span>
           </div>
         )}
       </div>
@@ -283,23 +320,9 @@ function IsolationEventChat({
 
 function getStatusTone(status: IsolationSessionStatus): BadgeTone {
   if (status === 'ready_for_review') return 'success';
-  if (isActiveStatus(status)) return 'warning';
+  if (isIsolationSessionActive({ status })) return 'warning';
   if (status === 'failed') return 'danger';
   return 'neutral';
-}
-
-function isActiveStatus(status: IsolationSessionStatus): boolean {
-  return (
-    status === 'queued' ||
-    status === 'preparing' ||
-    status === 'creating' ||
-    status === 'running_agent' ||
-    status === 'post_processing' ||
-    status === 'committing' ||
-    status === 'pushing' ||
-    status === 'creating_pr' ||
-    status === 'stopping'
-  );
 }
 
 function getEventSpeaker(event: IsolationSessionEvent): string {

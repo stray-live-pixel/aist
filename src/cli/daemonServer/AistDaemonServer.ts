@@ -21,6 +21,7 @@ import { DaemonFileLogger } from './DaemonFileLogger';
 import type { PendingApproval } from './PendingApproval';
 import { installAistDaemonServerMethods } from './installAistDaemonServerMethods';
 import { IsolationSessionManager } from './isolation/IsolationSessionManager';
+import { createIsolationChat } from './isolation/createIsolationChat';
 
 /**
  * Что это: локальный JSON-RPC daemon server AIST для workspace.
@@ -104,6 +105,13 @@ export class AistDaemonServer {
       now: this.now,
       idFactory: this.idFactory,
       emit: (event) => this.broadcastEvent(event),
+      createChat: async ({ chatId, prompt }) =>
+        createIsolationChat({
+          server: this,
+          chatId,
+          prompt,
+          modelSettings: await this.getDefaultChatModelSettings()
+        }),
       runAgent: (input) => this.runIsolationAgent(input)
     });
   }

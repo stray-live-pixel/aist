@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Composer } from '../../../features';
 import { agentActions } from '../../../shared/lib/agentActions';
 import { useAgentState } from '../../../shared/lib/agentState';
+import { findIsolationSessionByChatId, isIsolationSessionActive } from '../../../shared/lib/isolation';
 import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerformanceMetric';
 import type { AgentAttachment } from '../../../shared/types';
 import { MessageList } from '../../../widgets/message-list';
@@ -46,6 +47,10 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
   const chats = useSortedChats(state);
+  const isolationSession = findIsolationSessionByChatId({ state, chatId: state.activeChat.id });
+  const isolationSessionActive = isolationSession
+    ? isIsolationSessionActive({ status: isolationSession.status })
+    : false;
   const pendingApproval = state.activeChat.messages.find((message) => message.approval === 'pending');
   const pendingApprovalId = pendingApproval?.id;
 
@@ -108,7 +113,8 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
     setModelPanelOpen((current) => !current);
   }
 
-  const composerMinimized = transientView.busy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
+  const composerBusy = transientView.busy || isolationSessionActive;
+  const composerMinimized = composerBusy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
 
   function handleSubmitPrompt(
     prompt: string,
@@ -123,11 +129,22 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
         submittingAttachments: options.attachments
       }));
     }
+
+    if (isolationSession && !isolationSessionActive) {
+      agentActions.continueIsolationSession(isolationSession.sessionId, prompt);
+      return;
+    }
+
     agentActions.ask(prompt, options);
   }
 
   function handleStopRequested() {
     setTransient((current) => ({ ...current, stoppingChatId: state.activeChat.id }));
+    if (isolationSession && isolationSessionActive) {
+      agentActions.stopIsolationSession(isolationSession.sessionId);
+      return;
+    }
+
     agentActions.stop(state.activeChat.id);
   }
 
@@ -142,7 +159,7 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
         activePlan={state.activeChat.activePlan}
         tools={state.tools}
         assistantLabel={formatChatModelLabel(state.activeChat.model)}
-        busy={transientView.busy}
+        busy={composerBusy}
         activity={transientView.activity}
         activityDetail={transientView.activityDetail}
         modelRequest={state.activeChat.modelRequest}
@@ -198,6 +215,7 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
             vcsPanelOpen={vcsPanelOpen}
             pendingApproval={pendingApproval}
             approvalMinimized={approvalMinimized}
+            isolationSession={isolationSession}
             onApprovalMinimize={() => setApprovalMinimized(true)}
             onApprovalRestore={() => setApprovalMinimized(false)}
             onApprovalResolved={() => setResolvedApprovalId(pendingApproval?.id)}

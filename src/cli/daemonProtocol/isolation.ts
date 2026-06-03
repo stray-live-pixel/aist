@@ -17,6 +17,8 @@ export type IsolationProviderKind = 'docker-local';
 export type IsolationSessionSummary = {
   readonly sessionId: string;
   readonly taskId: string;
+  /** ID стандартного чата, где показывается живой ход работы isolated агента. */
+  readonly chatId?: string;
   readonly prompt: string;
   readonly branchName: string;
   readonly baseRef?: string;

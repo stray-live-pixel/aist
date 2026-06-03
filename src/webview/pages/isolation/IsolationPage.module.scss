@@ -48,6 +48,19 @@
   padding: 12px;
 }
 
+.launchActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.launchActions span {
+  min-width: 14rem;
+  flex: 1;
+}
+
 .sessions {
   display: grid;
   align-content: start;
@@ -129,6 +142,31 @@
   background: color-mix(in srgb, var(--vscode-focusBorder) 8%, transparent);
   padding: 7px 8px;
   font-size: 12px;
+}
+
+.chatHint {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, #0f766e 42%, var(--agent-border));
+  border-radius: 14px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, #0f766e 10%, var(--vscode-editor-background));
+  padding: 8px;
+}
+
+.chatHint svg {
+  flex-shrink: 0;
+  color: #2dd4bf;
+}
+
+.chatHint span {
+  min-width: 0;
+  flex: 1;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .promptPreview {
@@ -268,6 +306,8 @@
 
 @media (max-width: 520px) {
   .header,
+  .chatHint,
+  .launchActions,
   .sessionActions,
   .continueBox {
     align-items: stretch;

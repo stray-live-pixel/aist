@@ -48,7 +48,14 @@ export async function chatStop(this: AistDaemonServer, params: unknown): Promise
   const runId = activeRun?.runId || requestedRunId;
   const stopped = Boolean(activeRun);
   if (activeRun) {
-    this.runtime.stop(activeRun.runId);
+    const isolationSession = this.isolationSessions
+      .list()
+      .find((session) => session.chatId === activeRun.chatId && session.status !== 'destroyed');
+    if (isolationSession) {
+      await this.isolationSessions.stop(isolationSession.sessionId);
+    } else {
+      this.runtime.stop(activeRun.runId);
+    }
   }
 
   await this.broadcastStateChanged('chat.stop');

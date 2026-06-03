@@ -19,6 +19,9 @@ export const isolationActions = {
   openIsolationPullRequest(sessionId: string): void {
     post({ message: { type: 'isolation.openPr', sessionId } });
   },
+  openIsolationChat(sessionId: string): void {
+    post({ message: { type: 'isolation.openChat', sessionId } });
+  },
   loadIsolationSessionEvents(sessionId: string): void {
     post({ message: { type: 'isolation.loadEvents', sessionId } });
   },

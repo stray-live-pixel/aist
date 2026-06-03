@@ -1,4 +1,5 @@
 import type {
+  DaemonChatGetResult,
   DaemonIsolationDestroyResult,
   DaemonIsolationEventsResult,
   DaemonIsolationStartResult,
@@ -18,6 +19,7 @@ export async function startBridgeIsolationSession({
   const client = await getBridgeClient({ context });
   const result = await client.request<DaemonIsolationStartResult>('isolation.start', { prompt });
   context.state.isolationSessions = [result.session, ...context.state.isolationSessions];
+  await refreshIsolationSessionChat({ context, session: result.session });
   return result.session;
 }
 
@@ -33,6 +35,7 @@ export async function continueBridgeIsolationSession({
   const client = await getBridgeClient({ context });
   const result = await client.request<DaemonIsolationStartResult>('isolation.continue', { sessionId, prompt });
   upsertIsolationSession(context, result.session);
+  await refreshIsolationSessionChat({ context, session: result.session });
   return result.session;
 }
 
@@ -79,4 +82,25 @@ export function upsertIsolationSession(context: BridgeRuntimeContext, session: I
     session,
     ...context.state.isolationSessions.filter((candidate) => candidate.sessionId !== session.sessionId)
   ].sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+/**
+ * Что это: подтягивает стандартный чат isolated-сессии сразу после start/continue.
+ * Зачем нужно: кнопка «Open chat» может открыть обычную вкладку без ожидания следующего daemon event.
+ * Какую продуктовую проблему решает: пользователь сразу видит live-чат Docker-агента вместо пустой вкладки.
+ */
+async function refreshIsolationSessionChat({
+  context,
+  session
+}: {
+  context: BridgeRuntimeContext;
+  session: IsolationSessionSummary;
+}): Promise<void> {
+  if (!session.chatId) {
+    return;
+  }
+
+  const client = await getBridgeClient({ context });
+  const result = await client.request<DaemonChatGetResult>('chat.get', { chatId: session.chatId });
+  context.chats.upsert(result.chat);
 }

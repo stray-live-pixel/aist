@@ -22,6 +22,41 @@
   gap: 8px;
 }
 
+.isolationNotice {
+  display: flex;
+  width: min(100%, 768px);
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  margin: 0 auto;
+  border: 1px solid color-mix(in srgb, #0f766e 48%, var(--agent-border));
+  border-radius: 16px;
+  corner-shape: squircle;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, #0f766e 12%, var(--vscode-editor-background));
+  box-shadow: 0 10px 26px color-mix(in srgb, #0f766e 12%, transparent);
+  padding: 9px 12px;
+  pointer-events: auto;
+}
+
+.isolationNotice svg {
+  flex-shrink: 0;
+  color: #2dd4bf;
+}
+
+.isolationNoticeText {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+
+.isolationNoticeText span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .vcsControlsFloat,
 .modelControlsFloat {
   display: flex;

@@ -1,4 +1,9 @@
-import type { AgentState, ChatMessage } from '../../../shared/types';
+import { Server } from 'lucide-react';
+
+import { isIsolationSessionActive } from '../../../shared/lib/isolation';
+import type { AgentState, ChatMessage, IsolationSessionSummary } from '../../../shared/types';
+import { Badge, Text } from '../../../shared/ui';
+import type { BadgeTone } from '../../../shared/ui';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
 import { ModelSettingsPanel } from '../AgentSettingsSummary';
 import { ApprovalPromptModal } from '../ApprovalPromptModal';
@@ -17,6 +22,7 @@ export function ComposerNoticeStack({
   vcsPanelOpen,
   pendingApproval,
   approvalMinimized,
+  isolationSession,
   onApprovalMinimize,
   onApprovalRestore,
   onApprovalResolved,
@@ -28,17 +34,19 @@ export function ComposerNoticeStack({
   vcsPanelOpen: boolean;
   pendingApproval: ChatMessage | undefined;
   approvalMinimized: boolean;
+  isolationSession?: IsolationSessionSummary;
   onApprovalMinimize(): void;
   onApprovalRestore(): void;
   onApprovalResolved(): void;
   onOpenSettingsPage(page?: SettingsPageId): void;
 }) {
-  if (!modelPanelOpen && !vcsPanelOpen && !(pendingApproval && approvalMinimized)) {
+  if (!modelPanelOpen && !vcsPanelOpen && !isolationSession && !(pendingApproval && approvalMinimized)) {
     return undefined;
   }
 
   return (
     <div className={styles.composerNoticeStack}>
+      {isolationSession ? <IsolationChatNotice session={isolationSession} /> : null}
       {modelPanelOpen ? <ModelSettingsPanel state={state} minimized={composerMinimized} /> : null}
       {vcsPanelOpen ? (
         <VcsControls state={state} minimized={composerMinimized} onOpenVcsSettings={() => onOpenSettingsPage('vcs')} />
@@ -55,4 +63,40 @@ export function ComposerNoticeStack({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Что это: плашка режима Docker-чата над стандартным Composer.
+ * Зачем нужно: пользователь видит, что обычный чат сейчас управляет isolated-сессией, а не локальным workspace-run.
+ * Какую продуктовую проблему решает: follow-up и stop выглядят привычно, но безопасно направляются в Docker-агента.
+ */
+function IsolationChatNotice({ session }: { session: IsolationSessionSummary }) {
+  const active = isIsolationSessionActive({ status: session.status });
+
+  return (
+    <div className={styles.isolationNotice}>
+      <Server size={14} />
+      <div className={styles.isolationNoticeText}>
+        <Text variant="bodyStrong">Docker isolated chat</Text>
+        <Text variant="caption">
+          {active
+            ? 'Standard chat is watching the agent inside Docker. Stop stays in this isolated session; new prompts unlock after the run finishes.'
+            : 'This standard chat is linked to a finished Docker session. New prompt will continue the isolated branch.'}
+        </Text>
+      </div>
+      <Badge tone={getIsolationNoticeTone({ session })}>{session.status}</Badge>
+    </div>
+  );
+}
+
+/**
+ * Что это: выбирает цвет статуса isolated-чата.
+ * Зачем нужно: плашка в стандартном чате использует те же продуктовые смыслы, что и список сессий.
+ * Какую продуктовую проблему решает: пользователь быстро отличает активный Docker-run от ошибки или готового результата.
+ */
+function getIsolationNoticeTone({ session }: { session: IsolationSessionSummary }): BadgeTone {
+  if (session.status === 'ready_for_review') return 'success';
+  if (session.status === 'failed') return 'danger';
+  if (isIsolationSessionActive({ status: session.status })) return 'warning';
+  return 'neutral';
 }
