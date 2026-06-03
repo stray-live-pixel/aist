@@ -136,6 +136,18 @@ Webview построен по Feature-Sliced Design:
 5. Extension показывает approval UI и для file edits может открыть native editable diff через `src/extension/tools/editableDiffPreview.ts`.
 6. После approve/deny runtime продолжает run и пишет результат tool call в chat history.
 
+### Isolated agent sessions flow
+
+1. Пользователь открывает UI изолированных агентов в webview и запускает задачу.
+2. Webview отправляет `isolation.*` action через `src/webview/shared/lib/agentActions/**`.
+3. Extension controller вызывает daemon bridge methods в `src/extension/agent/daemon/bridge/**`.
+4. Daemon JSON-RPC методы `isolation.*` управляют `src/cli/daemonServer/isolation/IsolationSessionManager.ts`.
+5. Session manager создаёт git worktree через `src/cli/daemonServer/isolation/git/IsolationGitService.ts` и запускает `docker-local` provider.
+6. `src/cli/daemonServer/methods/runIsolationAgent.ts` поднимает отдельный `AgentRuntimeService` для worktree; filesystem tools работают по worktree, а `run_bash_script` выполняется через `docker exec`.
+7. После agent run manager уничтожает контейнер, делает commit/push/PR через git finalizer и пишет durable state/logs в user workspace storage.
+8. Daemon публикует `isolation.session.*` события, а extension после reconnect перечитывает `state.get`.
+9. Webview получает актуальные `isolationSessions` в `AgentState`, поэтому закрытие/открытие VS Code не требует ручных terminal-команд.
+
 ### Storage policy
 
 - Project-shareable: `<workspace>/.aist-agent` — project memory, declarative tools, autonomous definitions, settings.
@@ -220,6 +232,13 @@ Webview построен по Feature-Sliced Design:
 - `src/cli/daemonServer/methods/createToolCallHandler.ts` — tool call handler composition.
 - `src/cli/daemonServer/methods/getState.ts` — daemon state assembly.
 - `src/cli/daemonClient/DaemonJsonRpcClient.ts` — JSON-RPC client.
+- `src/cli/daemonProtocol/isolation.ts` — JSON-RPC contracts for isolated agent sessions.
+- `src/cli/daemonServer/isolation/IsolationSessionManager.ts` — durable isolated session lifecycle/state manager.
+- `src/cli/daemonServer/isolation/git/IsolationGitService.ts` — isolated git worktree, commit, push and PR finalizer.
+- `src/cli/daemonServer/isolation/LocalDockerIsolationProvider.ts` — local Docker container lifecycle provider.
+- `src/cli/daemonServer/isolation/runtime/createIsolatedToolCallHandler.ts` — isolated tool runner adapter; bash goes through Docker, file tools use worktree.
+- `src/cli/daemonServer/isolation/runtime/createInMemoryIsolationChatRepository.ts` — transient chat repository for detached isolated runtime runs.
+- `src/cli/daemonServer/methods/runIsolationAgent.ts` — daemon method that runs isolated `AgentRuntimeService` against worktree/container.
 
 ### VS Code extension host
 
@@ -257,6 +276,7 @@ Webview построен по Feature-Sliced Design:
 - `src/webview/pages/permissions/PermissionsPage.tsx` — settings/permissions page facade.
 - `src/webview/pages/permissions/permissions-page/PermissionsPage.tsx` — settings implementation shell.
 - `src/webview/pages/autonomous/AutonomousPage.tsx` — autonomous page facade.
+- `src/webview/pages/isolation/IsolationPage.tsx` — isolated agent sessions UI.
 - `src/webview/shared/lib/agentActions.ts` — webview-to-extension action facade.
 - `src/webview/shared/lib/agentPatches/applyAgentPatch.ts` — state patch application.
 - `src/webview/shared/types.ts` — shared webview type exports.

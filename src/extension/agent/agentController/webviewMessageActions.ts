@@ -201,6 +201,59 @@ async function handleDaemonWebviewMessage({
       await state.daemonRuntime.stop(message.chatId || surface.getChatId());
       callbacks.sendState();
       return true;
+    case 'isolation.start':
+      await state.daemonRuntime.startIsolationSession(message.prompt);
+      callbacks.sendState(surface);
+      return true;
+    case 'isolation.continue':
+      await state.daemonRuntime.continueIsolationSession(message.sessionId, message.prompt);
+      callbacks.sendState(surface);
+      return true;
+    case 'isolation.stop':
+      await state.daemonRuntime.stopIsolationSession(message.sessionId);
+      callbacks.sendState(surface);
+      return true;
+    case 'isolation.destroy':
+      await state.daemonRuntime.destroyIsolationSession(message.sessionId);
+      callbacks.sendState(surface);
+      return true;
+    case 'isolation.openWorktree': {
+      const session = state.daemonRuntime
+        .listIsolationSessions()
+        .find((candidate) => candidate.sessionId === message.sessionId);
+      if (!session?.worktreePath) {
+        vscode.window.showWarningMessage('Isolated worktree is not ready yet.');
+        return true;
+      }
+      await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(session.worktreePath), {
+        forceNewWindow: true
+      });
+      return true;
+    }
+    case 'isolation.openPr': {
+      const session = state.daemonRuntime
+        .listIsolationSessions()
+        .find((candidate) => candidate.sessionId === message.sessionId);
+      if (!session?.prUrl) {
+        vscode.window.showWarningMessage('Pull request is not ready yet.');
+        return true;
+      }
+      await vscode.env.openExternal(vscode.Uri.parse(session.prUrl));
+      return true;
+    }
+    case 'isolation.loadEvents': {
+      const events = await state.daemonRuntime.getIsolationEvents(message.sessionId);
+      await surface.webview.postMessage({
+        type: 'isolation.events',
+        sessionId: message.sessionId,
+        events
+      });
+      return true;
+    }
+    case 'isolation.refresh':
+      await state.daemonRuntime.refreshState();
+      callbacks.sendState(surface);
+      return true;
     case 'duplicateChat':
       vscode.window.setStatusBarMessage('Duplicate chat is not available in AIST daemon-only mode yet.', 2400);
       callbacks.sendState(surface);

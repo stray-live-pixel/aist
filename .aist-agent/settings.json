@@ -54,6 +54,7 @@
     "create_plan": "auto",
     "update_plan": "auto",
     "set_plan_item_status": "auto",
+    "spawn_agent": "auto",
     "run_skill": "auto"
   },
   "projectToolDisabledIds": [],
@@ -118,5 +119,8 @@
     "reasoningEffort": "auto",
     "allowTools": false
   },
-  "toolCallNotesRequired": false
+  "toolCallNotesRequired": false,
+  "memory": {
+    "autoApply": false
+  }
 }

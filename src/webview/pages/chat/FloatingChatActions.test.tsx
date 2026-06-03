@@ -22,6 +22,7 @@ describe('FloatingChatActions', () => {
           onNewChat={() => undefined}
           onOpenChats={() => undefined}
           onOpenSettings={() => undefined}
+          onOpenIsolation={() => undefined}
           vcsToggle={<button title="Show VCS controls: main">main</button>}
         />
       </I18nProvider>
@@ -35,6 +36,7 @@ describe('FloatingChatActions', () => {
       'Open chats',
       'Open this chat in editor',
       'Open this chat as JSON',
+      'Isolated agents',
       'Open agent settings',
       'Show VCS controls: main',
       'v1.2.3'

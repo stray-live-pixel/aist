@@ -23,6 +23,7 @@ export async function refreshBridgeState({
       return result.chat;
     })
   );
+  context.state.isolationSessions = [...(state.isolationSessions || [])];
   const savedActiveChatId = context.extensionContext.workspaceState.get<string>(DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY);
   context.chats.replaceAll(chats, activeChatId || savedActiveChatId || state.activeRun?.chatId);
 }

@@ -1,5 +1,6 @@
 import { installChatMethods } from './methodInstallers/installChatMethods';
 import { installConfigMethods } from './methodInstallers/installConfigMethods';
+import { installIsolationMethods } from './methodInstallers/installIsolationMethods';
 import { installLifecycleMethods } from './methodInstallers/installLifecycleMethods';
 import { installRuntimeMethods } from './methodInstallers/installRuntimeMethods';
 import { installSettingsMethods } from './methodInstallers/installSettingsMethods';
@@ -15,4 +16,5 @@ export function installAistDaemonServerMethods(): void {
   installRuntimeMethods();
   installSettingsMethods();
   installConfigMethods();
+  installIsolationMethods();
 }

@@ -47,6 +47,7 @@ export async function readState(this: AistDaemonServer): Promise<DaemonState> {
     },
     activeRun: this.getPrimaryActiveRun(),
     activeRuns: this.getActiveRuns(),
-    chats: await this.chatRepository.list()
+    chats: await this.chatRepository.list(),
+    isolationSessions: this.isolationSessions.list()
   };
 }

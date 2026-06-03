@@ -194,6 +194,8 @@ function createState(): AgentState {
     },
     memoryItems: [],
     subagentRuns: [],
+    isolationSessions: [],
+    isolationEventsBySessionId: {},
     instructionSources: [],
     customSkills: [],
     codexAuthenticated: false,

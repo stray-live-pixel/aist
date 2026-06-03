@@ -177,7 +177,15 @@ export type WebviewMessage =
   | { type: 'vcs.refresh' }
   | { type: 'vcs.isolateChat' }
   | { type: 'vcs.commitAndForcePush' }
-  | { type: 'vcs.mergeToMain' };
+  | { type: 'vcs.mergeToMain' }
+  | { type: 'isolation.start'; prompt: string }
+  | { type: 'isolation.continue'; sessionId: string; prompt: string }
+  | { type: 'isolation.stop'; sessionId: string }
+  | { type: 'isolation.destroy'; sessionId: string }
+  | { type: 'isolation.openWorktree'; sessionId: string }
+  | { type: 'isolation.openPr'; sessionId: string }
+  | { type: 'isolation.loadEvents'; sessionId: string }
+  | { type: 'isolation.refresh' };
 
 /**
  * Абстракция над webview-поверхностью: sidebar и editor panel имеют разный

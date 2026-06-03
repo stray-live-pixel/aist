@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 
-import type { DaemonEvent } from '../../../../cli/daemonProtocol';
+import type { DaemonEvent, DaemonIsolationEvent, IsolationSessionSummary } from '../../../../cli/daemonProtocol';
 import type {
   AgentAttachment,
   ChatModelSettings,
@@ -40,6 +40,12 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
   listSubagentRuns(parentChatId: string): Promise<readonly SubagentRun[]>;
   getSubagentRun(runId: string): Promise<SubagentRun | undefined>;
+  listIsolationSessions(): readonly IsolationSessionSummary[];
+  getIsolationEvents(sessionId: string): Promise<readonly DaemonIsolationEvent[]>;
+  startIsolationSession(prompt: string): Promise<IsolationSessionSummary>;
+  continueIsolationSession(sessionId: string, prompt: string): Promise<IsolationSessionSummary>;
+  stopIsolationSession(sessionId: string): Promise<IsolationSessionSummary | null>;
+  destroyIsolationSession(sessionId: string): Promise<IsolationSessionSummary | null>;
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void>;
   syncToolPermissions(): Promise<void>;
   refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;

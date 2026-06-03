@@ -28,5 +28,8 @@
   },
   "openrouterAgent.codexServiceTier": "priority",
   "openrouterAgent.streamingEnabled": false,
-  "openrouterAgent.toolCallNotesRequired": false
+  "openrouterAgent.toolCallNotesRequired": false,
+  "openrouterAgent.memory": {
+    "autoApply": false
+  }
 }

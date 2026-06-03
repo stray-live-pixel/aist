@@ -20,6 +20,7 @@ import type { DaemonConnection } from './DaemonConnection';
 import { DaemonFileLogger } from './DaemonFileLogger';
 import type { PendingApproval } from './PendingApproval';
 import { installAistDaemonServerMethods } from './installAistDaemonServerMethods';
+import { IsolationSessionManager } from './isolation/IsolationSessionManager';
 
 /**
  * Что это: локальный JSON-RPC daemon server AIST для workspace.
@@ -44,6 +45,7 @@ export class AistDaemonServer {
   readonly toolRegistry: ToolRegistry;
   readonly runtime: AgentRuntimeService;
   readonly autonomousBackend: AutonomousBackend;
+  readonly isolationSessions: IsolationSessionManager;
   readonly auxiliaryModel: AuxiliaryModelInvoker;
   readonly connections = new Set<DaemonConnection>();
   readonly pendingApprovalsById = new Map<string, PendingApproval>();
@@ -95,6 +97,15 @@ export class AistDaemonServer {
       idFactory: this.idFactory
     });
     this.autonomousBackend.onEvent((event) => this.broadcastEvent(event));
+    this.isolationSessions = new IsolationSessionManager({
+      workspaceRoot: this.workspaceRoot,
+      homeDir: this.homeDir,
+      env: this.env,
+      now: this.now,
+      idFactory: this.idFactory,
+      emit: (event) => this.broadcastEvent(event),
+      runAgent: (input) => this.runIsolationAgent(input)
+    });
   }
 }
 

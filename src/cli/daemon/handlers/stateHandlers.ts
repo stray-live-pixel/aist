@@ -19,6 +19,8 @@ export function handleStateRpcMethod({
   switch (method) {
     case 'initialize':
       return { handled: true, result: context.call('initializeMethod') };
+    case 'daemon.shutdown':
+      return { handled: true, result: context.call('daemonShutdown') };
     case 'state.get':
       return { handled: true, result: context.call('stateGet') };
     case 'events.subscribe':

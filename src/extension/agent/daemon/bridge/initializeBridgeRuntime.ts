@@ -1,4 +1,4 @@
-import type { DaemonInitializeResult } from '../../../../cli/daemonProtocol';
+import { DAEMON_PROTOCOL_VERSION, type DaemonInitializeResult } from '../../../../cli/daemonProtocol';
 import type { BridgeRuntimeContext } from './BridgeRuntimeContext';
 import { createBridgeChat } from './createBridgeChat';
 import { getBridgeClient } from './getBridgeClient';
@@ -11,8 +11,24 @@ import { refreshBridgeState } from './refreshBridgeState';
  * Какую продуктовую проблему решает: AIST webview открывается в готовом рабочем состоянии без ручного refresh.
  */
 export async function initializeBridgeRuntime({ context }: { context: BridgeRuntimeContext }): Promise<void> {
-  const client = await getBridgeClient({ context });
-  await client.request<DaemonInitializeResult>('initialize');
+  let client = await getBridgeClient({ context });
+  let initialized = await client.request<DaemonInitializeResult>('initialize');
+  if (initialized.state.protocolVersion !== DAEMON_PROTOCOL_VERSION) {
+    context.logger.info('Restarting stale AIST daemon after protocol mismatch', {
+      expectedProtocolVersion: DAEMON_PROTOCOL_VERSION,
+      actualProtocolVersion: initialized.state.protocolVersion,
+      socketPath: context.processManager.socketPath
+    });
+    await context.processManager.restartStaleDaemon(client);
+    context.state.client = undefined;
+    client = await getBridgeClient({ context });
+    initialized = await client.request<DaemonInitializeResult>('initialize');
+    if (initialized.state.protocolVersion !== DAEMON_PROTOCOL_VERSION) {
+      throw new Error(
+        `AIST daemon protocol mismatch after restart: expected ${DAEMON_PROTOCOL_VERSION}, got ${initialized.state.protocolVersion}.`
+      );
+    }
+  }
   await refreshBridgeState({ context });
 
   if (!context.chats.getSummaries().length) {

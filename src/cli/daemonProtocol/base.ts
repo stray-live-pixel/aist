@@ -1,7 +1,8 @@
 import type { AutonomousBackendEvent } from '../../core/processes/autonomous';
 import type { ChatSummary, JsonObject, RuntimeEvent } from '../../core/shared/types/types';
+import type { DaemonIsolationEvent, IsolationSessionSummary } from './isolation';
 
-export const DAEMON_PROTOCOL_VERSION = 1;
+export const DAEMON_PROTOCOL_VERSION = 2;
 export const DAEMON_EVENT_METHOD = 'event';
 export const DAEMON_BUSY_ERROR_CODE = 'run.busy';
 
@@ -52,6 +53,7 @@ export type DaemonState = {
   readonly activeRun: DaemonActiveRun | null;
   readonly activeRuns: readonly DaemonActiveRun[];
   readonly chats: readonly ChatSummary[];
+  readonly isolationSessions: readonly IsolationSessionSummary[];
 };
 
 export type DaemonStateChangedEvent = {
@@ -68,7 +70,7 @@ export type DaemonStateChangedEvent = {
 
 export type DaemonAutonomousEvent = AutonomousBackendEvent;
 
-export type DaemonEvent = RuntimeEvent | DaemonStateChangedEvent | DaemonAutonomousEvent;
+export type DaemonEvent = RuntimeEvent | DaemonStateChangedEvent | DaemonAutonomousEvent | DaemonIsolationEvent;
 
 export type DaemonInitializeResult = {
   readonly operationId: string;

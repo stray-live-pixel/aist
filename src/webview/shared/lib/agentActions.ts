@@ -1,4 +1,5 @@
 import { chatActions } from './agentActions/chatActions';
+import { isolationActions } from './agentActions/isolationActions';
 import { promptActions } from './agentActions/promptActions';
 import { settingsActions } from './agentActions/settingsActions';
 import { workflowActions } from './agentActions/workflowActions';
@@ -10,6 +11,7 @@ import { workflowActions } from './agentActions/workflowActions';
  */
 export const agentActions = {
   ...chatActions,
+  ...isolationActions,
   ...settingsActions,
   ...promptActions,
   ...workflowActions

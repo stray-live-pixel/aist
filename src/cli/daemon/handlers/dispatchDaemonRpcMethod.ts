@@ -1,6 +1,7 @@
 import { handleAutonomousRpcMethod } from './autonomousHandlers';
 import { handleChatRpcMethod } from './chatHandlers';
 import { handleConfigRpcMethod } from './configHandlers';
+import { handleIsolationRpcMethod } from './isolationHandlers';
 import { handleStateRpcMethod } from './stateHandlers';
 import { handleSubscriptionRpcMethod } from './subscriptionHandlers';
 import type { DaemonHandlerContext } from './types';
@@ -28,7 +29,8 @@ export function dispatchDaemonRpcMethod({
     handleStateRpcMethod({ context, connection, method, params }),
     handleChatRpcMethod({ context, method, params }),
     handleConfigRpcMethod({ context, method, params }),
-    handleAutonomousRpcMethod({ context, method, params })
+    handleAutonomousRpcMethod({ context, method, params }),
+    handleIsolationRpcMethod({ context, method, params })
   ];
   const handled = handlerResults.find((result) => result.handled);
 

@@ -1,4 +1,4 @@
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import * as vscode from 'vscode';
 
@@ -23,7 +23,7 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
   private readonly connectClient: (socketPath: string) => Promise<DaemonJsonRpcClient>;
   private readonly existsSync: (filePath: string) => boolean;
   private readonly setTimer: typeof setTimeout;
-  private child: ChildProcessWithoutNullStreams | undefined;
+  private child: ChildProcess | undefined;
   private client: DaemonJsonRpcClient | undefined;
   private startPromise: Promise<DaemonJsonRpcClient> | undefined;
   private restartTimer: NodeJS.Timeout | undefined;
@@ -69,6 +69,22 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
     return this.getClient();
   }
 
+  async restartStaleDaemon(client?: DaemonJsonRpcClient): Promise<DaemonJsonRpcClient> {
+    this.setStatus({ state: 'starting', message: 'Restarting stale AIST daemon.' });
+    await this.requestDaemonShutdown(client || this.client);
+    client?.close();
+    this.client?.close();
+    this.client = undefined;
+    this.startPromise = undefined;
+    this.child?.kill();
+    this.child = undefined;
+    await this.terminateSocketOwner();
+    if (process.platform !== 'win32') {
+      await fs.promises.rm(this.socketPath, { force: true }).catch(() => undefined);
+    }
+    return this.getClient();
+  }
+
   dispose(): void {
     this.disposed = true;
     if (this.restartTimer) {
@@ -77,7 +93,6 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
     }
     this.client?.close();
     this.client = undefined;
-    this.child?.kill();
     this.child = undefined;
   }
 
@@ -129,10 +144,15 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
   private spawnDaemon(daemonCommand: DaemonCommand): void {
     this.child = this.spawnProcess(daemonCommand.command, daemonCommand.args, {
       cwd: this.options.workspaceRoot,
-      env: process.env
+      env: process.env,
+      detached: true,
+      stdio: ['ignore', 'ignore', 'pipe']
     });
+    this.child.unref?.();
+    const stderrStream = this.child.stderr as (NodeJS.ReadableStream & { unref?: () => void }) | null | undefined;
+    stderrStream?.unref?.();
     let stderr = '';
-    this.child.stderr.on('data', (chunk: Buffer) => {
+    stderrStream?.on('data', (chunk: Buffer) => {
       stderr = `${stderr}${chunk.toString('utf8')}`.slice(-4000);
     });
     this.child.on('error', (error) => {
@@ -206,7 +226,76 @@ export class VscodeDaemonProcessManager implements vscode.Disposable {
     this.restartTimer.unref();
   }
 
+  private async requestDaemonShutdown(client: DaemonJsonRpcClient | undefined): Promise<void> {
+    if (!client) {
+      return;
+    }
+
+    await Promise.race([client.request('daemon.shutdown'), delay({ ms: 500 })]).catch(() => undefined);
+    await delay({ ms: 250 });
+  }
+
+  private async terminateSocketOwner(): Promise<void> {
+    if (process.platform === 'win32') {
+      return;
+    }
+
+    const pids = await findSocketOwnerPids(this.socketPath).catch(() => []);
+    for (const pid of pids) {
+      if (pid === process.pid) {
+        continue;
+      }
+      await terminateProcess(pid);
+    }
+  }
+
   private setStatus(patch: Partial<DaemonProcessStatus>): void {
     this.statusValue = { ...this.statusValue, ...patch, socketPath: this.socketPath, restartCount: this.restartCount };
+  }
+}
+
+function findSocketOwnerPids(socketPath: string): Promise<number[]> {
+  return new Promise((resolve, reject) => {
+    execFile('lsof', ['-t', socketPath], (error, stdout) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      const pids = stdout
+        .toString()
+        .split('\n')
+        .map((line) => Number(line.trim()))
+        .filter((pid) => Number.isInteger(pid) && pid > 0);
+      resolve([...new Set(pids)]);
+    });
+  });
+}
+
+async function terminateProcess(pid: number): Promise<void> {
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch {
+    return;
+  }
+
+  await delay({ ms: 500 });
+  if (!isProcessAlive(pid)) {
+    return;
+  }
+
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch {
+    // Process exited between the liveness check and SIGKILL.
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
   }
 }

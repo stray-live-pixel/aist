@@ -17,6 +17,7 @@ import { chatDelete } from '../methods/chatDelete';
 import { chatGet } from '../methods/chatGet';
 import { chatList } from '../methods/chatList';
 import { chatMemoryAnalyze } from '../methods/chatMemoryAnalyze';
+import { daemonShutdown } from '../methods/daemonShutdown';
 
 /**
  * Что это: устанавливает группу lifecycle-методов daemon на prototype.
@@ -42,6 +43,7 @@ export function installLifecycleMethods(): void {
   AistDaemonServer.prototype.chatGet = chatGet;
   AistDaemonServer.prototype.chatList = chatList;
   AistDaemonServer.prototype.chatMemoryAnalyze = chatMemoryAnalyze;
+  AistDaemonServer.prototype.daemonShutdown = daemonShutdown;
 }
 
 declare module '../AistDaemonServer' {
@@ -64,5 +66,6 @@ declare module '../AistDaemonServer' {
     chatGet: typeof chatGet;
     chatList: typeof chatList;
     chatMemoryAnalyze: typeof chatMemoryAnalyze;
+    daemonShutdown: typeof daemonShutdown;
   }
 }

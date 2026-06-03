@@ -70,6 +70,7 @@ function postState({
     secretStore: state.secretStore,
     modelOptions: state.modelOptions,
     codexAuthenticated: state.codexAuthenticated,
+    isolationSessions: state.daemonRuntime.listIsolationSessions(),
     subagentRunsByChatId: new Map(
       surfaces.map((surface, index) => [surface.getChatId(), [...(runsBySurface[index] || [])]])
     ),

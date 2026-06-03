@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DaemonEvent } from '../../../cli/daemonProtocol';
+import type { DaemonEvent, DaemonIsolationEvent, IsolationSessionSummary } from '../../../cli/daemonProtocol';
 import type {
   AgentAttachment,
   ChatModelSettings,
@@ -22,6 +22,13 @@ import { disposeBridgeRuntime } from './bridge/disposeBridgeRuntime';
 import { getBridgeDefaultModelSettings } from './bridge/getBridgeDefaultModelSettings';
 import { getWorkspaceRoot } from './bridge/getWorkspaceRoot';
 import { initializeBridgeRuntime } from './bridge/initializeBridgeRuntime';
+import {
+  continueBridgeIsolationSession,
+  destroyBridgeIsolationSession,
+  getBridgeIsolationEvents,
+  startBridgeIsolationSession,
+  stopBridgeIsolationSession
+} from './bridge/isolationBridgeActions';
 import {
   analyzeBridgeMemoryChat,
   rejectBridgeReflectionCandidate,
@@ -161,6 +168,36 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     return getBridgeSubagentRun({ context: this.runtimeContext, runId });
   }
 
+  /** Возвращает сохранённые isolated sessions из последнего daemon state. */
+  listIsolationSessions(): readonly IsolationSessionSummary[] {
+    return this.runtimeContext.state.isolationSessions;
+  }
+
+  /** Возвращает event-log isolated session из daemon storage. */
+  getIsolationEvents(sessionId: string): Promise<readonly DaemonIsolationEvent[]> {
+    return getBridgeIsolationEvents({ context: this.runtimeContext, sessionId });
+  }
+
+  /** Стартует detached isolated session через daemon. */
+  startIsolationSession(prompt: string): Promise<IsolationSessionSummary> {
+    return startBridgeIsolationSession({ context: this.runtimeContext, prompt });
+  }
+
+  /** Продолжает detached isolated session в той же ветке/сессии. */
+  continueIsolationSession(sessionId: string, prompt: string): Promise<IsolationSessionSummary> {
+    return continueBridgeIsolationSession({ context: this.runtimeContext, sessionId, prompt });
+  }
+
+  /** Останавливает isolated session/container через daemon. */
+  stopIsolationSession(sessionId: string): Promise<IsolationSessionSummary | null> {
+    return stopBridgeIsolationSession({ context: this.runtimeContext, sessionId });
+  }
+
+  /** Уничтожает isolated session/container через daemon. */
+  destroyIsolationSession(sessionId: string): Promise<IsolationSessionSummary | null> {
+    return destroyBridgeIsolationSession({ context: this.runtimeContext, sessionId });
+  }
+
   /** Разрешает tool approval в daemon. */
   resolveToolCall(messageId: string, decision: ToolApprovalDecision): Promise<void> {
     return resolveBridgeToolCall({ context: this.runtimeContext, messageId, decision });
@@ -210,6 +247,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       client: undefined,
       eventListeners: new Set<(event: DaemonEvent) => void>(),
       beforeStoreRefreshListeners: new Set<(event: DaemonEvent) => void>(),
+      isolationSessions: [],
       subagentRunsByParentChat: new Map<string, SubagentRun[]>(),
       lastSyncedSettings: '',
       refreshQueue: Promise.resolve(),

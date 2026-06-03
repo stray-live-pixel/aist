@@ -6,6 +6,7 @@ import { useAgentState } from '../../../shared/lib/agentState';
 import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerformanceMetric';
 import type { AgentAttachment } from '../../../shared/types';
 import { MessageList } from '../../../widgets/message-list';
+import { IsolationPage } from '../../isolation';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
 import {
   AgentSettingsSummary,
@@ -40,6 +41,7 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
   const [chatsOpen, setChatsOpen] = useState(false);
   const [approvalMinimized, setApprovalMinimized] = useState(false);
   const [vcsPanelOpen, setVcsPanelOpen] = useState(false);
+  const [isolationOpen, setIsolationOpen] = useState(false);
   const [modelPanelOpen, setModelPanelOpen] = useState(false);
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   const [resolvedApprovalId, setResolvedApprovalId] = useState<string | undefined>();
@@ -164,6 +166,7 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
             onNewChat={() => agentActions.newChat()}
             onOpenChats={() => setChatsOpen(true)}
             onOpenSettings={() => onOpenSettingsPage()}
+            onOpenIsolation={() => setIsolationOpen(true)}
             activeChatId={state.activeChat.id}
             vcsToggle={
               <VcsToggleButton
@@ -220,6 +223,7 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
           onResolved={() => setResolvedApprovalId(pendingApproval.id)}
         />
       ) : null}
+      {isolationOpen ? <IsolationPage onClose={() => setIsolationOpen(false)} /> : null}
     </div>
   );
 }

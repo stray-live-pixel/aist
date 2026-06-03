@@ -5,5 +5,6 @@ export * from './types/model';
 export * from './types/agentConfig';
 export * from './types/telemetry';
 export * from './types/autonomous';
+export * from './types/isolation';
 export * from './types/state';
 export * from './types/messages';

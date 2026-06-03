@@ -33,7 +33,10 @@ export function App() {
       const message = event.data;
 
       if (message.type === 'state') {
-        setState(message);
+        setState((current) => ({
+          ...message,
+          isolationEventsBySessionId: current?.isolationEventsBySessionId || message.isolationEventsBySessionId || {}
+        }));
         setLoadingMessage(translate(message.agentLanguage, 'app.loadingAgent'));
         if (message.viewKind === 'editor') {
           vscode.setState({ chatId: message.activeChat.id });
@@ -52,6 +55,18 @@ export function App() {
         setAutonomousError(null);
       } else if (message.type === 'autonomous.error') {
         setAutonomousError(message.message);
+      } else if (message.type === 'isolation.events') {
+        setState((current) =>
+          current
+            ? {
+                ...current,
+                isolationEventsBySessionId: {
+                  ...current.isolationEventsBySessionId,
+                  [message.sessionId]: message.events
+                }
+              }
+            : current
+        );
       }
     };
 

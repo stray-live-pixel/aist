@@ -19,6 +19,7 @@ import type {
   EditableAutonomousFlowDefinition
 } from './autonomous';
 import type { Chat, ChatMessage, ChatModelSettings, ChatSummary } from './chat';
+import type { IsolationSessionEvent } from './isolation';
 import type {
   AgentLanguage,
   AuxiliaryModelId,
@@ -71,7 +72,8 @@ export type ExtensionToWebviewMessage =
   | { type: 'showChats' }
   | { type: 'errorModal'; message: string }
   | { type: 'autonomous.state'; state: AutonomousState }
-  | { type: 'autonomous.error'; message: string };
+  | { type: 'autonomous.error'; message: string }
+  | { type: 'isolation.events'; sessionId: string; events: IsolationSessionEvent[] };
 
 export type WebviewRenderPerformanceMetric = {
   type: 'performance.renderMetric';
@@ -207,4 +209,12 @@ export type WebviewToExtensionMessage =
     }
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }
-  | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' };
+  | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' }
+  | { type: 'isolation.start'; prompt: string }
+  | { type: 'isolation.continue'; sessionId: string; prompt: string }
+  | { type: 'isolation.stop'; sessionId: string }
+  | { type: 'isolation.destroy'; sessionId: string }
+  | { type: 'isolation.openWorktree'; sessionId: string }
+  | { type: 'isolation.openPr'; sessionId: string }
+  | { type: 'isolation.loadEvents'; sessionId: string }
+  | { type: 'isolation.refresh' };

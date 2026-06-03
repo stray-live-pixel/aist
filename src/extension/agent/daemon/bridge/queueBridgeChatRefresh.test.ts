@@ -98,6 +98,7 @@ function createContext(): BridgeRuntimeContext {
       client: undefined,
       eventListeners: new Set(),
       beforeStoreRefreshListeners: new Set(),
+      isolationSessions: [],
       subagentRunsByParentChat: new Map(),
       lastSyncedSettings: '',
       refreshQueue: Promise.resolve(),
