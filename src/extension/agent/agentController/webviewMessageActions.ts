@@ -9,6 +9,7 @@ import { handleAgentWebviewMessage } from '../webview/messages';
 import type { AgentControllerCallbacks } from './AgentControllerCallbacks';
 import type { AgentControllerState } from './AgentControllerState';
 import { createChatFromDaemonWebview } from './createChatFromDaemonWebview';
+import { openIsolationChatFromController } from './openIsolationChatFromController';
 import { reportControllerError } from './reportControllerError';
 import { toToolApprovalDecision } from './toToolApprovalDecision';
 
@@ -241,17 +242,9 @@ async function handleDaemonWebviewMessage({
       await vscode.env.openExternal(vscode.Uri.parse(session.prUrl));
       return true;
     }
-    case 'isolation.openChat': {
-      const session = state.daemonRuntime
-        .listIsolationSessions()
-        .find((candidate) => candidate.sessionId === message.sessionId);
-      if (!session?.chatId || !state.chats.getChat(session.chatId)) {
-        vscode.window.showWarningMessage('Isolated agent chat is not ready yet.');
-        return true;
-      }
-      callbacks.openChatInEditor(session.chatId);
+    case 'isolation.openChat':
+      await openIsolationChatFromController({ state, callbacks, sessionId: message.sessionId });
       return true;
-    }
     case 'isolation.loadEvents': {
       const events = await state.daemonRuntime.getIsolationEvents(message.sessionId);
       await surface.webview.postMessage({

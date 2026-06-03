@@ -8,6 +8,7 @@ import type { IsolationSessionEvent, IsolationSessionStatus, IsolationSessionSum
 import { Badge, Button, Text, TextArea } from '../../shared/ui';
 import type { BadgeTone } from '../../shared/ui';
 import styles from './IsolationPage.module.scss';
+import { shouldEnableIsolationStandardChat } from './shouldEnableIsolationStandardChat';
 
 export function IsolationPage({ onClose }: { onClose(): void }) {
   const state = useAgentState();
@@ -140,7 +141,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                   size="sm"
                   variant="primary"
                   leadingIcon={<MessageSquare size={13} />}
-                  disabled={!session.chatId}
+                  disabled={!shouldEnableIsolationStandardChat({ session })}
                   onClick={() => agentActions.openIsolationChat(session.sessionId)}
                 >
                   Open standard chat
@@ -167,7 +168,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                   size="sm"
                   variant="primary"
                   leadingIcon={<MessageSquare size={13} />}
-                  disabled={!session.chatId}
+                  disabled={!shouldEnableIsolationStandardChat({ session })}
                   onClick={() => agentActions.openIsolationChat(session.sessionId)}
                 >
                   Open standard chat
