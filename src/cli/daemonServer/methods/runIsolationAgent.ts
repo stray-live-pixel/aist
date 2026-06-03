@@ -10,6 +10,7 @@ import type { IsolationAgentRunInput } from '../isolation/IsolationSessionManage
 import { createFileBackedRuntimeChatRepository } from '../createFileBackedRuntimeChatRepository';
 import { createIsolatedToolCallHandler } from '../isolation/runtime/createIsolatedToolCallHandler';
 import { getDaemonModelOption } from '../modelOptions';
+import { buildIsolationSystemPrompt } from './runIsolationAgentParts/buildIsolationSystemPrompt';
 
 /**
  * Что это: запускает полноценный agent runtime для isolated session.
@@ -136,22 +137,6 @@ export async function handleIsolationRuntimeEvent(
     await this.isolationSessions.setStage(sessionId, message);
   }
   await this.isolationSessions.log(sessionId, event.type === 'tool.call.failed' ? 'error' : 'info', message);
-}
-
-function buildIsolationSystemPrompt(input: IsolationAgentRunInput): string {
-  return [
-    'Isolated autonomous run instructions:',
-    `- Work only inside the isolated git worktree: ${input.worktreePath}.`,
-    '- Bash commands are executed inside the Docker container with /workspace mounted to that worktree.',
-    '- Do not modify the original user workspace outside this worktree.',
-    '- Do not create commits, push branches, or create pull requests manually; the daemon finalizer will do that.',
-    `- Always create or update a reviewable markdown artifact at docs/aist-isolated-runs/${input.session.sessionId}.md.`,
-    '- If the user asks a question or asks for analysis instead of code changes, write the complete answer into that markdown artifact.',
-    '- If you implement code changes, also update that markdown artifact with a short summary and verification notes.',
-    '- The isolated run is considered incomplete until at least one file is changed.',
-    '- When implementation is complete, provide a concise summary of changed behavior and any verification you performed.',
-    `- Current branch: ${input.session.branchName}.`
-  ].join('\n');
 }
 
 /**
