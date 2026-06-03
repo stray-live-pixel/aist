@@ -38,6 +38,7 @@ export function normalizeChatModelSettings({
     codexServiceTier,
     maxToolIterations: Math.max(0, Math.floor(Number(record.maxToolIterations) || 0)),
     editorContextMode,
-    streamingEnabled: record.streamingEnabled === true
+    streamingEnabled: record.streamingEnabled === true,
+    toolsDisabled: record.toolsDisabled === true
   };
 }

@@ -3,10 +3,8 @@ import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import type { ChatStatePatch } from './ChatStatePatch';
 import { normalizeState } from './normalizeState';
 import { readChatState } from './readChatState';
-import { rebuildChatIndex } from './rebuildChatIndex';
 import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
-import { touchChatMeta } from './touchChatMeta';
 import { writeChatState } from './writeChatState';
 
 /**
@@ -27,8 +25,6 @@ export async function updateChatState({
   const currentState = await readChatState({ context, chatId: meta.id });
 
   await writeChatState({ context, chatId: meta.id, state: normalizeState({ state: { ...currentState, ...patch } }) });
-  await touchChatMeta({ context, meta });
-  await rebuildChatIndex({ context });
 
   return requireChat({ context, chatId });
 }

@@ -56,7 +56,8 @@ function createModelSettings(model: string) {
     codexServiceTier: 'auto' as const,
     maxToolIterations: 0,
     editorContextMode: 'auto' as const,
-    streamingEnabled: false
+    streamingEnabled: false,
+    toolsDisabled: false
   };
 }
 
@@ -143,6 +144,7 @@ function createState(): AgentState {
       durationSeconds: 5
     },
     composerUiSettings: { gradientWhileBusy: true, minimizeOnBlur: true },
+    memorySettings: { autoApply: true },
     telemetry: {
       recentRuns: [],
       aggregates: {

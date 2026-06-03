@@ -22,6 +22,7 @@ export function Composer({
   settings,
   headerActions,
   footer,
+  footerControls,
   notice
 }: ComposerProps) {
   const { t } = useI18n();
@@ -41,6 +42,7 @@ export function Composer({
     gradientWhileBusy,
     settings,
     footer,
+    footerControls,
     notice,
     fallback: t('composer.noSettings'),
     placeholder: t('composer.placeholder'),

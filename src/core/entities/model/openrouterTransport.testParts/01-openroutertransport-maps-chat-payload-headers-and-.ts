@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { OpenRouterTool } from '../../../shared/types/types';
 import { OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../modelDefaults';
 import { getModelRequestErrorInfo } from '../modelErrors';
+import { MODEL_REQUEST_TIMEOUT_MS } from '../modelRequestTimeout';
 import type { FetchLike } from '../modelTransport';
 import { OpenRouterTransport } from '../openrouterTransport';
 import { CapturedRequest, captureFetch, captureTextFetch, createTool, readJsonBody, sseData } from './helpers';
@@ -48,6 +49,14 @@ describe('OpenRouterTransport', () => {
       Authorization: 'Bearer sk-test',
       'HTTP-Referer': 'https://aist.example',
       'X-Title': 'aist test'
+    });
+    const initWithDispatcher = requests[0].init as RequestInit & { dispatcher?: Record<symbol, unknown> };
+    const dispatcherOptions = Object.getOwnPropertySymbols(initWithDispatcher.dispatcher || {})
+      .map((symbol) => initWithDispatcher.dispatcher?.[symbol])
+      .find((value) => typeof value === 'object' && value !== null && 'bodyTimeout' in value);
+    expect(dispatcherOptions).toMatchObject({
+      bodyTimeout: MODEL_REQUEST_TIMEOUT_MS,
+      headersTimeout: MODEL_REQUEST_TIMEOUT_MS
     });
     expect(readJsonBody(requests[0].init)).toEqual({
       model: 'override-model',

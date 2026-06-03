@@ -5,3 +5,4 @@ import './chatRepository.testParts/04-chatrepository-persists-reflection-candida
 import './chatRepository.testParts/05-chatrepository-clears-messages-history-and-transie';
 import './chatRepository.testParts/06-chatrepository-deletes-chat-storage-and-rebuilds-t';
 import './chatRepository.testParts/07-chatrepository-supports-runtime-message-history-st';
+import './chatRepository.testParts/08-chatrepository-keeps-index-stable-for-hot-state-up';

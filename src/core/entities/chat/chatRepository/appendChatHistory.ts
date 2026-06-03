@@ -2,9 +2,10 @@ import type { OpenRouterMessage } from '../../../shared/types/types';
 import { appendJsonl } from '../../storage/storage';
 import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import { getChatHistoryPath } from './getChatHistoryPath';
-import { rebuildChatIndex } from './rebuildChatIndex';
+import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
 import { touchChatMeta } from './touchChatMeta';
+import { upsertChatIndexSummary } from './upsertChatIndexSummary';
 
 /**
  * Что это: добавление одного model-history сообщения.
@@ -23,5 +24,6 @@ export async function appendChatHistory({
   const meta = await requireChatMeta({ context, chatId });
   await appendJsonl(getChatHistoryPath({ context, chatId: meta.id }), message);
   await touchChatMeta({ context, meta });
-  await rebuildChatIndex({ context });
+  const updatedChat = await requireChat({ context, chatId: meta.id });
+  await upsertChatIndexSummary({ context, chat: updatedChat });
 }

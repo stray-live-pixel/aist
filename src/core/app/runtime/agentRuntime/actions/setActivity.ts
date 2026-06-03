@@ -20,6 +20,11 @@ export async function setActivity({
   activity: Chat['activity'];
   detail?: string;
 }): Promise<void> {
+  const currentChat = await context.deps.chatRepository.getChat(chatId);
+  if (currentChat && currentChat.activity === activity && currentChat.activityDetail === detail) {
+    return;
+  }
+
   await context.deps.chatRepository.setActivity(chatId, activity, detail);
   if (activity) {
     await emit({

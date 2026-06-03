@@ -175,6 +175,7 @@
 .profileSummaryButton,
 .compactChatButton,
 .toolCallNotesToggle,
+.chatScopedModeToggle,
 .hideComposerNarrow {
   flex-shrink: 0;
 }
@@ -194,7 +195,8 @@
   white-space: nowrap;
 }
 
-.toolCallNotesToggle {
+.toolCallNotesToggle,
+.chatScopedModeToggle {
   width: 26px;
   justify-content: center;
 }
@@ -211,6 +213,20 @@
 
 .toolCallNotesToggleActive:hover {
   background: color-mix(in srgb, #f59e0b 24%, var(--vscode-editor-background));
+}
+
+.chatScopedModeToggleActive {
+  border-color: color-mix(in srgb, #38bdf8 64%, var(--vscode-focusBorder));
+  color: #38bdf8;
+  background: color-mix(in srgb, #38bdf8 18%, var(--vscode-editor-background));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #38bdf8 22%, transparent) inset,
+    0 0 0 2px color-mix(in srgb, #38bdf8 12%, transparent);
+  transform: translateY(1px);
+}
+
+.chatScopedModeToggleActive:hover {
+  background: color-mix(in srgb, #38bdf8 24%, var(--vscode-editor-background));
 }
 
 .modelSummaryButton {

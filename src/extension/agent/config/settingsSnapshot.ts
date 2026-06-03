@@ -57,6 +57,7 @@ export function getDefaultModelSettings(): ChatModelSettings {
     codexServiceTier: snapshot.codexServiceTier,
     maxToolIterations: snapshot.maxToolIterations,
     editorContextMode: snapshot.editorContextMode,
-    streamingEnabled: snapshot.streamingEnabled
+    streamingEnabled: snapshot.streamingEnabled,
+    toolsDisabled: false
   };
 }

@@ -74,6 +74,9 @@ export const storyAgentState: AgentState = {
     gradientWhileBusy: true,
     minimizeOnBlur: true
   },
+  memorySettings: {
+    autoApply: true
+  },
   agentLanguage: 'ru',
   agentMode: 'frontend',
   agentModes: storyAgentModes,
@@ -86,6 +89,7 @@ export const storyAgentState: AgentState = {
       scope: 'project',
       note: 'Prefer focused Vitest coverage for the changed extension layer before broader checks.',
       enabled: true,
+      importance: 80,
       createdAt: storyNow - 1000 * 60 * 60 * 24,
       updatedAt: storyNow - 1000 * 60 * 30
     }

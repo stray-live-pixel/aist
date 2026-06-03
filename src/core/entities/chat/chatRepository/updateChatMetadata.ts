@@ -4,9 +4,9 @@ import type { ChatMetadataPatch } from './ChatMetadataPatch';
 import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import type { StoredChatMeta } from './StoredChatMeta';
 import { normalizeUsage } from './normalizeUsage';
-import { rebuildChatIndex } from './rebuildChatIndex';
 import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
+import { upsertChatIndexSummary } from './upsertChatIndexSummary';
 import { writeChatMeta } from './writeChatMeta';
 
 /**
@@ -27,8 +27,9 @@ export async function updateChatMetadata({
   const nextMeta = buildNextMeta({ meta, patch, now: context.now() });
 
   await writeChatMeta({ context, meta: nextMeta });
-  await rebuildChatIndex({ context });
-  return requireChat({ context, chatId });
+  const updatedChat = await requireChat({ context, chatId });
+  await upsertChatIndexSummary({ context, chat: updatedChat });
+  return updatedChat;
 }
 
 /**

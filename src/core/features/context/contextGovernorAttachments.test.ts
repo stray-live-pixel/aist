@@ -27,6 +27,7 @@ describe('governModelContext attachments', () => {
           mimeType: 'text/plain',
           size: 5,
           kind: 'file',
+          dataUrl: 'data:text/plain;base64,SW1wb3J0YW50IHRleHQ=',
           text: 'Important text'
         }
       ]
@@ -43,6 +44,42 @@ describe('governModelContext attachments', () => {
       {
         type: 'text',
         text: 'Attachment: notes.txt\nMIME: text/plain\nSize: 5 bytes\n\nContent:\nImportant text'
+      }
+    ]);
+  });
+
+  it('passes non-text file content as data url instead of metadata-only fallback', () => {
+    const result = governModelContext({
+      prompt: 'Analyze binary attachment',
+      history: [],
+      attachments: [
+        {
+          id: 'file-1',
+          name: 'archive.bin',
+          mimeType: 'application/octet-stream',
+          size: 4,
+          kind: 'file',
+          dataUrl: 'data:application/octet-stream;base64,AAEC/w=='
+        }
+      ]
+    });
+
+    const userMessage = result.messages[0];
+    expect(userMessage.content).toEqual([
+      {
+        type: 'text',
+        text: 'Analyze binary attachment\n\nAttached files for analysis:\n1. archive.bin (application/octet-stream)'
+      },
+      {
+        type: 'text',
+        text: [
+          'Attachment: archive.bin',
+          'MIME: application/octet-stream',
+          'Size: 4 bytes',
+          '',
+          'Content as data URL (base64):',
+          'data:application/octet-stream;base64,AAEC/w=='
+        ].join('\n')
       }
     ]);
   });

@@ -1,1 +1,6 @@
-export type ToolKind = 'builtin' | 'planning' | 'model' | 'skill' | 'project';
+/**
+ * Что это: тип зарегистрированного инструмента.
+ * Зачем нужно: ToolRunner выбирает правильный adapter без знания конкретной реализации.
+ * Какую продуктовую проблему решает: новые инструменты добавляются предсказуемо и не ломают существующий lifecycle.
+ */
+export type ToolKind = 'builtin' | 'planning' | 'model' | 'agent' | 'skill' | 'project';

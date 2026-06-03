@@ -7,7 +7,13 @@ import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerform
 import type { AgentAttachment } from '../../../shared/types';
 import { MessageList } from '../../../widgets/message-list';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
-import { AgentSettingsSummary, ComposerContextSummary, ModelSettingsToggleButton } from '../AgentSettingsSummary';
+import {
+  AgentSettingsSummary,
+  ComposerContextSummary,
+  ModelSettingsToggleButton,
+  ToolCallNotesToggleButton,
+  ToolsDisabledToggleButton
+} from '../AgentSettingsSummary';
 import { ApprovalPromptModal } from '../ApprovalPromptModal';
 import { ChatListModal } from '../ChatListModal';
 import styles from '../ChatPage.module.scss';
@@ -174,6 +180,12 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
             state={state}
             modelControl={<ModelSettingsToggleButton state={state} open={modelPanelOpen} onToggle={toggleModelPanel} />}
           />
+        }
+        footerControls={
+          <>
+            <ToolsDisabledToggleButton enabled={state.activeChat.modelSettings.toolsDisabled} />
+            <ToolCallNotesToggleButton required={state.toolCallNotesRequired} />
+          </>
         }
         notice={
           <ComposerNoticeStack

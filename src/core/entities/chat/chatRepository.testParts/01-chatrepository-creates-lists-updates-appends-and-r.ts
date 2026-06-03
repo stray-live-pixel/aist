@@ -55,8 +55,7 @@ describe('ChatRepository', () => {
         id: 'chat-1',
         title: 'Hello workspace',
         messageCount: 2,
-        lastUserMessage: 'Hello workspace',
-        busy: true
+        lastUserMessage: 'Hello workspace'
       })
     ]);
 

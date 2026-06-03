@@ -46,6 +46,8 @@
   "summary.toolPermissionPreset": "Tool permission preset",
   "summary.toolCallNotesTurboOn": "Turbo tools is on — reason and nextStep are optional to save tokens and finish tasks faster.",
   "summary.toolCallNotesTurboOff": "Turbo tools — makes tool reason and nextStep optional to save tokens and speed up tasks.",
+  "summary.toolsDisabledOn": "No-tools mode is on for this chat — the model will answer directly without tool calls.",
+  "summary.toolsDisabledOff": "No tools — quick direct model answer only in the current chat.",
   "summary.toolsCount": "{{count}} tools",
   "reasoning.auto": "Auto",
   "reasoning.low": "Low",

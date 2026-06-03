@@ -69,7 +69,9 @@ async function runLoop({
   const toolCallCounts = new Map<string, number>();
   let modelRequestNumber = 0;
 
-  for (let iteration = 0; config.maxToolIterations === 0 || iteration < config.maxToolIterations; iteration += 1) {
+  const maxIterations = config.toolsDisabled ? 1 : config.maxToolIterations;
+
+  for (let iteration = 0; maxIterations === 0 || iteration < maxIterations; iteration += 1) {
     throwIfStopped({ run });
     run.activityStream?.reset();
     await setActivity({
@@ -80,7 +82,8 @@ async function runLoop({
       detail: iteration > 0 ? context.text.requestModelAfterTools(iteration) : context.text.requestModel()
     });
 
-    const tools = await refreshTools({ context, config });
+    // В режиме ответа без инструментов не передаём tool schemas модели: она быстрее даёт обычный текстовый ответ.
+    const tools = config.toolsDisabled ? [] : await refreshTools({ context, config });
     modelRequestNumber += 1;
     const responseMessage = await requestModel({
       context,
@@ -105,7 +108,8 @@ async function runLoop({
       run,
       runId,
       usage,
-      toolCallCounts
+      toolCallCounts,
+      toolsDisabled: config.toolsDisabled === true
     });
     if (result) {
       return result;
@@ -114,10 +118,21 @@ async function runLoop({
 
   return finishWithAnswer({
     workingMessages,
-    answer: 'Stopped because the agent reached the tool iteration limit.',
+    answer: getIterationLimitAnswer({ toolsDisabled: config.toolsDisabled === true }),
     reasoning: undefined,
     usage
   });
+}
+
+/**
+ * Что это: выбирает fallback-ответ после исчерпания model-loop.
+ * Зачем нужно: режим без инструментов должен объяснить, что модель всё равно запросила tool-call, но AIST не дал tools текущему чату.
+ * Какую продуктовую проблему решает: пользователь понимает, почему быстрый model-only запрос завершился без выполнения действий.
+ */
+function getIterationLimitAnswer({ toolsDisabled }: { toolsDisabled: boolean }): string {
+  return toolsDisabled
+    ? 'Stopped because tools are disabled for this chat and the model requested a tool call instead of a direct answer.'
+    : 'Stopped because the agent reached the tool iteration limit.';
 }
 
 async function showRetryActivityIfNeeded({

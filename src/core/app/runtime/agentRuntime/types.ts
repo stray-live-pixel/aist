@@ -48,6 +48,8 @@ export type MaybePromise<T> = T | Promise<T>;
 export type AgentRuntimeConfigSnapshot = {
   maxToolIterations: number;
   streamingEnabled: boolean;
+  /** Когда true, текущий чат делает быстрый model-only запрос без tool schemas и tool-loop. */
+  toolsDisabled?: boolean;
   /** Когда true, schema инструментов не требует reason/nextStep и экономит токены на каждом tool-call. */
   toolCallNotesRequired?: boolean;
   disabledProjectToolIds?: readonly string[];

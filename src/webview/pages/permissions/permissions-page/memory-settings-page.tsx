@@ -8,22 +8,25 @@ import type {
   AgentMemoryScope,
   AgentReflectionCandidate,
   AuxiliaryModelsSettings,
+  MemorySettings,
   ModelOption,
   ReasoningEffort
 } from '../../../shared/types';
-import { Badge, Button, Card, Checkbox, Select } from '../../../shared/ui';
+import { Badge, Button, Card, Checkbox, Select, Switch } from '../../../shared/ui';
 import styles from '../PermissionsPage.module.scss';
 
 export const MemorySettingsPage = memo(function MemorySettingsPage({
   chatId,
   reflectionCandidates,
   memoryItems,
+  memorySettings,
   auxiliaryModels,
   models
 }: {
   chatId: string;
   reflectionCandidates: AgentReflectionCandidate[];
   memoryItems: AgentMemoryItem[];
+  memorySettings: MemorySettings;
   auxiliaryModels: AuxiliaryModelsSettings;
   models: ModelOption[];
 }) {
@@ -55,6 +58,12 @@ export const MemorySettingsPage = memo(function MemorySettingsPage({
         description="Выбирает релевантные заметки и анализирует чат для новых предложений памяти."
       >
         <div className={styles.formGrid}>
+          <Switch
+            label="Автоматически записывать заметки памяти"
+            description="После успешной задачи AIST сам анализирует чат и сохраняет только полезные заметки через AI-фильтр. Ручная кнопка анализа остаётся доступной."
+            checked={memorySettings.autoApply}
+            onChange={(event) => agentActions.setMemorySettings({ autoApply: event.target.checked })}
+          />
           <Select
             label="Модель субагента памяти"
             hint="Если модель не выбрана, используется модель текущего чата."
@@ -186,6 +195,8 @@ const MemoryItemCard = memo(function MemoryItemCard({ item }: { item: AgentMemor
         <p className={styles.preWrapText}>{item.note}</p>
         <span className={styles.mutedText}>
           {t('settings.memory.updated', { date: new Date(item.updatedAt || item.createdAt).toLocaleString() })}
+          {' · '}
+          Вес полезности: {item.importance ?? 50}
         </span>
       </div>
       <div className={styles.actions}>

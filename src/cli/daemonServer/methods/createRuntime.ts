@@ -94,10 +94,26 @@ export function createRuntime(this: AistDaemonServer): AgentRuntimeServiceType {
       enabled: false
     },
     hooks: {
-      onRunFinished: ({ runId }) => {
+      onRunFinished: async ({ chatId, runId, status }) => {
         this.unregisterActiveRun(runId);
         this.clearApprovalsForRun(runId);
-        return this.broadcastStateChanged('run.finished');
+        await this.broadcastStateChanged('run.finished', { chatId });
+
+        if (status !== 'success') {
+          return;
+        }
+
+        const autoMemoryEnabled = await this.getBooleanSetting(
+          ['openrouterAgent.memory.autoApply', 'memory.autoApply'],
+          true
+        );
+        if (!autoMemoryEnabled) {
+          return;
+        }
+
+        void this.chatMemoryAnalyze({ chatId }).catch((error) => {
+          this.logger.error('Automatic memory analysis failed', error);
+        });
       }
     }
   });

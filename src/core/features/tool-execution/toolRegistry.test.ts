@@ -41,6 +41,23 @@ describe('DefaultToolRegistry', () => {
     expect(registry.getTool('project_echo')).toMatchObject({ kind: 'project' });
   });
 
+  it('registers auxiliary model and spawned agent tools together', async () => {
+    const workspaceRoot = await createWorkspace();
+    const registry = new DefaultToolRegistry();
+
+    const snapshot = await registry.refresh({
+      workspaceRoot,
+      skills: [],
+      auxiliaryModelToolEnabled: true
+    });
+
+    expect(snapshot.tools.map((tool) => tool.function.name)).toEqual(
+      expect.arrayContaining(['invoke_model', 'spawn_agent'])
+    );
+    expect(registry.getTool('invoke_model')).toMatchObject({ kind: 'model' });
+    expect(registry.getTool('spawn_agent')).toMatchObject({ kind: 'agent' });
+  });
+
   it('keeps disabled and conflicting project tools out of model-visible tools', async () => {
     const workspaceRoot = await createWorkspace();
     await writeProjectTool(workspaceRoot, 'project_echo');

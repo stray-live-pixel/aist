@@ -20,6 +20,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setCompactionSettings',
     'setApprovalNotificationSettings',
     'setComposerUiSettings',
+    'setMemorySettings',
     'setAgentLanguage',
     'setAgentMode',
     'setAgentModeInstructions',

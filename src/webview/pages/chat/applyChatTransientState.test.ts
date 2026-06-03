@@ -84,7 +84,8 @@ function createChat(patch: Partial<Chat> = {}): Chat {
       codexServiceTier: 'auto',
       maxToolIterations: 0,
       editorContextMode: 'auto',
-      streamingEnabled: false
+      streamingEnabled: false,
+      toolsDisabled: false
     },
     messages: [],
     lastAnswer: '',

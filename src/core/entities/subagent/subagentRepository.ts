@@ -207,7 +207,7 @@ function normalizeRun(run: StoredSubagentRun): StoredSubagentRun {
     schemaVersion: SUBAGENT_RUN_SCHEMA_VERSION,
     id: assertRepositoryId(run.id, 'subagent run'),
     parentChatId: assertRepositoryId(run.parentChatId, 'parent chat'),
-    kind: run.kind === 'memory.analysis' ? run.kind : 'memory.analysis',
+    kind: run.kind === 'memory.analysis' || run.kind === 'agent.task' ? run.kind : 'memory.analysis',
     mode: run.mode === 'agent_loop' ? 'agent_loop' : 'single_model_call',
     title: typeof run.title === 'string' && run.title.trim() ? run.title : 'Субагент',
     status: normalizeStatus(run.status),

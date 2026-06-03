@@ -2,7 +2,12 @@ import type { ChatMessage } from './chatMessage';
 import type { JsonValue } from './json';
 import type { OpenRouterMessage } from './model';
 
-export type SubagentKind = 'memory.analysis';
+/**
+ * Что это: продуктовый тип дочернего запуска.
+ * Зачем нужно: UI и storage различают память и универсальных помощников без отдельных источников правды.
+ * Какую продуктовую проблему решает: пользователь понимает, какой субагент выполнял конкретную задачу.
+ */
+export type SubagentKind = 'memory.analysis' | 'agent.task';
 export type SubagentRunStatus = 'created' | 'running' | 'success' | 'error' | 'stopped';
 export type SubagentRunMode = 'single_model_call' | 'agent_loop';
 

@@ -10,6 +10,7 @@ export type {
   ToolRunnerActivityFormatter,
   ToolRunnerApprovalRequest,
   ToolRunnerApprovalService,
+  ToolRunnerAgentService,
   ToolRunnerAuxiliaryModelSettings,
   ToolRunnerDeps,
   ToolRunnerEventEmitter,
@@ -19,6 +20,7 @@ export type {
   ToolRunnerMutableContext,
   ToolRunnerPreviewAdapter,
   ToolRunnerRunRepository,
+  ToolRunnerSpawnAgentInput,
   ToolRunnerTelemetryRecorder
 } from './toolRunner/types';
 

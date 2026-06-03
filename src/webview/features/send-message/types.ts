@@ -30,6 +30,8 @@ export type ComposerProps = {
   headerActions?: ReactNode;
   /** Слот дополнительных действий/метаданных слева в нижней строке. */
   footer?: ReactNode;
+  /** Слот быстрых controls после скрепки, например переключатель Turbo tools. */
+  footerControls?: ReactNode;
   /** Слот предупреждения над composer, например про недоступные настройки. */
   notice?: ReactNode;
 };

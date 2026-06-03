@@ -23,7 +23,8 @@ export function normalizeModelSettings({
     codexServiceTier: settings.codexServiceTier === 'priority' ? 'priority' : 'auto',
     maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
     editorContextMode,
-    streamingEnabled: settings.streamingEnabled === true
+    streamingEnabled: settings.streamingEnabled === true,
+    toolsDisabled: settings.toolsDisabled === true
   };
 }
 

@@ -30,6 +30,7 @@ export function normalizeModelSettings({
       settings.editorContextMode === 'off'
         ? settings.editorContextMode
         : 'auto',
-    streamingEnabled: settings.streamingEnabled === true
+    streamingEnabled: settings.streamingEnabled === true,
+    toolsDisabled: settings.toolsDisabled === true
   };
 }

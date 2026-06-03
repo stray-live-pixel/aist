@@ -9,6 +9,7 @@ import {
 } from '../../../shared/types/types';
 import { CODEX_RESPONSES_URL, DEFAULT_CODEX_MODEL, FALLBACK_MODEL_OPTIONS } from '../modelDefaults';
 import { ModelRequestError } from '../modelErrors';
+import { withModelRequestTimeout } from '../modelRequestTimeout';
 import {
   type FetchLike,
   type ModelCatalogClient,
@@ -56,28 +57,30 @@ export class CodexResponsesTransport implements ModelClient, ModelCatalogClient 
     const payload = toCodexPayload(messages);
     const response = await this.fetchImpl(
       resolveProviderRequestUrl({ endpoint: this.endpoint, proxyHost: this.options.proxyHost }),
-      {
-        method: 'POST',
-        signal,
-        headers: {
-          authorization: `Bearer ${auth.accessToken}`,
-          'Content-Type': 'application/json',
-          originator: 'opencode',
-          ...(this.options.userAgent ? { 'User-Agent': this.options.userAgent } : {}),
-          session_id: this.sessionId,
-          ...(auth.accountId ? { 'ChatGPT-Account-Id': auth.accountId } : {})
-        },
-        body: JSON.stringify({
-          model,
-          store: false,
-          stream: true,
-          ...(codexServiceTier === 'priority' ? { service_tier: 'priority' } : {}),
-          ...(codexReasoningEffort ? { reasoning: { effort: codexReasoningEffort } } : {}),
-          instructions: payload.instructions,
-          input: payload.input,
-          ...(tools?.length ? { tools: tools.map(toCodexTool), tool_choice: 'auto' } : {})
-        })
-      }
+      withModelRequestTimeout({
+        init: {
+          method: 'POST',
+          signal,
+          headers: {
+            authorization: `Bearer ${auth.accessToken}`,
+            'Content-Type': 'application/json',
+            originator: 'opencode',
+            ...(this.options.userAgent ? { 'User-Agent': this.options.userAgent } : {}),
+            session_id: this.sessionId,
+            ...(auth.accountId ? { 'ChatGPT-Account-Id': auth.accountId } : {})
+          },
+          body: JSON.stringify({
+            model,
+            store: false,
+            stream: true,
+            ...(codexServiceTier === 'priority' ? { service_tier: 'priority' } : {}),
+            ...(codexReasoningEffort ? { reasoning: { effort: codexReasoningEffort } } : {}),
+            instructions: payload.instructions,
+            input: payload.input,
+            ...(tools?.length ? { tools: tools.map(toCodexTool), tool_choice: 'auto' } : {})
+          })
+        }
+      })
     );
     lifecycle?.onResponseHeaders?.({ status: response.status, statusText: response.statusText });
 

@@ -87,7 +87,11 @@ export {
   selectCompactionTailMessages,
   splitCompactionHistory
 } from '../../core/features/compaction/compaction';
-export { analyzeMemoryChatDetailed, getRelevantMemoryPromptBlockBySubagent } from '../../core/features/memory-subagent';
+export {
+  analyzeMemoryChatDetailed,
+  decideMemoryWrite,
+  getRelevantMemoryPromptBlockBySubagent
+} from '../../core/features/memory-subagent';
 export { validateReflectionCandidates } from '../../core/features/reflection/reflection';
 export { runNodeSkillTool } from '../../core/features/skills/skills';
 export { buildFileAgentSystemPrompt } from '../../core/features/system-prompt/filePromptConfig';
@@ -112,6 +116,8 @@ export {
   REDACTED_VALUE,
   unusedFetch
 } from './constants';
+export { applyMemoryAnalysisCandidates } from './applyMemoryAnalysisCandidates';
+export { applyMemoryCandidate } from './memoryAutoApply';
 export { createMemorySubagentMessages } from './memorySubagentMessages';
 
 export const createFileBackedRuntimeChatRepository = (repository: any) => createRepositoryAdapter({ repository });

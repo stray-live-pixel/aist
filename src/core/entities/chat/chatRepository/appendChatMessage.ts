@@ -5,9 +5,10 @@ import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import { DEFAULT_TITLE } from './DEFAULT_TITLE';
 import { createChatMessage } from './createChatMessage';
 import { getChatMessagesPath } from './getChatMessagesPath';
-import { rebuildChatIndex } from './rebuildChatIndex';
+import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
 import { toSingleLinePreview } from './toSingleLinePreview';
+import { upsertChatIndexSummary } from './upsertChatIndexSummary';
 import { writeChatMeta } from './writeChatMeta';
 
 /**
@@ -33,7 +34,8 @@ export async function appendChatMessage({
     context,
     meta: { ...meta, title: getNextTitle({ title: meta.title, message: nextMessage }), updatedAt: now }
   });
-  await rebuildChatIndex({ context });
+  const updatedChat = await requireChat({ context, chatId: meta.id });
+  await upsertChatIndexSummary({ context, chat: updatedChat });
   return nextMessage;
 }
 

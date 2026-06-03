@@ -21,7 +21,8 @@ import {
   type DaemonChatCreateResult,
   type DaemonChatGetResult,
   type DaemonEvent,
-  type DaemonState
+  type DaemonState,
+  type DaemonStateChangedEvent
 } from '../daemonProtocol';
 import {
   QueuedDaemonModelClient,
@@ -63,6 +64,14 @@ describe('AIST daemon JSON-RPC local socket', () => {
     });
     expect(firstAsk.runId).toEqual(expect.any(String));
 
+    const runtimeEvent = await firstEvents.waitFor(
+      (event) => event.type === 'run.activity' && event.runId === firstAsk.runId
+    );
+    const scopedStateChanged = await firstEvents.waitFor(
+      (event): event is DaemonStateChangedEvent => event.type === 'state.changed' && event.reason === runtimeEvent.type
+    );
+    expect(scopedStateChanged.chatId).toBe(firstChat.chat.id);
+
     const secondClient = await connectClient(server);
     const activeState = await secondClient.request<DaemonState>('state.get');
     expect(activeState.activeRun).toEqual({ runId: firstAsk.runId, chatId: firstChat.chat.id });
@@ -74,6 +83,24 @@ describe('AIST daemon JSON-RPC local socket', () => {
     });
     expect(secondAsk.runId).toEqual(expect.any(String));
     expect(secondAsk.runId).not.toBe(firstAsk.runId);
+
+    const secondRuntimeEvent = await firstEvents.waitFor(
+      (event): event is Extract<DaemonEvent, { type: 'run.activity' }> =>
+        event.type === 'run.activity' && event.runId === secondAsk.runId
+    );
+    expect(secondRuntimeEvent.chatId).toBe(secondChat.chat.id);
+    const secondScopedStateChanged = await firstEvents.waitFor(
+      (event): event is DaemonStateChangedEvent =>
+        event.type === 'state.changed' &&
+        event.reason === secondRuntimeEvent.type &&
+        event.chatId === secondChat.chat.id
+    );
+    expect(secondScopedStateChanged.chatId).toBe(secondChat.chat.id);
+
+    const progressStateChanges = firstEvents.items.filter(
+      (event): event is DaemonStateChangedEvent => event.type === 'state.changed' && event.reason === 'run.activity'
+    );
+    expect(progressStateChanges.every((event) => typeof event.chatId === 'string')).toBe(true);
 
     await expect(
       secondClient.request('chat.ask', {

@@ -17,6 +17,7 @@ import { getEditorContextMode } from '../methods/getEditorContextMode';
 import { getFirstConfigSetting } from '../methods/getFirstConfigSetting';
 import { getLanguage } from '../methods/getLanguage';
 import { getMemorySubagentSettings } from '../methods/getMemorySubagentSettings';
+import { spawnAgent } from '../methods/spawnAgent';
 
 /**
  * Что это: устанавливает группу runtime-методов daemon на prototype.
@@ -42,6 +43,7 @@ export function installRuntimeMethods(): void {
   AistDaemonServer.prototype.getFirstConfigSetting = getFirstConfigSetting;
   AistDaemonServer.prototype.getLanguage = getLanguage;
   AistDaemonServer.prototype.getMemorySubagentSettings = getMemorySubagentSettings;
+  AistDaemonServer.prototype.spawnAgent = spawnAgent;
 }
 
 declare module '../AistDaemonServer' {
@@ -64,5 +66,6 @@ declare module '../AistDaemonServer' {
     getFirstConfigSetting: typeof getFirstConfigSetting;
     getLanguage: typeof getLanguage;
     getMemorySubagentSettings: typeof getMemorySubagentSettings;
+    spawnAgent: typeof spawnAgent;
   }
 }

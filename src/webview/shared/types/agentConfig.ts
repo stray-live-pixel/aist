@@ -77,8 +77,13 @@ export type AgentMemoryItem = {
   scope: AgentMemoryScope;
   note: string;
   enabled: boolean;
+  importance: number;
   createdAt: number;
   updatedAt: number;
+};
+
+export type MemorySettings = {
+  autoApply: boolean;
 };
 
 export type AgentReflectionCandidateKind =

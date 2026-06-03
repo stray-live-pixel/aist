@@ -1,10 +1,10 @@
 ---
 title: AIST documentation
-description: User documentation for the AIST VS Code coding agent.
+description: AIST is a VS Code AI coding agent with workspace tools, safe approvals, OpenRouter, and ChatGPT Codex.
 template: splash
 hero:
   title: AIST
-  tagline: AI coding agent for VS Code with workspace tools, safe approvals, OpenRouter, and ChatGPT Codex.
+  tagline: Ship code faster with a VS Code-native AI agent that understands your workspace, runs tools safely, and keeps every change under your control.
   image:
     file: ../../../../assets/logo-main.svg
   actions:
@@ -12,34 +12,122 @@ hero:
       link: /getting-started/installation/
       icon: right-arrow
       variant: primary
-    - text: Read the user guide
+    - text: See the workflow
       link: /using-aist/chat-workflow/
       icon: open-book
 ---
 
-<div class="landing-grid">
-  <section class="landing-card">
-    <h3>Chat with your workspace</h3>
-    <p>AIST runs inside VS Code, sees your selected code or active file, and can inspect project files when needed.</p>
-  </section>
-  <section class="landing-card">
-    <h3>You stay in control</h3>
-    <p>Read-only tools can run automatically, while shell commands and file changes ask for confirmation by default.</p>
-  </section>
-  <section class="landing-card">
-    <h3>Preview edits before applying</h3>
-    <p>File mutations go through VS Code-native diff previews, so you can review and adjust changes before they are written.</p>
-  </section>
-  <section class="landing-card">
-    <h3>Use your preferred models</h3>
-    <p>Choose OpenRouter models or sign in to ChatGPT Codex and select models with the <code>codex:</code> prefix.</p>
-  </section>
+<section class="landing-hero-panel">
+  <div class="landing-hero-copy">
+    <p class="landing-eyebrow">VS Code agent for real repositories</p>
+    <h2>Ask for a feature, review the diff, keep shipping.</h2>
+    <p>
+      AIST brings a practical coding teammate into your editor: it reads the active file or selection,
+      explores the workspace when needed, asks before risky actions, and previews file edits in native VS Code diffs.
+    </p>
+    <div class="landing-actions">
+      <a class="landing-button landing-button-primary" href="/aist/getting-started/installation/">Install AIST</a>
+      <a class="landing-button" href="/aist/features/tools-and-safety/">Explore safety model</a>
+    </div>
+  </div>
+  <div class="landing-terminal" aria-label="AIST chat workflow preview">
+    <div class="landing-terminal-bar">
+      <span></span><span></span><span></span>
+      <strong>aist · workspace chat</strong>
+    </div>
+    <div class="landing-terminal-body">
+      <p><span class="landing-prompt">You</span> Add validation to the settings form and update tests.</p>
+      <p><span class="landing-prompt landing-prompt-agent">AIST</span> Reading related files and nearby tests…</p>
+      <p class="landing-tool">✓ read_file · SettingsPage.tsx</p>
+      <p class="landing-tool">✓ grep_search · validation tests</p>
+      <p><span class="landing-prompt landing-prompt-agent">AIST</span> I prepared a patch. Review it in VS Code diff preview before applying.</p>
+    </div>
+  </div>
+</section>
+
+<div class="landing-metrics" aria-label="AIST product highlights">
+  <div><strong>2</strong><span>model routes: OpenRouter and ChatGPT Codex</span></div>
+  <div><strong>Safe</strong><span>tool approvals and editable diff previews by default</span></div>
+  <div><strong>Native</strong><span>chat sidebar, editor panels, commands, and file context</span></div>
 </div>
 
-## Quick install
+<section class="landing-section">
+  <p class="landing-eyebrow">Why teams choose AIST</p>
+  <h2>Designed for controlled coding, not blind automation.</h2>
+  <div class="landing-grid landing-grid-three">
+    <article class="landing-card landing-card-glow">
+      <span class="landing-icon">01</span>
+      <h3>Understands the current task</h3>
+      <p>Selection-aware context lets AIST start with the code you are editing, then inspect the workspace only when the task needs it.</p>
+    </article>
+    <article class="landing-card landing-card-glow">
+      <span class="landing-icon">02</span>
+      <h3>Changes are reviewable</h3>
+      <p>File edits go through VS Code-native diff preview, so you can accept, reject, or refine patches before they touch the project.</p>
+    </article>
+    <article class="landing-card landing-card-glow">
+      <span class="landing-icon">03</span>
+      <h3>Works with your models</h3>
+      <p>Use OpenRouter model IDs directly or sign in to ChatGPT Codex and route coding work through <code>codex:</code> models.</p>
+    </article>
+  </div>
+</section>
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)
-```
+<section class="landing-section landing-split">
+  <div>
+    <p class="landing-eyebrow">Everyday developer flow</p>
+    <h2>From prompt to patch without leaving VS Code.</h2>
+    <p>
+      AIST keeps the whole loop in the editor: chat in the sidebar or an editor tab, let the agent inspect files,
+      approve shell commands when needed, and review final changes in a familiar diff.
+    </p>
+  </div>
+  <div class="landing-steps">
+    <div><strong>1</strong><span>Open a chat and describe the bug, refactor, test, or feature.</span></div>
+    <div><strong>2</strong><span>AIST gathers workspace context and plans the safest next actions.</span></div>
+    <div><strong>3</strong><span>You approve risky tools, review diffs, and keep full ownership.</span></div>
+  </div>
+</section>
 
-After installation, open the **aist** Activity Bar item, create a chat, choose a model, and ask a question.
+<section class="landing-section">
+  <p class="landing-eyebrow">Built for serious repositories</p>
+  <h2>Everything a coding agent needs to be useful in production work.</h2>
+  <div class="landing-grid">
+    <article class="landing-card">
+      <h3>Workspace tools</h3>
+      <p>Read files, search symbols, run focused commands, and edit project files with configurable permissions.</p>
+    </article>
+    <article class="landing-card">
+      <h3>Approvals and safety</h3>
+      <p>Read-only tools can run fast, while shell commands and mutations ask for confirmation unless you explicitly relax the rules.</p>
+    </article>
+    <article class="landing-card">
+      <h3>Agent modes and skills</h3>
+      <p>Create project instructions, custom modes, and reusable skills so AIST follows the way your team actually works.</p>
+    </article>
+    <article class="landing-card">
+      <h3>Autonomous runner</h3>
+      <p>Define longer project flows for repeatable agent work while preserving logs, artifacts, and review points.</p>
+    </article>
+    <article class="landing-card">
+      <h3>Persistent context</h3>
+      <p>Project memory, chat compaction, and workspace storage keep useful context available without mixing secrets into the repository.</p>
+    </article>
+    <article class="landing-card">
+      <h3>Daemon backend</h3>
+      <p>A CLI daemon owns runs, tools, model requests, and events, keeping the VS Code extension thin and responsive.</p>
+    </article>
+  </div>
+</section>
+
+<section class="landing-section landing-install">
+  <div>
+    <p class="landing-eyebrow">Start in one command</p>
+    <h2>Install AIST, choose a model, and ask your first workspace question.</h2>
+  </div>
+  <pre><code>bash &lt;(curl -fsSL https://raw.githubusercontent.com/stray-live-pixel/aist/main/scripts/install-from-github.sh)</code></pre>
+  <div class="landing-actions">
+    <a class="landing-button landing-button-primary" href="/aist/getting-started/quick-start/">Quick start</a>
+    <a class="landing-button" href="https://github.com/stray-live-pixel/aist">View on GitHub</a>
+  </div>
+</section>

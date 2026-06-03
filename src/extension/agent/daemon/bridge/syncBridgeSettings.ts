@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getAuxiliaryModelsSettings } from '../../config/auxiliaryModelSettings';
+import { getMemorySettings } from '../../config/memory';
 import { getProviderProfiles } from '../../config/providerProfiles';
 import { getAgentLanguage } from '../../config/settings';
 import { getAgentSettingsSnapshot } from '../../config/settingsSnapshot';
@@ -23,6 +24,7 @@ export async function syncBridgeSettings({ context }: { context: BridgeRuntimeCo
     toolCallNotesRequired: snapshot.toolCallNotesRequired,
     providerProfiles: getProviderProfiles(),
     auxiliaryModels: getAuxiliaryModelsSettings(),
+    memory: getMemorySettings(),
     language: getAgentLanguage(),
     toolPermissions:
       vscode.workspace.getConfiguration('openrouterAgent').get<Record<string, unknown>>('toolPermissions') || {},

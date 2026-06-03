@@ -62,7 +62,7 @@ export async function runToolAndRecordResult(input: RunToolAndRecordResultInput)
   runtime.deps.context.sendState?.();
 
   const result = withApprovalComment({
-    result: await runApprovedTool({ runtime, toolName, args, chatId: params.chat.id, previewHandle }),
+    result: await runApprovedTool({ runtime, toolName, args, chatId: params.chat.id, run: params.run, previewHandle }),
     comment: input.approvalComment
   });
   if (result.ok === false) runtime.deps.telemetry?.recordFailedEdit?.(toolName);

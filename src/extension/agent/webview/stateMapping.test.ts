@@ -67,6 +67,7 @@ function createModelSettings(model: string) {
     codexServiceTier: 'auto' as const,
     maxToolIterations: 0,
     editorContextMode: 'auto' as const,
-    streamingEnabled: false
+    streamingEnabled: false,
+    toolsDisabled: false
   };
 }

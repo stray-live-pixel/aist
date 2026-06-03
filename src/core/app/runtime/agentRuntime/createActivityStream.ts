@@ -21,20 +21,32 @@ export function createActivityStream({
   let reasoning = '';
   let content = '';
   let lastUpdateAt = 0;
+  let lastSentDetail: string | undefined;
 
   const flush = ({ force = false }: { force?: boolean } = {}) => {
     const currentTime = now();
-    if (!force && currentTime - lastUpdateAt < 120) {
+    if (!force && currentTime - lastUpdateAt < 250) {
+      return;
+    }
+
+    const reasoningPreview = normalizeActivityPreview({ value: reasoning });
+    const contentPreview = normalizeActivityPreview({ value: content });
+    const nextDetail = reasoningPreview
+      ? text.reasoning(reasoningPreview)
+      : contentPreview
+        ? text.answerDraft(contentPreview)
+        : undefined;
+
+    if (!nextDetail || nextDetail === lastSentDetail) {
       return;
     }
 
     lastUpdateAt = currentTime;
-    const reasoningPreview = normalizeActivityPreview({ value: reasoning });
-    const contentPreview = normalizeActivityPreview({ value: content });
+    lastSentDetail = nextDetail;
     if (reasoningPreview) {
-      setActivityDetail(text.reasoning(reasoningPreview));
-    } else if (contentPreview) {
-      setActivity('answering', text.answerDraft(contentPreview));
+      setActivityDetail(nextDetail);
+    } else {
+      setActivity('answering', nextDetail);
     }
   };
 
@@ -43,6 +55,7 @@ export function createActivityStream({
       reasoning = '';
       content = '';
       lastUpdateAt = 0;
+      lastSentDetail = undefined;
     },
     hasContent: () =>
       Boolean(normalizeActivityPreview({ value: reasoning }) || normalizeActivityPreview({ value: content })),

@@ -78,11 +78,29 @@ export type ToolRunnerTelemetryRecorder = {
 /** Что это: memory service для approval notes; зачем нужно: пользователь может сохранить правило approval; проблема: повторные решения становятся быстрее. */
 export type ToolRunnerMemoryService = { add(candidate: AgentMemoryCandidate): Promise<unknown> };
 
-/** Что это: настройки auxiliary model tool; зачем нужно: invoke_model читает отдельную модель/effort/tools policy; проблема: вспомогательная модель управляется отдельно. */
+/** Что это: настройки auxiliary model tool; зачем нужно: invoke_model/spawn_agent читают отдельную модель/effort/tools policy; проблема: вспомогательная модель управляется отдельно. */
 export type ToolRunnerAuxiliaryModelSettings = {
   model?: string;
   reasoningEffort?: ReasoningEffort;
   allowTools?: boolean;
+};
+
+/** Что это: вход запуска дочернего ИИ-агента; зачем нужно: tool runner передаёт adapter уже нормализованную задачу; проблема: основная модель делегирует независимые исследования без знания транспорта. */
+export type ToolRunnerSpawnAgentInput = {
+  parentChatId: string;
+  prompt: string;
+  system?: string;
+  title?: string;
+  mode: 'wait' | 'background';
+  model?: string;
+  reasoningEffort?: ReasoningEffort;
+  allowTools?: boolean;
+  signal?: AbortSignal;
+};
+
+/** Что это: adapter запуска дочерних ИИ-агентов; зачем нужно: core runner не зависит от daemon/runtime деталей; проблема: spawn_agent можно тестировать и менять без переписывания lifecycle tools. */
+export type ToolRunnerAgentService = {
+  spawn(input: ToolRunnerSpawnAgentInput): Promise<Record<string, unknown>>;
 };
 
 /** Что это: event emitter runtime; зачем нужно: run timeline получает tool/approval события; проблема: UI видит подробный прогресс. */
@@ -112,6 +130,7 @@ export type ToolRunnerDeps = {
   preview?: ToolRunnerPreviewAdapter;
   memory?: ToolRunnerMemoryService;
   auxiliaryModel?: AuxiliaryModelInvoker;
+  agentService?: ToolRunnerAgentService;
   getAuxiliaryModelSettings?(
     toolName: string
   ): ToolRunnerAuxiliaryModelSettings | Promise<ToolRunnerAuxiliaryModelSettings>;

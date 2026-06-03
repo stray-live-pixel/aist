@@ -33,6 +33,42 @@ import {
 } from './helpers';
 
 describe('ToolRunner', () => {
+  it('executes spawn_agent through the agent service adapter and records the result', async () => {
+    const registry = new DefaultToolRegistry();
+    await registry.refresh({ workspaceRoot: await createWorkspace(), skills: [], auxiliaryModelToolEnabled: true });
+    const context = createRunnerContext();
+    const spawn = vi.fn(async () => ({ ok: true, subagentRunId: 'subagent-1', content: 'Research summary' }));
+    const runner = createRunner(context, {
+      registry,
+      agentService: { spawn },
+      approvalService: autoApprovalService()
+    });
+
+    await runner.handleToolCall(
+      createHandleParams(
+        context,
+        createToolCall('spawn_agent', { prompt: 'Inspect src/core', title: 'Core research', mode: 'wait' })
+      )
+    );
+
+    expect(spawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentChatId: context.chat.id,
+        prompt: 'Inspect src/core',
+        title: 'Core research',
+        mode: 'wait'
+      })
+    );
+    expect(getLastToolMessage(context)).toMatchObject({
+      status: 'done',
+      result: expect.objectContaining({ subagentRunId: 'subagent-1', content: 'Research summary' })
+    });
+    expect(parseToolResult(context.workingMessages.at(-1)?.content)).toMatchObject({
+      subagentRunId: 'subagent-1',
+      content: 'Research summary'
+    });
+  });
+
   it('executes planning, filesystem, project and skill tools through adapters', async () => {
     const workspaceRoot = await createWorkspace();
     await writeProjectTool(workspaceRoot, 'project_echo');

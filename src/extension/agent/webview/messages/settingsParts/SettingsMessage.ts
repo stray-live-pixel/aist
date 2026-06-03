@@ -19,6 +19,7 @@ export type SettingsMessage = Extract<
   | { type: 'setCompactionSettings' }
   | { type: 'setApprovalNotificationSettings' }
   | { type: 'setComposerUiSettings' }
+  | { type: 'setMemorySettings' }
   | { type: 'setAgentLanguage' }
   | { type: 'setAgentMode' }
   | { type: 'setAgentModeInstructions' }

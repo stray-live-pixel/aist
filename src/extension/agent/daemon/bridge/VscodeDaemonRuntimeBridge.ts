@@ -45,4 +45,5 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   refreshModels(force?: boolean, provider?: ModelProvider | 'all'): Promise<readonly OpenRouterModelOption[]>;
   refreshState(): Promise<void>;
   onEvent(listener: (event: DaemonEvent) => void): () => void;
+  onBeforeStoreRefresh(listener: (event: DaemonEvent) => void): () => void;
 };

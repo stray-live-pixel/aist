@@ -6,6 +6,7 @@ export type ToolRegistryImplementationOptions = {
   planningToolDefinitions?: readonly OpenRouterTool[];
   skillTool?: OpenRouterTool;
   modelTool?: OpenRouterTool;
+  agentTool?: OpenRouterTool;
   discoverProjectTools?: typeof discoverProjectTools;
   executeProjectTool?: typeof executeProjectTool;
 };

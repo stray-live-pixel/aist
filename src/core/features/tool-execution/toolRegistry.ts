@@ -6,4 +6,5 @@ export { ToolRegistryImplementationOptions } from './toolRegistryParts/ToolRegis
 export { ToolRegistry } from './toolRegistryParts/ToolRegistry';
 export { EMPTY_DIGEST } from './toolRegistryParts/EMPTY_DIGEST';
 export { invokeModelTool } from './toolRegistryParts/invokeModelTool';
+export { spawnAgentTool } from './toolRegistryParts/spawnAgentTool';
 export { DefaultToolRegistry } from './toolRegistryParts/DefaultToolRegistry';

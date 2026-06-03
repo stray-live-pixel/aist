@@ -2,7 +2,7 @@ import type { AgentAttachment, ModelTransportContentPart } from '../../shared/ty
 
 /**
  * Что это: собирает content текущего user-сообщения с вложениями.
- * Зачем нужно: OpenRouter vision-модели ждут multipart content, а обычные файлы должны попасть в prompt как текстовый блок.
+ * Зачем нужно: OpenRouter vision-модели ждут multipart content, а обычные файлы должны попасть в prompt как текстовый или base64-блок.
  * Какую продуктовую проблему решает: агент анализирует скриншоты и файлы без ручного копирования данных пользователем.
  */
 export function buildUserContentWithAttachments({
@@ -13,7 +13,9 @@ export function buildUserContentWithAttachments({
   attachments?: AgentAttachment[];
 }): string | ModelTransportContentPart[] {
   const validAttachments =
-    attachments?.filter((attachment) => attachment.kind === 'image' || attachment.text || attachment.name) || [];
+    attachments?.filter(
+      (attachment) => attachment.kind === 'image' || attachment.text || attachment.dataUrl || attachment.name
+    ) || [];
   if (!validAttachments.length) {
     return prompt;
   }
@@ -41,12 +43,16 @@ function buildTextIntro({ prompt, attachments }: { prompt: string; attachments: 
   return `${prompt.trim()}\n\nAttached files for analysis:\n${list}`.trim();
 }
 
-/** Формирует текстовый fallback для обычных файлов и изображений без data URL. */
+/** Формирует текстовый fallback для обычных файлов и изображений без vision-передачи. */
 function buildFileTextBlock({ attachment }: { attachment: AgentAttachment }): string {
   const header = `Attachment: ${attachment.name}\nMIME: ${attachment.mimeType}\nSize: ${attachment.size} bytes`;
   if (attachment.text) {
     return `${header}\n\nContent:\n${attachment.text}`;
   }
 
-  return `${header}\n\nContent is not available as text. Use the file metadata and ask the user for a smaller/text-readable file if needed.`;
+  if (attachment.dataUrl) {
+    return `${header}\n\nContent as data URL (base64):\n${attachment.dataUrl}`;
+  }
+
+  return `${header}\n\nContent is not available. Ask the user to attach the file again if its content is required.`;
 }

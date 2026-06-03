@@ -5,6 +5,7 @@ import { getAgentConfigScope, getProjectInstructions, getPromptConfig } from '..
 import { getAuxiliaryModelsSettings } from '../../config/auxiliaryModelSettings';
 import { getCompactionSettings } from '../../config/compaction';
 import { getComposerUiSettings } from '../../config/composerUi';
+import { getMemorySettings } from '../../config/memory';
 import { getApprovalNotificationSettings } from '../../config/notifications';
 import { getActiveAgentMode, getAgentLanguage, getAgentModes } from '../../config/settings';
 import { getAgentSettingsSnapshot, getDefaultModelSettings } from '../../config/settingsSnapshot';
@@ -42,6 +43,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
   const instructionSources = getAgentInstructionSources();
   const promptConfig = getPromptConfig();
   const memoryItems = getAgentMemoryItems();
+  const memorySettings = getMemorySettings();
   const compactionSettings = getCompactionSettings();
   const auxiliaryModels = getAuxiliaryModelsSettings();
   const approvalNotificationSettings = getApprovalNotificationSettings();
@@ -73,6 +75,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
           projectInstructions,
           promptConfig,
           memoryItems,
+          memorySettings,
           instructionSources,
           auxiliaryModels,
           compactionSettings,

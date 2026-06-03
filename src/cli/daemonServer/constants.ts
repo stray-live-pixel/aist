@@ -32,6 +32,7 @@ export const READONLY_DAEMON_TOOLS = new Set([
   'read_file',
   'read_file_range',
   'grep_search',
+  'spawn_agent',
   'set_plan_item_status'
 ]);
 

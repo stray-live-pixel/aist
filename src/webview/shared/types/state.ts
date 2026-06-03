@@ -9,6 +9,7 @@ import type {
   ApprovalNotificationSettings,
   CompactionSettings,
   ComposerUiSettings,
+  MemorySettings,
   ProjectToolDiagnostic,
   ToolPermissionItem,
   ToolPermissionPreset,
@@ -62,6 +63,7 @@ export type AgentState = {
   projectInstructions: string;
   promptConfig: AgentPromptConfig;
   memoryItems: AgentMemoryItem[];
+  memorySettings: MemorySettings;
   subagentRuns: SubagentRun[];
   instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];

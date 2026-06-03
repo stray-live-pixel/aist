@@ -1,19 +1,18 @@
 import type { AgentAttachment } from '../../shared/types';
 
 const TEXT_FILE_LIMIT_BYTES = 128 * 1024;
-const IMAGE_FILE_LIMIT_BYTES = 5 * 1024 * 1024;
 
 /**
  * Что это: превращает выбранные browser File в вложения агента.
- * Зачем нужно: Composer должен отправлять изображения как data URL, а текстовые файлы — как читаемый текст для анализа.
- * Какую продуктовую проблему решает: пользователь прикрепляет скриншоты и файлы без ручного копирования содержимого в prompt.
+ * Зачем нужно: Composer должен отправлять фактическое содержимое каждого файла, а не только имя в UI-chip.
+ * Какую продуктовую проблему решает: пользователь прикрепляет скриншоты, документы и бинарные файлы без ручного копирования содержимого в prompt.
  */
 export async function prepareComposerAttachments({ files }: { files: File[] }): Promise<AgentAttachment[]> {
   const prepared = await Promise.all(files.map((file, index) => prepareComposerAttachment({ file, index })));
   return prepared.filter(Boolean);
 }
 
-/** Готовит одно вложение и выбирает безопасный способ передачи содержимого модели. */
+/** Готовит одно вложение и всегда добавляет data URL, чтобы backend получил содержимое файла. */
 async function prepareComposerAttachment({ file, index }: { file: File; index: number }): Promise<AgentAttachment> {
   const mimeType = file.type || 'application/octet-stream';
   const kind = mimeType.startsWith('image/') ? 'image' : 'file';
@@ -22,12 +21,9 @@ async function prepareComposerAttachment({ file, index }: { file: File; index: n
     name: file.name || `attachment-${index + 1}`,
     mimeType,
     size: file.size,
-    kind
-  } satisfies Omit<AgentAttachment, 'dataUrl' | 'text'>;
-
-  if (kind === 'image' && file.size <= IMAGE_FILE_LIMIT_BYTES) {
-    return { ...baseAttachment, dataUrl: await readFileAsDataUrl({ file }) };
-  }
+    kind,
+    dataUrl: await readFileAsDataUrl({ file })
+  } satisfies Omit<AgentAttachment, 'text'>;
 
   if (isReadableTextFile({ file, mimeType })) {
     return { ...baseAttachment, text: await readFileAsText({ file }) };
@@ -36,7 +32,7 @@ async function prepareComposerAttachment({ file, index }: { file: File; index: n
   return baseAttachment;
 }
 
-/** Проверяет, можно ли безопасно прочитать файл как текст без риска зависания webview. */
+/** Проверяет, можно ли безопасно дополнительно прочитать файл как текст без риска зависания webview. */
 function isReadableTextFile({ file, mimeType }: { file: File; mimeType: string }): boolean {
   if (file.size > TEXT_FILE_LIMIT_BYTES) {
     return false;
@@ -47,7 +43,7 @@ function isReadableTextFile({ file, mimeType }: { file: File; mimeType: string }
   );
 }
 
-/** Читает файл как data URL для vision-моделей. */
+/** Читает файл как data URL, который можно передать модели или текстовым fallback-блоком. */
 function readFileAsDataUrl({ file }: { file: File }): Promise<string> {
   return readFile({ file, mode: 'dataUrl' });
 }

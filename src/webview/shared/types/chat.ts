@@ -48,6 +48,11 @@ export type ChatVcsState = {
   isolated: boolean;
 };
 
+/**
+ * Что это: настройки выполнения модели, сохранённые внутри конкретного чата.
+ * Зачем нужно: каждый диалог может иметь собственную модель, reasoning и быстрые режимы без влияния на другие чаты.
+ * Какую продуктовую проблему решает: режим «без инструментов» включается только для текущего чата.
+ */
 export type ChatModelSettings = {
   model: string;
   reasoningEffort: ReasoningEffort;
@@ -55,6 +60,8 @@ export type ChatModelSettings = {
   maxToolIterations: number;
   editorContextMode: EditorContextMode;
   streamingEnabled: boolean;
+  /** Когда true, текущий чат отправляет запрос модели без tool schemas и завершает ответ без tool-loop. */
+  toolsDisabled: boolean;
 };
 
 export type ChatSummary = {

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { assertRepositoryId } from '../../../shared/lib/fileRepository';
 import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import { getChatPath } from './getChatPath';
-import { rebuildChatIndex } from './rebuildChatIndex';
+import { removeChatIndexSummary } from './removeChatIndexSummary';
 
 /**
  * Что это: удаление файлов чата и обновление индекса.
@@ -19,5 +19,5 @@ export async function deleteChat({
 }): Promise<void> {
   const safeChatId = assertRepositoryId(chatId, 'chat');
   await fs.promises.rm(getChatPath({ context, chatId: safeChatId }), { recursive: true, force: true });
-  await rebuildChatIndex({ context });
+  await removeChatIndexSummary({ context, chatId: safeChatId });
 }

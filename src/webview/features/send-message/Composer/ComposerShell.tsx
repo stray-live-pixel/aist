@@ -19,6 +19,7 @@ export function ComposerShell({
   gradientWhileBusy,
   settings,
   footer,
+  footerControls,
   notice,
   fallback,
   placeholder,
@@ -40,6 +41,7 @@ export function ComposerShell({
   const footerContent = (
     <div className={styles.footerRow}>
       {!readOnly ? <ComposerAttachButton onAttachmentInputChange={onAttachmentInputChange} /> : null}
+      {!readOnly && footerControls ? <div className={styles.footerControls}>{footerControls}</div> : null}
       {footer ? <div className={styles.footerContent}>{footer}</div> : null}
     </div>
   );
@@ -107,6 +109,7 @@ type ComposerShellProps = {
   gradientWhileBusy: boolean;
   settings?: ReactNode;
   footer?: ReactNode;
+  footerControls?: ReactNode;
   notice?: ReactNode;
   fallback: string;
   placeholder: string;

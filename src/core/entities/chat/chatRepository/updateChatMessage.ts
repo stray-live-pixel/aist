@@ -2,10 +2,11 @@ import { FileRepositoryError, readJsonlFile } from '../../../shared/lib/fileRepo
 import type { ChatMessage } from '../../../shared/types/types';
 import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import { getChatMessagesPath } from './getChatMessagesPath';
-import { rebuildChatIndex } from './rebuildChatIndex';
 import { replaceChatJsonl } from './replaceChatJsonl';
+import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
 import { touchChatMeta } from './touchChatMeta';
+import { upsertChatIndexSummary } from './upsertChatIndexSummary';
 
 /**
  * Что это: обновление уже записанного UI-сообщения.
@@ -35,6 +36,7 @@ export async function updateChatMessage({
   messages[index] = nextMessage;
   await replaceChatJsonl({ context, chatId: meta.id, fileName: 'messages.jsonl', entries: messages });
   await touchChatMeta({ context, meta });
-  await rebuildChatIndex({ context });
+  const updatedChat = await requireChat({ context, chatId: meta.id });
+  await upsertChatIndexSummary({ context, chat: updatedChat });
   return nextMessage;
 }

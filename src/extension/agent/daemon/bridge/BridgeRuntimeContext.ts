@@ -22,9 +22,12 @@ import type {
 export type BridgeRuntimeState = {
   client: DaemonJsonRpcClient | undefined;
   eventListeners: Set<(event: DaemonEvent) => void>;
+  beforeStoreRefreshListeners: Set<(event: DaemonEvent) => void>;
   subagentRunsByParentChat: Map<string, SubagentRun[]>;
   lastSyncedSettings: string;
   refreshQueue: Promise<void>;
+  refreshQueuesByChatId: Map<string, Promise<void>>;
+  pendingChatRefreshes: Set<string>;
   disposed: boolean;
   previewHandles: Map<string, VscodePreviewEdit>;
   agentRequestStartedAtByRunId: Map<

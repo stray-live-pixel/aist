@@ -1,6 +1,7 @@
 import type { ChatMessage } from './chat';
 
-export type SubagentKind = 'memory.analysis';
+/** Тип дочернего запуска, который webview показывает пользователю в деталях. */
+export type SubagentKind = 'memory.analysis' | 'agent.task';
 export type SubagentRunStatus = 'created' | 'running' | 'success' | 'error' | 'stopped';
 export type SubagentRunMode = 'single_model_call' | 'agent_loop';
 

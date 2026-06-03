@@ -6,3 +6,4 @@ import './agentRuntime.testParts/05-agentruntimeservice-retries-retryable-model-
 import './agentRuntime.testParts/06-agentruntimeservice-continues-the-loop-after-deny-';
 import './agentRuntime.testParts/07-agentruntimeservice-stops-the-run-after-deny-stop-';
 import './agentRuntime.testParts/08-agentruntimeservice-aborts-an-in-flight-model-requ';
+import './agentRuntime.testParts/09-agentruntimeservice-disables-tools-for-current-chat';

@@ -4,6 +4,7 @@ import type { OpenRouterMessage, OpenRouterTool } from '../../../shared/types/ty
 import { CodexResponsesTransport, type CodexTokenProvider } from '../codexTransport';
 import { CODEX_RESPONSES_URL } from '../modelDefaults';
 import { getModelRequestErrorInfo } from '../modelErrors';
+import { MODEL_REQUEST_TIMEOUT_MS } from '../modelRequestTimeout';
 import type { FetchLike } from '../modelTransport';
 import { CapturedRequest, captureTextFetch, createTokenProvider, createTool, readJsonBody, sseData } from './helpers';
 
@@ -85,6 +86,14 @@ describe('CodexResponsesTransport', () => {
       'User-Agent': 'aist-test-agent',
       session_id: 'session-1',
       'ChatGPT-Account-Id': 'account-1'
+    });
+    const initWithDispatcher = requests[0].init as RequestInit & { dispatcher?: Record<symbol, unknown> };
+    const dispatcherOptions = Object.getOwnPropertySymbols(initWithDispatcher.dispatcher || {})
+      .map((symbol) => initWithDispatcher.dispatcher?.[symbol])
+      .find((value) => typeof value === 'object' && value !== null && 'bodyTimeout' in value);
+    expect(dispatcherOptions).toMatchObject({
+      bodyTimeout: MODEL_REQUEST_TIMEOUT_MS,
+      headersTimeout: MODEL_REQUEST_TIMEOUT_MS
     });
     expect(readJsonBody(requests[0].init)).toEqual({
       model: 'gpt-5.1-codex',

@@ -1,6 +1,8 @@
+import type { AgentRun } from '../../../shared/types/types';
 import { createPlanFromArgs, updatePlanItemStatus } from '../../planning/planningTools';
 import type { ToolRunnerRuntime } from './ToolRunnerRuntime';
 import { normalizeReasoningEffort } from './normalizeReasoningEffort';
+import { runAgentTool } from './runAgentTool';
 import type { ToolExecutionPreview } from './types';
 
 /**
@@ -13,6 +15,7 @@ export async function runApprovedTool({
   toolName,
   args,
   chatId,
+  run,
   previewHandle
 }: RunApprovedToolInput): Promise<Record<string, unknown>> {
   if (previewHandle) return previewHandle.approve();
@@ -23,6 +26,8 @@ export async function runApprovedTool({
       return runPlanningTool({ runtime, toolName, args, chatId });
     case 'model':
       return runModelTool({ runtime, args, chatId, toolName });
+    case 'agent':
+      return runAgentTool({ runtime, args, chatId, runSignal: run.abortController.signal });
     case 'project':
       return runProjectTool({ runtime, toolName, args });
     case 'skill':
@@ -101,6 +106,7 @@ type RunApprovedToolInput = {
   toolName: string;
   args: Record<string, unknown>;
   chatId: string;
+  run: AgentRun;
   previewHandle?: ToolExecutionPreview;
 };
 type PlanningInput = { runtime: ToolRunnerRuntime; toolName: string; args: Record<string, unknown>; chatId: string };

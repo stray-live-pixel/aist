@@ -3,10 +3,10 @@ import type { ChatRepositoryContext } from './ChatRepositoryContext';
 import { DEFAULT_TITLE } from './DEFAULT_TITLE';
 import { normalizeState } from './normalizeState';
 import { normalizeUsage } from './normalizeUsage';
-import { rebuildChatIndex } from './rebuildChatIndex';
 import { replaceChatJsonl } from './replaceChatJsonl';
 import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
+import { upsertChatIndexSummary } from './upsertChatIndexSummary';
 import { writeChatMeta } from './writeChatMeta';
 import { writeChatState } from './writeChatState';
 
@@ -32,7 +32,8 @@ export async function clearChat({
   await writeChatState({ context, chatId: meta.id, state: normalizeState({ state: undefined }) });
   await replaceChatJsonl({ context, chatId: meta.id, fileName: 'messages.jsonl', entries: [] });
   await replaceChatJsonl({ context, chatId: meta.id, fileName: 'history.jsonl', entries: [] });
-  await rebuildChatIndex({ context });
 
-  return requireChat({ context, chatId: meta.id });
+  const clearedChat = await requireChat({ context, chatId: meta.id });
+  await upsertChatIndexSummary({ context, chat: clearedChat });
+  return clearedChat;
 }

@@ -24,6 +24,13 @@
   gap: 8px;
 }
 
+.footerControls {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
 .footerContent {
   min-width: 0;
   flex: 1;

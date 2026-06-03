@@ -7,6 +7,7 @@ import {
 } from '../../../shared/types/types';
 import { DEFAULT_MODEL, OPENROUTER_MODELS_URL, OPENROUTER_URL } from '../modelDefaults';
 import { ModelRequestError } from '../modelErrors';
+import { withModelRequestTimeout } from '../modelRequestTimeout';
 import {
   type FetchLike,
   type ModelCatalogClient,
@@ -54,24 +55,26 @@ export class OpenRouterTransport implements ModelClient, ModelCatalogClient {
 
     const response = await this.fetchImpl(
       resolveProviderRequestUrl({ endpoint: this.chatEndpoint, proxyHost: this.options.proxyHost }),
-      {
-        method: 'POST',
-        signal,
-        headers: {
-          Authorization: `Bearer ${this.options.apiKey}`,
-          'Content-Type': 'application/json',
-          ...(this.options.siteUrl ? { 'HTTP-Referer': this.options.siteUrl } : {}),
-          ...(this.options.siteName ? { 'X-Title': this.options.siteName } : {})
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          ...(tools ? { tools, tool_choice: 'auto' } : {}),
-          ...(reasoningEffort === 'auto' || !reasoningEffort ? {} : { reasoning: { effort: reasoningEffort } }),
-          ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
-          temperature: this.temperature
-        })
-      }
+      withModelRequestTimeout({
+        init: {
+          method: 'POST',
+          signal,
+          headers: {
+            Authorization: `Bearer ${this.options.apiKey}`,
+            'Content-Type': 'application/json',
+            ...(this.options.siteUrl ? { 'HTTP-Referer': this.options.siteUrl } : {}),
+            ...(this.options.siteName ? { 'X-Title': this.options.siteName } : {})
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            ...(tools ? { tools, tool_choice: 'auto' } : {}),
+            ...(reasoningEffort === 'auto' || !reasoningEffort ? {} : { reasoning: { effort: reasoningEffort } }),
+            ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
+            temperature: this.temperature
+          })
+        }
+      })
     );
     lifecycle?.onResponseHeaders?.({ status: response.status, statusText: response.statusText });
 

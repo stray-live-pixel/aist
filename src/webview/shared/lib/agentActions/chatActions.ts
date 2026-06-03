@@ -53,6 +53,9 @@ export const chatActions = {
   setChatModelSettings(settings: Partial<ChatModelSettings>): void {
     post({ message: { type: 'setChatModelSettings', settings } });
   },
+  setChatToolsDisabled(toolsDisabled: boolean): void {
+    post({ message: { type: 'setChatModelSettings', settings: { toolsDisabled } } });
+  },
   resetChatModelSettings(): void {
     post({ message: { type: 'resetChatModelSettings' } });
   },

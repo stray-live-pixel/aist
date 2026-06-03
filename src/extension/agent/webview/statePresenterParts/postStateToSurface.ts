@@ -55,6 +55,7 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
     projectInstructions: context.projectInstructions,
     promptConfig: context.promptConfig,
     memoryItems: context.memoryItems,
+    memorySettings: context.memorySettings,
     subagentRuns: context.subagentRunsByChatId.get(activeChat.id) || [],
     instructionSources: context.instructionSources,
     customSkills: context.customSkills,

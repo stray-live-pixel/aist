@@ -11,6 +11,9 @@ export function formatMemoryItemsForSubagent(input: { items: AgentMemoryItem[] }
   }
 
   return enabledItems
-    .map((item) => `- id=${item.id}; scope=${item.scope}; note=${item.note.replace(/\s+/g, ' ').trim()}`)
+    .map(
+      (item) =>
+        `- id=${item.id}; scope=${item.scope}; importance=${item.importance ?? 50}; note=${item.note.replace(/\s+/g, ' ').trim()}`
+    )
     .join('\n');
 }

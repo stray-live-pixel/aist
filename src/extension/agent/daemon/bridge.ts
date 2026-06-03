@@ -187,6 +187,12 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     return () => this.runtimeContext.state.eventListeners.delete(listener);
   }
 
+  /** Подписывает controller на daemon events до refresh store для раннего patch suppression. */
+  onBeforeStoreRefresh(listener: (event: DaemonEvent) => void): () => void {
+    this.runtimeContext.state.beforeStoreRefreshListeners.add(listener);
+    return () => this.runtimeContext.state.beforeStoreRefreshListeners.delete(listener);
+  }
+
   /** Возвращает default settings с fallback model. */
   private getDefaultModelSettings(): ChatModelSettings {
     return getBridgeDefaultModelSettings({ context: this.runtimeContext });
@@ -203,9 +209,12 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     const state: BridgeRuntimeState = {
       client: undefined,
       eventListeners: new Set<(event: DaemonEvent) => void>(),
+      beforeStoreRefreshListeners: new Set<(event: DaemonEvent) => void>(),
       subagentRunsByParentChat: new Map<string, SubagentRun[]>(),
       lastSyncedSettings: '',
       refreshQueue: Promise.resolve(),
+      refreshQueuesByChatId: new Map<string, Promise<void>>(),
+      pendingChatRefreshes: new Set<string>(),
       disposed: false,
       previewHandles: new Map<string, VscodePreviewEdit>(),
       agentRequestStartedAtByRunId: new Map()

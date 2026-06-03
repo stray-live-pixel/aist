@@ -8,6 +8,7 @@ import type {
   CompactionSettings,
   ComposerUiSettings,
   EditorContextMode,
+  MemorySettings,
   ProviderProfileInput,
   ReasoningEffort,
   ToolPermissionMode,
@@ -77,6 +78,9 @@ export const settingsActions = {
   },
   setComposerUiSettings(settings: Partial<ComposerUiSettings>): void {
     post({ message: { type: 'setComposerUiSettings', settings } });
+  },
+  setMemorySettings(settings: Partial<MemorySettings>): void {
+    post({ message: { type: 'setMemorySettings', settings } });
   },
   setAgentLanguage(language: AgentLanguage): void {
     post({ message: { type: 'setAgentLanguage', language } });

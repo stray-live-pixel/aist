@@ -46,6 +46,7 @@ export async function getDefaultChatModelSettings(this: AistDaemonServer): Promi
       Math.floor(await this.getNumberSetting(['openrouterAgent.maxToolIterations', 'maxToolIterations'], 0))
     ),
     editorContextMode: await this.getEditorContextMode(),
-    streamingEnabled: await this.getBooleanSetting(['openrouterAgent.streamingEnabled', 'streamingEnabled'], false)
+    streamingEnabled: await this.getBooleanSetting(['openrouterAgent.streamingEnabled', 'streamingEnabled'], false),
+    toolsDisabled: false
   };
 }

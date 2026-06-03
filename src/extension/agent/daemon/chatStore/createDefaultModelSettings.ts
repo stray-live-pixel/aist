@@ -12,6 +12,7 @@ export function createDefaultModelSettings({ model }: { model: string }): ChatMo
     codexServiceTier: 'auto',
     maxToolIterations: 0,
     editorContextMode: 'auto',
-    streamingEnabled: false
+    streamingEnabled: false,
+    toolsDisabled: false
   };
 }

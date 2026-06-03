@@ -15,12 +15,14 @@ import { ToolRegistryImplementationOptions } from './ToolRegistryImplementationO
 import { ToolRegistryRefreshInput } from './ToolRegistryRefreshInput';
 import { ToolRegistrySnapshot } from './ToolRegistrySnapshot';
 import { invokeModelTool } from './invokeModelTool';
+import { spawnAgentTool } from './spawnAgentTool';
 
 export class DefaultToolRegistry implements ToolRegistry {
   private readonly builtinTools: readonly OpenRouterTool[];
   private readonly planningToolDefinitions: readonly OpenRouterTool[];
   private readonly skillTool: OpenRouterTool;
   private readonly modelTool: OpenRouterTool;
+  private readonly agentTool: OpenRouterTool;
   private readonly discoverProjectToolsImpl: typeof discoverProjectTools;
   private readonly executeProjectToolImpl: typeof executeProjectTool;
   private readonly registeredTools = new Map<string, RegisteredTool>();
@@ -39,6 +41,7 @@ export class DefaultToolRegistry implements ToolRegistry {
     this.planningToolDefinitions = options.planningToolDefinitions || planningTools;
     this.skillTool = options.skillTool || runSkillTool;
     this.modelTool = options.modelTool || invokeModelTool;
+    this.agentTool = options.agentTool || spawnAgentTool;
     this.discoverProjectToolsImpl = options.discoverProjectTools || discoverProjectTools;
     this.executeProjectToolImpl = options.executeProjectTool || executeProjectTool;
     this.snapshotValue = {
@@ -65,8 +68,9 @@ export class DefaultToolRegistry implements ToolRegistry {
     }
 
     if (input.auxiliaryModelToolEnabled) {
-      tools.push(this.modelTool);
+      tools.push(this.modelTool, this.agentTool);
       usedNames.add(this.modelTool.function.name);
+      usedNames.add(this.agentTool.function.name);
     }
 
     for (const projectTool of projectTools) {
@@ -134,6 +138,7 @@ export class DefaultToolRegistry implements ToolRegistry {
     const projectDefinitions = new Map(projectTools.map((tool) => [tool.id, tool]));
     const planningNames = new Set(this.planningToolDefinitions.map((tool) => tool.function.name));
     const modelToolName = this.modelTool.function.name;
+    const agentToolName = this.agentTool.function.name;
     this.registeredTools.clear();
 
     for (const tool of tools) {
@@ -147,9 +152,11 @@ export class DefaultToolRegistry implements ToolRegistry {
             ? 'skill'
             : name === modelToolName
               ? 'model'
-              : planningNames.has(name)
-                ? 'planning'
-                : 'builtin',
+              : name === agentToolName
+                ? 'agent'
+                : planningNames.has(name)
+                  ? 'planning'
+                  : 'builtin',
         definition: projectDefinition,
         tool
       });

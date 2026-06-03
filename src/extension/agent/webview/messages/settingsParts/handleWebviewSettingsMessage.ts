@@ -17,6 +17,7 @@ import {
   normalizeEditorContextMode,
   normalizeReasoningEffort
 } from '../../../config/config';
+import { setMemorySettings } from '../../../config/memory';
 import { setApprovalNotificationSettings } from '../../../config/notifications';
 import {
   deleteProviderProfile,
@@ -109,6 +110,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setComposerUiSettings':
       await setComposerUiSettings(message.settings);
+      deps.sendState();
+      return;
+    case 'setMemorySettings':
+      await setMemorySettings(message.settings);
       deps.sendState();
       return;
     case 'setAgentLanguage':

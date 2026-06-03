@@ -16,7 +16,7 @@ describe('getDaemonEventChatId', () => {
     expect(getDaemonEventChatId(event)).toBe('chat-1');
   });
 
-  it('reads chatId from run snapshot events', () => {
+  it('reads chatId from run.started snapshot events', () => {
     const event: DaemonEvent = {
       type: 'run.started',
       run: {
@@ -31,6 +31,23 @@ describe('getDaemonEventChatId', () => {
     expect(getDaemonEventChatId(event)).toBe('chat-2');
   });
 
+  it('reads chatId from run.finished snapshot events', () => {
+    const event: DaemonEvent = {
+      type: 'run.finished',
+      run: {
+        id: 'run-1',
+        chatId: 'chat-finished',
+        status: 'completed',
+        startedAt: 1000,
+        finishedAt: 2000
+      },
+      status: 'completed',
+      at: 2000
+    };
+
+    expect(getDaemonEventChatId(event)).toBe('chat-finished');
+  });
+
   it('reads chatId from state.changed events after chat create', () => {
     const event: DaemonEvent = {
       type: 'state.changed',
@@ -43,5 +60,18 @@ describe('getDaemonEventChatId', () => {
     };
 
     expect(getDaemonEventChatId(event)).toBe('chat-created');
+  });
+
+  it('returns undefined for state.changed events without chat context', () => {
+    const event: DaemonEvent = {
+      type: 'state.changed',
+      workspaceRoot: '/workspace',
+      reason: 'config.update',
+      activeRun: null,
+      activeRuns: [],
+      at: 1000
+    };
+
+    expect(getDaemonEventChatId(event)).toBeUndefined();
   });
 });

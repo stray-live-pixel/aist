@@ -23,8 +23,6 @@ export function postChatPatch({
   const patch = mapDaemonEventToChatPatch(event, state.chats);
   if (!patch) return;
 
-  state.suppressedChatStoreStateBroadcasts += 1;
-
   for (const surface of getPatchSurfaces({ state, callbacks, chatId: patch.chatId })) {
     const postedAt = Date.now();
     // Это горячий путь: tool/status events могут приходить десятки раз за запуск.

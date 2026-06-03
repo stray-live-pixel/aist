@@ -16,7 +16,12 @@ export class MemoryRetriever {
       .filter((item) => item.enabled && sanitizeMemoryNote(item.note))
       .map((item) => ({ item, score: scoreMemory(item.note, promptTokens) }))
       .filter(({ score }) => score > 0)
-      .sort((left, right) => right.score - left.score || right.item.updatedAt - left.item.updatedAt)
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          (right.item.importance ?? 0) - (left.item.importance ?? 0) ||
+          right.item.updatedAt - left.item.updatedAt
+      )
       .slice(0, Math.max(0, limit))
       .map(({ item }) => item);
   }

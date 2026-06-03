@@ -36,6 +36,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     agentConfigScope,
     promptConfig,
     memoryItems,
+    memorySettings,
     activeChat,
     models,
     providerProfiles,
@@ -82,6 +83,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
             <MemorySettingsPage
               chatId={activeChat.id}
               memoryItems={memoryItems}
+              memorySettings={memorySettings}
               reflectionCandidates={activeChat.reflectionCandidates || []}
               auxiliaryModels={auxiliaryModels}
               models={models}

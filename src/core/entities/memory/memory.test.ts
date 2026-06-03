@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { AgentMemoryStore, MemoryRetriever, formatMemoryPromptBlock } from './memory';
+import { AgentMemoryStore, MEMORY_TOTAL_NOTE_CHARS_LIMIT, MemoryRetriever, formatMemoryPromptBlock } from './memory';
 
 let tempDir = '';
 
@@ -22,8 +22,18 @@ describe('AgentMemoryStore', () => {
     const global = await store.add({ scope: 'global', note: 'Prefer concise final answers.' });
     const project = await store.add({ scope: 'project', note: 'Use npm run test for this repository.' });
 
-    expect(global).toMatchObject({ scope: 'global', enabled: true, note: 'Prefer concise final answers.' });
-    expect(project).toMatchObject({ scope: 'project', enabled: true, note: 'Use npm run test for this repository.' });
+    expect(global).toMatchObject({
+      scope: 'global',
+      enabled: true,
+      note: 'Prefer concise final answers.',
+      importance: 50
+    });
+    expect(project).toMatchObject({
+      scope: 'project',
+      enabled: true,
+      note: 'Use npm run test for this repository.',
+      importance: 50
+    });
     expect(readJson('global-memory.json').items).toHaveLength(1);
     expect(readJson('project-memory.json').items).toHaveLength(1);
 
@@ -41,6 +51,37 @@ describe('AgentMemoryStore', () => {
 
     expect(store.list('project')).toEqual([]);
     expect(fs.existsSync(path.join(tempDir, 'project-memory.json'))).toBe(false);
+  });
+
+  it('stores note importance and sorts more useful notes first', async () => {
+    const store = createStore();
+
+    await store.add({ scope: 'project', note: 'Weak preference for temporary formatting.', importance: 10 });
+    await store.add({ scope: 'project', note: 'Always run focused tests after memory changes.', importance: 90 });
+
+    expect(store.list('project').map((item) => item.importance)).toEqual([90, 10]);
+    expect(readJson('project-memory.json').items.map((item) => (item as { importance: number }).importance)).toEqual([
+      90, 10
+    ]);
+  });
+
+  it('can replace one note with a more useful note for memory compaction', async () => {
+    const store = createStore();
+    const oldItem = await store.add({ scope: 'project', note: 'Weak temporary note.', importance: 5 });
+
+    const replacement = await store.replace({
+      candidate: { scope: 'project', note: 'Always keep memory notes short and reusable.', importance: 95 },
+      replaceItemId: oldItem!.id
+    });
+
+    expect(replacement).toMatchObject({ importance: 95, note: 'Always keep memory notes short and reusable.' });
+    expect(store.list('project').map((item) => item.note)).toEqual(['Always keep memory notes short and reusable.']);
+    const events = fs.readFileSync(path.join(tempDir, 'memory-events.jsonl'), 'utf8').trim().split('\n');
+    expect(events.map((line) => JSON.parse(line).action)).toEqual(['add', 'replace']);
+  });
+
+  it('exports the 50000 character memory limit', () => {
+    expect(MEMORY_TOTAL_NOTE_CHARS_LIMIT).toBe(50_000);
   });
 
   it('can disable and delete notes without rewriting the append-only audit trail', async () => {

@@ -46,6 +46,8 @@
   "summary.toolPermissionPreset": "Профиль разрешений инструментов",
   "summary.toolCallNotesTurboOn": "Турбо tools включён — reason и nextStep не обязательны, чтобы экономить токены и быстрее выполнять задачу.",
   "summary.toolCallNotesTurboOff": "Турбо tools — отключает обязательные reason и nextStep у инструментов для экономии токенов и скорости.",
+  "summary.toolsDisabledOn": "Без инструментов включено для текущего чата — модель даст прямой ответ без tool-call.",
+  "summary.toolsDisabledOff": "Без инструментов — быстрый прямой ответ модели только в текущем чате.",
   "summary.toolsCount": "{{count}} инструментов",
   "reasoning.auto": "Авто",
   "reasoning.low": "Низкое",

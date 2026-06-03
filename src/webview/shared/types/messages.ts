@@ -8,6 +8,7 @@ import type {
   ApprovalNotificationSettings,
   CompactionSettings,
   ComposerUiSettings,
+  MemorySettings,
   ToolPermissionPresetId
 } from './agentConfig';
 import type { AgentAttachment } from './attachment';
@@ -119,6 +120,7 @@ export type WebviewToExtensionMessage =
   | { type: 'setAuxiliaryToolModelOverrides'; overrides: AuxiliaryToolModelOverride[] }
   | { type: 'setApprovalNotificationSettings'; settings: Partial<ApprovalNotificationSettings> }
   | { type: 'setComposerUiSettings'; settings: Partial<ComposerUiSettings> }
+  | { type: 'setMemorySettings'; settings: Partial<MemorySettings> }
   | { type: 'setAgentLanguage'; language: AgentLanguage }
   | { type: 'setAgentMode'; modeId: AgentModeId }
   | { type: 'setAgentModeInstructions'; modeId: AgentModeId; instructions: string }

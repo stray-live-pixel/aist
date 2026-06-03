@@ -25,7 +25,8 @@ export async function handleModelResponse({
   run,
   runId,
   usage,
-  toolCallCounts
+  toolCallCounts,
+  toolsDisabled = false
 }: {
   context: AgentRuntimeContext;
   chat: Chat;
@@ -35,6 +36,8 @@ export async function handleModelResponse({
   runId: string;
   usage: ReturnType<typeof createEmptyUsage>;
   toolCallCounts: Map<string, number>;
+  /** Когда true, tool-call от модели не выполняется, потому что чат работает в режиме прямого ответа. */
+  toolsDisabled?: boolean;
 }): Promise<AgentLoopResult | undefined> {
   const toolCalls = Array.isArray(responseMessage.tool_calls) ? responseMessage.tool_calls : [];
   context.deps.telemetry?.recordToolCalls?.(
@@ -55,6 +58,16 @@ export async function handleModelResponse({
       workingMessages,
       answer: contentToText({ content: responseMessage.content }),
       reasoning: responseMessage.reasoning,
+      usage
+    });
+  }
+
+  if (toolsDisabled) {
+    return finishWithAnswer({
+      workingMessages,
+      answer:
+        'Stopped because tools are disabled for this chat and the model requested a tool call instead of a direct answer.',
+      reasoning: undefined,
       usage
     });
   }

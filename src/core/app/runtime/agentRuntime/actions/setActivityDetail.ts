@@ -17,8 +17,12 @@ export async function setActivityDetail({
   chatId: string;
   detail: string | undefined;
 }): Promise<void> {
-  await context.deps.chatRepository.setActivityDetail(chatId, detail);
   const chat = await context.deps.chatRepository.getChat(chatId);
+  if (chat?.activityDetail === detail) {
+    return;
+  }
+
+  await context.deps.chatRepository.setActivityDetail(chatId, detail);
   const activity = chat?.activity || 'thinking';
   await emit({
     context,

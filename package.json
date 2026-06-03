@@ -338,6 +338,7 @@
             },
             "tool": {
               "type": "object",
+              "markdownDescription": "Default auxiliary model settings for `invoke_model` and `spawn_agent`. Enable `allowTools` if spawned agents may inspect the workspace through read-only tools.",
               "properties": {
                 "model": {
                   "type": "string",
@@ -361,7 +362,7 @@
                 "overrides": {
                   "type": "array",
                   "default": [],
-                  "markdownDescription": "Per-tool model overrides for `invoke_model`. Use toolName `invoke_model` for the built-in model-calling tool, or any future/project tool id that delegates to auxiliary models.",
+                  "markdownDescription": "Per-tool model overrides for `invoke_model` and `spawn_agent`. Use toolName `invoke_model`, `spawn_agent`, or any future/project tool id that delegates to auxiliary models.",
                   "items": {
                     "type": "object",
                     "required": [
@@ -394,6 +395,20 @@
                   }
                 }
               }
+            }
+          }
+        },
+        "openrouterAgent.memory": {
+          "type": "object",
+          "default": {
+            "autoApply": true
+          },
+          "markdownDescription": "Memory behavior settings. When `autoApply` is enabled, AIST automatically analyzes successful chats and writes useful memory notes after an AI usefulness check.",
+          "properties": {
+            "autoApply": {
+              "type": "boolean",
+              "default": true,
+              "description": "Automatically analyze successful chats and save useful memory notes. Turn off to keep memory writes available only through the manual button."
             }
           }
         },
@@ -548,7 +563,8 @@
             "delete_path": "ask",
             "create_plan": "ask",
             "update_plan": "ask",
-            "set_plan_item_status": "auto"
+            "set_plan_item_status": "auto",
+            "spawn_agent": "auto"
           },
           "markdownDescription": "Per-tool permission mode. Use `ask` to require confirmation or `auto` to run automatically. File-reading tools default to `auto`; mutating tools default to `ask`."
         },
@@ -642,6 +658,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "undici": "^6.26.0"
   }
 }

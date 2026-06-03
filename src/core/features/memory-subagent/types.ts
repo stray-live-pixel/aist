@@ -1,4 +1,4 @@
-import type { AgentMemoryItem } from '../../entities/memory/memory';
+import type { AgentMemoryCandidate, AgentMemoryItem } from '../../entities/memory/memory';
 import type { ChatMessage, ReasoningEffort } from '../../shared/types/types';
 
 /**
@@ -39,6 +39,18 @@ export type MemorySelectionResult = {
 export type MemoryAnalysisInput = {
   chatId: string;
   messages: ChatMessage[];
+  memoryItems: AgentMemoryItem[];
+  chatModel: string;
+  settings?: MemorySubagentModelSettings;
+};
+
+/**
+ * Что это: запрос на проверку новой заметки перед записью в память.
+ * Зачем нужно: субагент сравнивает кандидата со всеми заметками, лимитом и весами полезности.
+ * Какую продуктовую проблему решает: память автоматически сохраняет только самые полезные краткие знания.
+ */
+export type MemoryWriteDecisionInput = {
+  candidate: AgentMemoryCandidate;
   memoryItems: AgentMemoryItem[];
   chatModel: string;
   settings?: MemorySubagentModelSettings;

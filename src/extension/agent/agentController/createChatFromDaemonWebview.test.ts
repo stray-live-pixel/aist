@@ -12,7 +12,8 @@ vi.mock('../config/settingsSnapshot', () => ({
     codexServiceTier: 'auto',
     maxToolIterations: 0,
     editorContextMode: 'auto',
-    streamingEnabled: false
+    streamingEnabled: false,
+    toolsDisabled: false
   })
 }));
 
@@ -107,6 +108,7 @@ function createModelSettings(): ChatModelSettings {
     codexServiceTier: 'auto',
     maxToolIterations: 0,
     editorContextMode: 'auto',
-    streamingEnabled: false
+    streamingEnabled: false,
+    toolsDisabled: false
   };
 }

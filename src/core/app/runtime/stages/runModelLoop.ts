@@ -17,7 +17,7 @@ export function scheduleRunExecution({ task }: { task: () => Promise<void> }): P
 
 /**
  * Что это: накладывает настройки конкретного чата на runtime config.
- * Зачем нужно: каждый чат может иметь свои maxToolIterations и streamingEnabled.
+ * Зачем нужно: каждый чат может иметь свои maxToolIterations, streamingEnabled и режим без инструментов.
  * Какую проблему решает: model loop использует один согласованный config snapshot без второго источника правды.
  */
 export function withChatModelSettings({
@@ -30,7 +30,8 @@ export function withChatModelSettings({
   return {
     ...config,
     maxToolIterations: Math.max(0, Math.floor(Number(settings.maxToolIterations) || 0)),
-    streamingEnabled: settings.streamingEnabled === true
+    streamingEnabled: settings.streamingEnabled === true,
+    toolsDisabled: settings.toolsDisabled === true
   };
 }
 

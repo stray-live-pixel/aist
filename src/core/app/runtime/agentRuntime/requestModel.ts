@@ -35,7 +35,7 @@ export async function requestModel({
   params: {
     chat: Chat;
     workingMessages: OpenRouterMessage[];
-    tools: OpenRouterTool[];
+    tools?: OpenRouterTool[];
     run: AgentRun<unknown>;
     runId: string;
     usage: ChatUsageEstimate;
@@ -95,7 +95,7 @@ export async function requestModel({
   try {
     const responseMessage = await context.deps.modelClient.chat(
       params.workingMessages,
-      params.tools,
+      params.tools?.length ? params.tools : undefined,
       params.chat.model,
       params.run.abortController.signal,
       streamCallbacks,

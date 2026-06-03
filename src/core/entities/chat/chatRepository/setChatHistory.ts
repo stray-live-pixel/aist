@@ -1,9 +1,10 @@
 import type { OpenRouterMessage } from '../../../shared/types/types';
 import type { ChatRepositoryContext } from './ChatRepositoryContext';
-import { rebuildChatIndex } from './rebuildChatIndex';
 import { replaceChatJsonl } from './replaceChatJsonl';
+import { requireChat } from './requireChat';
 import { requireChatMeta } from './requireChatMeta';
 import { touchChatMeta } from './touchChatMeta';
+import { upsertChatIndexSummary } from './upsertChatIndexSummary';
 
 /**
  * Что это: полная замена model-history чата.
@@ -22,5 +23,6 @@ export async function setChatHistory({
   const meta = await requireChatMeta({ context, chatId });
   await replaceChatJsonl({ context, chatId: meta.id, fileName: 'history.jsonl', entries: history });
   await touchChatMeta({ context, meta });
-  await rebuildChatIndex({ context });
+  const updatedChat = await requireChat({ context, chatId: meta.id });
+  await upsertChatIndexSummary({ context, chat: updatedChat });
 }

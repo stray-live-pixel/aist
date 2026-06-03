@@ -6,7 +6,6 @@ import { agentActions } from '../../../shared/lib/agentActions';
 import type { AgentState } from '../../../shared/types';
 import { CompactControlGroup, CompactControlItem, Select } from '../../../shared/ui';
 import styles from '../ChatPage.module.scss';
-import { ToolCallNotesToggleButton } from './ToolCallNotesToggleButton';
 import { formatCost, getPermissionDisplayLabels } from './formatters';
 import { usePermissionOptions } from './usePermissionOptions';
 
@@ -44,7 +43,6 @@ export const ComposerContextSummary = memo(function ComposerContextSummary({
         options={permissionOptions}
         displayLabels={permissionDisplayLabels}
       />
-      <ToolCallNotesToggleButton required={state.toolCallNotesRequired} />
       {state.activeChat.usage.costUsd !== undefined ? (
         <CompactControlItem
           icon={<Coins size={12} />}

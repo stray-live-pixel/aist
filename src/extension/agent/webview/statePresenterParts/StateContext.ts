@@ -22,6 +22,7 @@ export type StateContext = SendAgentStateParams & {
   projectInstructions: string;
   promptConfig: unknown;
   memoryItems: unknown;
+  memorySettings: unknown;
   subagentRunsByChatId: Map<string, SubagentRun[]>;
   instructionSources: unknown;
   auxiliaryModels: unknown;

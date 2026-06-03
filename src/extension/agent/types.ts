@@ -136,6 +136,7 @@ export type WebviewMessage =
       scope?: AgentItemScope;
     }
   | { type: 'deletePromptPreset'; presetId: string }
+  | { type: 'setMemorySettings'; settings: Partial<{ autoApply: boolean }> }
   | { type: 'setMemoryEnabled'; scope: AgentMemoryScope; id: string; enabled: boolean }
   | { type: 'deleteMemory'; scope: AgentMemoryScope; id: string }
   | { type: 'saveReflectionCandidate'; chatId: string; candidateId: string }

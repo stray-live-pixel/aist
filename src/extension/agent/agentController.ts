@@ -27,6 +27,7 @@ import { postChatPatch } from './agentController/postChatPatch';
 import { refreshControllerModels } from './agentController/refreshControllerModels';
 import { refreshToolCatalogAction } from './agentController/refreshToolCatalogAction';
 import { reportControllerError } from './agentController/reportControllerError';
+import { reserveChatPatchStateBroadcast } from './agentController/reserveChatPatchStateBroadcast';
 import { retargetDeletedChat } from './agentController/retargetDeletedChat';
 import { sendControllerState } from './agentController/sendControllerState';
 import { syncLegacyOpenRouterApiKey } from './agentController/syncLegacyOpenRouterApiKey';
@@ -67,6 +68,9 @@ export class AgentController {
     context.subscriptions.push(
       chats.onDidChange(() => handleChatStoreChange({ state: this.state, callbacks: this.callbacks }))
     );
+    context.subscriptions.push({
+      dispose: daemonRuntime.onBeforeStoreRefresh((event) => this.reserveChatPatch(event))
+    });
     context.subscriptions.push({ dispose: daemonRuntime.onEvent((event) => this.postChatPatch(event)) });
     void syncLegacyOpenRouterApiKey({ state: this.state }).catch((error) =>
       logger.error('Failed to sync legacy VS Code OpenRouter API key setting', error)
@@ -192,6 +196,11 @@ export class AgentController {
   /** Отправляет полный state в одну или все webview surfaces. */
   private sendState(surface?: WebviewSurface): void {
     sendControllerState({ state: this.state, callbacks: this.callbacks, targetSurface: surface });
+  }
+
+  /** Заранее подавляет ближайший full state, если daemon event будет представлен chat.patch. */
+  private reserveChatPatch(event: DaemonEvent): void {
+    reserveChatPatchStateBroadcast({ state: this.state, event });
   }
 
   /** Отправляет incremental chat patch по daemon event. */
