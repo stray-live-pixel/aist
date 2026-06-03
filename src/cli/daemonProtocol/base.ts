@@ -2,7 +2,7 @@ import type { AutonomousBackendEvent } from '../../core/processes/autonomous';
 import type { ChatSummary, JsonObject, RuntimeEvent } from '../../core/shared/types/types';
 import type { DaemonIsolationEvent, IsolationSessionSummary } from './isolation';
 
-export const DAEMON_PROTOCOL_VERSION = 2;
+export const DAEMON_PROTOCOL_VERSION = 3;
 export const DAEMON_EVENT_METHOD = 'event';
 export const DAEMON_BUSY_ERROR_CODE = 'run.busy';
 
