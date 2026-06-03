@@ -10,7 +10,10 @@ const tempDirs: string[] = [];
 
 vi.mock('vscode', () => ({
   workspace: {
-    workspaceFolders: []
+    workspaceFolders: [],
+    getConfiguration: () => ({
+      get: () => true
+    })
   },
   Uri: {
     file: (filePath: string) => ({ fsPath: filePath })

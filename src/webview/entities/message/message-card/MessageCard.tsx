@@ -1,10 +1,11 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, FileText, Image } from 'lucide-react';
 import { type ReactNode, memo, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { formatAttachmentSize } from '../../../features/send-message';
 import { useI18n } from '../../../shared/i18n';
-import type { ChatMessage } from '../../../shared/types';
+import type { AgentAttachment, ChatMessage } from '../../../shared/types';
 import { formatMessageDate, formatMessageUsage } from '../message-formatting';
 import { ToolMessageCard } from '../tool-message-card';
 import styles from './MessageCard.module.scss';
@@ -53,6 +54,7 @@ function TextMessageCard({
 
   const cutClass = collapsible ? (expanded ? styles.expanded : styles.collapsed) : '';
   const hasBody = Boolean(message.content);
+  const hasAttachments = Boolean(message.attachments?.length);
   const rootClassName = `${styles.root} ${collapsible ? styles.cutCard : ''} ${cutClass} ${variant.className}`;
 
   return (
@@ -62,7 +64,7 @@ function TextMessageCard({
         label={authorLabel || variant.label}
         message={message}
         actions={actions}
-        hasBody={hasBody}
+        hasBody={hasBody || hasAttachments}
         collapsible={collapsible}
         expanded={expanded}
         onToggle={() => setExpanded((value) => !value)}
@@ -72,8 +74,32 @@ function TextMessageCard({
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || ''}</ReactMarkdown>
         </div>
       ) : null}
+      <AttachmentList attachments={message.attachments} />
       {collapsible && !expanded ? <div className={styles.cutShadow} /> : null}
     </article>
+  );
+}
+
+/**
+ * Что это: список вложений пользовательского сообщения.
+ * Зачем нужно: история чата должна показывать файлы, которые ушли модели вместе с prompt.
+ * Какую продуктовую проблему решает: пользователь и QA видят полный контекст запроса, включая изображения и файлы.
+ */
+function AttachmentList({ attachments }: { attachments?: AgentAttachment[] }) {
+  if (!attachments?.length) {
+    return null;
+  }
+
+  return (
+    <div className={styles.attachments}>
+      {attachments.map((attachment) => (
+        <span className={styles.attachment} key={attachment.id} title={attachment.name}>
+          {attachment.kind === 'image' ? <Image size={13} /> : <FileText size={13} />}
+          <span className={styles.attachmentName}>{attachment.name}</span>
+          <span className={styles.attachmentMeta}>{formatAttachmentSize({ bytes: attachment.size })}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 

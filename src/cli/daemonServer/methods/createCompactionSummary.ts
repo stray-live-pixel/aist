@@ -5,6 +5,7 @@ import type { Socket } from 'node:net';
 import type { AgentRuntimeChatRepository, AgentRuntimeConfigSnapshot, AgentRuntimeService as AgentRuntimeServiceType, AgentRuntimeToolCallHandler } from '../../../core/app/runtime/agentRuntime';
 // prettier-ignore
 import type { AuxiliaryModelInvoker } from '../../../core/entities/model/auxiliaryModel';
+import { contentToText } from '../../../core/entities/model/contentToText';
 // prettier-ignore
 import type { FetchLike, ModelClient } from '../../../core/entities/model/modelTransport';
 // prettier-ignore
@@ -58,7 +59,7 @@ export async function createCompactionSummary(
       ? this.toolRegistry.snapshot().tools
       : undefined
   });
-  const summary = response.content?.trim();
+  const summary = contentToText({ content: response.content }).trim();
   if (!summary) {
     throw new DaemonRpcError(-32000, 'chat.compaction.empty', 'Model returned an empty compaction summary.', {
       chatId: chat.id

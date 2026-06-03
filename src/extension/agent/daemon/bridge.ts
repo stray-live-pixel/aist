@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { DaemonEvent } from '../../../cli/daemonProtocol';
 import type {
+  AgentAttachment,
   ChatModelSettings,
   ModelProvider,
   OpenRouterModelOption,
@@ -117,7 +118,11 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   }
 
   /** Отправляет prompt в daemon runtime. */
-  ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void> {
+  ask(
+    chatId: string,
+    prompt: string,
+    options?: { skipUserMessage?: boolean; attachments?: AgentAttachment[] }
+  ): Promise<void> {
     return askBridgeChat({ context: this.runtimeContext, chatId, prompt, options });
   }
 

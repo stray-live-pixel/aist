@@ -1,4 +1,5 @@
 import { type OpenRouterMessage } from '../../../shared/types/types';
+import { contentToText } from '../contentToText';
 import { CodexInputItem } from './CodexInputItem';
 import { stringifyToolArguments } from './stringifyToolArguments';
 
@@ -7,9 +8,10 @@ export function toCodexPayload(messages: OpenRouterMessage[]): { instructions: s
   const input: CodexInputItem[] = [];
 
   for (const message of messages) {
+    const textContent = contentToText({ content: message.content });
     if (message.role === 'system') {
-      if (message.content) {
-        instructions.push(message.content);
+      if (textContent) {
+        instructions.push(textContent);
       }
       continue;
     }
@@ -19,16 +21,16 @@ export function toCodexPayload(messages: OpenRouterMessage[]): { instructions: s
         input.push({
           type: 'function_call_output',
           call_id: message.tool_call_id,
-          output: message.content || ''
+          output: textContent
         });
       }
       continue;
     }
 
-    if (message.content) {
+    if (textContent) {
       input.push({
         role: message.role,
-        content: message.content
+        content: textContent
       });
     }
 

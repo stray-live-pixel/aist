@@ -1,4 +1,5 @@
 import type { AgentReflectionCandidate } from './agentConfig';
+import type { AgentAttachment } from './attachment';
 import type { CodexServiceTier, EditorContextMode, ReasoningEffort } from './model';
 import type { SubagentKind } from './subagent';
 
@@ -14,6 +15,7 @@ export type ChatMessage = {
   id: string;
   role: ChatMessageRole;
   content?: string;
+  attachments?: AgentAttachment[];
   name?: string;
   status?: 'waiting' | 'running' | 'done' | 'error' | 'denied';
   approval?: 'pending' | 'approved' | 'denied';

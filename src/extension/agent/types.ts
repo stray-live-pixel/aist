@@ -2,6 +2,7 @@ import type * as vscode from 'vscode';
 
 import type { AgentRunTelemetryDraft } from '../../core/features/telemetry/telemetry';
 import type {
+  AgentAttachment,
   ChatModelSettings,
   CodexServiceTier,
   AgentRun as CoreAgentRun,
@@ -53,7 +54,7 @@ export type WebviewMessage =
       renderCount: number;
       maxRenderDurationMs: number;
     }
-  | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean }
+  | { type: 'ask'; prompt: string; continueWithoutUserPrompt?: boolean; attachments?: AgentAttachment[] }
   | { type: 'newChat' }
   | { type: 'duplicateChat'; chatId: string }
   | { type: 'deleteChat'; chatId: string }
@@ -73,6 +74,7 @@ export type WebviewMessage =
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
+  | { type: 'setToolCallNotesRequired'; required: boolean }
   | { type: 'setVcsCommand'; command: string }
   | { type: 'upsertProviderProfile'; profile: ProviderProfileInput }
   | { type: 'setProviderProfileApiKey'; profileId: string; apiKey: string }

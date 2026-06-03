@@ -44,6 +44,10 @@ export async function getRuntimeConfig(this: AistDaemonServer): Promise<AgentRun
       Math.floor(await this.getNumberSetting(['openrouterAgent.maxToolIterations', 'maxToolIterations'], 0))
     ),
     streamingEnabled: await this.getBooleanSetting(['openrouterAgent.streamingEnabled', 'streamingEnabled'], false),
+    toolCallNotesRequired: await this.getBooleanSetting(
+      ['openrouterAgent.toolCallNotesRequired', 'toolCallNotesRequired'],
+      true
+    ),
     auxiliaryModelToolEnabled: await this.hasAuxiliaryToolModelSettings(),
     disabledProjectToolIds: await this.getStringArraySetting([
       'openrouterAgent.projectToolDisabledIds',

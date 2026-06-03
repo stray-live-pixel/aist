@@ -45,6 +45,9 @@ export const settingsActions = {
   setStreamingEnabled(streamingEnabled: boolean): void {
     post({ message: { type: 'setStreamingEnabled', streamingEnabled } });
   },
+  setToolCallNotesRequired(required: boolean): void {
+    post({ message: { type: 'setToolCallNotesRequired', required } });
+  },
   setVcsCommand(command: string): void {
     post({ message: { type: 'setVcsCommand', command } });
   },

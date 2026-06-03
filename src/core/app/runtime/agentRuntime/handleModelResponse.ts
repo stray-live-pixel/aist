@@ -1,3 +1,4 @@
+import { contentToText } from '../../../entities/model/contentToText';
 import { createEmptyUsage } from '../../../features/context/usage';
 import {
   findRepeatedToolCall,
@@ -52,7 +53,7 @@ export async function handleModelResponse({
     }
     return finishWithAnswer({
       workingMessages,
-      answer: responseMessage.content || '',
+      answer: contentToText({ content: responseMessage.content }),
       reasoning: responseMessage.reasoning,
       usage
     });
@@ -107,7 +108,7 @@ async function runToolCalls({
   });
   workingMessages.push({
     role: 'assistant',
-    content: responseMessage.content || '',
+    content: contentToText({ content: responseMessage.content }),
     reasoning: responseMessage.reasoning,
     tool_calls: toolCalls
   });

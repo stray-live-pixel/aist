@@ -1,4 +1,4 @@
-import type { Chat, ChatMessage } from '../../shared/types';
+import type { AgentAttachment, Chat, ChatMessage } from '../../shared/types';
 import type { ChatTransientState, PendingUserMessage } from './chatTransientState';
 
 /**
@@ -24,7 +24,15 @@ export function applyChatTransientState({
   const submitting = shouldShowSubmitting({ chat, transient });
   const stopping = transient.stoppingChatId === chat.id && chat.busy;
   const messages = submitting
-    ? [...chat.messages, createPendingUserMessage({ chatId: chat.id, prompt: transient.submittingPrompt || '', now })]
+    ? [
+        ...chat.messages,
+        createPendingUserMessage({
+          chatId: chat.id,
+          prompt: transient.submittingPrompt || '',
+          attachments: transient.submittingAttachments,
+          now
+        })
+      ]
     : chat.messages;
 
   return {
@@ -64,6 +72,7 @@ export function clearConfirmedTransientState({
   return {
     submittingChatId: submittingConfirmed ? undefined : transient.submittingChatId,
     submittingPrompt: submittingConfirmed ? undefined : transient.submittingPrompt,
+    submittingAttachments: submittingConfirmed ? undefined : transient.submittingAttachments,
     stoppingChatId: stoppingConfirmed ? undefined : transient.stoppingChatId
   };
 }
@@ -75,7 +84,10 @@ export function clearConfirmedTransientState({
  * backend-снимку и не дублирует локальную карточку.
  */
 function shouldShowSubmitting({ chat, transient }: { chat: Chat; transient: ChatTransientState }): boolean {
-  if (transient.submittingChatId !== chat.id || !transient.submittingPrompt?.trim()) {
+  if (
+    transient.submittingChatId !== chat.id ||
+    (!transient.submittingPrompt?.trim() && !transient.submittingAttachments?.length)
+  ) {
     return false;
   }
 
@@ -83,7 +95,7 @@ function shouldShowSubmitting({ chat, transient }: { chat: Chat; transient: Chat
     return false;
   }
 
-  return !hasUserMessageWithContent({ messages: chat.messages, content: transient.submittingPrompt });
+  return !hasUserMessageWithContent({ messages: chat.messages, content: transient.submittingPrompt || '' });
 }
 
 /**
@@ -95,10 +107,12 @@ function shouldShowSubmitting({ chat, transient }: { chat: Chat; transient: Chat
 function createPendingUserMessage({
   chatId,
   prompt,
+  attachments,
   now
 }: {
   chatId: string;
   prompt: string;
+  attachments?: AgentAttachment[];
   now: number;
 }): PendingUserMessage {
   return {
@@ -106,6 +120,7 @@ function createPendingUserMessage({
     marker: 'local-pending-user-message',
     role: 'user',
     content: prompt,
+    attachments,
     createdAt: now
   };
 }

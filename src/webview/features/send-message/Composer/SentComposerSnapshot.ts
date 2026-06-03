@@ -1,3 +1,5 @@
+import type { AgentAttachment } from '../../../shared/types';
+
 /**
  * Что это: snapshot отправленного composer для exit-анимации.
  * Зачем нужно: React должен показать старый prompt отдельным слоем, пока новый composer очищен.
@@ -6,4 +8,5 @@
 export type SentComposerSnapshot = {
   id: number;
   prompt: string;
+  attachments: AgentAttachment[];
 };

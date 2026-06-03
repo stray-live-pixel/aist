@@ -9,6 +9,7 @@ import type { BuildFileAgentSystemPromptParams } from './types';
 export function buildFileAgentSystemPrompt(params: BuildFileAgentSystemPromptParams): string {
   return buildAgentSystemPrompt({
     language: params.language,
+    toolCallNotesRequired: params.toolCallNotesRequired,
     instructionSources: getFileAgentInstructionSources({
       workspaceRoot: params.workspaceRoot,
       homeDir: params.homeDir,

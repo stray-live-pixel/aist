@@ -1,5 +1,10 @@
 import type { AgentMemoryItem } from '../../core/entities/memory/memory';
-import type { AgentReflectionCandidate, ChatModelSettings, ChatSummary } from '../../core/shared/types/types';
+import type {
+  AgentAttachment,
+  AgentReflectionCandidate,
+  ChatModelSettings,
+  ChatSummary
+} from '../../core/shared/types/types';
 import type { DaemonChat } from './chatView';
 
 export type DaemonChatCreateParams = {
@@ -30,6 +35,7 @@ export type DaemonChatAskParams = {
   readonly chatId: string;
   readonly prompt: string;
   readonly skipUserMessage?: boolean;
+  readonly attachments?: AgentAttachment[];
 };
 
 export type DaemonChatAskResult = {

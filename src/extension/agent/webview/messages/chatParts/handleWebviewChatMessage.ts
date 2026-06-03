@@ -22,7 +22,7 @@ export async function handleWebviewChatMessage(
 ): Promise<void> {
   switch (message.type) {
     case 'ask':
-      await deps.ask(surface.getChatId(), message.prompt);
+      await deps.ask(surface.getChatId(), message.prompt, { attachments: message.attachments });
       return;
     case 'newChat':
       createChatFromWebview(surface, deps);

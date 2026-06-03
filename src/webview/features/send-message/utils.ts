@@ -8,6 +8,9 @@ export const MAX_TEXTAREA_HEIGHT = 300;
 /** Prompt по умолчанию, когда пользователь нажал send на пустом поле для продолжения текущей задачи. */
 export const DEFAULT_CONTINUE_PROMPT = 'Continue working. Continue with the current task';
 
+/** Prompt по умолчанию, когда пользователь прикрепил файлы без текстового запроса. */
+export const DEFAULT_ATTACHMENT_ANALYSIS_PROMPT = 'Analyze the attached files and images.';
+
 /**
  * Что это: авторасчёт высоты textarea по содержимому.
  * Зачем нужно: поле растёт без ручного resize, но ограничивается максимумом, чтобы composer не вытеснял историю сообщений.

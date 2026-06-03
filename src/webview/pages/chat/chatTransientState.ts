@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../shared/types';
+import type { AgentAttachment, ChatMessage } from '../../shared/types';
 
 /**
  * Локальное состояние пользовательского действия, которое ещё не подтверждено backend.
@@ -12,6 +12,8 @@ export type ChatTransientState = {
   submittingChatId?: string;
   /** Текст prompt, который нужно временно показать в истории как pending user message. */
   submittingPrompt?: string;
+  /** Вложения prompt, которые нужно временно показать вместе с pending user message. */
+  submittingAttachments?: AgentAttachment[];
   /** Когда пользователь нажал stop, UI сразу показывает остановку до подтверждения backend. */
   stoppingChatId?: string;
 };

@@ -15,10 +15,19 @@ export function removeLastSyntheticUserPrompt({
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
 
-    if (message.role === 'user' && message.content === prompt) {
+    if (message.role === 'user' && getMessageTextContent({ message }) === prompt) {
       return [...messages.slice(0, index), ...messages.slice(index + 1)];
     }
   }
 
   return messages;
+}
+
+/** Извлекает текст user prompt из обычного или multipart content. */
+function getMessageTextContent({ message }: { message: OpenRouterMessage }): string | undefined {
+  if (typeof message.content === 'string') {
+    return message.content;
+  }
+
+  return message.content?.find((part) => part.type === 'text')?.text;
 }

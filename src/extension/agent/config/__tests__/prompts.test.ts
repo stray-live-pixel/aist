@@ -70,6 +70,17 @@ describe('getSystemPrompt', () => {
     expect(prompt).not.toContain('## Skills');
     expect(prompt).not.toContain('run_skill');
   });
+
+  it('does not require reason and nextStep in Turbo tools mode', () => {
+    const prompt = getSystemPrompt({ language: 'en', toolCallNotesRequired: false });
+
+    expect(prompt).toContain('Turbo tools mode is active');
+    expect(prompt).toContain('do not include reason or nextStep in tool-call arguments');
+    expect(prompt).toContain('Do not add reason or nextStep to tool-call arguments in Turbo tools mode.');
+    expect(prompt).not.toContain('Every tool call must include a concrete short reason');
+    expect(prompt).not.toContain('Every tool call must include a concise nextStep');
+    expect(prompt).not.toContain('every tool call "reason" and "nextStep" argument');
+  });
 });
 
 function expectBasePromptContract(prompt: string, language: AgentLanguage): void {

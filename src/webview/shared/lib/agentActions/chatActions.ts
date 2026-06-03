@@ -1,4 +1,4 @@
-import type { ChatModelSettings, ModelProvider } from '../../types';
+import type { AgentAttachment, ChatModelSettings, ModelProvider } from '../../types';
 import { post } from './post';
 
 /**
@@ -10,8 +10,15 @@ export const chatActions = {
   webviewReady(): void {
     post({ message: { type: 'webviewReady' } });
   },
-  ask(prompt: string, options: { continueWithoutUserPrompt?: boolean } = {}): void {
-    post({ message: { type: 'ask', prompt, continueWithoutUserPrompt: options.continueWithoutUserPrompt } });
+  ask(prompt: string, options: { continueWithoutUserPrompt?: boolean; attachments?: AgentAttachment[] } = {}): void {
+    post({
+      message: {
+        type: 'ask',
+        prompt,
+        continueWithoutUserPrompt: options.continueWithoutUserPrompt,
+        attachments: options.attachments
+      }
+    });
   },
   stop(chatId?: string): void {
     post({ message: { type: 'stop', chatId } });

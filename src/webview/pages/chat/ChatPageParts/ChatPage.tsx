@@ -4,6 +4,7 @@ import { Composer } from '../../../features';
 import { agentActions } from '../../../shared/lib/agentActions';
 import { useAgentState } from '../../../shared/lib/agentState';
 import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerformanceMetric';
+import type { AgentAttachment } from '../../../shared/types';
 import { MessageList } from '../../../widgets/message-list';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
 import { AgentSettingsSummary, ComposerContextSummary, ModelSettingsToggleButton } from '../AgentSettingsSummary';
@@ -101,13 +102,17 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
 
   const composerMinimized = transientView.busy && state.composerUiSettings.minimizeOnBlur && !windowFocused;
 
-  function handleSubmitPrompt(prompt: string, options: { continueWithoutUserPrompt?: boolean } = {}) {
+  function handleSubmitPrompt(
+    prompt: string,
+    options: { continueWithoutUserPrompt?: boolean; attachments?: AgentAttachment[] } = {}
+  ) {
     const visiblePrompt = options.continueWithoutUserPrompt ? '' : prompt.trim();
-    if (visiblePrompt) {
+    if (visiblePrompt || options.attachments?.length) {
       setTransient((current) => ({
         ...current,
         submittingChatId: state.activeChat.id,
-        submittingPrompt: visiblePrompt
+        submittingPrompt: visiblePrompt || prompt,
+        submittingAttachments: options.attachments
       }));
     }
     agentActions.ask(prompt, options);

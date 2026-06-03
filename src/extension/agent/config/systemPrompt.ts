@@ -6,6 +6,7 @@ import type { AgentInstructionSource } from '../../../core/features/system-promp
 import { getWorkspaceFolder } from '../../shared/workspace';
 import { getAgentSkills } from '../../skills/skills';
 import { getAgentLanguage } from './settings';
+import { getToolCallNotesRequired } from './toolCallNotes';
 
 export type ExtensionSystemPromptParams = {
   workspaceRoot?: string;
@@ -37,6 +38,7 @@ export function buildAgentSystemPrompt(params: ExtensionSystemPromptParams = {})
     workspaceRoot: params.workspaceRoot || getWorkspaceFolder().uri.fsPath,
     homeDir: params.homeDir,
     language: getAgentLanguage(),
+    toolCallNotesRequired: getToolCallNotesRequired(),
     skills
   });
 }

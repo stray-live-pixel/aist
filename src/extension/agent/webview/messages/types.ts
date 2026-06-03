@@ -1,5 +1,5 @@
 import type { SecretStore } from '../../../../core/app/config/config';
-import type { ModelProvider } from '../../../../core/shared/types/types';
+import type { AgentAttachment, ModelProvider } from '../../../../core/shared/types/types';
 import type { AgentChatStore } from '../../../chats/chatDataStore';
 import type { AistLogger } from '../../../shared/logger';
 import type { ToolApprovalDecision, WebviewSurface } from '../../types';
@@ -14,7 +14,7 @@ export type AgentWebviewMessageDeps = {
   postPage(surface: WebviewSurface, page: 'chat' | 'settings'): void;
   refreshModels(provider?: ModelProvider): void;
   refreshCodexAuthState(): void;
-  ask(chatId: string, prompt: string): Promise<void>;
+  ask(chatId: string, prompt: string, options?: { attachments?: AgentAttachment[] }): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   saveReflectionCandidate(chatId: string, candidateId: string): Promise<void>;
   rejectReflectionCandidate(chatId: string, candidateId: string): Promise<void>;

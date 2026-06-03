@@ -68,7 +68,10 @@ describe('AgentRuntimeService', () => {
     });
     expect(
       harness.chat.history.some(
-        (message) => message.role === 'tool' && message.content?.includes('user-approved-memory')
+        (message) =>
+          message.role === 'tool' &&
+          typeof message.content === 'string' &&
+          message.content.includes('user-approved-memory')
       )
     ).toBe(true);
   });

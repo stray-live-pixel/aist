@@ -1,3 +1,4 @@
+import type { AgentAttachment } from './attachment';
 import type { SubagentKind } from './chatSubagent';
 import type { ToolResult } from './toolResult';
 
@@ -16,6 +17,7 @@ export type ChatMessage = {
   id: string;
   role: ChatMessageRole;
   content?: string;
+  attachments?: AgentAttachment[];
   name?: string;
   status?: ChatToolStatus | ChatSubagentStatus;
   approval?: ChatToolApprovalStatus;

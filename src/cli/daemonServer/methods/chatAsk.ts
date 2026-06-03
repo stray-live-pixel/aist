@@ -32,6 +32,7 @@ import type { DaemonConnection } from '../DaemonConnection';
 // prettier-ignore
 import type { DaemonRpcError as DaemonRpcErrorType } from '../DaemonRpcError';
 import * as deps from '../methodDeps';
+import { normalizeAgentAttachments } from './chatAskParts/normalizeAgentAttachments';
 
 // prettier-ignore
 const { fs, net, path, FileBackedConfigStore, FileSecretStore, OPENROUTER_API_KEY_SECRET_KEY, AgentRuntimeService, ChatRepository, AgentMemoryStore, createMemoryStorePaths, createCoreAuxiliaryModelInvoker, CodexAuthSessionProvider, CodexResponsesTransport, DEFAULT_MODEL, normalizeProviderProfiles, OpenRouterTransport, RunRepository, globalSettingsFile, globalWorkspaceRoot, safeMkdir, workspaceAistRoot, workspaceSettingsFile, SubagentRepository, getToolExecutionRequirement, normalizeToolApprovalDecision, createCompactionMessages, selectCompactionTailMessages, splitCompactionHistory, analyzeMemoryChatDetailed, getRelevantMemoryPromptBlockBySubagent, validateReflectionCandidates, runNodeSkillTool, buildFileAgentSystemPrompt, DefaultToolRegistry, ToolRunner, AutonomousBackend, getRepoVerificationContextNote, createNodeFilesystemToolRunner, DAEMON_BUSY_ERROR_CODE, DAEMON_EVENT_METHOD, DAEMON_PROTOCOL_VERSION, getDaemonSocketPath, dispatchDaemonRpcMethod, DaemonRpcError, DaemonFileLogger, E2E_OPENROUTER_ENDPOINT_ENV_KEY, OPENROUTER_ENV_KEY, READONLY_DAEMON_TOOLS, REDACTED_VALUE, unusedFetch, createMemorySubagentMessages, createFileBackedRuntimeChatRepository, prepareSocketPath, isValidJsonRpcRequest, isJsonRpcResponse, createJsonRpcError, toJsonRpcError, getDaemonModelOption, isEditorContextInput, normalizeDaemonSkill, normalizeChatModelSettings, formatMemorySubagentSuccessText, getReflectionMemoryScope, getReflectionMemoryNote, fallbackModels, dedupeAndSortModels, toDaemonChat, requireRecord, asOptionalRecord, requireString, optionalString, getAuxiliaryLegacySettingKey, optionalNumber, hasApprovalDecision, requireJsonValue, normalizeConfigScope, normalizeToolPermissionsSetting, normalizeModelProvider, parseAutonomousLaunch, normalizeAutonomousExportFormat, isJsonValue, isJsonObject, readOptionalJsonObject, mergeJsonObjects, getJsonPath, redactConfigValue, containsSecretLikePath, asJsonObject, sanitizeLogDetails, formatError } = deps;
@@ -41,6 +42,7 @@ export async function chatAsk(this: AistDaemonServer, params: unknown): Promise<
   const chatId = requireString(input, 'chatId');
   const prompt = requireString(input, 'prompt');
   const skipUserMessage = input.skipUserMessage === true;
+  const attachments = normalizeAgentAttachments({ value: input.attachments });
   await this.requireChat(chatId);
   if (this.activeRunsByChat.has(chatId) || this.startingRunsByChat.has(chatId)) {
     throw this.createBusyError(chatId);
@@ -48,7 +50,7 @@ export async function chatAsk(this: AistDaemonServer, params: unknown): Promise<
 
   this.startingRunsByChat.add(chatId);
   try {
-    const result = await this.runtime.startAsk(chatId, prompt, { skipUserMessage });
+    const result = await this.runtime.startAsk(chatId, prompt, { skipUserMessage, attachments });
     if (!result.accepted) {
       throw new DaemonRpcError(-32000, result.error.code || 'run.rejected', result.error.message, {
         code: result.error.code || 'run.rejected',

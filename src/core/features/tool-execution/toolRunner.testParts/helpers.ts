@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { contentToText } from '../../../entities/model/contentToText';
 import { createToolError } from '../../../shared/lib/toolErrors';
 import type {
   AgentRun,
@@ -150,8 +151,8 @@ export function getLastToolMessage(context: RunnerContext): ChatMessage {
   return context.chat.messages.filter((message) => message.role === 'tool').at(-1) as ChatMessage;
 }
 
-export function parseToolResult(content: string | undefined): unknown {
-  return JSON.parse(content || '{}');
+export function parseToolResult(content: OpenRouterMessage['content']): unknown {
+  return JSON.parse(contentToText({ content }) || '{}');
 }
 
 export async function createWorkspace(): Promise<string> {

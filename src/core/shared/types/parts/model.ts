@@ -31,6 +31,22 @@ export type ModelUsage = {
   totalTokens?: number;
 };
 
+export type ModelTransportTextPart = {
+  type: 'text';
+  text: string;
+};
+
+export type ModelTransportImagePart = {
+  type: 'image_url';
+  image_url: {
+    url: string;
+  };
+};
+
+export type ModelTransportContentPart = ModelTransportTextPart | ModelTransportImagePart;
+
+export type ModelTransportContent = string | ModelTransportContentPart[];
+
 export type ToolCall = {
   id: string;
   type: 'function';
@@ -42,7 +58,7 @@ export type ToolCall = {
 
 export type ModelTransportMessage = {
   role: ModelTransportRole;
-  content?: string;
+  content?: ModelTransportContent;
   reasoning?: string;
   tool_calls?: ToolCall[];
   tool_call_id?: string;

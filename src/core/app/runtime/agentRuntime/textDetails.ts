@@ -1,3 +1,4 @@
+import { contentToText } from '../../../entities/model/contentToText';
 import type { OpenRouterMessage } from '../../../shared/types/types';
 import type { AgentRuntimeText } from './types';
 
@@ -20,7 +21,7 @@ export function getResponseDetail({
     return text.reasoning(truncateDetail({ value: reasoning }));
   }
 
-  const content = normalizeText({ value: message.content });
+  const content = normalizeText({ value: contentToText({ content: message.content }) });
   if (content) {
     return text.answerDraft(truncateDetail({ value: content }));
   }

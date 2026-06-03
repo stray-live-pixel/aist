@@ -24,6 +24,8 @@ export type CompactNavigationButtonProps = {
   label?: string;
   title: string;
   disabled?: boolean;
+  /** Показывает toggle-состояние для режимов, которые визуально остаются «нажатыми». */
+  pressed?: boolean;
   className?: string;
   onClick(): void;
 };
@@ -74,6 +76,7 @@ export const CompactNavigationButton = memo(function CompactNavigationButton({
   label,
   title,
   disabled,
+  pressed,
   className,
   onClick
 }: CompactNavigationButtonProps) {
@@ -83,6 +86,7 @@ export const CompactNavigationButton = memo(function CompactNavigationButton({
       className={classNames(styles.navigationButton, !label && styles.navigationButtonIconOnly, className)}
       title={title}
       aria-label={title}
+      aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}
     >

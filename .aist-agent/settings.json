@@ -117,5 +117,6 @@
     "model": "codex:gpt-5.3-codex-spark",
     "reasoningEffort": "auto",
     "allowTools": false
-  }
+  },
+  "toolCallNotesRequired": false
 }

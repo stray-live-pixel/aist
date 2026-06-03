@@ -2,6 +2,8 @@ export type AgentLanguage = 'ru' | 'en';
 
 export type AgentPromptOptions = {
   language: AgentLanguage;
+  /** Когда false, Turbo tools просит модель не тратить токены на reason/nextStep у вызовов инструментов. */
+  toolCallNotesRequired?: boolean;
   instructions?: string;
   skills?: Array<{
     id: string;
@@ -29,8 +31,7 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
     ]),
     section('Tool rules', [
       'All tool paths must be workspace-relative.',
-      'Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.',
-      'Every tool call must include a concise nextStep: how you will use the result and what you will do next.',
+      ...getToolCallNotesRules({ required: options.toolCallNotesRequired !== false }),
       'Use grep_search for symbols, strings, or related files across the workspace.',
       'Prefer read_file for first-pass file context; use read_file_range only for known lines, large files, or clearly sufficient small fragments.',
       'Do not explore unfamiliar files by chaining read_file_range calls; switch to read_file, grep_search, or an outline/map.',
@@ -48,7 +49,10 @@ export function getSystemPrompt(options: AgentPromptOptions = { language: 'ru' }
       'After successful edits, verify at most once when verification is useful.'
     ]),
     section('Language', [
-      getLanguageInstruction(options.language),
+      getLanguageInstruction({
+        language: options.language,
+        toolCallNotesRequired: options.toolCallNotesRequired !== false
+      }),
       'Keep final answers concise and mention changed files.'
     ]),
     getUserInstructionsSection(options.instructions),
@@ -67,10 +71,41 @@ function section(title: string, lines: string[]): string {
 }
 
 /**
+ * Что это: выбирает правила заполнения служебных полей tool-call.
+ * Зачем нужно: Turbo tools должен отключать не только required в schema, но и текстовое требование в system prompt.
+ * Какую продуктовую проблему решает: даже старые чаты при следующем запросе перестают тратить токены на «Зачем» и «Дальше».
+ */
+function getToolCallNotesRules({ required }: { required: boolean }): string[] {
+  if (!required) {
+    return [
+      'Turbo tools mode is active: do not include reason or nextStep in tool-call arguments unless the user explicitly asks for detailed tool tracing.',
+      'Use the saved tokens for the actual task and continue from tool results without narrating why the tool was called.'
+    ];
+  }
+
+  return [
+    'Every tool call must include a concrete short reason in clear product language: why this exact tool is needed now.',
+    'Every tool call must include a concise nextStep: how you will use the result and what you will do next.'
+  ];
+}
+
+/**
  * Отдельная функция нужна, чтобы языковая политика была проверяемым инвариантом
  * для EN/RU prompt и не размазывалась по остальным секциям.
  */
-export function getLanguageInstruction(language: AgentLanguage): string {
+export function getLanguageInstruction({
+  language,
+  toolCallNotesRequired = true
+}: {
+  language: AgentLanguage;
+  toolCallNotesRequired?: boolean;
+}): string {
+  if (!toolCallNotesRequired) {
+    return language === 'ru'
+      ? 'Write final answers in Russian. Do not add reason or nextStep to tool-call arguments in Turbo tools mode.'
+      : 'Write final answers in English. Do not add reason or nextStep to tool-call arguments in Turbo tools mode.';
+  }
+
   return language === 'ru'
     ? 'Write final answers and every tool call "reason" and "nextStep" argument in Russian.'
     : 'Write final answers and every tool call "reason" and "nextStep" argument in English.';

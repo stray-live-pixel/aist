@@ -2,6 +2,7 @@ import type * as vscode from 'vscode';
 
 import type { DaemonEvent } from '../../../../cli/daemonProtocol';
 import type {
+  AgentAttachment,
   ChatModelSettings,
   ModelProvider,
   OpenRouterModelOption,
@@ -27,7 +28,11 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   clearChat(chatId: string): Promise<void>;
   setModel(chatId: string, model: string): Promise<void>;
   setModelSettings(chatId: string, settings: Partial<ChatModelSettings>): Promise<void>;
-  ask(chatId: string, prompt: string, options?: { skipUserMessage?: boolean }): Promise<void>;
+  ask(
+    chatId: string,
+    prompt: string,
+    options?: { skipUserMessage?: boolean; attachments?: AgentAttachment[] }
+  ): Promise<void>;
   stop(chatId?: string): Promise<void>;
   compactChat(chatId: string, trigger: 'manual' | 'auto'): Promise<{ id: string }>;
   analyzeMemoryChat(chatId: string): Promise<void>;

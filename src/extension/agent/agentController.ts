@@ -175,7 +175,11 @@ export class AgentController {
   }
 
   /** Отправляет prompt в daemon runtime после legacy secret sync. */
-  private async ask(chatId: string, prompt: string, options: { skipUserMessage?: boolean } = {}): Promise<void> {
+  private async ask(
+    chatId: string,
+    prompt: string,
+    options: { skipUserMessage?: boolean; attachments?: import('../../core/shared/types/types').AgentAttachment[] } = {}
+  ): Promise<void> {
     await syncLegacyOpenRouterApiKey({ state: this.state });
     await this.state.daemonRuntime.ask(chatId, prompt, options);
   }

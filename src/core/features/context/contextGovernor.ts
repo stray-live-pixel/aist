@@ -1,4 +1,5 @@
-import type { OpenRouterMessage } from '../../shared/types/types';
+import type { AgentAttachment, OpenRouterMessage } from '../../shared/types/types';
+import { buildUserContentWithAttachments } from './buildUserContentWithAttachments';
 
 export const MEMORY_TOOL_CALL_ID = 'aist-memory-context';
 export const MEMORY_TOOL_NAME = 'get_relevant_memory';
@@ -17,6 +18,8 @@ export type ContextGovernorInput = {
   history: OpenRouterMessage[];
   /** Релевантные заметки памяти, уже отобранные memory retriever для текущего запроса. */
   memoryContextBlock?: string;
+  /** Вложения текущего user prompt, выбранные в Composer для анализа моделью. */
+  attachments?: AgentAttachment[];
 };
 
 /**
@@ -41,7 +44,7 @@ export function governModelContext(input: ContextGovernorInput): GovernedContext
   return {
     messages: [
       ...input.history,
-      createUserMessage({ prompt: input.prompt }),
+      createUserMessage({ prompt: input.prompt, attachments: input.attachments }),
       ...buildMemoryMessages({ memoryContextBlock: input.memoryContextBlock })
     ],
     userContent: input.prompt
@@ -54,8 +57,8 @@ export function governModelContext(input: ContextGovernorInput): GovernedContext
  * Память не смешивается с запросом пользователя, чтобы в истории не появлялся второй источник правды
  * о том, что именно попросил пользователь.
  */
-function createUserMessage(input: { prompt: string }): OpenRouterMessage {
-  return { role: 'user', content: input.prompt };
+function createUserMessage(input: { prompt: string; attachments?: AgentAttachment[] }): OpenRouterMessage {
+  return { role: 'user', content: buildUserContentWithAttachments(input) };
 }
 
 /**

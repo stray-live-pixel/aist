@@ -1,8 +1,11 @@
 import { ChevronUp } from 'lucide-react';
-import type { DragEvent, KeyboardEvent, ReactNode, Ref } from 'react';
+import type { ChangeEvent, DragEvent, KeyboardEvent, ReactNode, Ref } from 'react';
 
+import type { AgentAttachment } from '../../../shared/types';
 import { ComposerFrame, TextArea } from '../../../shared/ui';
 import styles from '../Composer.module.scss';
+import { AttachmentTray } from './AttachmentTray';
+import { ComposerAttachButton } from './ComposerAttachButton';
 
 /**
  * Что это: визуальный shell ComposerFrame с textarea, minimized strip и animation classes.
@@ -20,6 +23,8 @@ export function ComposerShell({
   fallback,
   placeholder,
   prompt,
+  attachments,
+  attachmentError,
   headerActions,
   actions,
   className,
@@ -28,8 +33,16 @@ export function ComposerShell({
   onPromptChange,
   onPromptKeyDown,
   onPromptDragOver,
-  onPromptDrop
+  onPromptDrop,
+  onAttachmentInputChange,
+  onRemoveAttachment
 }: ComposerShellProps) {
+  const footerContent = (
+    <div className={styles.footerRow}>
+      {!readOnly ? <ComposerAttachButton onAttachmentInputChange={onAttachmentInputChange} /> : null}
+      {footer ? <div className={styles.footerContent}>{footer}</div> : null}
+    </div>
+  );
   const shellClassName = [
     className,
     minimized ? styles.composerMinimized : undefined,
@@ -51,22 +64,30 @@ export function ComposerShell({
           headerActions={headerActions}
           fallback={fallback}
           input={
-            <TextArea
-              ref={textareaRef}
-              variant="composer"
-              placeholder={placeholder}
-              rows={1}
-              value={prompt}
-              readOnly={readOnly}
-              aria-hidden={readOnly || minimized}
-              tabIndex={readOnly || minimized ? -1 : undefined}
-              onChange={(event) => onPromptChange?.(event.target.value)}
-              onKeyDown={(event) => !readOnly && onPromptKeyDown?.(event)}
-              onDragOver={(event) => !readOnly && onPromptDragOver?.(event)}
-              onDrop={(event) => !readOnly && onPromptDrop?.(event)}
-            />
+            <div className={styles.inputStack}>
+              <AttachmentTray
+                attachments={attachments}
+                attachmentError={attachmentError}
+                readOnly={readOnly}
+                onRemoveAttachment={onRemoveAttachment}
+              />
+              <TextArea
+                ref={textareaRef}
+                variant="composer"
+                placeholder={placeholder}
+                rows={1}
+                value={prompt}
+                readOnly={readOnly}
+                aria-hidden={readOnly || minimized}
+                tabIndex={readOnly || minimized ? -1 : undefined}
+                onChange={(event) => onPromptChange?.(event.target.value)}
+                onKeyDown={(event) => !readOnly && onPromptKeyDown?.(event)}
+                onDragOver={(event) => !readOnly && onPromptDragOver?.(event)}
+                onDrop={(event) => !readOnly && onPromptDrop?.(event)}
+              />
+            </div>
           }
-          footer={footer}
+          footer={footerContent}
           actions={actions}
         />
       </div>
@@ -90,6 +111,8 @@ type ComposerShellProps = {
   fallback: string;
   placeholder: string;
   prompt: string;
+  attachments?: AgentAttachment[];
+  attachmentError?: string;
   headerActions?: ReactNode;
   actions: ReactNode;
   className?: string;
@@ -99,4 +122,6 @@ type ComposerShellProps = {
   onPromptKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): void;
   onPromptDragOver?(event: DragEvent<HTMLTextAreaElement>): void;
   onPromptDrop?(event: DragEvent<HTMLTextAreaElement>): void;
+  onAttachmentInputChange?(event: ChangeEvent<HTMLInputElement>): void;
+  onRemoveAttachment?(attachmentId: string): void;
 };

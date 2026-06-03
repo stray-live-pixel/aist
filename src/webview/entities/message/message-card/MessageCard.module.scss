@@ -155,6 +155,48 @@
   padding-left: 0.75rem;
 }
 
+.attachments {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.attachment {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(100%, 320px);
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-input-background) 72%, transparent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.attachment svg {
+  flex-shrink: 0;
+  color: var(--vscode-textLink-foreground);
+}
+
+.attachmentName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentMeta {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 600;
+}
+
 /* Header. */
 .header {
   display: flex;

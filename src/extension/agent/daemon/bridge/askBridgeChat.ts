@@ -1,5 +1,6 @@
 import type { DaemonChatAskResult } from '../../../../cli/daemonProtocol';
 import { recordPerformanceTelemetry } from '../../../../core/features/performanceTelemetry';
+import type { AgentAttachment } from '../../../../core/shared/types/types';
 import type { BridgeRuntimeContext } from './BridgeRuntimeContext';
 import { getBridgeClient } from './getBridgeClient';
 import { refreshBridgeChat } from './refreshBridgeChat';
@@ -19,7 +20,7 @@ export async function askBridgeChat({
   context: BridgeRuntimeContext;
   chatId: string;
   prompt: string;
-  options?: { skipUserMessage?: boolean };
+  options?: { skipUserMessage?: boolean; attachments?: AgentAttachment[] };
 }): Promise<void> {
   const startedAt = Date.now();
   try {
@@ -28,7 +29,8 @@ export async function askBridgeChat({
     const result = await client.request<DaemonChatAskResult>('chat.ask', {
       chatId,
       prompt,
-      skipUserMessage: options.skipUserMessage
+      skipUserMessage: options.skipUserMessage,
+      attachments: options.attachments
     });
     context.state.agentRequestStartedAtByRunId.set(result.runId, {
       startedAt,

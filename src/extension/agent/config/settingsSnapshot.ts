@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import type { ChatModelSettings } from '../../chats/types';
 import { DEFAULT_MODEL } from '../../shared/constants';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from './config';
+import { getToolCallNotesRequired } from './toolCallNotes';
 import { getVcsCommand } from './vcs';
 
 /**
@@ -28,6 +29,8 @@ export function getAgentSettingsSnapshot(): {
   codexServiceTier: ReturnType<typeof normalizeCodexServiceTier>;
   editorContextMode: ReturnType<typeof normalizeEditorContextMode>;
   streamingEnabled: boolean;
+  /** Когда false, модель может не заполнять reason/nextStep у tool-call и экономит токены. */
+  toolCallNotesRequired: boolean;
   vcsCommand: string;
 } {
   const config = vscode.workspace.getConfiguration('openrouterAgent');
@@ -40,6 +43,7 @@ export function getAgentSettingsSnapshot(): {
     editorContextMode: normalizeEditorContextMode(config.get<string>('editorContextMode')),
     // По умолчанию используем non-streaming: он менее интерактивный, но устойчивее к оборванным SSE-соединениям.
     streamingEnabled: config.get<boolean>('streamingEnabled') === true,
+    toolCallNotesRequired: getToolCallNotesRequired(),
     vcsCommand: getVcsCommand()
   };
 }

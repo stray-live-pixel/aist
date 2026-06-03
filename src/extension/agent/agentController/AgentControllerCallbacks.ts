@@ -1,4 +1,4 @@
-import type { ModelProvider, ToolApprovalDecision } from '../../../core/shared/types/types';
+import type { AgentAttachment, ModelProvider, ToolApprovalDecision } from '../../../core/shared/types/types';
 import type { WebviewMessage, WebviewSurface } from '../types';
 
 /**
@@ -11,7 +11,11 @@ export type AgentControllerCallbacks = {
   readonly sendState: (surface?: WebviewSurface) => void;
   readonly postPage: (surface: WebviewSurface, page: 'chat' | 'settings') => void;
   readonly refreshModels: (force?: boolean, provider?: ModelProvider | 'all') => void;
-  readonly ask: (chatId: string, prompt: string, options?: { skipUserMessage?: boolean }) => Promise<void>;
+  readonly ask: (
+    chatId: string,
+    prompt: string,
+    options?: { skipUserMessage?: boolean; attachments?: AgentAttachment[] }
+  ) => Promise<void>;
   readonly openChatInEditor: (chatId?: string) => WebviewSurface;
   readonly openCreatingChatEditor: (input: { title: string; message: string }) => WebviewSurface;
   readonly retargetDeletedChat: (deletedChatId: string, nextChatId: string) => void;

@@ -15,6 +15,8 @@ export type AgentSystemPromptSkill = NonNullable<AgentPromptOptions['skills']>[n
 
 export type AgentSystemPromptInput = {
   language: AgentLanguage;
+  /** Когда false, prompt просит модель не добавлять reason/nextStep в tool-call arguments. */
+  toolCallNotesRequired?: boolean;
   instructionSources: AgentInstructionSource[];
   skills?: AgentSystemPromptSkill[];
 };
@@ -42,6 +44,7 @@ export function buildAgentSystemPrompt(input: AgentSystemPromptInput): string {
 
   return getSystemPrompt({
     language: input.language,
+    toolCallNotesRequired: input.toolCallNotesRequired,
     instructions,
     skills: input.skills
   });

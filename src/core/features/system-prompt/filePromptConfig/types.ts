@@ -62,6 +62,8 @@ export type BuildFileAgentSystemPromptParams = {
   workspaceRoot: string;
   homeDir?: string;
   language: AgentLanguage;
+  /** Когда false, Turbo tools отключает reason/nextStep в инструкциях модели. */
+  toolCallNotesRequired?: boolean;
   skills?: AgentSystemPromptSkill[];
 };
 

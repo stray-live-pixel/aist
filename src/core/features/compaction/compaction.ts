@@ -1,3 +1,4 @@
+import { contentToText } from '../../entities/model/contentToText';
 import type { ChatMessage, OpenRouterMessage } from '../../shared/types/types';
 
 export const COMPACTION_SYSTEM_PROMPT = [
@@ -27,7 +28,7 @@ export function createCompactionMessages(history: OpenRouterMessage[]): OpenRout
     .map((message, index) => {
       const toolCalls = message.tool_calls?.length ? `\nTool calls: ${JSON.stringify(message.tool_calls)}` : '';
       const toolId = message.tool_call_id ? `\nTool call id: ${message.tool_call_id}` : '';
-      return `#${index + 1} ${message.role}\n${message.content || ''}${toolCalls}${toolId}`;
+      return `#${index + 1} ${message.role}\n${contentToText({ content: message.content })}${toolCalls}${toolId}`;
     })
     .join('\n\n---\n\n');
 

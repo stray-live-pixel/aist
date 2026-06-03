@@ -1,3 +1,4 @@
+import { contentToText } from '../../../entities/model/contentToText';
 import type { ModelClient } from '../../../entities/model/modelTransport';
 import type { ModelStreamCallbacks, OpenRouterMessage } from '../../../shared/types/types';
 import { createAutonomousEvent } from '../storage/sessionStore';
@@ -64,7 +65,7 @@ function createApiEngine(options: {
         request.signal,
         stream
       );
-      const result = response.content || content.join('') || reasoning.join('\n');
+      const result = contentToText({ content: response.content }) || content.join('') || reasoning.join('\n');
       return { result };
     }
   };

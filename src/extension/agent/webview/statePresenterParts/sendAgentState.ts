@@ -28,6 +28,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
     codexServiceTier,
     editorContextMode,
     streamingEnabled,
+    toolCallNotesRequired,
     vcsCommand
   } = getAgentSettingsSnapshot();
   const defaultModelSettings = getDefaultModelSettings();
@@ -61,6 +62,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
           codexServiceTier,
           editorContextMode,
           streamingEnabled,
+          toolCallNotesRequired,
           vcsCommand,
           language,
           activeMode,

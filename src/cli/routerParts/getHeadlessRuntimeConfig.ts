@@ -17,6 +17,11 @@ export async function getHeadlessRuntimeConfig(
       ['openrouterAgent.streamingEnabled', 'streamingEnabled'],
       false
     ),
+    toolCallNotesRequired: await getBooleanSetting(
+      configStore,
+      ['openrouterAgent.toolCallNotesRequired', 'toolCallNotesRequired'],
+      true
+    ),
     disabledProjectToolIds: await getStringArraySetting(configStore, [
       'openrouterAgent.projectToolDisabledIds',
       'projectToolDisabledIds'

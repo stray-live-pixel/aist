@@ -120,6 +120,7 @@ function createState(): AgentState {
     codexServiceTier: 'auto',
     editorContextMode: 'auto',
     streamingEnabled: false,
+    toolCallNotesRequired: true,
     vcsCommand: 'git',
     auxiliaryModels: {
       compaction: { model: '', reasoningEffort: 'auto', allowTools: false },

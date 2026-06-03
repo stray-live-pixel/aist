@@ -8,6 +8,7 @@ import type {
   ToolRunnerRunRepository
 } from '../../../features/tool-execution/toolRunner';
 import type {
+  AgentAttachment,
   AgentReflectionCandidate,
   AgentRun,
   Chat,
@@ -47,6 +48,8 @@ export type MaybePromise<T> = T | Promise<T>;
 export type AgentRuntimeConfigSnapshot = {
   maxToolIterations: number;
   streamingEnabled: boolean;
+  /** Когда true, schema инструментов не требует reason/nextStep и экономит токены на каждом tool-call. */
+  toolCallNotesRequired?: boolean;
   disabledProjectToolIds?: readonly string[];
   auxiliaryModelToolEnabled?: boolean;
 };
@@ -66,6 +69,8 @@ export type AgentRuntimeRunResult = { accepted: true; runId: string } | { accept
 export type AgentRuntimeAskOptions = {
   /** Запустить модель с prompt как инструкцией, но не добавлять новый user message в чат/историю. */
   skipUserMessage?: boolean;
+  /** Вложения пользователя, которые нужно показать в чате и передать модели для анализа. */
+  attachments?: AgentAttachment[];
 };
 
 /**

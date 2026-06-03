@@ -245,6 +245,11 @@
           "default": false,
           "description": "Stream model responses while they are generated. Disabled by default because non-streaming requests are usually more resilient to interrupted SSE connections."
         },
+        "openrouterAgent.toolCallNotesRequired": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require AIST to include reason and nextStep in every tool call. Turn off for Turbo tools mode to save tokens and run faster."
+        },
         "openrouterAgent.composerGradientWhileBusy": {
           "type": "boolean",
           "default": true,

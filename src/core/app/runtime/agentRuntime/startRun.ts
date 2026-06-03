@@ -42,7 +42,12 @@ export async function startRun({
     }
   });
   if (!options.skipUserMessage) {
-    await appendMessage({ context, runId, chatId: chat.id, message: { role: 'user', content: prompt } });
+    await appendMessage({
+      context,
+      runId,
+      chatId: chat.id,
+      message: { role: 'user', content: prompt, attachments: options.attachments }
+    });
   }
   await setActivity({ context, runId, chatId: chat.id, activity: 'thinking', detail: context.text.prepareRequest() });
   attachActivityStream({ context, chatId: chat.id, runId, run });

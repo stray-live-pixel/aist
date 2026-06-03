@@ -51,10 +51,12 @@ export function createRuntime(this: AistDaemonServer): AgentRuntimeServiceType {
     promptProvider: {
       getSystemPrompt: async () => {
         const skills = await this.getConfiguredSkills();
+        const config = await this.getRuntimeConfig();
         return buildFileAgentSystemPrompt({
           workspaceRoot: this.workspaceRoot,
           homeDir: this.homeDir,
           language: await this.getLanguage(),
+          toolCallNotesRequired: config.toolCallNotesRequired,
           skills: skills.map(({ id, label, description }) => ({ id, label, description }))
         });
       }

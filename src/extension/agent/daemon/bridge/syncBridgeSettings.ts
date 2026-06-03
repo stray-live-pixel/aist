@@ -20,6 +20,7 @@ export async function syncBridgeSettings({ context }: { context: BridgeRuntimeCo
     reasoningEffort: snapshot.reasoningEffort,
     codexServiceTier: snapshot.codexServiceTier,
     streamingEnabled: snapshot.streamingEnabled,
+    toolCallNotesRequired: snapshot.toolCallNotesRequired,
     providerProfiles: getProviderProfiles(),
     auxiliaryModels: getAuxiliaryModelsSettings(),
     language: getAgentLanguage(),

@@ -55,6 +55,7 @@ export function Composer({
           key={controller.sentComposer.id}
           {...commonShellProps}
           prompt={controller.sentComposer.prompt}
+          attachments={controller.sentComposer.attachments}
           className={styles.composerExit}
           readOnly
         />
@@ -62,12 +63,16 @@ export function Composer({
       <ComposerShell
         {...commonShellProps}
         prompt={controller.prompt}
+        attachments={controller.attachments}
+        attachmentError={controller.attachmentError}
         className={controller.sentComposer ? styles.composerEnter : undefined}
         textareaRef={controller.textareaRef}
         onPromptChange={controller.updatePrompt}
         onPromptKeyDown={controller.handlePromptKeyDown}
         onPromptDragOver={controller.handlePromptDragOver}
         onPromptDrop={controller.handlePromptDrop}
+        onAttachmentInputChange={controller.addAttachmentsFromInput}
+        onRemoveAttachment={controller.removeAttachment}
       />
       {controller.historyOpen ? (
         <PromptHistoryModal

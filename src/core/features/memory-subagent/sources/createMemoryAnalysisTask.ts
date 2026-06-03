@@ -1,3 +1,4 @@
+import { contentToText } from '../../../entities/model/contentToText';
 import type { SubagentTask } from '../../../shared/subagents';
 import { parseJsonObject } from '../../../shared/subagents/utils/parseJsonObject';
 import type { AgentReflectionCandidate, OpenRouterMessage } from '../../../shared/types/types';
@@ -36,6 +37,6 @@ export function createMemoryAnalysisTask(input: MemoryAnalysisInput): SubagentTa
  * Зачем нужно: даже ручной запуск анализа не должен сохранять небезопасные или мусорные заметки.
  */
 function parseMemoryAnalysisResponse(response: OpenRouterMessage): AgentReflectionCandidate[] {
-  const parsed = parseJsonObject({ content: response.content || '' });
+  const parsed = parseJsonObject({ content: contentToText({ content: response.content }) });
   return validateReflectionCandidates(Array.isArray(parsed?.candidates) ? parsed.candidates : []);
 }

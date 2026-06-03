@@ -10,6 +10,135 @@
   transition: none;
 }
 
+.inputStack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footerRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.footerContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.attachButton {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-input-background) 78%, transparent);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.attachButton:hover {
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 54%, var(--agent-input-border));
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 52%, transparent);
+}
+
+.attachButton:active {
+  transform: translateY(1px);
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.attachmentTray {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attachmentChip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(100%, 280px);
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--agent-input-border);
+  border-radius: 999px;
+  padding: 3px 6px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-input-background) 72%, transparent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.attachmentChip svg {
+  flex-shrink: 0;
+  color: var(--vscode-textLink-foreground);
+}
+
+.attachmentName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentMeta {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.attachmentRemove {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  cursor: pointer;
+}
+
+.attachmentRemove:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 58%, transparent);
+}
+
+.attachmentError {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--vscode-errorForeground) 42%, transparent);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--vscode-errorForeground);
+  background: color-mix(in srgb, var(--vscode-errorForeground) 9%, transparent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
 .composerContent {
   overflow: hidden;
   transform-origin: bottom center;

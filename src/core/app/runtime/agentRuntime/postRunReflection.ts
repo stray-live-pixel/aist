@@ -1,3 +1,4 @@
+import { contentToText } from '../../../entities/model/contentToText';
 import {
   type RunReflectionOutcome,
   buildRunReflectionPrompt,
@@ -80,7 +81,7 @@ export async function runPostRunReflection({
       chat.model,
       abortController.signal
     );
-    const candidates = parseReflectionResponse(response.content || '');
+    const candidates = parseReflectionResponse(contentToText({ content: response.content }));
     if (candidates.length) {
       await context.deps.chatRepository.addReflectionCandidates?.(chatId, candidates);
       await emit({

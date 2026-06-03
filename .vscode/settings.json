@@ -27,5 +27,6 @@
     "durationSeconds": 3
   },
   "openrouterAgent.codexServiceTier": "priority",
-  "openrouterAgent.streamingEnabled": false
+  "openrouterAgent.streamingEnabled": false,
+  "openrouterAgent.toolCallNotesRequired": false
 }

@@ -1,4 +1,5 @@
 export * from './types/subagent';
+export * from './types/attachment';
 export * from './types/chat';
 export * from './types/model';
 export * from './types/agentConfig';

@@ -5,6 +5,7 @@ import type { Socket } from 'node:net';
 import type { AgentRuntimeChatRepository, AgentRuntimeConfigSnapshot, AgentRuntimeService as AgentRuntimeServiceType, AgentRuntimeToolCallHandler } from '../../../core/app/runtime/agentRuntime';
 // prettier-ignore
 import type { AuxiliaryModelInvoker } from '../../../core/entities/model/auxiliaryModel';
+import { contentToText } from '../../../core/entities/model/contentToText';
 // prettier-ignore
 import type { FetchLike, ModelClient } from '../../../core/entities/model/modelTransport';
 // prettier-ignore
@@ -96,7 +97,7 @@ export async function chatMemoryAnalyze(
       finishedAt,
       candidateCount: candidates.length,
       error: analysis.error,
-      responseContent: analysis.response?.content
+      responseContent: contentToText({ content: analysis.response?.content })
     });
     await this.subagentRepository.update(run.id, {
       status: analysis.error ? 'error' : 'success',

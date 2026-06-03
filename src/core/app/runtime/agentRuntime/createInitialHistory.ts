@@ -43,7 +43,12 @@ export async function createInitialHistory({
     throw error;
   }
 
-  const governedHistory = governModelContext({ prompt, history: chat.history, memoryContextBlock }).messages;
+  const governedHistory = governModelContext({
+    prompt,
+    history: chat.history,
+    memoryContextBlock,
+    attachments: options.attachments
+  }).messages;
   const initialHistory = options.skipUserMessage
     ? removeLastSyntheticUserPrompt({ messages: governedHistory, prompt })
     : governedHistory;

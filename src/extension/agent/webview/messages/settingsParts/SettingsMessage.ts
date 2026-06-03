@@ -8,6 +8,7 @@ export type SettingsMessage = Extract<
   | { type: 'setCodexServiceTier' }
   | { type: 'setEditorContextMode' }
   | { type: 'setStreamingEnabled' }
+  | { type: 'setToolCallNotesRequired' }
   | { type: 'setVcsCommand' }
   | { type: 'upsertProviderProfile' }
   | { type: 'setProviderProfileApiKey' }

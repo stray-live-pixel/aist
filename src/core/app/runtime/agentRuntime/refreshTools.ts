@@ -1,6 +1,7 @@
 import type { OpenRouterTool } from '../../../shared/types/types';
 import type { AgentRuntimeContext } from './context';
 import type { AgentRuntimeConfigSnapshot } from './types';
+import { withoutRequiredToolCallNotes } from './withoutRequiredToolCallNotes';
 
 /**
  * Что это: обновляет каталог инструментов с учётом skills, workspace и disabled tool ids.
@@ -24,5 +25,9 @@ export async function refreshTools({
     disabledProjectToolIds: config.disabledProjectToolIds || [],
     auxiliaryModelToolEnabled: config.auxiliaryModelToolEnabled === true
   });
+  if (config.toolCallNotesRequired === false) {
+    return withoutRequiredToolCallNotes({ tools: snapshot.tools });
+  }
+
   return snapshot.tools;
 }

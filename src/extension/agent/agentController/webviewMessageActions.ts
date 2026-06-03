@@ -103,7 +103,7 @@ async function handleWebviewMessageUnsafe({
         refreshCodexAuthState({ state, callbacks })
       );
     },
-    ask: (chatId, prompt) => callbacks.ask(chatId, prompt),
+    ask: (chatId, prompt, options) => callbacks.ask(chatId, prompt, options),
     compactChat: (chatId, trigger) => state.daemonRuntime.compactChat(chatId, trigger),
     saveReflectionCandidate: (chatId, candidateId) => state.daemonRuntime.saveReflectionCandidate(chatId, candidateId),
     rejectReflectionCandidate: (chatId, candidateId) =>
@@ -138,7 +138,10 @@ async function handleDaemonWebviewMessage({
 }): Promise<boolean> {
   switch (message.type) {
     case 'ask':
-      await callbacks.ask(surface.getChatId(), message.prompt, { skipUserMessage: message.continueWithoutUserPrompt });
+      await callbacks.ask(surface.getChatId(), message.prompt, {
+        skipUserMessage: message.continueWithoutUserPrompt,
+        attachments: message.attachments
+      });
       return true;
     case 'newChat':
       await createChatFromDaemonWebview({

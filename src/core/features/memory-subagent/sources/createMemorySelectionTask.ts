@@ -1,4 +1,5 @@
 import type { AgentMemoryItem } from '../../../entities/memory/memory';
+import { contentToText } from '../../../entities/model/contentToText';
 import type { SubagentTask } from '../../../shared/subagents';
 import { parseJsonObject } from '../../../shared/subagents/utils/parseJsonObject';
 import type { OpenRouterMessage } from '../../../shared/types/types';
@@ -43,7 +44,7 @@ function parseMemorySelectionResponse(input: {
   response: OpenRouterMessage;
   memoryItems: AgentMemoryItem[];
 }): MemorySelectionResult {
-  const parsed = parseJsonObject({ content: input.response.content || '' });
+  const parsed = parseJsonObject({ content: contentToText({ content: input.response.content }) });
   const selectedIds = Array.isArray(parsed?.selectedIds) ? parsed.selectedIds.map((id) => String(id)).slice(0, 6) : [];
   const selected = selectedIds
     .map((id) => input.memoryItems.find((item) => item.enabled && item.id === id))

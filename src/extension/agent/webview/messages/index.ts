@@ -1,4 +1,5 @@
 import type { WebviewMessage, WebviewSurface } from '../../types';
+import { postWebviewLoading } from '../postWebviewLoading';
 import { handleWebviewChatMessage, isChatMessage } from './chat';
 import { handleWebviewCodexMessage, isCodexMessage } from './codex';
 import { handleWebviewPermissionMessage, isPermissionMessage } from './permissions';
@@ -69,8 +70,19 @@ function handleWebviewReady(surface: WebviewSurface, deps: AgentWebviewMessageDe
   deps.logger.info('webviewReady received', {
     surfaceId: surface.id,
     kind: surface.kind,
-    chatId: surface.getChatId()
+    chatId: surface.getChatId(),
+    pendingChatCreation: surface.isPendingChatCreation?.() === true
   });
+
+  if (surface.isPendingChatCreation?.() === true) {
+    // Временная вкладка ещё хранит fallback chatId старого диалога.
+    // До реального chatId показываем только loading, иначе пользователь увидит предыдущую историю.
+    postWebviewLoading({ surface, message: surface.getPendingChatCreationMessage?.() || '' });
+    deps.postPage(surface, 'chat');
+    deps.refreshCodexAuthState();
+    return;
+  }
+
   deps.sendState(surface);
   deps.postPage(surface, surface.kind === 'sidebar' ? deps.getSidebarPage() : 'chat');
   deps.refreshCodexAuthState();
