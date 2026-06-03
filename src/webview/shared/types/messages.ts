@@ -70,6 +70,7 @@ export type ExtensionToWebviewMessage =
   | { type: 'page'; page: 'chat' | 'settings' | 'autonomous' }
   | { type: 'loading'; message: string }
   | { type: 'showChats' }
+  | { type: 'showIsolation' }
   | { type: 'errorModal'; message: string }
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string }

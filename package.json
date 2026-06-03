@@ -20,6 +20,7 @@
     "onCommand:openrouterAgent.openChats",
     "onCommand:openrouterAgent.openSettings",
     "onCommand:openrouterAgent.openAutonomous",
+    "onCommand:openrouterAgent.openIsolation",
     "onCommand:openrouterAgent.openStorage",
     "onCommand:openrouterAgent.showLogs",
     "onCommand:openrouterAgent.editSelection",
@@ -82,6 +83,11 @@
         "icon": "$(rocket)"
       },
       {
+        "command": "openrouterAgent.openIsolation",
+        "title": "aist: Isolated Agents",
+        "icon": "$(server)"
+      },
+      {
         "command": "openrouterAgent.openStorage",
         "title": "aist: Open AIST Storage",
         "icon": "$(folder-opened)"
@@ -124,6 +130,11 @@
           "command": "openrouterAgent.openAutonomous",
           "when": "view == openrouterAgent.chats",
           "group": "navigation@2.5"
+        },
+        {
+          "command": "openrouterAgent.openIsolation",
+          "when": "view == openrouterAgent.chats",
+          "group": "navigation@2.75"
         },
         {
           "command": "openrouterAgent.openStorage",

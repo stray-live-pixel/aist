@@ -12,7 +12,7 @@ beforeAll(() => {
 });
 
 describe('FloatingChatActions', () => {
-  it('keeps Composer header actions in the product order', async () => {
+  it('keeps Composer header actions focused on chat controls', async () => {
     const { FloatingChatActions } = await import('./ChatPageParts/FloatingChatActions');
     const html = renderToStaticMarkup(
       <I18nProvider language="en">
@@ -22,13 +22,12 @@ describe('FloatingChatActions', () => {
           onNewChat={() => undefined}
           onOpenChats={() => undefined}
           onOpenSettings={() => undefined}
-          onOpenIsolation={() => undefined}
           vcsToggle={<button title="Show VCS controls: main">main</button>}
         />
       </I18nProvider>
     );
 
-    // Пользовательский порядок верхних кнопок важен для мышечной памяти в Composer.
+    // Composer оставляет только chat-local действия; системные разделы открываются из меню VS Code.
     const titles = Array.from(html.matchAll(/title="([^"]+)"/g)).map((match) => match[1]);
 
     expect(titles).toEqual([
@@ -36,7 +35,6 @@ describe('FloatingChatActions', () => {
       'Open chats',
       'Open this chat in editor',
       'Open this chat as JSON',
-      'Isolated agents',
       'Open agent settings',
       'Show VCS controls: main',
       'v1.2.3'

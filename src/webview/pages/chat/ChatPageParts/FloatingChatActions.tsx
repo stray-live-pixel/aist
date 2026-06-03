@@ -1,4 +1,4 @@
-import { Braces, ExternalLink, MessageSquare, Plus, Server, Settings } from 'lucide-react';
+import { Braces, ExternalLink, MessageSquare, Plus, Settings } from 'lucide-react';
 import { type ReactNode, memo } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
@@ -11,7 +11,6 @@ export const FloatingChatActions = memo(function FloatingChatActions({
   onNewChat,
   onOpenChats,
   onOpenSettings,
-  onOpenIsolation,
   activeChatId,
   vcsToggle
 }: {
@@ -20,7 +19,6 @@ export const FloatingChatActions = memo(function FloatingChatActions({
   onNewChat(): void;
   onOpenChats(): void;
   onOpenSettings(): void;
-  onOpenIsolation(): void;
   activeChatId: string;
   /** Кнопка ветки передаётся слотом, чтобы порядок всех composer-actions оставался в одном месте. */
   vcsToggle: ReactNode;
@@ -44,7 +42,6 @@ export const FloatingChatActions = memo(function FloatingChatActions({
         title={t('chat.openJson')}
         onClick={() => agentActions.openChatJson(activeChatId)}
       />
-      <CompactNavigationButton icon={<Server size={12} />} title="Isolated agents" onClick={onOpenIsolation} />
       <CompactNavigationButton icon={<Settings size={12} />} title={t('chat.openSettings')} onClick={onOpenSettings} />
       {vcsToggle}
       <CompactNavigationButton

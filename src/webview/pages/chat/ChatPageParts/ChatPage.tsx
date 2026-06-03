@@ -88,12 +88,15 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
 
   useEffect(() => {
     /**
-     * Системная view/title-кнопка живёт вне React-дерева, поэтому открытие списка чатов
-     * приходит отдельным IPC-событием и переиспользует локальное состояние модалки.
+     * Системные view/title-кнопки живут вне React-дерева, поэтому открытия модалок
+     * приходят отдельными IPC-событиями и переиспользуют локальное состояние ChatPage.
      */
     const listener = (event: MessageEvent<{ type: string }>) => {
       if (event.data.type === 'showChats') {
         setChatsOpen(true);
+      }
+      if (event.data.type === 'showIsolation') {
+        setIsolationOpen(true);
       }
     };
 
@@ -183,7 +186,6 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
             onNewChat={() => agentActions.newChat()}
             onOpenChats={() => setChatsOpen(true)}
             onOpenSettings={() => onOpenSettingsPage()}
-            onOpenIsolation={() => setIsolationOpen(true)}
             activeChatId={state.activeChat.id}
             vcsToggle={
               <VcsToggleButton

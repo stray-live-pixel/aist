@@ -41,6 +41,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     vscode.commands.registerCommand('openrouterAgent.openSettings', () => agent.openSettings()),
     vscode.commands.registerCommand('openrouterAgent.openAutonomous', () => autonomous.open()),
+    vscode.commands.registerCommand('openrouterAgent.openIsolation', () => agent.openIsolation()),
     vscode.commands.registerCommand('openrouterAgent.openStorage', () => agent.openStorage()),
     vscode.commands.registerCommand('openrouterAgent.newChat', () => agent.createChat()),
     vscode.commands.registerCommand('openrouterAgent.editSelection', () => agent.editSelection()),
