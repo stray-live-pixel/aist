@@ -12,6 +12,7 @@ import { LocalDockerIsolationProvider } from './LocalDockerIsolationProvider';
 import { IsolationGitService } from './git/IsolationGitService';
 
 export type IsolationAgentRunInput = {
+  /** Снимок сессии с chatId стандартного чата для live-наблюдения. */
   readonly session: IsolationSessionSummary;
   readonly worktreePath: string;
   readonly containerName: string;
@@ -26,6 +27,8 @@ type IsolationSessionManagerOptions = {
   readonly now: () => number;
   readonly idFactory: () => string;
   readonly emit: (event: DaemonIsolationEvent) => void;
+  /** Создаёт обычный чат, куда isolated runtime будет писать live-сообщения и tool-calls. */
+  readonly createChat: (input: { chatId: string; prompt: string }) => Promise<void>;
   readonly runAgent: (input: IsolationAgentRunInput) => Promise<{ runId?: string; answer?: string }>;
 };
 
@@ -74,10 +77,13 @@ export class IsolationSessionManager {
 
     const taskId = this.options.idFactory();
     const sessionId = this.options.idFactory();
+    const chatId = `isolation-${sessionId}`;
     const now = this.options.now();
+    await this.options.createChat({ chatId, prompt });
     const session: IsolationSessionSummary = {
       sessionId,
       taskId,
+      chatId,
       prompt,
       branchName: `aist/task/${taskId.slice(0, 12)}`,
       baseRef: params.baseRef?.trim() || undefined,
@@ -101,7 +107,13 @@ export class IsolationSessionManager {
       throw new Error('Isolation continue prompt must not be empty.');
     }
 
+    const chatId = existing.chatId || `isolation-${existing.sessionId}`;
+    if (!existing.chatId) {
+      await this.options.createChat({ chatId, prompt: nextPrompt });
+    }
+
     const session = await this.updateSession(existing.sessionId, {
+      chatId,
       prompt: nextPrompt,
       attempt: existing.attempt + 1,
       status: 'queued',

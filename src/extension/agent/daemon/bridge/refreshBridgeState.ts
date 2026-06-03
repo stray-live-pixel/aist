@@ -2,6 +2,7 @@ import type { DaemonChatGetResult, DaemonState } from '../../../../cli/daemonPro
 import type { BridgeRuntimeContext } from './BridgeRuntimeContext';
 import { DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY } from './DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY';
 import { getBridgeClient } from './getBridgeClient';
+import { getPreservedBridgeActiveChatId } from './getPreservedBridgeActiveChatId';
 
 /**
  * Что это: обновляет полный state чатов из daemon.
@@ -25,5 +26,11 @@ export async function refreshBridgeState({
   );
   context.state.isolationSessions = [...(state.isolationSessions || [])];
   const savedActiveChatId = context.extensionContext.workspaceState.get<string>(DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY);
-  context.chats.replaceAll(chats, activeChatId || savedActiveChatId || state.activeRun?.chatId);
+  const currentActiveChatId = context.chats.getSummaries().length ? context.chats.getActiveChat().id : undefined;
+  context.chats.replaceAll(
+    chats,
+    activeChatId ||
+      getPreservedBridgeActiveChatId({ chats, savedActiveChatId, currentActiveChatId }) ||
+      state.activeRun?.chatId
+  );
 }
