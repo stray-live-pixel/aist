@@ -15,6 +15,7 @@ export type SettingsPageId =
   | 'memory'
   | 'permissions'
   | 'providers'
+  | 'vcs'
   | 'notifications'
   | 'telemetry'
   | 'compaction'

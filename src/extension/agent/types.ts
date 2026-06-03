@@ -73,6 +73,7 @@ export type WebviewMessage =
   | { type: 'setCodexServiceTier'; codexServiceTier: CodexServiceTier }
   | { type: 'setEditorContextMode'; editorContextMode: EditorContextMode }
   | { type: 'setStreamingEnabled'; streamingEnabled: boolean }
+  | { type: 'setVcsCommand'; command: string }
   | { type: 'upsertProviderProfile'; profile: ProviderProfileInput }
   | { type: 'setProviderProfileApiKey'; profileId: string; apiKey: string }
   | { type: 'duplicateProviderProfile'; profileId: string }

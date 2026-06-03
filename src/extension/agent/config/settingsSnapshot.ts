@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import type { ChatModelSettings } from '../../chats/types';
 import { DEFAULT_MODEL } from '../../shared/constants';
 import { normalizeCodexServiceTier, normalizeEditorContextMode, normalizeReasoningEffort } from './config';
+import { getVcsCommand } from './vcs';
 
 /**
  * Возвращает модель по умолчанию из настроек VS Code.
@@ -27,6 +28,7 @@ export function getAgentSettingsSnapshot(): {
   codexServiceTier: ReturnType<typeof normalizeCodexServiceTier>;
   editorContextMode: ReturnType<typeof normalizeEditorContextMode>;
   streamingEnabled: boolean;
+  vcsCommand: string;
 } {
   const config = vscode.workspace.getConfiguration('openrouterAgent');
 
@@ -37,7 +39,8 @@ export function getAgentSettingsSnapshot(): {
     codexServiceTier: normalizeCodexServiceTier(config.get<string>('codexServiceTier')),
     editorContextMode: normalizeEditorContextMode(config.get<string>('editorContextMode')),
     // По умолчанию используем non-streaming: он менее интерактивный, но устойчивее к оборванным SSE-соединениям.
-    streamingEnabled: config.get<boolean>('streamingEnabled') === true
+    streamingEnabled: config.get<boolean>('streamingEnabled') === true,
+    vcsCommand: getVcsCommand()
   };
 }
 

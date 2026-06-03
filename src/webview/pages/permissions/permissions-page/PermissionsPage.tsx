@@ -14,6 +14,7 @@ import { SkillsSettingsPage } from './skills-settings-page';
 import { SystemSettingsPage } from './system-settings-page';
 import { TelemetrySettingsPage } from './telemetry-settings-page';
 import type { PermissionsPageProps, SettingsPageId } from './types';
+import { VcsSettingsPage } from './vcs-settings-page';
 
 /**
  * Что это: страница настроек агента с sidebar-навигацией.
@@ -38,6 +39,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
     activeChat,
     models,
     providerProfiles,
+    vcsCommand,
     instructionSources,
     customSkills,
     codexAuthenticated,
@@ -97,6 +99,7 @@ export function PermissionsPage({ onBack, variant = 'page', initialPage = 'overv
           {activePage === 'providers' ? (
             <ProviderSettingsPage state={state} profiles={providerProfiles} codexAuthenticated={codexAuthenticated} />
           ) : null}
+          {activePage === 'vcs' ? <VcsSettingsPage vcsCommand={vcsCommand} /> : null}
           {activePage === 'notifications' ? <NotificationSettingsPage settings={approvalNotificationSettings} /> : null}
           {activePage === 'telemetry' ? (
             <TelemetrySettingsPage telemetry={telemetry} performanceTelemetry={performanceTelemetry} />

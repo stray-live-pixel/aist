@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AutonomousPage } from '../pages/autonomous/AutonomousPage';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
+import type { SettingsPageId } from '../pages/permissions/permissions-page/types';
 import { I18nProvider, translate } from '../shared/i18n';
 import { agentActions } from '../shared/lib/agentActions';
 import { applyAgentPatch } from '../shared/lib/agentPatches';
@@ -22,6 +23,7 @@ export function App() {
   const [state, setState] = useState<AgentState | null>(null);
   const [autonomousState, setAutonomousState] = useState<AutonomousState | null>(null);
   const [page, setPage] = useState<'chat' | 'settings' | 'autonomous'>('chat');
+  const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [autonomousError, setAutonomousError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(() => translate('ru', 'app.loadingAgent'));
@@ -88,7 +90,7 @@ export function App() {
     return (
       <I18nProvider language={state.agentLanguage}>
         <AgentStateProvider state={state}>
-          <PermissionsPage onBack={() => setPage('chat')} />
+          <PermissionsPage onBack={() => setPage('chat')} initialPage={settingsInitialPage} />
           {modal}
         </AgentStateProvider>
       </I18nProvider>
@@ -98,7 +100,12 @@ export function App() {
   return (
     <I18nProvider language={state.agentLanguage}>
       <AgentStateProvider state={state}>
-        <ChatPage onOpenSettingsPage={() => setPage('settings')} />
+        <ChatPage
+          onOpenSettingsPage={(initialPage = 'overview') => {
+            setSettingsInitialPage(initialPage);
+            setPage('settings');
+          }}
+        />
         {modal}
       </AgentStateProvider>
     </I18nProvider>

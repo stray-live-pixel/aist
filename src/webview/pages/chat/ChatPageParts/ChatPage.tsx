@@ -5,24 +5,20 @@ import { agentActions } from '../../../shared/lib/agentActions';
 import { useAgentState } from '../../../shared/lib/agentState';
 import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerformanceMetric';
 import { MessageList } from '../../../widgets/message-list';
-import {
-  AgentSettingsSummary,
-  ComposerContextSummary,
-  ModelSettingsPanel,
-  ModelSettingsToggleButton
-} from '../AgentSettingsSummary';
+import type { SettingsPageId } from '../../permissions/permissions-page/types';
+import { AgentSettingsSummary, ComposerContextSummary, ModelSettingsToggleButton } from '../AgentSettingsSummary';
 import { ApprovalPromptModal } from '../ApprovalPromptModal';
 import { ChatListModal } from '../ChatListModal';
 import styles from '../ChatPage.module.scss';
 import { applyChatTransientState, clearConfirmedTransientState } from '../applyChatTransientState';
 import { type ChatTransientState } from '../chatTransientState';
+import { ComposerNoticeStack } from './ComposerNoticeStack';
 import { FloatingChatActions } from './FloatingChatActions';
-import { VcsControls } from './VcsControls';
 import { VcsToggleButton } from './VcsToggleButton';
 import { formatChatModelLabel } from './formatChatModelLabel';
 import { useSortedChats } from './useSortedChats';
 
-export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void }) {
+export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: SettingsPageId): void }) {
   const state = useAgentState();
   useRenderPerformanceMetric({
     component: 'ChatPage',
@@ -93,7 +89,8 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
 
   function toggleVcsPanel() {
     if (!state.activeChat.vcs?.branch) {
-      agentActions.refreshVcs();
+      onOpenSettingsPage('vcs');
+      return;
     }
     setVcsPanelOpen((current) => !current);
   }
@@ -155,9 +152,16 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
             extensionVersion={state.extensionVersion}
             onNewChat={() => agentActions.newChat()}
             onOpenChats={() => setChatsOpen(true)}
-            onOpenSettings={onOpenSettingsPage}
+            onOpenSettings={() => onOpenSettingsPage()}
             activeChatId={state.activeChat.id}
-            vcsToggle={<VcsToggleButton state={state} open={vcsPanelOpen} onToggle={toggleVcsPanel} />}
+            vcsToggle={
+              <VcsToggleButton
+                state={state}
+                open={vcsPanelOpen}
+                onToggle={toggleVcsPanel}
+                onOpenVcsSettings={() => onOpenSettingsPage('vcs')}
+              />
+            }
           />
         }
         footer={
@@ -167,22 +171,18 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(): void })
           />
         }
         notice={
-          modelPanelOpen || vcsPanelOpen || (pendingApproval && approvalMinimized) ? (
-            <div className={styles.composerNoticeStack}>
-              {modelPanelOpen ? <ModelSettingsPanel state={state} minimized={composerMinimized} /> : null}
-              {vcsPanelOpen ? <VcsControls state={state} minimized={composerMinimized} /> : null}
-              {pendingApproval && approvalMinimized ? (
-                <ApprovalPromptModal
-                  message={pendingApproval}
-                  settings={state.approvalNotificationSettings}
-                  minimized
-                  onMinimize={() => setApprovalMinimized(true)}
-                  onRestore={() => setApprovalMinimized(false)}
-                  onResolved={() => setResolvedApprovalId(pendingApproval.id)}
-                />
-              ) : null}
-            </div>
-          ) : undefined
+          <ComposerNoticeStack
+            state={state}
+            composerMinimized={composerMinimized}
+            modelPanelOpen={modelPanelOpen}
+            vcsPanelOpen={vcsPanelOpen}
+            pendingApproval={pendingApproval}
+            approvalMinimized={approvalMinimized}
+            onApprovalMinimize={() => setApprovalMinimized(true)}
+            onApprovalRestore={() => setApprovalMinimized(false)}
+            onApprovalResolved={() => setResolvedApprovalId(pendingApproval?.id)}
+            onOpenSettingsPage={onOpenSettingsPage}
+          />
         }
       />
       {chatsOpen ? (

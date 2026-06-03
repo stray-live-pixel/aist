@@ -32,6 +32,9 @@ export async function refreshChatVcs({
   const vcsState = await state.chatVcs.getCurrentState();
   state.chats.setVcsState(chatId, vcsState);
   callbacks.sendState();
+  if (!vcsState) {
+    state.logger.info('VCS refresh skipped: workspace is not a repository');
+  }
 }
 
 /** Что это: создаёт isolated branch для чата; зачем нужно: пользователь может безопасно работать в отдельной ветке; проблема: статус ветки сразу виден в UI. */

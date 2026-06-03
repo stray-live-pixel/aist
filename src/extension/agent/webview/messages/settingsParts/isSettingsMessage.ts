@@ -9,6 +9,7 @@ export function isSettingsMessage(message: WebviewMessage): message is SettingsM
     'setCodexServiceTier',
     'setEditorContextMode',
     'setStreamingEnabled',
+    'setVcsCommand',
     'upsertProviderProfile',
     'setProviderProfileApiKey',
     'duplicateProviderProfile',

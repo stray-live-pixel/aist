@@ -24,6 +24,7 @@ import {
   upsertProviderProfile
 } from '../../../config/providerProfiles';
 import { setAgentLanguage, setAgentMode } from '../../../config/settings';
+import { setVcsCommand } from '../../../config/vcs';
 import { deleteAgentMemory, setAgentMemoryEnabled } from '../../../memory/memory';
 import { type AgentWebviewMessageDeps } from '../types';
 import { SettingsMessage } from './SettingsMessage';
@@ -63,6 +64,10 @@ export async function handleWebviewSettingsMessage(
       return;
     case 'setStreamingEnabled':
       await updateWorkspaceSetting('streamingEnabled', message.streamingEnabled === true);
+      deps.sendState();
+      return;
+    case 'setVcsCommand':
+      await setVcsCommand({ command: message.command });
       deps.sendState();
       return;
     case 'upsertProviderProfile':

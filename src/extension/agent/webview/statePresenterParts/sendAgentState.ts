@@ -21,8 +21,15 @@ export function sendAgentState(params: SendAgentStateParams): void {
     return;
   }
 
-  const { configuredModel, maxToolIterations, reasoningEffort, codexServiceTier, editorContextMode, streamingEnabled } =
-    getAgentSettingsSnapshot();
+  const {
+    configuredModel,
+    maxToolIterations,
+    reasoningEffort,
+    codexServiceTier,
+    editorContextMode,
+    streamingEnabled,
+    vcsCommand
+  } = getAgentSettingsSnapshot();
   const defaultModelSettings = getDefaultModelSettings();
   const language = getAgentLanguage();
   const activeMode = getActiveAgentMode();
@@ -54,6 +61,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
           codexServiceTier,
           editorContextMode,
           streamingEnabled,
+          vcsCommand,
           language,
           activeMode,
           agentModes,

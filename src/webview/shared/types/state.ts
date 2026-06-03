@@ -45,6 +45,8 @@ export type AgentState = {
   editorContextMode: EditorContextMode;
   /** Включает live streaming ответа; по умолчанию false, потому что non-streaming устойчивее к обрывам SSE. */
   streamingEnabled: boolean;
+  /** Команда git-like VCS для Composer-кнопок веток; например git или arc. */
+  vcsCommand: string;
   auxiliaryModels: AuxiliaryModelsSettings;
   compactionSettings: CompactionSettings;
   approvalNotificationSettings: ApprovalNotificationSettings;

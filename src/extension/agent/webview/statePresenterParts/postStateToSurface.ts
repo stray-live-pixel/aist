@@ -39,6 +39,7 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
     codexServiceTier: context.codexServiceTier,
     editorContextMode: context.editorContextMode,
     streamingEnabled: context.streamingEnabled,
+    vcsCommand: context.vcsCommand,
     auxiliaryModels: context.auxiliaryModels,
     compactionSettings: context.compactionSettings,
     approvalNotificationSettings: context.approvalNotificationSettings,

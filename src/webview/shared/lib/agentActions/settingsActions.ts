@@ -45,6 +45,9 @@ export const settingsActions = {
   setStreamingEnabled(streamingEnabled: boolean): void {
     post({ message: { type: 'setStreamingEnabled', streamingEnabled } });
   },
+  setVcsCommand(command: string): void {
+    post({ message: { type: 'setVcsCommand', command } });
+  },
   upsertProviderProfile(profile: ProviderProfileInput): void {
     post({ message: { type: 'upsertProviderProfile', profile } });
   },

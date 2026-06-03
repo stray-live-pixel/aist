@@ -6,10 +6,18 @@ import { type AgentState } from '../../../shared/types';
 import { CompactNavigationButton } from '../../../shared/ui';
 import styles from '../ChatPage.module.scss';
 
-export const VcsControls = memo(function VcsControls({ state, minimized }: { state: AgentState; minimized: boolean }) {
+export const VcsControls = memo(function VcsControls({
+  state,
+  minimized,
+  onOpenVcsSettings
+}: {
+  state: AgentState;
+  minimized: boolean;
+  onOpenVcsSettings(): void;
+}) {
   const vcs = state.activeChat.vcs;
-  const branchLabel = vcs?.branch || 'VCS';
-  const disabled = state.activeChat.busy;
+  const branchLabel = vcs?.branch || 'VCS settings';
+  const disabled = state.activeChat.busy || !vcs?.branch;
   const className = [styles.vcsControlsFloat, minimized ? styles.vcsControlsFloatCollapsed : undefined]
     .filter(Boolean)
     .join(' ');
@@ -19,8 +27,8 @@ export const VcsControls = memo(function VcsControls({ state, minimized }: { sta
       <button
         type="button"
         className={styles.vcsBranchButton}
-        title={vcs ? `${vcs.command}: ${vcs.branch}` : 'Refresh VCS branch'}
-        onClick={() => agentActions.refreshVcs()}
+        title={vcs ? `${vcs.command}: ${vcs.branch}` : 'Open VCS settings'}
+        onClick={() => (vcs?.branch ? agentActions.refreshVcs() : onOpenVcsSettings())}
       >
         <GitBranch size={12} />
         <span>{branchLabel}</span>

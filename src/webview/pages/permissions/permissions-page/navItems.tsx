@@ -4,6 +4,7 @@ import {
   Brain,
   FileText,
   Gauge,
+  GitBranch,
   KeyRound,
   Network,
   ShieldCheck,
@@ -74,6 +75,12 @@ export const GENERAL_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'settings.nav.providers',
     icon: <Network size={15} />,
     descriptionKey: 'settings.nav.providersDescription'
+  },
+  {
+    id: 'vcs',
+    labelKey: 'settings.nav.vcs',
+    icon: <GitBranch size={15} />,
+    descriptionKey: 'settings.nav.vcsDescription'
   },
   {
     id: 'notifications',

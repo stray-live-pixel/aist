@@ -11,6 +11,7 @@ export type StateContext = SendAgentStateParams & {
   codexServiceTier: string;
   editorContextMode: string;
   streamingEnabled: boolean;
+  vcsCommand: string;
   language: string;
   activeMode: { id: string };
   agentModes: unknown;

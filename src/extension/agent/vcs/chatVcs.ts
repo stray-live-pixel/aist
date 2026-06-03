@@ -4,46 +4,55 @@ import path from 'node:path';
 import type { ChatVcsState } from '../../../core/shared/types/types';
 
 export type ChatVcsService = {
-  getCurrentState(): Promise<ChatVcsState>;
+  getCurrentState(): Promise<ChatVcsState | undefined>;
   createIsolatedBranch(chatId: string): Promise<ChatVcsState>;
   commitAndForcePush(message: string): Promise<ChatVcsState>;
 };
 
 export type ChatVcsServiceOptions = {
   workspaceRoot: string;
-  command?: string;
+  command?: string | (() => string);
   mainBranch?: string;
 };
+
+type SpawnResult = { exitCode: number | null; stdout: string; stderr: string };
 
 const DEFAULT_COMMAND = 'git';
 const DEFAULT_MAIN_BRANCH = 'main';
 
+/**
+ * Что это: VCS-сервис чата для git-like команд.
+ * Зачем нужно: Composer показывает ветку и запускает isolated/commit/merge сценарии из одного backend API.
+ * Какую продуктовую проблему решает: проекты на git, arc или совместимой VCS управляются одинаково, а проекты без VCS не пугают ошибкой refresh.
+ */
 export function createChatVcsService(options: ChatVcsServiceOptions): ChatVcsService {
-  const command = options.command || DEFAULT_COMMAND;
   const workspaceRoot = options.workspaceRoot;
   const mainBranch = options.mainBranch || DEFAULT_MAIN_BRANCH;
 
   return {
-    async getCurrentState(): Promise<ChatVcsState> {
-      const branch = await getCurrentBranch(command, workspaceRoot);
-      return { command, branch, baseBranch: mainBranch, isolated: branch.startsWith('aist/') };
+    async getCurrentState(): Promise<ChatVcsState | undefined> {
+      const command = resolveCommand({ command: options.command });
+      const branch = await getCurrentBranch({ command, cwd: workspaceRoot, missingRepository: 'ignore' });
+      return branch ? { command, branch, baseBranch: mainBranch, isolated: branch.startsWith('aist/') } : undefined;
     },
 
     async createIsolatedBranch(chatId: string): Promise<ChatVcsState> {
-      const currentBranch = await getCurrentBranch(command, workspaceRoot);
-      const branch = `aist/chat-${safeBranchPart(chatId)}-${Date.now().toString(36)}`;
-      await runVcs(command, ['checkout', '-b', branch], workspaceRoot);
+      const command = resolveCommand({ command: options.command });
+      const currentBranch = await getCurrentBranch({ command, cwd: workspaceRoot, missingRepository: 'throw' });
+      const branch = `aist/chat-${safeBranchPart({ value: chatId })}-${Date.now().toString(36)}`;
+      await runVcs({ command, args: ['checkout', '-b', branch], cwd: workspaceRoot });
       return { command, branch, baseBranch: currentBranch || mainBranch, isolated: true };
     },
 
     async commitAndForcePush(message: string): Promise<ChatVcsState> {
-      const branch = await getCurrentBranch(command, workspaceRoot);
-      await runVcs(command, ['add', '-A'], workspaceRoot);
-      const status = await runVcs(command, ['status', '--porcelain'], workspaceRoot);
+      const command = resolveCommand({ command: options.command });
+      const branch = await getCurrentBranch({ command, cwd: workspaceRoot, missingRepository: 'throw' });
+      await runVcs({ command, args: ['add', '-A'], cwd: workspaceRoot });
+      const status = await runVcs({ command, args: ['status', '--porcelain'], cwd: workspaceRoot });
       if (status.trim()) {
-        await runVcs(command, ['commit', '-m', message], workspaceRoot);
+        await runVcs({ command, args: ['commit', '-m', message], cwd: workspaceRoot });
       }
-      await runVcs(command, ['push', '-f', 'origin', branch], workspaceRoot);
+      await runVcs({ command, args: ['push', '-f', 'origin', branch], cwd: workspaceRoot });
       return { command, branch, baseBranch: mainBranch, isolated: branch.startsWith('aist/') };
     }
   };
@@ -63,12 +72,29 @@ export function buildMergeToMainPrompt(vcs: ChatVcsState | undefined): string {
   ].join('\n');
 }
 
-async function getCurrentBranch(command: string, cwd: string): Promise<string> {
-  const branch = await runVcs(command, ['branch', '--show-current'], cwd);
-  return branch.trim() || 'HEAD';
+async function getCurrentBranch({
+  command,
+  cwd,
+  missingRepository
+}: {
+  command: string;
+  cwd: string;
+  missingRepository: 'ignore' | 'throw';
+}): Promise<string> {
+  const result = await spawnCollect({ command, args: ['branch', '--show-current'], cwd });
+  if (missingRepository === 'ignore' && isMissingRepository({ result })) {
+    return '';
+  }
+  assertVcsSuccess({ command, args: ['branch', '--show-current'], cwd, result });
+  return result.stdout.trim() || 'HEAD';
 }
 
-function safeBranchPart(value: string): string {
+function resolveCommand({ command }: { command: ChatVcsServiceOptions['command'] }): string {
+  const value = typeof command === 'function' ? command() : command;
+  return value?.trim() || DEFAULT_COMMAND;
+}
+
+function safeBranchPart({ value }: { value: string }): string {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-')
@@ -76,21 +102,54 @@ function safeBranchPart(value: string): string {
     .slice(0, 48);
 }
 
-async function runVcs(command: string, args: readonly string[], cwd: string): Promise<string> {
-  const result = await spawnCollect(command, args, cwd);
-  if (result.exitCode !== 0) {
-    const commandLine = [command, ...args].join(' ');
-    const details = result.stderr.trim() || result.stdout.trim() || `exit code ${result.exitCode}`;
-    throw new Error(`${commandLine} failed in ${path.basename(cwd)}: ${details}`);
-  }
+async function runVcs({
+  command,
+  args,
+  cwd
+}: {
+  command: string;
+  args: readonly string[];
+  cwd: string;
+}): Promise<string> {
+  const result = await spawnCollect({ command, args, cwd });
+  assertVcsSuccess({ command, args, cwd, result });
   return result.stdout;
 }
 
-async function spawnCollect(
-  command: string,
-  args: readonly string[],
-  cwd: string
-): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+function assertVcsSuccess({
+  command,
+  args,
+  cwd,
+  result
+}: {
+  command: string;
+  args: readonly string[];
+  cwd: string;
+  result: SpawnResult;
+}): void {
+  if (result.exitCode === 0) {
+    return;
+  }
+
+  const commandLine = [command, ...args].join(' ');
+  const details = result.stderr.trim() || result.stdout.trim() || `exit code ${result.exitCode}`;
+  throw new Error(`${commandLine} failed in ${path.basename(cwd)}: ${details}`);
+}
+
+function isMissingRepository({ result }: { result: SpawnResult }): boolean {
+  const details = `${result.stderr}\n${result.stdout}`.toLowerCase();
+  return details.includes('not a git repository') || details.includes('not a repository');
+}
+
+async function spawnCollect({
+  command,
+  args,
+  cwd
+}: {
+  command: string;
+  args: readonly string[];
+  cwd: string;
+}): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     const stdout: Buffer[] = [];

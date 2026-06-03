@@ -3,6 +3,7 @@ import { CodexAuthSessionProvider } from '../../../core/entities/model/codexAuth
 import { FALLBACK_MODEL_OPTIONS } from '../../../core/entities/model/modelDefaults';
 import type { AgentChatStore } from '../../chats/chatDataStore';
 import type { AistLogger } from '../../shared/logger';
+import { getVcsCommand } from '../config/vcs';
 import type { VscodeDaemonRuntimeBridge } from '../daemon/bridge';
 import { createChatVcsService } from '../vcs/chatVcs';
 import type { AgentControllerState } from './AgentControllerState';
@@ -33,7 +34,7 @@ export function createAgentControllerState({
     editorSurfaces: new Map(),
     secretStore,
     codexAuthProvider: new CodexAuthSessionProvider(secretStore, { logger }),
-    chatVcs: createChatVcsService({ workspaceRoot: daemonRuntime.workspaceRoot }),
+    chatVcs: createChatVcsService({ workspaceRoot: daemonRuntime.workspaceRoot, command: getVcsCommand }),
     sidebarView: undefined,
     sidebarChatId: undefined,
     sidebarPage: 'chat',

@@ -48,6 +48,7 @@ export const storyAgentState: AgentState = {
   codexServiceTier: 'priority',
   editorContextMode: 'auto',
   streamingEnabled: false,
+  vcsCommand: 'git',
   auxiliaryModels: {
     compaction: { model: '', reasoningEffort: 'auto', allowTools: false },
     tool: { model: '', reasoningEffort: 'auto', allowTools: false, overrides: [] },
