@@ -155,17 +155,25 @@ export class AutonomousController implements vscode.Disposable {
 
   private async deleteFlow(flowId: string): Promise<void> {
     if (!(await confirmAutonomousFlowDelete({ flowId }))) {
+      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId, status: 'cancelled' });
       return;
     }
 
-    if (this.options.daemonRuntime) {
-      const client = await this.options.daemonRuntime.processManager.getClient();
-      await client.request<DaemonAutonomousFlowDeleteResult>('autonomous.flow.delete', { flowId });
-      await this.options.daemonRuntime.refreshState();
-      return;
-    }
+    try {
+      if (this.options.daemonRuntime) {
+        const client = await this.options.daemonRuntime.processManager.getClient();
+        await client.request<DaemonAutonomousFlowDeleteResult>('autonomous.flow.delete', { flowId });
+        await this.options.daemonRuntime.refreshState();
+      } else {
+        await this.getBackend().deleteFlow(flowId);
+      }
 
-    await this.getBackend().deleteFlow(flowId);
+      await this.sendState();
+      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId, status: 'done' });
+    } catch (error) {
+      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId, status: 'error' });
+      throw error;
+    }
   }
 
   private async exportSession(sessionId: string, format: 'markdown' | 'json'): Promise<void> {
@@ -179,6 +187,18 @@ export class AutonomousController implements vscode.Disposable {
 
   private async postRoute(route: 'flows'): Promise<void> {
     await this.panel?.webview.postMessage({ type: 'autonomous.route', route });
+  }
+
+  private async postAutonomousOperation({
+    operation,
+    flowId,
+    status
+  }: {
+    operation: 'deleteFlow';
+    flowId: string;
+    status: 'done' | 'cancelled' | 'error';
+  }): Promise<void> {
+    await this.panel?.webview.postMessage({ type: 'autonomous.operation', operation, flowId, status });
   }
 
   private async sendState(): Promise<void> {

@@ -8,7 +8,13 @@ import type {
 export type AutonomousExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string }
-  | { type: 'autonomous.route'; route: 'flows' };
+  | { type: 'autonomous.route'; route: 'flows' }
+  | {
+      type: 'autonomous.operation';
+      operation: 'deleteFlow';
+      flowId: string;
+      status: 'done' | 'cancelled' | 'error';
+    };
 
 export type AutonomousWebviewToExtensionMessage =
   | { type: 'webviewReady' }

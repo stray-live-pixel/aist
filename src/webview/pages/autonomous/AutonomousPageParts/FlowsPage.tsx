@@ -1,5 +1,5 @@
-import { Copy, Download, GitBranch, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Copy, Download, GitBranch, LoaderCircle, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useI18n } from '../../../shared/i18n';
 import { autonomousActions } from '../../../shared/lib/autonomousActions';
@@ -23,23 +23,44 @@ import { toEditableFlow } from './toEditableFlow';
 export function FlowsPage({
   state,
   error,
+  operation,
   onBack,
   onOpenFlow
 }: {
   state: AutonomousState;
   error?: string | null;
+  operation?: {
+    operation: 'deleteFlow';
+    flowId: string;
+    status: 'done' | 'cancelled' | 'error';
+  } | null;
   onBack?: () => void;
   onOpenFlow(flowId: string): void;
 }) {
   const { t } = useI18n();
   const [newFlowId, setNewFlowId] = useState('');
   const [newFlowTitle, setNewFlowTitle] = useState('');
+  const [deletingFlowId, setDeletingFlowId] = useState<string | undefined>();
+  const previousFlowIdsRef = useRef<Set<string>>(new Set(state.definitions.flows.map((flow) => flow.id)));
   const normalizedNewFlowId = newFlowId.trim();
   const flowIds = useMemo(() => new Set(state.definitions.flows.map((flow) => flow.id)), [state.definitions.flows]);
   const newFlowIdError = getNewFlowIdError(normalizedNewFlowId, flowIds, t);
   const canCreateFlow = Boolean(normalizedNewFlowId) && !newFlowIdError;
   const nativeCount = state.definitions.flows.filter((flow) => flow.sourceKind === 'native').length;
   const legacyCount = state.definitions.flows.length - nativeCount;
+
+  useEffect(() => {
+    if (deletingFlowId && previousFlowIdsRef.current.has(deletingFlowId) && !flowIds.has(deletingFlowId)) {
+      setDeletingFlowId(undefined);
+    }
+    previousFlowIdsRef.current = flowIds;
+  }, [deletingFlowId, flowIds]);
+
+  useEffect(() => {
+    if (operation?.operation === 'deleteFlow' && operation.flowId === deletingFlowId) {
+      setDeletingFlowId(undefined);
+    }
+  }, [deletingFlowId, operation]);
 
   const createFlow = () => {
     if (!canCreateFlow) {
@@ -51,6 +72,11 @@ export function FlowsPage({
     setNewFlowTitle('');
   };
   const deleteFlow = (flow: AutonomousFlowDefinition) => {
+    if (deletingFlowId || flow.sourceKind !== 'native') {
+      return;
+    }
+
+    setDeletingFlowId(flow.id);
     autonomousActions.deleteFlow(flow.id);
   };
   const duplicateFlow = (flow: AutonomousFlowDefinition) => {
@@ -153,58 +179,77 @@ export function FlowsPage({
       >
         {state.definitions.flows.length ? (
           <div className={styles.workflowList}>
-            {state.definitions.flows.map((flow) => (
-              <CollapsibleSection
-                key={flow.id}
-                title={flow.title}
-                description={flow.description || flow.id}
-                icon={<GitBranch size={14} />}
-                meta={<Badge tone={flow.sourceKind === 'legacy' ? 'warning' : 'success'}>{flow.sourceKind}</Badge>}
-                collapsedPreview={t('autonomous.workflows.list.preview', {
-                  count: flow.stages.length,
-                  model: flow.defaultModel || t('autonomous.workflow.summary.providerDefault')
-                })}
-                actions={
-                  <div className={styles.workflowActions}>
-                    <Button size="sm" leadingIcon={<Pencil size={13} />} onClick={() => onOpenFlow(flow.id)}>
-                      {t('common.edit')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      leadingIcon={<Copy size={13} />}
-                      onClick={() => duplicateFlow(flow)}
-                    >
-                      {t('autonomous.workflows.duplicate')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      leadingIcon={<Trash2 size={13} />}
-                      disabled={flow.sourceKind !== 'native'}
-                      title={
-                        flow.sourceKind === 'native'
-                          ? t('autonomous.workflows.delete')
-                          : t('autonomous.workflows.deleteLegacyDisabled')
-                      }
-                      onClick={() => deleteFlow(flow)}
-                    >
-                      {t('common.delete')}
-                    </Button>
+            {state.definitions.flows.map((flow) => {
+              const deletingThisFlow = deletingFlowId === flow.id;
+              const anyFlowDeleting = deletingFlowId !== undefined;
+
+              return (
+                <CollapsibleSection
+                  key={flow.id}
+                  title={flow.title}
+                  description={flow.description || flow.id}
+                  icon={<GitBranch size={14} />}
+                  meta={<Badge tone={flow.sourceKind === 'legacy' ? 'warning' : 'success'}>{flow.sourceKind}</Badge>}
+                  collapsedPreview={t('autonomous.workflows.list.preview', {
+                    count: flow.stages.length,
+                    model: flow.defaultModel || t('autonomous.workflow.summary.providerDefault')
+                  })}
+                  actions={
+                    <div className={styles.workflowActions} aria-busy={deletingThisFlow}>
+                      <Button
+                        size="sm"
+                        leadingIcon={<Pencil size={13} />}
+                        disabled={anyFlowDeleting}
+                        onClick={() => onOpenFlow(flow.id)}
+                      >
+                        {t('common.edit')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        leadingIcon={<Copy size={13} />}
+                        disabled={anyFlowDeleting}
+                        onClick={() => duplicateFlow(flow)}
+                      >
+                        {t('autonomous.workflows.duplicate')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        leadingIcon={
+                          deletingThisFlow ? (
+                            <LoaderCircle className={styles.spinner} size={13} aria-hidden="true" />
+                          ) : (
+                            <Trash2 size={13} />
+                          )
+                        }
+                        disabled={anyFlowDeleting || flow.sourceKind !== 'native'}
+                        title={
+                          deletingThisFlow
+                            ? t('autonomous.workflows.deleting')
+                            : flow.sourceKind === 'native'
+                              ? t('autonomous.workflows.delete')
+                              : t('autonomous.workflows.deleteLegacyDisabled')
+                        }
+                        onClick={() => deleteFlow(flow)}
+                      >
+                        {deletingThisFlow ? t('autonomous.workflows.deleting') : t('common.delete')}
+                      </Button>
+                    </div>
+                  }
+                >
+                  <div className={styles.workflowDetails}>
+                    <KeyValueGrid items={getFlowDetails(flow, t)} />
+                    {flow.diagnostics.length ? (
+                      <Callout tone="warning" title={t('autonomous.workflows.diagnostics')}>
+                        {flow.diagnostics.map((diagnostic) => diagnostic.message).join('\n')}
+                      </Callout>
+                    ) : null}
+                    <Text variant="caption">{flow.sourcePath}</Text>
                   </div>
-                }
-              >
-                <div className={styles.workflowDetails}>
-                  <KeyValueGrid items={getFlowDetails(flow, t)} />
-                  {flow.diagnostics.length ? (
-                    <Callout tone="warning" title={t('autonomous.workflows.diagnostics')}>
-                      {flow.diagnostics.map((diagnostic) => diagnostic.message).join('\n')}
-                    </Callout>
-                  ) : null}
-                  <Text variant="caption">{flow.sourcePath}</Text>
-                </div>
-              </CollapsibleSection>
-            ))}
+                </CollapsibleSection>
+              );
+            })}
           </div>
         ) : (
           <EmptyState

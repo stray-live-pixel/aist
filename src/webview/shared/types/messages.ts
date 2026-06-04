@@ -70,6 +70,12 @@ export type ExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string }
   | { type: 'autonomous.route'; route: 'flows' }
+  | {
+      type: 'autonomous.operation';
+      operation: 'deleteFlow';
+      flowId: string;
+      status: 'done' | 'cancelled' | 'error';
+    }
   | { type: 'isolation.events'; sessionId: string; events: IsolationSessionEvent[] };
 
 export type WebviewRenderPerformanceMetric = {
