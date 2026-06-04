@@ -1,52 +1,86 @@
-import { ArrowLeft, Download, GitBranch, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Copy, Download, GitBranch, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
+import { useI18n } from '../../../shared/i18n';
 import { autonomousActions } from '../../../shared/lib/autonomousActions';
 import { type AutonomousFlowDefinition, type AutonomousState } from '../../../shared/types';
-import { Badge, Button, Card, EmptyState, Text, TextField } from '../../../shared/ui';
+import {
+  Badge,
+  Button,
+  Callout,
+  Card,
+  CollapsibleSection,
+  EmptyState,
+  InfoTile,
+  KeyValueGrid,
+  Text,
+  TextField
+} from '../../../shared/ui';
+import type { KeyValueItem } from '../../../shared/ui';
 import styles from '../AutonomousPage.module.scss';
+import { toEditableFlow } from './toEditableFlow';
 
 export function FlowsPage({
   state,
+  error,
   onBack,
   onOpenFlow
 }: {
   state: AutonomousState;
-  onBack(): void;
+  error?: string | null;
+  onBack?: () => void;
   onOpenFlow(flowId: string): void;
 }) {
+  const { t } = useI18n();
   const [newFlowId, setNewFlowId] = useState('');
   const [newFlowTitle, setNewFlowTitle] = useState('');
   const normalizedNewFlowId = newFlowId.trim();
-  const canCreateFlow = Boolean(normalizedNewFlowId);
+  const flowIds = useMemo(() => new Set(state.definitions.flows.map((flow) => flow.id)), [state.definitions.flows]);
+  const newFlowIdError = getNewFlowIdError(normalizedNewFlowId, flowIds, t);
+  const canCreateFlow = Boolean(normalizedNewFlowId) && !newFlowIdError;
+  const nativeCount = state.definitions.flows.filter((flow) => flow.sourceKind === 'native').length;
+  const legacyCount = state.definitions.flows.length - nativeCount;
+
   const createFlow = () => {
     if (!canCreateFlow) {
       return;
     }
     autonomousActions.createFlow({ id: normalizedNewFlowId, title: newFlowTitle.trim() || undefined });
+    onOpenFlow(normalizedNewFlowId);
     setNewFlowId('');
     setNewFlowTitle('');
   };
   const deleteFlow = (flow: AutonomousFlowDefinition) => {
-    // Подтверждение выполняет extension через нативный VS Code modal: browser confirm
-    // в webview ненадёжен и в некоторых окружениях просто не показывает диалог.
     autonomousActions.deleteFlow(flow.id);
+  };
+  const duplicateFlow = (flow: AutonomousFlowDefinition) => {
+    const copyId = createCopyFlowId(flow.id, flowIds);
+    autonomousActions.saveFlow({
+      ...toEditableFlow(flow),
+      id: copyId,
+      title: t('autonomous.workflows.copyTitle', { title: flow.title })
+    });
+    onOpenFlow(copyId);
   };
 
   return (
     <main className={styles.page}>
       <header className={styles.hero}>
-        <div>
+        <div className={styles.heroText}>
           <Text variant="caption">{state.workspaceName}</Text>
-          <h1 className={styles.title}>Flows</h1>
-          <Text variant="caption">Definitions из `.aist-agent/autonomous/flows`. Клик по flow открывает редактор.</Text>
+          <Text variant="display" as="h1">
+            {t('autonomous.workflows.title')}
+          </Text>
+          <Text variant="caption">{t('autonomous.workflows.description')}</Text>
         </div>
         <div className={styles.heroActions}>
-          <Button size="sm" leadingIcon={<ArrowLeft size={14} />} onClick={onBack}>
-            Back
-          </Button>
+          {onBack ? (
+            <Button size="sm" onClick={onBack}>
+              {t('autonomous.workflows.back')}
+            </Button>
+          ) : null}
           <Button size="sm" leadingIcon={<RefreshCw size={14} />} onClick={() => autonomousActions.refresh()}>
-            Refresh
+            {t('isolation.refresh')}
           </Button>
           <Button
             size="sm"
@@ -55,68 +89,128 @@ export function FlowsPage({
             onClick={createFlow}
             disabled={!canCreateFlow}
           >
-            Create flow
+            {t('autonomous.workflows.create')}
           </Button>
         </div>
       </header>
 
-      <Card
-        title="New flow"
-        description="Для создания flow достаточно указать id; title можно заполнить сразу или позже в редакторе."
-      >
+      {error ? (
+        <Callout tone="danger" title={t('autonomous.workflows.errorTitle')}>
+          {error}
+        </Callout>
+      ) : null}
+
+      <div className={styles.tileGrid}>
+        <InfoTile
+          icon={<GitBranch size={14} />}
+          title={t('autonomous.workflows.summary.total')}
+          value={String(state.definitions.flows.length)}
+          description={t('autonomous.workflows.summary.totalDescription')}
+        />
+        <InfoTile
+          tone="success"
+          title={t('autonomous.workflows.summary.native')}
+          value={String(nativeCount)}
+          description={t('autonomous.workflows.summary.nativeDescription')}
+        />
+        <InfoTile
+          tone={legacyCount ? 'warning' : 'neutral'}
+          title={t('autonomous.workflows.summary.legacy')}
+          value={String(legacyCount)}
+          description={t('autonomous.workflows.summary.legacyDescription')}
+        />
+      </div>
+
+      <Card title={t('autonomous.workflows.new.title')} description={t('autonomous.workflows.new.description')}>
         <div className={styles.createFlowForm}>
           <TextField
-            label="Flow id"
+            label={t('autonomous.workflows.new.id')}
             value={newFlowId}
-            placeholder="my-flow"
+            error={newFlowIdError}
+            placeholder="my-workflow"
             onChange={(event) => setNewFlowId(event.target.value)}
           />
           <TextField
-            label="Title"
+            label={t('autonomous.workflows.new.name')}
             value={newFlowTitle}
-            placeholder="My flow"
+            placeholder={t('autonomous.workflows.new.namePlaceholder')}
             onChange={(event) => setNewFlowTitle(event.target.value)}
           />
           <Button variant="primary" leadingIcon={<Plus size={14} />} onClick={createFlow} disabled={!canCreateFlow}>
-            Create flow
+            {t('autonomous.workflows.create')}
           </Button>
         </div>
       </Card>
 
-      <Card title="Flow list" description={`${state.definitions.flows.length} definitions`}>
+      <Card
+        title={t('autonomous.workflows.list.title')}
+        description={t('autonomous.workflows.list.description', { count: state.definitions.flows.length })}
+        actions={
+          <Button size="sm" leadingIcon={<Download size={14} />} onClick={() => autonomousActions.importLegacy()}>
+            {t('autonomous.workflows.import')}
+          </Button>
+        }
+      >
         {state.definitions.flows.length ? (
-          <div className={styles.flowList}>
+          <div className={styles.workflowList}>
             {state.definitions.flows.map((flow) => (
-              <article key={flow.id} className={styles.flowItem}>
-                <span className={styles.flowItemHeader}>
-                  <strong>{flow.title}</strong>
-                  <Badge tone={flow.sourceKind === 'legacy' ? 'warning' : 'success'}>{flow.sourceKind}</Badge>
-                </span>
-                <Text variant="caption">{flow.description || flow.id}</Text>
-                <span className={styles.flowMeta}>
-                  {flow.stages.length} stages · {flow.defaultModel || 'default model'}
-                </span>
-                <span className={styles.flowItemActions}>
-                  <Button size="sm" onClick={() => onOpenFlow(flow.id)}>
-                    Open
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    leadingIcon={<Trash2 size={13} />}
-                    onClick={() => deleteFlow(flow)}
-                  >
-                    Delete
-                  </Button>
-                </span>
-              </article>
+              <CollapsibleSection
+                key={flow.id}
+                title={flow.title}
+                description={flow.description || flow.id}
+                icon={<GitBranch size={14} />}
+                meta={<Badge tone={flow.sourceKind === 'legacy' ? 'warning' : 'success'}>{flow.sourceKind}</Badge>}
+                collapsedPreview={t('autonomous.workflows.list.preview', {
+                  count: flow.stages.length,
+                  model: flow.defaultModel || t('autonomous.workflow.summary.providerDefault')
+                })}
+                actions={
+                  <div className={styles.workflowActions}>
+                    <Button size="sm" leadingIcon={<Pencil size={13} />} onClick={() => onOpenFlow(flow.id)}>
+                      {t('common.edit')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leadingIcon={<Copy size={13} />}
+                      onClick={() => duplicateFlow(flow)}
+                    >
+                      {t('autonomous.workflows.duplicate')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      leadingIcon={<Trash2 size={13} />}
+                      disabled={flow.sourceKind !== 'native'}
+                      title={
+                        flow.sourceKind === 'native'
+                          ? t('autonomous.workflows.delete')
+                          : t('autonomous.workflows.deleteLegacyDisabled')
+                      }
+                      onClick={() => deleteFlow(flow)}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                }
+              >
+                <div className={styles.workflowDetails}>
+                  <KeyValueGrid items={getFlowDetails(flow, t)} />
+                  {flow.diagnostics.length ? (
+                    <Callout tone="warning" title={t('autonomous.workflows.diagnostics')}>
+                      {flow.diagnostics.map((diagnostic) => diagnostic.message).join('\n')}
+                    </Callout>
+                  ) : null}
+                  <Text variant="caption">{flow.sourcePath}</Text>
+                </div>
+              </CollapsibleSection>
             ))}
           </div>
         ) : (
           <EmptyState
             icon={<GitBranch size={24} />}
-            title="Flow definitions не найдены"
-            description="Добавьте `.aist-agent/autonomous/flows/<flowId>/.index.md` или импортируйте legacy prompt definitions."
+            title={t('autonomous.workflows.empty.title')}
+            description={t('autonomous.workflows.empty.description')}
             actions={
               <Button
                 size="sm"
@@ -124,7 +218,7 @@ export function FlowsPage({
                 leadingIcon={<Download size={14} />}
                 onClick={() => autonomousActions.importLegacy()}
               >
-                Import prompt
+                {t('autonomous.workflows.import')}
               </Button>
             }
           />
@@ -132,4 +226,54 @@ export function FlowsPage({
       </Card>
     </main>
   );
+}
+
+function getFlowDetails(flow: AutonomousFlowDefinition, t: ReturnType<typeof useI18n>['t']): KeyValueItem[] {
+  return [
+    { key: 'id', label: t('autonomous.workflow.fact.id'), value: flow.id, title: flow.id },
+    { key: 'stages', label: t('autonomous.workflow.fact.stages'), value: String(flow.stages.length) },
+    {
+      key: 'model',
+      label: t('autonomous.workflow.defaults.model'),
+      value: flow.defaultModel || t('autonomous.workflow.summary.providerDefault')
+    },
+    {
+      key: 'codexModel',
+      label: t('autonomous.workflow.defaults.codexModel'),
+      value: flow.defaultCodexModel || t('autonomous.workflow.summary.providerDefault')
+    },
+    {
+      key: 'source',
+      label: t('autonomous.workflow.fact.source'),
+      value: flow.sourceKind,
+      tone: flow.sourceKind === 'legacy' ? 'warning' : 'success'
+    }
+  ];
+}
+
+function getNewFlowIdError(
+  flowId: string,
+  existingFlowIds: Set<string>,
+  t: ReturnType<typeof useI18n>['t']
+): string | undefined {
+  if (!flowId) {
+    return undefined;
+  }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(flowId) || flowId.includes('..')) {
+    return t('autonomous.workflows.new.idError');
+  }
+  if (existingFlowIds.has(flowId)) {
+    return t('autonomous.workflows.new.idExists');
+  }
+  return undefined;
+}
+
+function createCopyFlowId(flowId: string, existingFlowIds: Set<string>): string {
+  let copyId = `${flowId}-copy`;
+  let suffix = 2;
+  while (existingFlowIds.has(copyId)) {
+    copyId = `${flowId}-copy-${suffix}`;
+    suffix += 1;
+  }
+  return copyId;
 }

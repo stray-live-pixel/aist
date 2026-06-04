@@ -1,6 +1,5 @@
 import type {
   AutonomousEngineId,
-  AutonomousLaunchOptions,
   AutonomousState,
   CreateAutonomousFlowInput,
   EditableAutonomousFlowDefinition
@@ -8,7 +7,8 @@ import type {
 
 export type AutonomousExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }
-  | { type: 'autonomous.error'; message: string };
+  | { type: 'autonomous.error'; message: string }
+  | { type: 'autonomous.route'; route: 'flows' };
 
 export type AutonomousWebviewToExtensionMessage =
   | { type: 'webviewReady' }
@@ -17,8 +17,6 @@ export type AutonomousWebviewToExtensionMessage =
   | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
   | { type: 'autonomous.deleteFlow'; flowId: string }
   | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
-  | { type: 'autonomous.startFlow'; flowId: string; launch: AutonomousLaunchOptions }
-  | { type: 'autonomous.startRun'; runId: string; launch: AutonomousLaunchOptions }
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }
   | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' };

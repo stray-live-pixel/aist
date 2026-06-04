@@ -15,6 +15,12 @@
   gap: 16px;
 }
 
+.heroText {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
 .title {
   margin: 4px 0 6px;
   font-size: 24px;
@@ -35,7 +41,8 @@
 }
 
 .grid,
-.columns {
+.columns,
+.editorGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -45,17 +52,24 @@
 .options,
 .list,
 .sessions,
-.flowList,
-.stageList,
+.workflowList,
+.stageEditorList,
+.contextList,
 .createFlowForm {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
 .definition,
-.sessionCard,
-.stageCard {
+.sessionCard {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -65,35 +79,33 @@
   background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
 }
 
-.flowItem {
+.workflowActions,
+.stageActions,
+.editorActions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
-  border-radius: 12px;
-  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
-  color: var(--vscode-foreground);
-}
-
-.flowItemHeader,
-.flowMeta,
-.stageMeta {
-  display: flex;
+  min-width: 0;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
-.flowItemHeader {
-  justify-content: space-between;
+.workflowDetails {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
 }
 
-.flowItemActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.stageFormGrid,
+.contextGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.validationList {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .flowMeta,
@@ -109,12 +121,18 @@
 @media (max-width: 860px) {
   .hero,
   .grid,
-  .columns {
+  .columns,
+  .editorGrid,
+  .stageFormGrid,
+  .contextGrid {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
 
-  .heroActions {
+  .heroActions,
+  .workflowActions,
+  .stageActions,
+  .editorActions {
     justify-content: flex-start;
   }
 }

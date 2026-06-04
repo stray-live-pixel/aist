@@ -1,16 +1,9 @@
-import type { AutonomousEngineId, CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from '../types';
+import type { CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from '../types';
 import { vscode } from './vscode';
 
-export type AutonomousLaunchDraft = {
-  engineId: AutonomousEngineId;
-  dryRun: boolean;
-  workDir?: string;
-  extraPrompt?: string;
-};
-
 /**
- * Что это: typed facade над IPC autonomous dashboard.
- * Почему отдельно от agentActions: chat-команды и autonomous lifecycle не должны
+ * Что это: typed facade над IPC редактора autonomous workflows.
+ * Почему отдельно от agentActions: chat-команды и workflow lifecycle не должны
  * конфликтовать, особенно `stop` vs `autonomous.stopSession`.
  */
 export const autonomousActions = {
@@ -28,12 +21,6 @@ export const autonomousActions = {
   },
   saveFlow(flow: EditableAutonomousFlowDefinition) {
     vscode.postMessage({ type: 'autonomous.saveFlow', flow });
-  },
-  startFlow(flowId: string, launch: AutonomousLaunchDraft) {
-    vscode.postMessage({ type: 'autonomous.startFlow', flowId, launch });
-  },
-  startRun(runId: string, launch: AutonomousLaunchDraft) {
-    vscode.postMessage({ type: 'autonomous.startRun', runId, launch });
   },
   stopSession(sessionId: string) {
     vscode.postMessage({ type: 'autonomous.stopSession', sessionId });

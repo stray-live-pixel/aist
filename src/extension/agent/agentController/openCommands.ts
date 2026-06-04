@@ -1,6 +1,7 @@
 import path from 'node:path';
 import * as vscode from 'vscode';
 
+import type { DaemonAutonomousStateResult, IsolationFlowModeSummary } from '../../../cli/daemonProtocol';
 import type { WebviewSurface } from '../types';
 import {
   deserializeAgentChatEditor,
@@ -81,9 +82,41 @@ export function openIsolationCommand({
   state.logger.info('openIsolation command received');
   state.sidebarPage = 'chat';
   void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
-  callbacks.sendState();
+  void openIsolationWithFreshFlowModes({ state, callbacks });
+}
+
+async function openIsolationWithFreshFlowModes({
+  state,
+  callbacks
+}: {
+  state: AgentControllerState;
+  callbacks: AgentControllerCallbacks;
+}): Promise<void> {
+  const flowModes = await readIsolationFlowModesFromAutonomousState({ state }).catch((error) => {
+    state.logger.error('Failed to read autonomous flow modes before opening isolation page', error);
+    return state.daemonRuntime.listIsolationFlowModes();
+  });
+
   postSidebarPage({ state, callbacks });
-  postShowIsolation({ state });
+  postShowIsolation({ state, flowModes });
+}
+
+async function readIsolationFlowModesFromAutonomousState({
+  state
+}: {
+  state: AgentControllerState;
+}): Promise<readonly IsolationFlowModeSummary[]> {
+  const client = await state.daemonRuntime.processManager.getClient();
+  const result = await client.request<DaemonAutonomousStateResult>('autonomous.state');
+  return result.state.definitions.flows.map((flow) => ({
+    flowId: flow.id,
+    title: flow.title,
+    description: flow.description,
+    stageCount: flow.stages.length,
+    sourceKind: flow.sourceKind,
+    defaultModel: flow.defaultModel,
+    defaultCodexModel: flow.defaultCodexModel
+  }));
 }
 
 /** Что это: открывает папку .aist-agent; зачем нужно: пользователь может посмотреть storage/debug файлы; проблема: диагностика доступна из команды. */

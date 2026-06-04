@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { parseMarkdownFrontmatter } from '../../shared/lib/frontmatter';
 import { AUTONOMOUS_ROOT_RELATIVE_PATH } from './discovery';
 import type { AutonomousStageContext } from './types';
 
@@ -89,6 +90,9 @@ export async function saveAutonomousFlowDefinition(
   flow: EditableAutonomousFlowDefinition
 ): Promise<void> {
   const flowRoot = getNativeFlowRoot(workspaceRoot, normalizeFlowId(flow.id));
+  const previousStageFiles = await readPreviousStageFiles(flowRoot);
+  const nextStageFiles = new Set(flow.stages.map((stage) => normalizeStageFile(flowRoot, stage.file)));
+  validateUniqueStageFiles(nextStageFiles, flow.stages.length);
 
   await fs.mkdir(flowRoot, { recursive: true });
   await writeAtomic(
@@ -107,10 +111,8 @@ export async function saveAutonomousFlowDefinition(
   );
 
   for (const stage of flow.stages) {
-    const stagePath = path.resolve(flowRoot, stage.file);
-    if (!isInside(flowRoot, stagePath)) {
-      throw new Error(`Stage path escapes flow root: ${stage.file}`);
-    }
+    const stageFile = normalizeStageFile(flowRoot, stage.file);
+    const stagePath = path.resolve(flowRoot, stageFile);
 
     await fs.mkdir(path.dirname(stagePath), { recursive: true });
     await writeAtomic(
@@ -127,6 +129,8 @@ export async function saveAutonomousFlowDefinition(
       )
     );
   }
+
+  await removeObsoleteStageFiles({ flowRoot, previousStageFiles, nextStageFiles });
 }
 
 function serializeMarkdown(frontmatter: Record<string, unknown>, body: string): string {
@@ -196,6 +200,60 @@ function getNativeFlowRoot(workspaceRoot: string, flowId: string): string {
     throw new Error(`Flow path escapes native flows root: ${flowId}`);
   }
   return flowRoot;
+}
+
+async function readPreviousStageFiles(flowRoot: string): Promise<Set<string>> {
+  try {
+    const parsed = parseMarkdownFrontmatter(await fs.readFile(path.join(flowRoot, '.index.md'), 'utf8'));
+    const stages = parsed.attributes.stages;
+    if (!Array.isArray(stages)) {
+      return new Set();
+    }
+    return new Set(stages.filter((stage): stage is string => typeof stage === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
+function normalizeStageFile(flowRoot: string, rawFile: string): string {
+  const stageFile = rawFile.trim();
+  if (!stageFile || path.isAbsolute(stageFile) || stageFile.includes('..')) {
+    throw new Error(`Stage file must be a workspace-relative markdown file inside the flow: ${rawFile}`);
+  }
+  const stagePath = path.resolve(flowRoot, stageFile);
+  if (!isInside(flowRoot, stagePath)) {
+    throw new Error(`Stage path escapes flow root: ${rawFile}`);
+  }
+  return stageFile;
+}
+
+function validateUniqueStageFiles(stageFiles: Set<string>, stageCount: number): void {
+  if (stageFiles.size !== stageCount) {
+    throw new Error('Stage files must be unique within a flow.');
+  }
+}
+
+async function removeObsoleteStageFiles({
+  flowRoot,
+  previousStageFiles,
+  nextStageFiles
+}: {
+  flowRoot: string;
+  previousStageFiles: Set<string>;
+  nextStageFiles: Set<string>;
+}): Promise<void> {
+  for (const previousStageFile of previousStageFiles) {
+    if (nextStageFiles.has(previousStageFile)) {
+      continue;
+    }
+    if (previousStageFile === '.index.md') {
+      continue;
+    }
+    const stagePath = path.resolve(flowRoot, previousStageFile);
+    if (isInside(flowRoot, stagePath)) {
+      await fs.rm(stagePath, { force: true });
+    }
+  }
 }
 
 function normalizeFlowId(rawId: string): string {

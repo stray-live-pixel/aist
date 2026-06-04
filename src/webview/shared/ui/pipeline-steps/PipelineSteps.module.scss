@@ -13,9 +13,14 @@
   gap: 6px;
   min-width: 0;
   padding: 6px 8px;
-  border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+  border: 1px solid var(--agent-border);
   border-radius: 999px;
-  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  background: color-mix(in srgb, var(--vscode-input-background) 48%, transparent);
+}
+
+.current {
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 48%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-focusBorder) 8%, var(--vscode-input-background));
 }
 
 .dot {

@@ -24,6 +24,7 @@ export function App() {
   const [autonomousState, setAutonomousState] = useState<AutonomousState | null>(null);
   const [page, setPage] = useState<'chat' | 'settings' | 'autonomous'>('chat');
   const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
+  const [autonomousRouteRequest, setAutonomousRouteRequest] = useState<{ route: 'flows'; nonce: number } | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [autonomousError, setAutonomousError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(() => translate('ru', 'app.loadingAgent'));
@@ -50,11 +51,23 @@ export function App() {
         setPage(message.page);
       } else if (message.type === 'errorModal') {
         setErrorModal(message.message);
+      } else if (message.type === 'showIsolation' && message.flowModes) {
+        const flowModes = message.flowModes;
+        setState((current) =>
+          current
+            ? {
+                ...current,
+                isolationFlowModes: [...flowModes]
+              }
+            : current
+        );
       } else if (message.type === 'autonomous.state') {
         setAutonomousState(message.state);
         setAutonomousError(null);
       } else if (message.type === 'autonomous.error') {
         setAutonomousError(message.message);
+      } else if (message.type === 'autonomous.route') {
+        setAutonomousRouteRequest({ route: message.route, nonce: Date.now() });
       } else if (message.type === 'isolation.events') {
         setState((current) =>
           current
@@ -81,7 +94,7 @@ export function App() {
   if (page === 'autonomous' && autonomousState) {
     return (
       <I18nProvider language={state?.agentLanguage || 'ru'}>
-        <AutonomousPage state={autonomousState} error={autonomousError} />
+        <AutonomousPage state={autonomousState} error={autonomousError} routeRequest={autonomousRouteRequest} />
         {modal}
       </I18nProvider>
     );

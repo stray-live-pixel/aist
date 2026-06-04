@@ -2,7 +2,10 @@ import * as vscode from 'vscode';
 
 import type {
   DaemonAutonomousExportResult,
-  DaemonAutonomousStartResult,
+  DaemonAutonomousFlowCreateResult,
+  DaemonAutonomousFlowDeleteResult,
+  DaemonAutonomousFlowSaveResult,
+  DaemonAutonomousImportLegacyResult,
   DaemonAutonomousStateResult,
   DaemonAutonomousStopResult,
   DaemonEvent
@@ -10,7 +13,8 @@ import type {
 import {
   AutonomousBackend,
   type AutonomousExportFormat,
-  type AutonomousLaunchOptions
+  type CreateAutonomousFlowInput,
+  type EditableAutonomousFlowDefinition
 } from '../../core/processes/autonomous';
 import type { VscodeDaemonRuntimeBridge } from '../agent/daemon/bridge';
 import type { AistLogger } from '../shared/logger';
@@ -22,9 +26,9 @@ import { revealAutonomousSessionDirectory } from './controller/revealAutonomousS
 import type { AutonomousWebviewToExtensionMessage } from './messages';
 
 /**
- * Что это: VS Code shell для autonomous runner.
+ * Что это: VS Code shell для редактора autonomous workflows.
  * Зачем нужно: controller открывает panel и маршрутизирует webview IPC в daemon или local backend.
- * Какую проблему решает: бизнес-логика автономных запусков остаётся в core/backend, а UI получает единый state.
+ * Какую проблему решает: workflow definitions остаются в core/backend, а UI получает единый state.
  */
 export class AutonomousController implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
@@ -38,16 +42,17 @@ export class AutonomousController implements vscode.Disposable {
     private readonly options: { daemonRuntime?: VscodeDaemonRuntimeBridge } = {}
   ) {}
 
-  open(): void {
+  openWorkflows(): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Beside);
+      void this.postRoute('flows');
       void this.sendState();
       return;
     }
 
     this.panel = vscode.window.createWebviewPanel(
       'openrouterAgentAutonomous',
-      'aist: Autonomous Runner',
+      'aist: Workflows',
       vscode.ViewColumn.Beside,
       {
         enableScripts: true,
@@ -66,6 +71,7 @@ export class AutonomousController implements vscode.Disposable {
       void this.handleMessage(message);
     });
     void this.postPage();
+    void this.postRoute('flows');
     void this.ensureDaemonEventSubscription();
     void this.sendState();
   }
@@ -84,17 +90,13 @@ export class AutonomousController implements vscode.Disposable {
       } else if (message.type === 'autonomous.refresh') {
         await this.sendState();
       } else if (message.type === 'autonomous.importLegacy') {
-        await this.getBackend().importLegacyDefinitions();
+        await this.importLegacyDefinitions();
       } else if (message.type === 'autonomous.createFlow') {
-        await this.getBackend().createFlow(message.flow);
+        await this.createFlow(message.flow);
       } else if (message.type === 'autonomous.deleteFlow') {
         await this.deleteFlow(message.flowId);
       } else if (message.type === 'autonomous.saveFlow') {
-        await this.getBackend().saveFlow(message.flow);
-      } else if (message.type === 'autonomous.startFlow') {
-        await this.startFlow(message.flowId, message.launch);
-      } else if (message.type === 'autonomous.startRun') {
-        await this.startRun(message.runId, message.launch);
+        await this.saveFlow(message.flow);
       } else if (message.type === 'autonomous.stopSession') {
         await this.stopSession(message.sessionId);
       } else if (message.type === 'autonomous.revealSession') {
@@ -109,22 +111,37 @@ export class AutonomousController implements vscode.Disposable {
     }
   }
 
-  private async startFlow(flowId: string, launch: AutonomousLaunchOptions): Promise<void> {
+  private async importLegacyDefinitions(): Promise<void> {
     if (this.options.daemonRuntime) {
       const client = await this.options.daemonRuntime.processManager.getClient();
-      await client.request<DaemonAutonomousStartResult>('autonomous.flow.start', { flowId, launch });
-    } else {
-      await this.getBackend().startFlow(flowId, launch);
+      await client.request<DaemonAutonomousImportLegacyResult>('autonomous.importLegacy');
+      await this.options.daemonRuntime.refreshState();
+      return;
     }
+
+    await this.getBackend().importLegacyDefinitions();
   }
 
-  private async startRun(runId: string, launch: AutonomousLaunchOptions): Promise<void> {
+  private async createFlow(flow: CreateAutonomousFlowInput): Promise<void> {
     if (this.options.daemonRuntime) {
       const client = await this.options.daemonRuntime.processManager.getClient();
-      await client.request<DaemonAutonomousStartResult>('autonomous.run.start', { runId, launch });
-    } else {
-      await this.getBackend().startRun(runId, launch);
+      await client.request<DaemonAutonomousFlowCreateResult>('autonomous.flow.create', { flow });
+      await this.options.daemonRuntime.refreshState();
+      return;
     }
+
+    await this.getBackend().createFlow(flow);
+  }
+
+  private async saveFlow(flow: EditableAutonomousFlowDefinition): Promise<void> {
+    if (this.options.daemonRuntime) {
+      const client = await this.options.daemonRuntime.processManager.getClient();
+      await client.request<DaemonAutonomousFlowSaveResult>('autonomous.flow.save', { flow });
+      await this.options.daemonRuntime.refreshState();
+      return;
+    }
+
+    await this.getBackend().saveFlow(flow);
   }
 
   private async stopSession(sessionId: string): Promise<void> {
@@ -141,6 +158,13 @@ export class AutonomousController implements vscode.Disposable {
       return;
     }
 
+    if (this.options.daemonRuntime) {
+      const client = await this.options.daemonRuntime.processManager.getClient();
+      await client.request<DaemonAutonomousFlowDeleteResult>('autonomous.flow.delete', { flowId });
+      await this.options.daemonRuntime.refreshState();
+      return;
+    }
+
     await this.getBackend().deleteFlow(flowId);
   }
 
@@ -151,6 +175,10 @@ export class AutonomousController implements vscode.Disposable {
 
   private async postPage(): Promise<void> {
     await this.panel?.webview.postMessage({ type: 'page', page: 'autonomous' });
+  }
+
+  private async postRoute(route: 'flows'): Promise<void> {
+    await this.panel?.webview.postMessage({ type: 'autonomous.route', route });
   }
 
   private async sendState(): Promise<void> {

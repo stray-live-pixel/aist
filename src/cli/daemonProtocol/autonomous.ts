@@ -3,13 +3,35 @@ import type {
   AutonomousLaunchOptions,
   AutonomousStartResult,
   AutonomousState,
-  AutonomousStopResult
+  AutonomousStopResult,
+  CreateAutonomousFlowInput,
+  EditableAutonomousFlowDefinition
 } from '../../core/processes/autonomous';
 
 export type DaemonAutonomousStateResult = {
   readonly operationId: string;
   readonly state: AutonomousState;
 };
+
+export type DaemonAutonomousImportLegacyResult = DaemonAutonomousStateResult;
+
+export type DaemonAutonomousFlowCreateParams = {
+  readonly flow: CreateAutonomousFlowInput;
+};
+
+export type DaemonAutonomousFlowCreateResult = DaemonAutonomousStateResult;
+
+export type DaemonAutonomousFlowSaveParams = {
+  readonly flow: EditableAutonomousFlowDefinition;
+};
+
+export type DaemonAutonomousFlowSaveResult = DaemonAutonomousStateResult;
+
+export type DaemonAutonomousFlowDeleteParams = {
+  readonly flowId: string;
+};
+
+export type DaemonAutonomousFlowDeleteResult = DaemonAutonomousStateResult;
 
 export type DaemonAutonomousFlowStartParams = {
   readonly flowId: string;

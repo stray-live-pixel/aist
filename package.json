@@ -19,7 +19,7 @@
     "onCommand:openrouterAgent.newChat",
     "onCommand:openrouterAgent.openChats",
     "onCommand:openrouterAgent.openSettings",
-    "onCommand:openrouterAgent.openAutonomous",
+    "onCommand:openrouterAgent.openWorkflows",
     "onCommand:openrouterAgent.openIsolation",
     "onCommand:openrouterAgent.openStorage",
     "onCommand:openrouterAgent.showLogs",
@@ -78,9 +78,9 @@
         "icon": "$(settings-gear)"
       },
       {
-        "command": "openrouterAgent.openAutonomous",
-        "title": "aist: Autonomous Runner",
-        "icon": "$(rocket)"
+        "command": "openrouterAgent.openWorkflows",
+        "title": "aist: Workflows",
+        "icon": "$(git-branch)"
       },
       {
         "command": "openrouterAgent.openIsolation",
@@ -127,7 +127,7 @@
           "group": "navigation@2"
         },
         {
-          "command": "openrouterAgent.openAutonomous",
+          "command": "openrouterAgent.openWorkflows",
           "when": "view == openrouterAgent.chats",
           "group": "navigation@2.5"
         },

@@ -1,0 +1,162 @@
+.root {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-input-background) 45%, transparent);
+}
+
+.subtle {
+  border-color: color-mix(in srgb, var(--agent-border) 72%, transparent);
+  background: color-mix(in srgb, var(--vscode-input-background) 28%, transparent);
+}
+
+.accent {
+  border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 28%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 7%, var(--vscode-input-background));
+}
+
+.header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 7px;
+}
+
+.toggle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  padding: 5px 6px;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.toggle:hover {
+  background: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 36%, transparent);
+}
+
+.toggle:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px var(--vscode-focusBorder),
+    0 0 0 4px color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent);
+}
+
+.chevron,
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.chevron svg {
+  transition: transform 140ms ease;
+}
+
+.toggle[aria-expanded='true'] .chevron svg {
+  transform: rotate(90deg);
+}
+
+.heading {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border-top: 1px solid color-mix(in srgb, var(--agent-border) 72%, transparent);
+  padding: 10px;
+}
+
+.cut {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--agent-border) 58%, transparent);
+  color: var(--vscode-descriptionForeground);
+  padding: 7px 12px 9px 38px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.cut::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 32px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--vscode-editor-background) 64%, transparent), transparent);
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: flex-start;
+    padding-inline: 6px;
+  }
+
+  .meta {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron svg {
+    transition-duration: 1ms;
+  }
+}

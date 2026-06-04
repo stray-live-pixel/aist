@@ -1,0 +1,84 @@
+.root {
+  --callout-tone: var(--vscode-descriptionForeground);
+
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--callout-tone) 26%, var(--agent-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--callout-tone) 7%, var(--vscode-editor-background));
+  padding: 10px 11px;
+  color: var(--vscode-foreground);
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--callout-tone);
+}
+
+.content {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+}
+
+.title {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.neutral {
+  --callout-tone: var(--vscode-descriptionForeground);
+}
+
+.accent {
+  --callout-tone: var(--vscode-textLink-foreground);
+}
+
+.success {
+  --callout-tone: #4ade80;
+}
+
+.warning {
+  --callout-tone: #f59e0b;
+}
+
+.danger {
+  --callout-tone: var(--vscode-errorForeground);
+}
+
+.danger .body {
+  color: color-mix(in srgb, var(--vscode-errorForeground) 86%, var(--vscode-foreground));
+}
+
+@media (max-width: 520px) {
+  .root {
+    flex-wrap: wrap;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

@@ -10,7 +10,7 @@ import { queueBridgeStateRefresh } from './queueBridgeStateRefresh';
  * Какую продуктовую проблему решает: параллельные агенты остаются отзывчивыми, а события одного чата сохраняют порядок.
  */
 export function queueBridgeRefresh({ context, event }: { context: BridgeRuntimeContext; event: DaemonEvent }): void {
-  if (context.state.disposed || event.type.startsWith('autonomous.') || event.type === 'isolation.session.log') {
+  if (context.state.disposed || event.type === 'autonomous.event' || event.type === 'isolation.session.log') {
     return;
   }
 

@@ -25,6 +25,12 @@
   color: var(--vscode-foreground);
 }
 
+.stack {
+  display: grid;
+  width: min(100vw - 32px, 520px);
+  gap: 12px;
+}
+
 .toolIconGrid {
   display: grid;
   min-width: 288px;

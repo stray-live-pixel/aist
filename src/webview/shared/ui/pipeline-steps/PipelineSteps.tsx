@@ -5,6 +5,8 @@ export type PipelineStep = {
   id: string;
   title: string;
   status?: 'pending' | 'running' | 'done' | 'error' | 'stopped';
+  statusLabel?: string;
+  current?: boolean;
 };
 
 export type PipelineStepsProps = {
@@ -20,10 +22,14 @@ export function PipelineSteps({ steps }: PipelineStepsProps) {
   return (
     <ol className={styles.steps}>
       {steps.map((step) => (
-        <li key={step.id} className={styles.step}>
+        <li
+          key={step.id}
+          className={`${styles.step} ${step.current ? styles.current : ''}`}
+          aria-current={step.current}
+        >
           <span className={styles.dot} aria-hidden="true" />
           <span className={styles.title}>{step.title}</span>
-          {step.status ? <Badge tone={toTone(step.status)}>{step.status}</Badge> : null}
+          {step.status ? <Badge tone={toTone(step.status)}>{step.statusLabel || step.status}</Badge> : null}
         </li>
       ))}
     </ol>

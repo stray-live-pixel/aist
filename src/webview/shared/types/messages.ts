@@ -12,14 +12,9 @@ import type {
   ToolPermissionPresetId
 } from './agentConfig';
 import type { AgentAttachment } from './attachment';
-import type {
-  AutonomousEngineId,
-  AutonomousState,
-  CreateAutonomousFlowInput,
-  EditableAutonomousFlowDefinition
-} from './autonomous';
+import type { AutonomousState, CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from './autonomous';
 import type { Chat, ChatMessage, ChatModelSettings, ChatSummary } from './chat';
-import type { IsolationSessionEvent } from './isolation';
+import type { IsolationFlowModeSummary, IsolationSessionEvent } from './isolation';
 import type {
   AgentLanguage,
   AuxiliaryModelId,
@@ -70,10 +65,11 @@ export type ExtensionToWebviewMessage =
   | { type: 'page'; page: 'chat' | 'settings' | 'autonomous' }
   | { type: 'loading'; message: string }
   | { type: 'showChats' }
-  | { type: 'showIsolation' }
+  | { type: 'showIsolation'; flowModes?: IsolationFlowModeSummary[] }
   | { type: 'errorModal'; message: string }
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string }
+  | { type: 'autonomous.route'; route: 'flows' }
   | { type: 'isolation.events'; sessionId: string; events: IsolationSessionEvent[] };
 
 export type WebviewRenderPerformanceMetric = {
@@ -198,16 +194,6 @@ export type WebviewToExtensionMessage =
   | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
   | { type: 'autonomous.deleteFlow'; flowId: string }
   | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
-  | {
-      type: 'autonomous.startFlow';
-      flowId: string;
-      launch: { engineId: AutonomousEngineId; dryRun: boolean; workDir?: string; extraPrompt?: string };
-    }
-  | {
-      type: 'autonomous.startRun';
-      runId: string;
-      launch: { engineId: AutonomousEngineId; dryRun: boolean; workDir?: string; extraPrompt?: string };
-    }
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }
   | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' }

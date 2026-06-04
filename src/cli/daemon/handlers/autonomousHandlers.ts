@@ -17,6 +17,14 @@ export function handleAutonomousRpcMethod({
   switch (method) {
     case 'autonomous.state':
       return { handled: true, result: context.call('autonomousState') };
+    case 'autonomous.importLegacy':
+      return { handled: true, result: context.call('autonomousImportLegacy') };
+    case 'autonomous.flow.create':
+      return { handled: true, result: context.call('autonomousFlowCreate', params) };
+    case 'autonomous.flow.save':
+      return { handled: true, result: context.call('autonomousFlowSave', params) };
+    case 'autonomous.flow.delete':
+      return { handled: true, result: context.call('autonomousFlowDelete', params) };
     case 'autonomous.flow.start':
       return { handled: true, result: context.call('autonomousFlowStart', params) };
     case 'autonomous.run.start':

@@ -1,30 +1,42 @@
-import { ArrowLeft, GitBranch, Play, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertTriangle, ArrowLeft, GitBranch, Layers3, Plus, Save, Settings } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
+import { useI18n } from '../../../shared/i18n';
 import { autonomousActions } from '../../../shared/lib/autonomousActions';
 import {
   type AutonomousFlowDefinition,
   type EditableAutonomousFlowDefinition,
   type EditableAutonomousStageDefinition
 } from '../../../shared/types';
-import { Badge, Button, Card, EmptyState, PipelineSteps, Text, TextArea, TextField } from '../../../shared/ui';
+import {
+  Badge,
+  Button,
+  Callout,
+  Card,
+  EmptyState,
+  InfoTile,
+  KeyValueGrid,
+  PipelineSteps,
+  Text,
+  TextArea,
+  TextField
+} from '../../../shared/ui';
+import type { KeyValueItem, PipelineStep } from '../../../shared/ui';
 import styles from '../AutonomousPage.module.scss';
-import { LaunchDraft } from './LaunchDraft';
 import { StageEditorCard } from './StageEditorCard';
 import { emptyToUndefined } from './emptyToUndefined';
 import { toEditableFlow } from './toEditableFlow';
 
 export function FlowEditorPage({
   flow,
-  launch,
-  onBack,
-  onStart
+  error,
+  onBack
 }: {
   flow: AutonomousFlowDefinition | undefined;
-  launch: LaunchDraft;
+  error?: string | null;
   onBack(): void;
-  onStart(flow: AutonomousFlowDefinition): void;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<EditableAutonomousFlowDefinition | undefined>(() =>
     flow ? toEditableFlow(flow) : undefined
   );
@@ -35,13 +47,21 @@ export function FlowEditorPage({
     setSaveState('idle');
   }, [flow]);
 
+  const validationErrors = useMemo(() => (draft ? validateFlowDraft(draft, t) : []), [draft, t]);
+  const stageFileErrors = useMemo(() => (draft ? getStageFileErrors(draft, t) : new Map<string, string>()), [draft, t]);
+  const canSave = draft ? validationErrors.length === 0 : false;
+
   if (!flow || !draft) {
     return (
       <main className={styles.page}>
         <Button size="sm" leadingIcon={<ArrowLeft size={14} />} onClick={onBack}>
-          Back to flows
+          {t('autonomous.workflow.backToWorkflows')}
         </Button>
-        <EmptyState icon={<GitBranch size={24} />} title="Flow не найден" description="Обновите список definitions." />
+        <EmptyState
+          icon={<GitBranch size={24} />}
+          title={t('autonomous.workflow.notFoundTitle')}
+          description={t('autonomous.workflow.notFoundDescription')}
+        />
       </main>
     );
   }
@@ -61,96 +81,296 @@ export function FlowEditorPage({
     );
     setSaveState('idle');
   };
+  const addStage = () => {
+    setDraft((current) => {
+      if (!current) return current;
+      const nextIndex = current.stages.length + 1;
+      const title = t('autonomous.workflow.stage.newTitle', { index: nextIndex });
+      return {
+        ...current,
+        stages: [
+          ...current.stages,
+          {
+            file: createStageFileName(current.stages, nextIndex, title),
+            title,
+            body: createStagePrompt(title, t),
+            contexts: nextIndex > 1 ? [{ mode: 'summary-from', from: nextIndex - 1 }] : []
+          }
+        ]
+      };
+    });
+    setSaveState('idle');
+  };
+  const deleteStage = (stageIndex: number) => {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            stages: current.stages.filter((_, index) => index !== stageIndex)
+          }
+        : current
+    );
+    setSaveState('idle');
+  };
+  const moveStage = (stageIndex: number, direction: -1 | 1) => {
+    setDraft((current) => {
+      if (!current) return current;
+      const targetIndex = stageIndex + direction;
+      if (targetIndex < 0 || targetIndex >= current.stages.length) return current;
+      const stages = [...current.stages];
+      const [stage] = stages.splice(stageIndex, 1);
+      if (!stage) return current;
+      stages.splice(targetIndex, 0, stage);
+      return { ...current, stages };
+    });
+    setSaveState('idle');
+  };
   const saveDraft = () => {
+    if (!canSave) {
+      setSaveState('idle');
+      return;
+    }
     autonomousActions.saveFlow(draft);
     setSaveState('saved');
   };
+  const pipelineSteps: PipelineStep[] = draft.stages.map((stage, index) => ({
+    id: `${stage.file}-${index}`,
+    title: `${index + 1}. ${stage.title || stage.file}`,
+    status: stageFileErrors.has(stage.file) ? 'error' : 'pending',
+    statusLabel: stageFileErrors.has(stage.file)
+      ? t('autonomous.workflow.pipeline.invalid')
+      : t('autonomous.workflow.pipeline.ready')
+  }));
 
   return (
     <main className={styles.page}>
       <header className={styles.hero}>
-        <div>
-          <Text variant="caption">Flow editor</Text>
-          <h1 className={styles.title}>{draft.title || draft.id}</h1>
+        <div className={styles.heroText}>
+          <Text variant="caption">{t('autonomous.workflow.editorEyebrow')}</Text>
+          <Text variant="display" as="h1">
+            {draft.title || draft.id}
+          </Text>
           <Text variant="caption">{flow.sourcePath}</Text>
         </div>
         <div className={styles.heroActions}>
-          {saveState === 'saved' ? <Badge tone="success">Saved</Badge> : null}
+          {saveState === 'saved' ? <Badge tone="success">{t('autonomous.workflow.saved')}</Badge> : null}
           <Button size="sm" leadingIcon={<ArrowLeft size={14} />} onClick={onBack}>
-            Back
+            {t('autonomous.workflow.back')}
           </Button>
-          <Button size="sm" leadingIcon={<Save size={14} />} onClick={saveDraft}>
-            Save
-          </Button>
-          <Button size="sm" variant="primary" leadingIcon={<Play size={14} />} onClick={() => onStart(flow)}>
-            Start {launch.dryRun ? 'dry-run' : 'flow'}
+          <Button size="sm" leadingIcon={<Save size={14} />} onClick={saveDraft} disabled={!canSave}>
+            {t('common.save')}
           </Button>
         </div>
       </header>
 
-      <section className={styles.grid}>
+      {error ? (
+        <Callout tone="danger" icon={<AlertTriangle size={15} />} title={t('autonomous.workflows.errorTitle')}>
+          {error}
+        </Callout>
+      ) : null}
+
+      {flow.sourceKind === 'legacy' ? (
+        <Callout tone="warning" icon={<AlertTriangle size={15} />} title={t('autonomous.workflow.legacyTitle')}>
+          {t('autonomous.workflow.legacyDescription')}
+        </Callout>
+      ) : null}
+
+      {validationErrors.length ? (
+        <Callout tone="danger" icon={<AlertTriangle size={15} />} title={t('autonomous.workflow.validationTitle')}>
+          <ul className={styles.validationList}>
+            {validationErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </Callout>
+      ) : null}
+
+      <div className={styles.tileGrid}>
+        <InfoTile
+          icon={<Layers3 size={14} />}
+          title={t('autonomous.workflow.summary.steps')}
+          value={String(draft.stages.length)}
+          description={t('autonomous.workflow.summary.stepsDescription')}
+        />
+        <InfoTile
+          icon={<Settings size={14} />}
+          title={t('autonomous.workflow.summary.defaultModel')}
+          value={draft.defaultModel || t('autonomous.workflow.summary.providerDefault')}
+          description={draft.defaultCodexModel || t('autonomous.workflow.summary.noCodexOverride')}
+        />
+        <InfoTile
+          icon={<GitBranch size={14} />}
+          tone={flow.sourceKind === 'legacy' ? 'warning' : 'success'}
+          title={t('autonomous.workflow.summary.source')}
+          value={flow.sourceKind}
+          description={draft.id}
+        />
+      </div>
+
+      <section className={styles.editorGrid}>
         <Card
-          title="Metadata"
-          description="Изменения сохраняются в `.aist-agent/autonomous/flows/<flowId>` через extension IPC."
+          title={t('autonomous.workflow.metadata.title')}
+          description={t('autonomous.workflow.metadata.description')}
         >
           <div className={styles.options}>
-            <TextField label="ID" value={draft.id} readOnly />
+            <TextField label={t('autonomous.workflow.metadata.id')} value={draft.id} readOnly />
             <TextField
-              label="Title"
+              label={t('autonomous.workflow.metadata.name')}
               value={draft.title}
               onChange={(event) => updateDraft({ title: event.target.value })}
             />
             <TextArea
-              label="Description"
+              label={t('autonomous.workflow.metadata.descriptionLabel')}
               value={draft.description}
               onChange={(event) => updateDraft({ description: event.target.value })}
               rows={5}
             />
             <TextArea
-              label="Flow body"
+              label={t('autonomous.workflow.metadata.body')}
+              hint={t('autonomous.workflow.metadata.bodyHint')}
               value={draft.body}
               onChange={(event) => updateDraft({ body: event.target.value })}
               rows={7}
             />
-            <TextField
-              label="Default model"
-              value={draft.defaultModel || ''}
-              onChange={(event) => updateDraft({ defaultModel: emptyToUndefined(event.target.value) })}
-            />
-            <TextField
-              label="Default Codex model"
-              value={draft.defaultCodexModel || ''}
-              onChange={(event) => updateDraft({ defaultCodexModel: emptyToUndefined(event.target.value) })}
-            />
           </div>
         </Card>
 
-        <Card title="Pipeline" description={`${draft.stages.length} stages`}>
-          <PipelineSteps steps={draft.stages.map((stage) => ({ id: stage.file, title: stage.title }))} />
-          <TextArea
-            label="Default summary rules"
-            value={draft.defaultSummaryRules || ''}
-            onChange={(event) => updateDraft({ defaultSummaryRules: emptyToUndefined(event.target.value) })}
-            rows={8}
-          />
+        <Card
+          title={t('autonomous.workflow.defaults.title')}
+          description={t('autonomous.workflow.defaults.description')}
+        >
+          <div className={styles.options}>
+            <TextField
+              label={t('autonomous.workflow.defaults.model')}
+              value={draft.defaultModel || ''}
+              placeholder={t('autonomous.workflow.defaults.providerDefault')}
+              onChange={(event) => updateDraft({ defaultModel: emptyToUndefined(event.target.value) })}
+            />
+            <TextField
+              label={t('autonomous.workflow.defaults.codexModel')}
+              value={draft.defaultCodexModel || ''}
+              placeholder={t('autonomous.workflow.defaults.providerDefault')}
+              onChange={(event) => updateDraft({ defaultCodexModel: emptyToUndefined(event.target.value) })}
+            />
+            <TextArea
+              label={t('autonomous.workflow.defaults.summaryRules')}
+              hint={t('autonomous.workflow.defaults.summaryRulesHint')}
+              value={draft.defaultSummaryRules || ''}
+              onChange={(event) => updateDraft({ defaultSummaryRules: emptyToUndefined(event.target.value) })}
+              rows={8}
+            />
+          </div>
         </Card>
       </section>
 
       <Card
-        title="Stages"
-        description="Редактируйте stage frontmatter и markdown body. Contexts задаются JSON-массивом."
+        title={t('autonomous.workflow.pipeline.title')}
+        description={t('autonomous.workflow.pipeline.description')}
+        actions={
+          <Button size="sm" leadingIcon={<Plus size={14} />} onClick={addStage}>
+            {t('autonomous.workflow.stage.add')}
+          </Button>
+        }
       >
-        <div className={styles.stageList}>
+        <div className={styles.stageEditorList}>
+          <PipelineSteps steps={pipelineSteps} />
+          <KeyValueGrid items={getFlowFacts(draft, flow, t)} />
           {draft.stages.map((stage, index) => (
             <StageEditorCard
-              key={stage.file}
+              key={`${stage.file}-${index}`}
               stage={stage}
               index={index}
+              totalStages={draft.stages.length}
+              fileError={stageFileErrors.get(stage.file)}
               onChange={(patch) => updateStage(index, patch)}
+              onMoveUp={() => moveStage(index, -1)}
+              onMoveDown={() => moveStage(index, 1)}
+              onDelete={() => deleteStage(index)}
             />
           ))}
         </div>
       </Card>
     </main>
   );
+}
+
+function getFlowFacts(
+  draft: EditableAutonomousFlowDefinition,
+  flow: AutonomousFlowDefinition,
+  t: ReturnType<typeof useI18n>['t']
+): KeyValueItem[] {
+  return [
+    { key: 'id', label: t('autonomous.workflow.fact.id'), value: draft.id, title: draft.id },
+    {
+      key: 'source',
+      label: t('autonomous.workflow.fact.source'),
+      value: flow.sourceKind,
+      tone: flow.sourceKind === 'legacy' ? 'warning' : 'success'
+    },
+    {
+      key: 'stages',
+      label: t('autonomous.workflow.fact.stages'),
+      value: String(draft.stages.length)
+    }
+  ];
+}
+
+function validateFlowDraft(draft: EditableAutonomousFlowDefinition, t: ReturnType<typeof useI18n>['t']): string[] {
+  const errors: string[] = [];
+  if (!draft.title.trim()) {
+    errors.push(t('autonomous.workflow.validation.nameRequired'));
+  }
+  if (!draft.stages.length) {
+    errors.push(t('autonomous.workflow.validation.stageRequired'));
+  }
+  getStageFileErrors(draft, t).forEach((error) => errors.push(error));
+  return [...new Set(errors)];
+}
+
+function getStageFileErrors(
+  draft: EditableAutonomousFlowDefinition,
+  t: ReturnType<typeof useI18n>['t']
+): Map<string, string> {
+  const errors = new Map<string, string>();
+  const counts = new Map<string, number>();
+  for (const stage of draft.stages) {
+    const file = stage.file.trim();
+    counts.set(file, (counts.get(file) || 0) + 1);
+    if (!isValidStageFile(file)) {
+      errors.set(stage.file, t('autonomous.workflow.validation.stageFileInvalid', { file: stage.file || '?' }));
+    }
+  }
+  for (const [file, count] of counts) {
+    if (file && count > 1) {
+      errors.set(file, t('autonomous.workflow.validation.stageFileDuplicate', { file }));
+    }
+  }
+  return errors;
+}
+
+function isValidStageFile(file: string): boolean {
+  return Boolean(file) && !file.startsWith('/') && !file.includes('..') && file.endsWith('.md');
+}
+
+function createStageFileName(
+  stages: readonly EditableAutonomousStageDefinition[],
+  index: number,
+  title: string
+): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  let candidate = `${String(index).padStart(2, '0')}-${slug || 'stage'}.md`;
+  let suffix = 2;
+  const existing = new Set(stages.map((stage) => stage.file));
+  while (existing.has(candidate)) {
+    candidate = `${String(index).padStart(2, '0')}-${slug || 'stage'}-${suffix}.md`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function createStagePrompt(title: string, t: ReturnType<typeof useI18n>['t']): string {
+  return `# ${title}\n\n${t('autonomous.workflow.stage.newPrompt')}`;
 }

@@ -15,6 +15,7 @@ import { DaemonJsonRpcClient, DaemonJsonRpcError } from '../daemonClient';
 import {
   DAEMON_BUSY_ERROR_CODE,
   type DaemonAutonomousExportResult,
+  type DaemonAutonomousFlowCreateResult,
   type DaemonAutonomousStartResult,
   type DaemonAutonomousStateResult,
   type DaemonChatAskResult,
@@ -38,6 +39,28 @@ import {
 } from './helpers';
 
 describe('AIST daemon JSON-RPC local socket', () => {
+  it('keeps autonomous workflow CRUD visible in state.get isolation flow modes', async () => {
+    const { server } = await startDaemon(createQueuedModelClient([]));
+    const client = await connectClient(server);
+
+    const created = await client.request<DaemonAutonomousFlowCreateResult>('autonomous.flow.create', {
+      flow: { id: 'demo-flow', title: 'Demo flow' }
+    });
+
+    expect(created.state.definitions.flows.map((flow) => flow.id)).toContain('demo-flow');
+    const state = await client.request<DaemonState>('state.get');
+    expect(state.isolationFlowModes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          flowId: 'demo-flow',
+          title: 'Demo flow',
+          stageCount: 1,
+          sourceKind: 'native'
+        })
+      ])
+    );
+  });
+
   it('serves autonomous state and dry-run flow events without changing chat activeRun', async () => {
     const { server, workspaceRoot, homeDir } = await startDaemon(createQueuedModelClient([]));
     createNativeAutonomousFlow(workspaceRoot, 'demo-flow');

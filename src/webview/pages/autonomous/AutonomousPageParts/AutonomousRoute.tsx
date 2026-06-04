@@ -1,1 +1,1 @@
-export type AutonomousRoute = { page: 'dashboard' } | { page: 'flows' } | { page: 'flow-edit'; flowId: string };
+export type AutonomousRoute = { page: 'flows' } | { page: 'flow-edit'; flowId: string };

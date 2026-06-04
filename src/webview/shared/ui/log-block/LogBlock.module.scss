@@ -1,0 +1,45 @@
+.figure {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  margin: 0;
+}
+
+.caption {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.caption span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pre {
+  min-width: 0;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--agent-border);
+  border-radius: 12px;
+  background: var(--vscode-textCodeBlock-background, color-mix(in srgb, var(--vscode-input-background) 64%, transparent));
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
+  padding: 10px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.compact {
+  max-height: 220px;
+}
