@@ -1,9 +1,8 @@
 import path from 'node:path';
 
 import { AgentRuntimeService, type AgentRuntimeTelemetryStatus } from '../../../core/app/runtime/agentRuntime';
-import { buildFileAgentSystemPrompt } from '../../../core/features/system-prompt/filePromptConfig/buildFileAgentSystemPrompt';
+import { buildAgentSystemPrompt, type AgentInstructionSource } from '../../../core/features/system-prompt/systemPrompt';
 import { DefaultToolRegistry } from '../../../core/features/tool-execution/toolRegistry';
-import { getRepoVerificationContextNote } from '../../../core/shared/lib/repoMap';
 import type { RuntimeEvent } from '../../../core/shared/types/types';
 import type { AistDaemonServer } from '../AistDaemonServer';
 import { createFileBackedRuntimeChatRepository } from '../createFileBackedRuntimeChatRepository';
@@ -59,19 +58,16 @@ export async function runIsolationAgent(
     promptProvider: {
       getSystemPrompt: async () =>
         [
-          await buildFileAgentSystemPrompt({
-            workspaceRoot: input.worktreePath,
-            homeDir: this.homeDir,
+          buildAgentSystemPrompt({
             language: await this.getLanguage(),
             toolCallNotesRequired: config.toolCallNotesRequired,
+            instructionSources: getContainerInstructionSources({ workspaceRoot: this.workspaceRoot }),
             skills: skills.map(({ id, label, description }) => ({ id, label, description }))
           }),
           buildIsolationSystemPrompt(input)
         ].join('\n\n')
     },
-    contextProviders: {
-      getRepoContextNote: (prompt) => getRepoVerificationContextNote(input.worktreePath, prompt)
-    },
+    contextProviders: {},
     modelCatalog: {
       getOption: (modelId) => getDaemonModelOption({ modelId })
     },
@@ -79,7 +75,7 @@ export async function runIsolationAgent(
       getSkills: () => this.getConfiguredSkills()
     },
     workspaceRootProvider: {
-      getWorkspaceRoot: () => input.worktreePath
+      getWorkspaceRoot: () => this.workspaceRoot
     },
     eventSink: {
       emit: (event) => this.handleIsolationRuntimeEvent(input.session.sessionId, event)
@@ -165,13 +161,39 @@ export async function handleIsolationRuntimeEvent(
   await this.isolationSessions.log(sessionId, event.type === 'tool.call.failed' ? 'error' : 'info', message);
 }
 
+/**
+ * Что это: даёт runtime минимальный prompt из локальных инструкций без чтения container filesystem с host.
+ * Зачем нужно: пользовательские правила из текущего репозитория сохраняются, но рабочие файлы агент читает только через Docker tools.
+ * Какую продуктовую проблему решает: локальный daemon остаётся наблюдателем чата, а не владельцем рабочей копии.
+ */
+function getContainerInstructionSources({ workspaceRoot }: { workspaceRoot: string }): AgentInstructionSource[] {
+  return [
+    {
+      id: 'base',
+      title: 'AIST base system prompt',
+      content: 'Core coding-agent rules, language policy and tool usage rules.',
+      priority: 0,
+      kind: 'base',
+      source: 'immutable kernel'
+    },
+    {
+      id: 'isolation-container-boundary',
+      title: 'Autonomous container boundary',
+      content: `Workspace files are available only inside the autonomous Docker container at /workspace. Use filesystem tools to inspect and edit that container checkout. Do not rely on host path ${workspaceRoot} as the working copy.`,
+      priority: 10,
+      kind: 'custom'
+    }
+  ];
+}
+
 function buildIsolationSystemPrompt(input: IsolationAgentRunInput): string {
   return [
     'Isolated autonomous run instructions:',
-    `- Work only inside the isolated git worktree: ${input.worktreePath}.`,
-    '- Bash commands are executed inside the Docker container with /workspace mounted to that worktree.',
-    '- Do not modify the original user workspace outside this worktree.',
-    '- Do not create commits, push branches, or create pull requests manually; the daemon finalizer will do that.',
+    `- Work only inside the autonomous Docker container workspace: ${input.worktreePath}.`,
+    '- The repository was cloned from GitHub inside the container; no host workspace is mounted.',
+    '- Bash and filesystem tools operate against the container checkout at /workspace.',
+    '- Do not modify or depend on the original user workspace on the computer that started Docker.',
+    '- Do not create commits, push branches, or create pull requests manually; the daemon finalizer will do that inside the container.',
     `- Always create or update a reviewable markdown artifact at docs/aist-isolated-runs/${input.session.sessionId}.md.`,
     '- If the user asks a question or asks for analysis instead of code changes, write the complete answer into that markdown artifact.',
     '- If you implement code changes, also update that markdown artifact with a short summary and verification notes.',

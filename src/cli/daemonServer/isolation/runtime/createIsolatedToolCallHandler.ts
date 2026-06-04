@@ -4,10 +4,11 @@ import type {
 } from '../../../../core/app/runtime/agentRuntime';
 import type { AuxiliaryModelInvoker } from '../../../../core/entities/model/auxiliaryModel';
 import type { AgentSkill } from '../../../../core/features/skills/skills';
-import { runNodeSkillTool } from '../../../../core/features/skills/skills';
 import type { ToolRegistry } from '../../../../core/features/tool-execution/toolRegistry';
 import { ToolRunner, type ToolRunnerAuxiliaryModelSettings } from '../../../../core/features/tool-execution/toolRunner';
-import { createNodeFilesystemToolRunner } from '../../../../core/tools/fs/node_filesystem_tools/nodeFilesystemTools';
+import { runContainerFilesystemTool } from '../container/runContainerFilesystemTool';
+import { runContainerProjectTool } from '../container/runContainerProjectTool';
+import { runContainerSkillTool } from '../container/runContainerSkillTool';
 import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
 
 export function createIsolatedToolCallHandler({
@@ -19,7 +20,7 @@ export function createIsolatedToolCallHandler({
   getSkills,
   getAuxiliaryToolSettings,
   auxiliaryModel,
-  workspaceName
+  workspaceName: _workspaceName
 }: {
   registry: ToolRegistry;
   worktreePath: string;
@@ -31,10 +32,6 @@ export function createIsolatedToolCallHandler({
   auxiliaryModel: AuxiliaryModelInvoker;
   workspaceName: string;
 }): AgentRuntimeToolCallHandler {
-  const hostFilesystemRunner = createNodeFilesystemToolRunner({
-    context: { workspaceRoot: worktreePath, workspaceName }
-  });
-
   return async (params: AgentRuntimeToolCallHandlerParams) => {
     const runner = new ToolRunner({
       registry,
@@ -52,18 +49,25 @@ export function createIsolatedToolCallHandler({
           if (toolName === 'run_bash_script') {
             return runBashInContainer({ dockerProvider, containerName, args, emitLog });
           }
-          return hostFilesystemRunner(toolName, args);
+          return runContainerFilesystemTool({ dockerProvider, containerName, toolName, args });
         }
       },
       projectTools: {
-        execute: (toolName, args) => registry.runProjectTool(toolName, args, worktreePath)
+        execute: async (toolName, args) => {
+          const definition = registry.getProjectTool(toolName);
+          if (!definition) {
+            throw new Error(`Unknown project tool: ${toolName}`);
+          }
+          return runContainerProjectTool({ definition, args, dockerProvider, containerName });
+        }
       },
       skills: {
         execute: async (_toolName, args) =>
-          runNodeSkillTool({
+          runContainerSkillTool({
             skills: await getSkills(),
-            workspaceRoot: worktreePath,
-            args
+            args,
+            dockerProvider,
+            containerName
           })
       },
       auxiliaryModel,

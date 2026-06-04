@@ -54,6 +54,7 @@ export type IsolationSessionSummary = {
   readonly branchName: string;
   readonly baseRef?: string;
   readonly remoteName?: string;
+  /** Path to the repository inside the autonomous container; no host checkout is mounted. */
   readonly worktreePath?: string;
   readonly provider: IsolationProviderKind;
   readonly status: IsolationSessionStatus;

@@ -27,6 +27,14 @@ export type IsolationGitFinalizeResult = {
 
 export type IsolationGitFinalizeStage = 'committing' | 'pushing' | 'creating_pr';
 
+export type IsolationCloneSource = {
+  readonly repoRoot: string;
+  readonly remoteName?: string;
+  readonly remoteUrl: string;
+  readonly baseRef: string;
+  readonly baseSha: string;
+};
+
 export class IsolationGitService {
   constructor(
     private readonly options: {
@@ -36,6 +44,28 @@ export class IsolationGitService {
       readonly auxiliaryModel?: AuxiliaryModelInvoker;
     }
   ) {}
+
+  async resolveCloneSource({
+    baseRef,
+    continueExisting,
+    branchName
+  }: {
+    baseRef?: string;
+    continueExisting: boolean;
+    branchName: string;
+  }): Promise<IsolationCloneSource> {
+    const repoRoot = await this.getRepoRoot();
+    const remoteName = await this.getRemoteName(repoRoot);
+    const remoteUrl = remoteName ? await this.getRemoteUrl({ repoRoot, remoteName }) : undefined;
+    if (!remoteName || !remoteUrl) {
+      throw new Error('Isolated container mode requires a git remote with a GitHub clone URL.');
+    }
+    const effectiveBaseRef = baseRef || (continueExisting ? branchName : 'HEAD');
+    const baseSha = await this.revParse({ cwd: repoRoot, ref: effectiveBaseRef }).catch(() =>
+      this.revParse({ cwd: repoRoot, ref: 'HEAD' })
+    );
+    return { repoRoot, remoteName, remoteUrl, baseRef: effectiveBaseRef, baseSha };
+  }
 
   async prepareWorktree({
     sessionId,
@@ -174,6 +204,11 @@ export class IsolationGitService {
       .map((line) => line.trim())
       .filter(Boolean);
     return remotes?.includes('origin') ? 'origin' : remotes?.[0];
+  }
+
+  private async getRemoteUrl({ repoRoot, remoteName }: { repoRoot: string; remoteName: string }): Promise<string | undefined> {
+    const result = await this.git({ cwd: repoRoot, args: ['remote', 'get-url', remoteName] }).catch(() => undefined);
+    return result?.stdout.trim() || undefined;
   }
 
   private async removeWorktreeIfExists({
