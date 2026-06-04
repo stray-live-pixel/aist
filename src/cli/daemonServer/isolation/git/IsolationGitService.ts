@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { safeMkdir } from '../../../../core/entities/storage/storage';
+import type { AuxiliaryModelInvoker } from '../../../../core/entities/model/auxiliaryModel';
+import { createIsolationGitMetadata, type IsolationGitMetadata } from './createIsolationGitMetadata';
 import { execFileAsync } from './execFileAsync';
 
 export type IsolationPreparedWorktree = {
@@ -31,6 +33,7 @@ export class IsolationGitService {
       readonly workspaceRoot: string;
       readonly worktreesRoot: string;
       readonly env?: Record<string, string | undefined>;
+      readonly auxiliaryModel?: AuxiliaryModelInvoker;
     }
   ) {}
 
@@ -109,11 +112,21 @@ export class IsolationGitService {
       return { changed: false, headSha, pushed: false, ...prResult };
     }
 
-    await onStage?.('committing', 'Creating git commit.');
+    await onStage?.('committing', 'Preparing commit and pull request metadata.');
+    const statusSummary = await this.getStatusSummary({ worktreePath });
     await this.git({ cwd: worktreePath, args: ['add', '-A'] });
+    const diffSummary = await this.getStagedDiffSummary({ worktreePath });
+    const gitMetadata = await createIsolationGitMetadata({
+      auxiliaryModel: this.options.auxiliaryModel,
+      prompt,
+      fallbackAnswer,
+      diffSummary,
+      statusSummary,
+      sessionId
+    });
     await this.git({
       cwd: worktreePath,
-      args: ['commit', '-m', createCommitMessage({ prompt, sessionId })]
+      args: ['commit', '-m', gitMetadata.commitMessage]
     });
     const commitSha = await this.revParse({ cwd: worktreePath, ref: 'HEAD' });
 
@@ -125,7 +138,7 @@ export class IsolationGitService {
     let prResult: Pick<IsolationGitFinalizeResult, 'prUrl' | 'prError'> = {};
     if (remoteName) {
       await onStage?.('creating_pr', 'Creating or reading pull request.');
-      prResult = await this.createOrReadPullRequest({ worktreePath, branchName }).then(
+      prResult = await this.createOrReadPullRequest({ worktreePath, branchName, gitMetadata }).then(
         (prUrl) => ({ prUrl }),
         (error) => ({ prError: formatError(error) })
       );
@@ -199,12 +212,24 @@ export class IsolationGitService {
     return result.stdout.trim();
   }
 
+  private async getStatusSummary({ worktreePath }: { worktreePath: string }): Promise<string> {
+    const result = await this.git({ cwd: worktreePath, args: ['status', '--short'] });
+    return result.stdout.trim();
+  }
+
+  private async getStagedDiffSummary({ worktreePath }: { worktreePath: string }): Promise<string> {
+    const result = await this.git({ cwd: worktreePath, args: ['diff', '--cached', '--stat', '--summary'] });
+    return truncateDiffSummary({ value: result.stdout });
+  }
+
   private async createOrReadPullRequest({
     worktreePath,
-    branchName
+    branchName,
+    gitMetadata
   }: {
     worktreePath: string;
     branchName: string;
+    gitMetadata?: IsolationGitMetadata;
   }): Promise<string | undefined> {
     const existing = await execFileAsync({
       file: 'gh',
@@ -219,7 +244,9 @@ export class IsolationGitService {
 
     const created = await execFileAsync({
       file: 'gh',
-      args: ['pr', 'create', '--fill', '--head', branchName],
+      args: gitMetadata
+        ? ['pr', 'create', '--head', branchName, '--title', gitMetadata.prTitle, '--body', gitMetadata.prBody]
+        : ['pr', 'create', '--fill', '--head', branchName],
       cwd: worktreePath,
       env: this.options.env
     });
@@ -270,9 +297,13 @@ export class IsolationGitService {
   }
 }
 
-function createCommitMessage({ prompt, sessionId }: { prompt: string; sessionId: string }): string {
-  const firstLine = prompt.replace(/\s+/g, ' ').trim().slice(0, 72);
-  return `${firstLine || 'AIST isolated agent changes'}\n\nAIST isolated session: ${sessionId}`;
+function truncateDiffSummary({ value }: { value: string }): string {
+  const maxLength = 20000;
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}\n\n[diff truncated for git metadata generation]`;
 }
 
 function formatError(error: unknown): string {

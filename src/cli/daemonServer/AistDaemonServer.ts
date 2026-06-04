@@ -102,6 +102,7 @@ export class AistDaemonServer {
       workspaceRoot: this.workspaceRoot,
       homeDir: this.homeDir,
       env: this.env,
+      auxiliaryModel: this.auxiliaryModel,
       now: this.now,
       idFactory: this.idFactory,
       emit: (event) => this.broadcastEvent(event),
