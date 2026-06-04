@@ -14,12 +14,43 @@ export type IsolationSessionStatus =
 
 export type IsolationProviderKind = 'docker-local';
 
+export type IsolationFlowModeSummary = {
+  readonly flowId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly stageCount: number;
+  readonly sourceKind: 'native' | 'legacy';
+  readonly defaultModel?: string;
+  readonly defaultCodexModel?: string;
+};
+
+export type IsolationFlowRunStatus = 'created' | 'running' | 'paused' | 'finished' | 'stopped' | 'error';
+
+export type IsolationFlowStageSummary = {
+  readonly index: number;
+  readonly title: string;
+  readonly status: 'pending' | 'running' | 'done' | 'error' | 'stopped';
+  readonly model?: string;
+  readonly error?: string;
+};
+
+export type IsolationFlowSelection = {
+  readonly flowId: string;
+  readonly title: string;
+  readonly stageCount: number;
+  readonly autonomousSessionId?: string;
+  readonly status?: IsolationFlowRunStatus;
+  readonly currentStageIndex?: number;
+  readonly stages?: readonly IsolationFlowStageSummary[];
+};
+
 export type IsolationSessionSummary = {
   readonly sessionId: string;
   readonly taskId: string;
   /** ID стандартного чата, где показывается живой ход работы isolated агента. */
   readonly chatId?: string;
   readonly prompt: string;
+  readonly flow?: IsolationFlowSelection;
   readonly branchName: string;
   readonly baseRef?: string;
   readonly remoteName?: string;
@@ -72,6 +103,7 @@ export type DaemonIsolationEvent = IsolationSessionLifecycleEvent | IsolationSes
 
 export type DaemonIsolationStartParams = {
   readonly prompt: string;
+  readonly flowId?: string;
   readonly baseRef?: string;
   readonly provider?: IsolationProviderKind;
 };
@@ -79,6 +111,7 @@ export type DaemonIsolationStartParams = {
 export type DaemonIsolationContinueParams = {
   readonly sessionId: string;
   readonly prompt: string;
+  readonly flowId?: string;
 };
 
 export type DaemonIsolationSessionParams = {

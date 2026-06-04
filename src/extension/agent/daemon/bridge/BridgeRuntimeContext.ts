@@ -1,7 +1,7 @@
 import type * as vscode from 'vscode';
 
 import type { DaemonJsonRpcClient } from '../../../../cli/daemonClient';
-import type { DaemonEvent, IsolationSessionSummary } from '../../../../cli/daemonProtocol';
+import type { DaemonEvent, IsolationFlowModeSummary, IsolationSessionSummary } from '../../../../cli/daemonProtocol';
 import type { PerformanceTelemetryRecord } from '../../../../core/features/performanceTelemetry';
 import type { SubagentRun } from '../../../../core/shared/types/types';
 import type { AistLogger } from '../../../shared/logger';
@@ -23,6 +23,7 @@ export type BridgeRuntimeState = {
   client: DaemonJsonRpcClient | undefined;
   eventListeners: Set<(event: DaemonEvent) => void>;
   beforeStoreRefreshListeners: Set<(event: DaemonEvent) => void>;
+  isolationFlowModes: IsolationFlowModeSummary[];
   isolationSessions: IsolationSessionSummary[];
   subagentRunsByParentChat: Map<string, SubagentRun[]>;
   lastSyncedSettings: string;

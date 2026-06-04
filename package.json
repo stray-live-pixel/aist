@@ -604,6 +604,7 @@
     "lint": "npm run typecheck",
     "check:unused": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"*.config.ts\" \".storybook/**/*.{ts,tsx}\" --max-warnings=0 && knip --include files",
     "check:file-size": "node scripts/check-file-size.mjs",
+    "map:project": "node scripts/generate-project-map.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "install:e2e:vscode": "node scripts/install-e2e-vscode.mjs",

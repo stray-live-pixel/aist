@@ -6,7 +6,8 @@ export async function isolationContinue(this: AistDaemonServer, params: unknown)
   const input = requireRecord({ value: params, label: 'params' });
   const sessionId = requireString({ input, key: 'sessionId' });
   const prompt = requireString({ input, key: 'prompt' });
-  const session = await this.isolationSessions.continue(sessionId, prompt);
+  const flowId = typeof input.flowId === 'string' ? input.flowId : undefined;
+  const session = await this.isolationSessions.continue(sessionId, prompt, flowId);
 
   return {
     operationId: this.idFactory(),

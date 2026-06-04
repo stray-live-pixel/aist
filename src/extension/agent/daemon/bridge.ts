@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 
-import type { DaemonEvent, DaemonIsolationEvent, IsolationSessionSummary } from '../../../cli/daemonProtocol';
+import type {
+  DaemonEvent,
+  DaemonIsolationEvent,
+  IsolationFlowModeSummary,
+  IsolationSessionSummary
+} from '../../../cli/daemonProtocol';
 import type {
   AgentAttachment,
   ChatModelSettings,
@@ -169,6 +174,11 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   }
 
   /** Возвращает сохранённые isolated sessions из последнего daemon state. */
+  listIsolationFlowModes(): readonly IsolationFlowModeSummary[] {
+    return this.runtimeContext.state.isolationFlowModes;
+  }
+
+  /** Возвращает сохранённые isolated sessions из последнего daemon state. */
   listIsolationSessions(): readonly IsolationSessionSummary[] {
     return this.runtimeContext.state.isolationSessions;
   }
@@ -179,13 +189,13 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
   }
 
   /** Стартует detached isolated session через daemon. */
-  startIsolationSession(prompt: string): Promise<IsolationSessionSummary> {
-    return startBridgeIsolationSession({ context: this.runtimeContext, prompt });
+  startIsolationSession(prompt: string, flowId?: string): Promise<IsolationSessionSummary> {
+    return startBridgeIsolationSession({ context: this.runtimeContext, prompt, flowId });
   }
 
   /** Продолжает detached isolated session в той же ветке/сессии. */
-  continueIsolationSession(sessionId: string, prompt: string): Promise<IsolationSessionSummary> {
-    return continueBridgeIsolationSession({ context: this.runtimeContext, sessionId, prompt });
+  continueIsolationSession(sessionId: string, prompt: string, flowId?: string): Promise<IsolationSessionSummary> {
+    return continueBridgeIsolationSession({ context: this.runtimeContext, sessionId, prompt, flowId });
   }
 
   /** Останавливает isolated session/container через daemon. */
@@ -247,6 +257,7 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       client: undefined,
       eventListeners: new Set<(event: DaemonEvent) => void>(),
       beforeStoreRefreshListeners: new Set<(event: DaemonEvent) => void>(),
+      isolationFlowModes: [],
       isolationSessions: [],
       subagentRunsByParentChat: new Map<string, SubagentRun[]>(),
       lastSyncedSettings: '',

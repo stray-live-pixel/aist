@@ -98,6 +98,7 @@ function createContext(): BridgeRuntimeContext {
       client: undefined,
       eventListeners: new Set(),
       beforeStoreRefreshListeners: new Set(),
+      isolationFlowModes: [],
       isolationSessions: [],
       subagentRunsByParentChat: new Map(),
       lastSyncedSettings: '',

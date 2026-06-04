@@ -3,23 +3,32 @@ import path from 'node:path';
 
 import type { AuxiliaryModelInvoker } from '../../../core/entities/model/auxiliaryModel';
 import { appendJsonl, globalWorkspaceRoot, safeMkdir, writeJsonAtomic } from '../../../core/entities/storage/storage';
+import {
+  type AutonomousEvent,
+  type AutonomousFlowDefinition,
+  type AutonomousFlowState,
+  type AutonomousSessionStatus,
+  AutonomousSessionStore,
+  createSessionId,
+  discoverAutonomousDefinitions,
+  runAutonomousFlow
+} from '../../../core/processes/autonomous';
 import type {
   DaemonIsolationEvent,
   DaemonIsolationStartParams,
+  IsolationFlowSelection,
   IsolationProviderKind,
   IsolationSessionSummary
 } from '../../daemonProtocol';
 import { LocalDockerIsolationProvider } from './LocalDockerIsolationProvider';
+import {
+  ISOLATED_AGENT_ENGINE_ID,
+  type IsolatedAgentAutonomousEngineRunInput,
+  createIsolatedAgentAutonomousEngine
+} from './flow/createIsolatedAgentAutonomousEngine';
 import { IsolationGitService } from './git/IsolationGitService';
 
-export type IsolationAgentRunInput = {
-  /** Снимок сессии с chatId стандартного чата для live-наблюдения. */
-  readonly session: IsolationSessionSummary;
-  readonly worktreePath: string;
-  readonly containerName: string;
-  readonly dockerProvider: LocalDockerIsolationProvider;
-  readonly registerStopHandler?: (handler: () => void) => void;
-};
+export type IsolationAgentRunInput = IsolatedAgentAutonomousEngineRunInput;
 
 type IsolationSessionManagerOptions = {
   readonly workspaceRoot: string;
@@ -77,6 +86,7 @@ export class IsolationSessionManager {
     if (!prompt) {
       throw new Error('Isolation prompt must not be empty.');
     }
+    const flow = await this.getFlow(params.flowId);
 
     const taskId = this.options.idFactory();
     const sessionId = this.options.idFactory();
@@ -88,6 +98,7 @@ export class IsolationSessionManager {
       taskId,
       chatId,
       prompt,
+      flow: flow ? toInitialFlowSelection(flow) : undefined,
       branchName: `aist/task/${taskId.slice(0, 12)}`,
       baseRef: params.baseRef?.trim() || undefined,
       provider: normalizeProvider(params.provider),
@@ -103,12 +114,13 @@ export class IsolationSessionManager {
     return session;
   }
 
-  async continue(sessionId: string, prompt: string): Promise<IsolationSessionSummary> {
+  async continue(sessionId: string, prompt: string, flowId?: string): Promise<IsolationSessionSummary> {
     const existing = this.requireSession(sessionId);
     const nextPrompt = prompt.trim();
     if (!nextPrompt) {
       throw new Error('Isolation continue prompt must not be empty.');
     }
+    const flow = await this.getFlow(flowId ?? existing.flow?.flowId);
 
     const chatId = existing.chatId || `isolation-${existing.sessionId}`;
     if (!existing.chatId) {
@@ -118,6 +130,7 @@ export class IsolationSessionManager {
     const session = await this.updateSession(existing.sessionId, {
       chatId,
       prompt: nextPrompt,
+      flow: flow ? toInitialFlowSelection(flow) : undefined,
       attempt: existing.attempt + 1,
       status: 'queued',
       error: undefined,
@@ -248,14 +261,19 @@ export class IsolationSessionManager {
         startedAt: this.options.now()
       });
       await this.log(sessionId, 'info', 'Container is running. Starting isolated agent runtime.');
-      const runResult = await this.options.runAgent({
-        session: currentSession,
-        worktreePath: worktree.worktreePath,
-        containerName: container.containerName,
-        dockerProvider: this.dockerProvider,
-        registerStopHandler: (handler) => this.stopHandlers.set(sessionId, handler)
-      });
-      this.stopHandlers.delete(sessionId);
+      const flow = await this.getFlow(currentSession.flow?.flowId);
+      const runResult = flow
+        ? await this.runFlowInIsolation({
+            session: currentSession,
+            flow,
+            worktreePath: worktree.worktreePath,
+            containerName: container.containerName
+          })
+        : await this.runSingleAgentStep({
+            session: currentSession,
+            worktreePath: worktree.worktreePath,
+            containerName: container.containerName
+          });
       if (this.shouldAbortProvision(sessionId)) {
         return;
       }
@@ -326,6 +344,197 @@ export class IsolationSessionManager {
         error: formatError(error),
         finishedAt: this.options.now()
       });
+    }
+  }
+
+  private async runSingleAgentStep({
+    session,
+    worktreePath,
+    containerName
+  }: {
+    session: IsolationSessionSummary;
+    worktreePath: string;
+    containerName: string;
+  }): Promise<{ runId?: string; answer?: string }> {
+    try {
+      return await this.options.runAgent({
+        session,
+        runPrompt: session.prompt,
+        worktreePath,
+        containerName,
+        dockerProvider: this.dockerProvider,
+        registerStopHandler: (handler) => this.stopHandlers.set(session.sessionId, handler)
+      });
+    } finally {
+      this.stopHandlers.delete(session.sessionId);
+    }
+  }
+
+  private async runFlowInIsolation({
+    session,
+    flow,
+    worktreePath,
+    containerName
+  }: {
+    session: IsolationSessionSummary;
+    flow: AutonomousFlowDefinition;
+    worktreePath: string;
+    containerName: string;
+  }): Promise<{ runId?: string; answer?: string }> {
+    const autonomousSessionId = createSessionId('isolation-flow');
+    const abortController = new AbortController();
+    const activeStageStopHandler: { current?: () => void } = {};
+    const sessionStore = new AutonomousSessionStore(this.options.workspaceRoot, {
+      homeDir: this.options.homeDir,
+      onEvent: (eventSessionId, event) => {
+        if (eventSessionId !== autonomousSessionId) {
+          return;
+        }
+        void this.handleAutonomousFlowEvent({ isolationSessionId: session.sessionId, autonomousSessionId, event });
+      }
+    });
+    let lastRunId: string | undefined;
+    let lastAnswer: string | undefined;
+
+    await this.updateSession(session.sessionId, {
+      flow: toFlowSelection({ flow, autonomousSessionId, status: 'running' }),
+      stage: `Flow ${flow.title} is starting.`
+    });
+    await this.log(session.sessionId, 'info', `Using isolated agent flow ${flow.id} (${flow.stages.length} stages).`);
+
+    this.stopHandlers.set(session.sessionId, () => {
+      abortController.abort();
+      activeStageStopHandler.current?.();
+    });
+
+    const engine = createIsolatedAgentAutonomousEngine({
+      session,
+      worktreePath,
+      containerName,
+      dockerProvider: this.dockerProvider,
+      registerStopHandler: (handler) => {
+        activeStageStopHandler.current = handler;
+      },
+      runAgent: async (input) => {
+        const latestSession = this.requireSession(session.sessionId);
+        const result = await this.options.runAgent({ ...input, session: latestSession });
+        lastRunId = result.runId || lastRunId;
+        lastAnswer = result.answer || lastAnswer;
+        if (result.runId && !this.shouldAbortProvision(session.sessionId)) {
+          await this.updateSession(session.sessionId, { lastRunId: result.runId });
+        }
+        return result;
+      }
+    });
+
+    try {
+      const result = await runAutonomousFlow({
+        flow,
+        workspaceRoot: this.options.workspaceRoot,
+        workDir: worktreePath,
+        launch: {
+          engineId: ISOLATED_AGENT_ENGINE_ID,
+          dryRun: false,
+          extraPrompt: session.prompt
+        },
+        sessionStore,
+        engineRegistry: {
+          list: () => [engine],
+          get: (engineId) => {
+            if (engineId !== ISOLATED_AGENT_ENGINE_ID) {
+              throw new Error(`Unknown isolated autonomous engine: ${engineId}`);
+            }
+            return engine;
+          }
+        },
+        signal: abortController.signal,
+        sessionId: autonomousSessionId
+      });
+      await this.updateSession(session.sessionId, {
+        flow: toFlowSelection({ flow, autonomousSessionId, state: result.state }),
+        stage:
+          result.state.status === 'finished'
+            ? `Flow ${flow.title} finished.`
+            : `Flow ${flow.title} finished with status ${result.state.status}.`
+      });
+      if (result.state.status !== 'finished') {
+        throw new Error(`Isolated flow ${flow.id} finished with status ${result.state.status}.`);
+      }
+      return { runId: lastRunId, answer: lastAnswer };
+    } finally {
+      this.stopHandlers.delete(session.sessionId);
+    }
+  }
+
+  private async handleAutonomousFlowEvent({
+    isolationSessionId,
+    autonomousSessionId,
+    event
+  }: {
+    isolationSessionId: string;
+    autonomousSessionId: string;
+    event: AutonomousEvent;
+  }): Promise<void> {
+    const session = this.sessions.get(isolationSessionId);
+    if (!session || this.shouldAbortProvision(isolationSessionId)) {
+      return;
+    }
+
+    if (shouldMirrorAutonomousEvent(event)) {
+      await this.log(
+        isolationSessionId,
+        autonomousEventLevelToIsolationLogLevel(event.level),
+        `[flow] ${event.message}`
+      );
+    }
+    await this.syncAutonomousFlowState({
+      isolationSessionId,
+      autonomousSessionId,
+      stage: shouldExposeAutonomousEventAsIsolationStage(event) ? event.message : undefined
+    });
+  }
+
+  private async syncAutonomousFlowState({
+    isolationSessionId,
+    autonomousSessionId,
+    stage
+  }: {
+    isolationSessionId: string;
+    autonomousSessionId: string;
+    stage?: string;
+  }): Promise<void> {
+    const session = this.sessions.get(isolationSessionId);
+    if (!session?.flow || session.flow.autonomousSessionId !== autonomousSessionId) {
+      return;
+    }
+
+    try {
+      const sessionStore = new AutonomousSessionStore(this.options.workspaceRoot, { homeDir: this.options.homeDir });
+      const autonomousSession = await sessionStore.readSession(autonomousSessionId, 0);
+      if (!autonomousSession.flow) {
+        return;
+      }
+      if (this.shouldAbortProvision(isolationSessionId)) {
+        return;
+      }
+      const patch: Partial<Omit<IsolationSessionSummary, 'sessionId' | 'createdAt'>> = {
+        flow: toFlowSelection({
+          flow: {
+            id: session.flow.flowId,
+            title: session.flow.title,
+            stages:
+              session.flow.stages?.map((flowStage) => ({
+                index: flowStage.index,
+                title: flowStage.title
+              })) ?? []
+          },
+          autonomousSessionId,
+          state: autonomousSession.flow
+        })
+      };
+      await this.updateSession(isolationSessionId, stage ? { ...patch, stage } : patch);
+    } catch {
+      return;
     }
   }
 
@@ -423,10 +632,95 @@ export class IsolationSessionManager {
       this.sessions.clear();
     }
   }
+
+  private async getFlow(flowId: string | undefined): Promise<AutonomousFlowDefinition | undefined> {
+    const normalizedFlowId = flowId?.trim();
+    if (!normalizedFlowId) {
+      return undefined;
+    }
+
+    const definitions = await discoverAutonomousDefinitions({ workspaceRoot: this.options.workspaceRoot });
+    const flow = definitions.flows.find((candidate) => candidate.id === normalizedFlowId);
+    if (!flow) {
+      throw new Error(`Isolation flow not found: ${normalizedFlowId}`);
+    }
+    return flow;
+  }
 }
 
 function normalizeProvider(provider: IsolationProviderKind | undefined): IsolationProviderKind {
   return provider || 'docker-local';
+}
+
+type FlowSelectionSource = {
+  readonly id: string;
+  readonly title: string;
+  readonly stages: readonly { readonly index: number; readonly title: string }[];
+};
+
+function toInitialFlowSelection(flow: FlowSelectionSource): IsolationFlowSelection {
+  return toFlowSelection({ flow });
+}
+
+function toFlowSelection({
+  flow,
+  autonomousSessionId,
+  status,
+  state
+}: {
+  flow: FlowSelectionSource;
+  autonomousSessionId?: string;
+  status?: AutonomousSessionStatus;
+  state?: AutonomousFlowState;
+}): IsolationFlowSelection {
+  const stages = state
+    ? state.stages.map((stage) => ({
+        index: stage.index,
+        title: stage.title,
+        status: stage.status,
+        model: stage.model,
+        error: stage.error
+      }))
+    : flow.stages.map((stage) => ({
+        index: stage.index,
+        title: stage.title,
+        status: 'pending' as const
+      }));
+
+  return {
+    flowId: flow.id,
+    title: flow.title,
+    stageCount: flow.stages.length,
+    autonomousSessionId,
+    status: state?.status || status,
+    currentStageIndex: state?.currentStageIndex,
+    stages
+  };
+}
+
+function shouldMirrorAutonomousEvent(event: AutonomousEvent): boolean {
+  return event.action !== 'ASSISTANT' && event.action !== 'THINKING';
+}
+
+function shouldExposeAutonomousEventAsIsolationStage(event: AutonomousEvent): boolean {
+  return (
+    event.action === 'FLOW' ||
+    event.action === 'STAGE' ||
+    event.action === 'STAGE_CTX' ||
+    event.action === 'DONE' ||
+    event.action === 'ERROR' ||
+    event.action === 'SYS'
+  );
+}
+
+function autonomousEventLevelToIsolationLogLevel(level: AutonomousEvent['level']): 'info' | 'warn' | 'error' {
+  if (level === 'error') {
+    return 'error';
+  }
+  if (level === 'warning') {
+    return 'warn';
+  }
+  return 'info';
 }
 
 function recoverSessionStatus(session: IsolationSessionSummary, now: number): IsolationSessionSummary {

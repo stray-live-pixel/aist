@@ -48,6 +48,38 @@
   padding: 12px;
 }
 
+.launchGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.58fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.flowPanel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.flowPreview {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--agent-border) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 34%, transparent);
+  padding: 8px;
+}
+
+.flowPreview span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .launchActions {
   display: flex;
   min-width: 0;
@@ -144,6 +176,80 @@
   font-size: 12px;
 }
 
+.flowProgress {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--agent-border) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-input-background) 40%, transparent);
+  padding: 8px;
+}
+
+.flowProgressHeader {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.flowProgressHeader svg {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.flowProgressHeader strong {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flowStages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 6px;
+}
+
+.flowStage {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--agent-border) 72%, transparent);
+  border-radius: 6px;
+  padding: 5px 6px;
+}
+
+.flowStageCurrent {
+  border-color: color-mix(in srgb, var(--vscode-focusBorder) 56%, var(--agent-border));
+  background: color-mix(in srgb, var(--vscode-focusBorder) 9%, transparent);
+}
+
+.flowStage > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--agent-border) 80%, transparent);
+  border-radius: 50%;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.flowStage strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chatHint {
   display: flex;
   min-width: 0;
@@ -189,7 +295,14 @@
   align-items: flex-end;
 }
 
-.continueBox > label {
+.continueFields {
+  display: grid;
+  flex: 1;
+  min-width: min(100%, 16rem);
+  gap: 8px;
+}
+
+.continueFields > label {
   flex: 1;
 }
 
@@ -302,6 +415,12 @@
   align-content: center;
   gap: 8px;
   color: var(--vscode-descriptionForeground);
+}
+
+@media (max-width: 760px) {
+  .launchGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 520px) {

@@ -211,8 +211,8 @@ export type WebviewToExtensionMessage =
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }
   | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' }
-  | { type: 'isolation.start'; prompt: string }
-  | { type: 'isolation.continue'; sessionId: string; prompt: string }
+  | { type: 'isolation.start'; prompt: string; flowId?: string }
+  | { type: 'isolation.continue'; sessionId: string; prompt: string; flowId?: string }
   | { type: 'isolation.stop'; sessionId: string }
   | { type: 'isolation.destroy'; sessionId: string }
   | { type: 'isolation.openWorktree'; sessionId: string }

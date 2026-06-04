@@ -1,11 +1,11 @@
 import { post } from './post';
 
 export const isolationActions = {
-  startIsolationSession(prompt: string): void {
-    post({ message: { type: 'isolation.start', prompt } });
+  startIsolationSession(prompt: string, flowId?: string): void {
+    post({ message: { type: 'isolation.start', prompt, flowId } });
   },
-  continueIsolationSession(sessionId: string, prompt: string): void {
-    post({ message: { type: 'isolation.continue', sessionId, prompt } });
+  continueIsolationSession(sessionId: string, prompt: string, flowId?: string): void {
+    post({ message: { type: 'isolation.continue', sessionId, prompt, flowId } });
   },
   stopIsolationSession(sessionId: string): void {
     post({ message: { type: 'isolation.stop', sessionId } });

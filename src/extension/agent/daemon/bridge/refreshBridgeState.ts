@@ -24,6 +24,7 @@ export async function refreshBridgeState({
       return result.chat;
     })
   );
+  context.state.isolationFlowModes = [...(state.isolationFlowModes || [])];
   context.state.isolationSessions = [...(state.isolationSessions || [])];
   const savedActiveChatId = context.extensionContext.workspaceState.get<string>(DAEMON_RUNTIME_ACTIVE_CHAT_ID_KEY);
   const currentActiveChatId = context.chats.getSummaries().length ? context.chats.getActiveChat().id : undefined;

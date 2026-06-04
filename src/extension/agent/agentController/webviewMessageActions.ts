@@ -203,11 +203,11 @@ async function handleDaemonWebviewMessage({
       callbacks.sendState();
       return true;
     case 'isolation.start':
-      await state.daemonRuntime.startIsolationSession(message.prompt);
+      await state.daemonRuntime.startIsolationSession(message.prompt, message.flowId);
       callbacks.sendState(surface);
       return true;
     case 'isolation.continue':
-      await state.daemonRuntime.continueIsolationSession(message.sessionId, message.prompt);
+      await state.daemonRuntime.continueIsolationSession(message.sessionId, message.prompt, message.flowId);
       callbacks.sendState(surface);
       return true;
     case 'isolation.stop':

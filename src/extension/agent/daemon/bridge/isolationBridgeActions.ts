@@ -11,13 +11,15 @@ import { getBridgeClient } from './getBridgeClient';
 
 export async function startBridgeIsolationSession({
   context,
-  prompt
+  prompt,
+  flowId
 }: {
   context: BridgeRuntimeContext;
   prompt: string;
+  flowId?: string;
 }): Promise<IsolationSessionSummary> {
   const client = await getBridgeClient({ context });
-  const result = await client.request<DaemonIsolationStartResult>('isolation.start', { prompt });
+  const result = await client.request<DaemonIsolationStartResult>('isolation.start', { prompt, flowId });
   context.state.isolationSessions = [result.session, ...context.state.isolationSessions];
   await refreshIsolationSessionChat({ context, session: result.session });
   return result.session;
@@ -26,14 +28,16 @@ export async function startBridgeIsolationSession({
 export async function continueBridgeIsolationSession({
   context,
   sessionId,
-  prompt
+  prompt,
+  flowId
 }: {
   context: BridgeRuntimeContext;
   sessionId: string;
   prompt: string;
+  flowId?: string;
 }): Promise<IsolationSessionSummary> {
   const client = await getBridgeClient({ context });
-  const result = await client.request<DaemonIsolationStartResult>('isolation.continue', { sessionId, prompt });
+  const result = await client.request<DaemonIsolationStartResult>('isolation.continue', { sessionId, prompt, flowId });
   upsertIsolationSession(context, result.session);
   await refreshIsolationSessionChat({ context, session: result.session });
   return result.session;

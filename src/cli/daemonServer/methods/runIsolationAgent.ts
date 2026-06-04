@@ -6,10 +6,11 @@ import { DefaultToolRegistry } from '../../../core/features/tool-execution/toolR
 import { getRepoVerificationContextNote } from '../../../core/shared/lib/repoMap';
 import type { RuntimeEvent } from '../../../core/shared/types/types';
 import type { AistDaemonServer } from '../AistDaemonServer';
-import type { IsolationAgentRunInput } from '../isolation/IsolationSessionManager';
 import { createFileBackedRuntimeChatRepository } from '../createFileBackedRuntimeChatRepository';
+import type { IsolationAgentRunInput } from '../isolation/IsolationSessionManager';
 import { createIsolatedToolCallHandler } from '../isolation/runtime/createIsolatedToolCallHandler';
 import { getDaemonModelOption } from '../modelOptions';
+import { normalizeChatModelSettings } from '../normalizeChatModelSettings';
 
 /**
  * Что это: запускает полноценный agent runtime для isolated session.
@@ -27,6 +28,10 @@ export async function runIsolationAgent(
   const toolRegistry = new DefaultToolRegistry();
   const chatRepository = createFileBackedRuntimeChatRepository({ repository: this.chatRepository });
   let finalStatus: AgentRuntimeTelemetryStatus | undefined;
+
+  if (input.model) {
+    await applyIsolationStageModel({ server: this, chatId, model: input.model });
+  }
 
   const runtime = new AgentRuntimeService({
     chatRepository,
@@ -105,9 +110,11 @@ export async function runIsolationAgent(
   await this.isolationSessions.log(
     input.session.sessionId,
     'info',
-    `Agent runtime started on ${input.session.branchName}.`
+    input.stageIndex
+      ? `Agent runtime started on ${input.session.branchName} for flow stage ${input.stageIndex}.`
+      : `Agent runtime started on ${input.session.branchName}.`
   );
-  const result = await runtime.startAsk(chatId, input.session.prompt);
+  const result = await runtime.startAsk(chatId, input.runPrompt);
   if (!result.accepted) {
     throw new Error(result.error.message || 'Isolated agent run was not accepted.');
   }
@@ -119,6 +126,26 @@ export async function runIsolationAgent(
   }
 
   return { runId: result.runId, answer: (await this.chatRepository.get(chatId))?.lastAnswer };
+}
+
+async function applyIsolationStageModel({
+  server,
+  chatId,
+  model
+}: {
+  server: AistDaemonServer;
+  chatId: string;
+  model: string;
+}): Promise<void> {
+  const chat = await server.chatRepository.get(chatId);
+  if (!chat) {
+    return;
+  }
+  const modelSettings = normalizeChatModelSettings({
+    value: { ...chat.modelSettings, model },
+    fallback: chat.modelSettings
+  });
+  await server.chatRepository.update(chat.id, { model: modelSettings.model, modelSettings });
 }
 
 export async function handleIsolationRuntimeEvent(

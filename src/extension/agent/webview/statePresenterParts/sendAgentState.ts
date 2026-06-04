@@ -76,6 +76,7 @@ export function sendAgentState(params: SendAgentStateParams): void {
           promptConfig,
           memoryItems,
           memorySettings,
+          isolationFlowModes: [...params.isolationFlowModes],
           isolationSessions: [...params.isolationSessions],
           instructionSources,
           auxiliaryModels,

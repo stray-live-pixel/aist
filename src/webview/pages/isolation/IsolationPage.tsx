@@ -1,11 +1,28 @@
-import { ExternalLink, FolderOpen, MessageSquare, Play, RefreshCw, Server, Square, Trash2, X } from 'lucide-react';
+import {
+  ExternalLink,
+  FolderOpen,
+  GitBranch,
+  Layers3,
+  MessageSquare,
+  Play,
+  RefreshCw,
+  Server,
+  Square,
+  Trash2,
+  X
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { agentActions } from '../../shared/lib/agentActions';
 import { useAgentState } from '../../shared/lib/agentState';
 import { isIsolationSessionActive } from '../../shared/lib/isolation';
-import type { IsolationSessionEvent, IsolationSessionStatus, IsolationSessionSummary } from '../../shared/types';
-import { Badge, Button, Text, TextArea } from '../../shared/ui';
+import type {
+  IsolationFlowModeSummary,
+  IsolationSessionEvent,
+  IsolationSessionStatus,
+  IsolationSessionSummary
+} from '../../shared/types';
+import { Badge, Button, Select, Text, TextArea } from '../../shared/ui';
 import type { BadgeTone } from '../../shared/ui';
 import styles from './IsolationPage.module.scss';
 import { shouldEnableIsolationStandardChat } from './shouldEnableIsolationStandardChat';
@@ -13,8 +30,15 @@ import { shouldEnableIsolationStandardChat } from './shouldEnableIsolationStanda
 export function IsolationPage({ onClose }: { onClose(): void }) {
   const state = useAgentState();
   const [prompt, setPrompt] = useState('');
+  const [selectedFlowId, setSelectedFlowId] = useState('');
   const [continueBySessionId, setContinueBySessionId] = useState<Record<string, string>>({});
+  const [continueFlowBySessionId, setContinueFlowBySessionId] = useState<Record<string, string>>({});
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const flowModes = state.isolationFlowModes;
+  const selectedFlow = useMemo(
+    () => flowModes.find((flow) => flow.flowId === selectedFlowId),
+    [flowModes, selectedFlowId]
+  );
   const sessions = useMemo(
     () => [...state.isolationSessions].sort((left, right) => right.updatedAt - left.updatedAt),
     [state.isolationSessions]
@@ -52,15 +76,21 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
   function start() {
     const nextPrompt = prompt.trim();
     if (!nextPrompt) return;
-    agentActions.startIsolationSession(nextPrompt);
+    agentActions.startIsolationSession(nextPrompt, selectedFlowId || undefined);
     setPrompt('');
   }
 
   function continueSession(sessionId: string) {
     const nextPrompt = (continueBySessionId[sessionId] || '').trim();
     if (!nextPrompt) return;
-    agentActions.continueIsolationSession(sessionId, nextPrompt);
+    agentActions.continueIsolationSession(sessionId, nextPrompt, getContinueFlowId(sessionId));
     setContinueBySessionId((current) => ({ ...current, [sessionId]: '' }));
+  }
+
+  function getContinueFlowId(sessionId: string): string | undefined {
+    const session = sessions.find((candidate) => candidate.sessionId === sessionId);
+    const hasDraftFlow = Object.prototype.hasOwnProperty.call(continueFlowBySessionId, sessionId);
+    return (hasDraftFlow ? continueFlowBySessionId[sessionId] : session?.flow?.flowId) || undefined;
   }
 
   return (
@@ -88,20 +118,34 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
       </header>
 
       <section className={styles.launch}>
-        <TextArea
-          label="Task"
-          rows={4}
-          placeholder="Describe the isolated implementation task..."
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-        />
+        <div className={styles.launchGrid}>
+          <TextArea
+            label="Task"
+            rows={4}
+            placeholder="Describe the isolated implementation task..."
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+          />
+          <div className={styles.flowPanel}>
+            <Select
+              label="Agent flow"
+              leadingIcon={<Layers3 size={14} />}
+              value={selectedFlowId}
+              placeholder="Single-step default"
+              options={toFlowOptions(flowModes)}
+              searchable={flowModes.length > 5}
+              onValueChange={setSelectedFlowId}
+            />
+            <FlowPreview flow={selectedFlow} flowCount={flowModes.length} />
+          </div>
+        </div>
         <div className={styles.launchActions}>
           <Button variant="primary" leadingIcon={<Play size={14} />} disabled={!prompt.trim()} onClick={start}>
             Start detached run
           </Button>
           <Text variant="caption">
-            AIST will create a standard chat for this Docker run. Open that chat to watch tool calls and answer flow
-            as if the agent worked locally.
+            AIST will create a standard chat for this Docker run. Open that chat to watch tool calls and answer flow as
+            if the agent worked locally.
           </Text>
         </div>
       </section>
@@ -116,12 +160,14 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
                   <Badge tone={getStatusTone(session.status)}>{session.status}</Badge>
                 </div>
                 <Text variant="caption">
-                  {session.provider} · attempt {session.attempt} · {new Date(session.updatedAt).toLocaleString()}
+                  {session.provider} · {session.flow?.title || 'Single-step default'} · attempt {session.attempt} ·{' '}
+                  {new Date(session.updatedAt).toLocaleString()}
                 </Text>
               </div>
 
               <div className={styles.metaGrid}>
                 <Meta label="Session" value={session.sessionId} />
+                <Meta label="Flow" value={session.flow?.title || 'Single-step default'} />
                 <Meta label="Chat" value={session.chatId || 'creating'} />
                 <Meta label="Container" value={session.containerName || session.containerId || 'not created'} />
                 <Meta label="Worktree" value={session.worktreePath || 'pending'} />
@@ -130,6 +176,7 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
               </div>
 
               {session.stage ? <div className={styles.stage}>{session.stage}</div> : null}
+              {session.flow?.stages?.length ? <FlowProgress flow={session.flow} /> : null}
 
               <div className={styles.chatHint}>
                 <MessageSquare size={14} />
@@ -221,18 +268,36 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
               ) : null}
 
               <div className={styles.continueBox}>
-                <TextArea
-                  rows={2}
-                  placeholder="Add follow-up instructions for this branch..."
-                  disabled={isIsolationSessionActive({ status: session.status })}
-                  value={continueBySessionId[session.sessionId] || ''}
-                  onChange={(event) =>
-                    setContinueBySessionId((current) => ({
-                      ...current,
-                      [session.sessionId]: event.target.value
-                    }))
-                  }
-                />
+                <div className={styles.continueFields}>
+                  <TextArea
+                    rows={2}
+                    placeholder="Add follow-up instructions for this branch..."
+                    disabled={isIsolationSessionActive({ status: session.status })}
+                    value={continueBySessionId[session.sessionId] || ''}
+                    onChange={(event) =>
+                      setContinueBySessionId((current) => ({
+                        ...current,
+                        [session.sessionId]: event.target.value
+                      }))
+                    }
+                  />
+                  <Select
+                    size="sm"
+                    label="Follow-up flow"
+                    leadingIcon={<GitBranch size={12} />}
+                    value={getContinueFlowId(session.sessionId) || ''}
+                    placeholder="Single-step default"
+                    disabled={isIsolationSessionActive({ status: session.status })}
+                    options={toFlowOptions(flowModes)}
+                    searchable={flowModes.length > 5}
+                    onValueChange={(flowId) =>
+                      setContinueFlowBySessionId((current) => ({
+                        ...current,
+                        [session.sessionId]: flowId
+                      }))
+                    }
+                  />
+                </div>
                 <Button
                   size="sm"
                   leadingIcon={<Play size={13} />}
@@ -254,6 +319,63 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function toFlowOptions(flows: readonly IsolationFlowModeSummary[]) {
+  return [
+    { value: '', label: 'Single-step default' },
+    ...flows.map((flow) => ({
+      value: flow.flowId,
+      label: `${flow.title} (${flow.stageCount})`
+    }))
+  ];
+}
+
+function FlowPreview({ flow, flowCount }: { flow: IsolationFlowModeSummary | undefined; flowCount: number }) {
+  if (!flow) {
+    return (
+      <div className={styles.flowPreview}>
+        <Badge tone="neutral">default</Badge>
+        <span>
+          One detached agent run. {flowCount ? `${flowCount} saved flows are available.` : 'No saved flows found yet.'}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.flowPreview}>
+      <Badge tone={flow.sourceKind === 'legacy' ? 'warning' : 'success'}>{flow.sourceKind}</Badge>
+      <span>
+        {flow.stageCount} stages{flow.defaultModel ? ` · ${flow.defaultModel}` : ''}
+        {flow.description ? ` · ${flow.description}` : ''}
+      </span>
+    </div>
+  );
+}
+
+function FlowProgress({ flow }: { flow: NonNullable<IsolationSessionSummary['flow']> }) {
+  return (
+    <div className={styles.flowProgress} aria-label={`Flow progress for ${flow.title}`}>
+      <div className={styles.flowProgressHeader}>
+        <Layers3 size={13} />
+        <strong>{flow.title}</strong>
+        {flow.status ? <Badge tone={getFlowStatusTone(flow.status)}>{flow.status}</Badge> : null}
+      </div>
+      <div className={styles.flowStages}>
+        {flow.stages?.map((stage) => (
+          <div
+            key={stage.index}
+            className={`${styles.flowStage} ${flow.currentStageIndex === stage.index ? styles.flowStageCurrent : ''}`}
+          >
+            <span>{stage.index}</span>
+            <strong title={stage.title}>{stage.title}</strong>
+            <Badge tone={getFlowStageTone(stage.status)}>{stage.status}</Badge>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -323,6 +445,22 @@ function getStatusTone(status: IsolationSessionStatus): BadgeTone {
   if (status === 'ready_for_review') return 'success';
   if (isIsolationSessionActive({ status })) return 'warning';
   if (status === 'failed') return 'danger';
+  return 'neutral';
+}
+
+function getFlowStatusTone(status: NonNullable<NonNullable<IsolationSessionSummary['flow']>['status']>): BadgeTone {
+  if (status === 'finished') return 'success';
+  if (status === 'error') return 'danger';
+  if (status === 'stopped') return 'neutral';
+  return 'warning';
+}
+
+function getFlowStageTone(
+  status: NonNullable<NonNullable<IsolationSessionSummary['flow']>['stages']>[number]['status']
+): BadgeTone {
+  if (status === 'done') return 'success';
+  if (status === 'error') return 'danger';
+  if (status === 'running') return 'warning';
   return 'neutral';
 }
 
