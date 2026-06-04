@@ -1,8 +1,19 @@
+import type { IsolationRemoteServerInput } from '../../types';
 import { post } from './post';
 
 export const isolationActions = {
-  startIsolationSession(prompt: string, flowId?: string): void {
-    post({ message: { type: 'isolation.start', prompt, flowId } });
+  startIsolationSession(
+    prompt: string,
+    flowId?: string,
+    runner?: { provider?: 'docker-local' | 'remote-server'; runnerId?: string }
+  ): void {
+    post({ message: { type: 'isolation.start', prompt, flowId, ...runner } });
+  },
+  upsertIsolationRemoteServer(server: IsolationRemoteServerInput): void {
+    post({ message: { type: 'isolation.remoteServer.upsert', server } });
+  },
+  deleteIsolationRemoteServer(serverId: string): void {
+    post({ message: { type: 'isolation.remoteServer.delete', serverId } });
   },
   continueIsolationSession(sessionId: string, prompt: string, flowId?: string): void {
     post({ message: { type: 'isolation.continue', sessionId, prompt, flowId } });

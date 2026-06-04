@@ -19,7 +19,11 @@ import type {
   EditableAutonomousFlowDefinition
 } from './autonomous';
 import type { Chat, ChatMessage, ChatModelSettings, ChatSummary } from './chat';
-import type { IsolationFlowModeSummary, IsolationSessionEvent } from './isolation';
+import type {
+  IsolationFlowModeSummary,
+  IsolationRemoteServerInput,
+  IsolationSessionEvent
+} from './isolation';
 import type {
   AgentLanguage,
   AuxiliaryModelId,
@@ -208,7 +212,9 @@ export type WebviewToExtensionMessage =
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }
   | { type: 'autonomous.exportSession'; sessionId: string; format: 'markdown' | 'json' }
-  | { type: 'isolation.start'; prompt: string; flowId?: string }
+  | { type: 'isolation.start'; prompt: string; flowId?: string; provider?: 'docker-local' | 'remote-server'; runnerId?: string }
+  | { type: 'isolation.remoteServer.upsert'; server: IsolationRemoteServerInput }
+  | { type: 'isolation.remoteServer.delete'; serverId: string }
   | { type: 'isolation.continue'; sessionId: string; prompt: string; flowId?: string }
   | { type: 'isolation.stop'; sessionId: string }
   | { type: 'isolation.destroy'; sessionId: string }

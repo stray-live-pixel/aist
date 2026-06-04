@@ -72,6 +72,8 @@ function postState({
     codexAuthenticated: state.codexAuthenticated,
     isolationFlowModes: state.daemonRuntime.listIsolationFlowModes(),
     isolationSessions: state.daemonRuntime.listIsolationSessions(),
+    isolationRunners: state.daemonRuntime.listIsolationRunners(),
+    isolationRemoteServers: state.daemonRuntime.listIsolationRemoteServers(),
     subagentRunsByChatId: new Map(
       surfaces.map((surface, index) => [surface.getChatId(), [...(runsBySurface[index] || [])]])
     ),

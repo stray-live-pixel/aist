@@ -4,6 +4,9 @@ import type {
   DaemonEvent,
   DaemonIsolationEvent,
   IsolationFlowModeSummary,
+  IsolationRemoteServerInput,
+  IsolationRemoteServerSettings,
+  IsolationRunnerSummary,
   IsolationSessionSummary
 } from '../../../cli/daemonProtocol';
 import type {
@@ -29,10 +32,12 @@ import { getWorkspaceRoot } from './bridge/getWorkspaceRoot';
 import { initializeBridgeRuntime } from './bridge/initializeBridgeRuntime';
 import {
   continueBridgeIsolationSession,
+  deleteBridgeIsolationRemoteServer,
   destroyBridgeIsolationSession,
   getBridgeIsolationEvents,
   startBridgeIsolationSession,
-  stopBridgeIsolationSession
+  stopBridgeIsolationSession,
+  upsertBridgeIsolationRemoteServer
 } from './bridge/isolationBridgeActions';
 import {
   analyzeBridgeMemoryChat,
@@ -183,14 +188,38 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
     return this.runtimeContext.state.isolationSessions;
   }
 
+  /** Возвращает варианты запуска isolated agents из последнего daemon state. */
+  listIsolationRunners(): readonly IsolationRunnerSummary[] {
+    return this.runtimeContext.state.isolationRunners;
+  }
+
+  /** Возвращает глобальные SSH-серверы isolated agents из последнего daemon state. */
+  listIsolationRemoteServers(): readonly IsolationRemoteServerSettings[] {
+    return this.runtimeContext.state.isolationRemoteServers;
+  }
+
   /** Возвращает event-log isolated session из daemon storage. */
   getIsolationEvents(sessionId: string): Promise<readonly DaemonIsolationEvent[]> {
     return getBridgeIsolationEvents({ context: this.runtimeContext, sessionId });
   }
 
+  /** Сохраняет глобальный SSH-сервер isolated agents через daemon. */
+  upsertIsolationRemoteServer(server: IsolationRemoteServerInput): Promise<IsolationRemoteServerSettings> {
+    return upsertBridgeIsolationRemoteServer({ context: this.runtimeContext, server });
+  }
+
+  /** Удаляет глобальный SSH-сервер isolated agents через daemon. */
+  deleteIsolationRemoteServer(serverId: string): Promise<boolean> {
+    return deleteBridgeIsolationRemoteServer({ context: this.runtimeContext, serverId });
+  }
+
   /** Стартует detached isolated session через daemon. */
-  startIsolationSession(prompt: string, flowId?: string): Promise<IsolationSessionSummary> {
-    return startBridgeIsolationSession({ context: this.runtimeContext, prompt, flowId });
+  startIsolationSession(
+    prompt: string,
+    flowId?: string,
+    runner?: { provider?: 'docker-local' | 'remote-server'; runnerId?: string }
+  ): Promise<IsolationSessionSummary> {
+    return startBridgeIsolationSession({ context: this.runtimeContext, prompt, flowId, runner });
   }
 
   /** Продолжает detached isolated session в той же ветке/сессии. */
@@ -259,6 +288,8 @@ class VscodeDaemonRuntimeBridgeImpl implements VscodeDaemonRuntimeBridge {
       beforeStoreRefreshListeners: new Set<(event: DaemonEvent) => void>(),
       isolationFlowModes: [],
       isolationSessions: [],
+      isolationRunners: [],
+      isolationRemoteServers: [],
       subagentRunsByParentChat: new Map<string, SubagentRun[]>(),
       lastSyncedSettings: '',
       refreshQueue: Promise.resolve(),

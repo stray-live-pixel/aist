@@ -4,6 +4,9 @@ import type {
   DaemonEvent,
   DaemonIsolationEvent,
   IsolationFlowModeSummary,
+  IsolationRemoteServerInput,
+  IsolationRemoteServerSettings,
+  IsolationRunnerSummary,
   IsolationSessionSummary
 } from '../../../../cli/daemonProtocol';
 import type {
@@ -47,8 +50,16 @@ export type VscodeDaemonRuntimeBridge = vscode.Disposable & {
   getSubagentRun(runId: string): Promise<SubagentRun | undefined>;
   listIsolationFlowModes(): readonly IsolationFlowModeSummary[];
   listIsolationSessions(): readonly IsolationSessionSummary[];
+  listIsolationRunners(): readonly IsolationRunnerSummary[];
+  listIsolationRemoteServers(): readonly IsolationRemoteServerSettings[];
   getIsolationEvents(sessionId: string): Promise<readonly DaemonIsolationEvent[]>;
-  startIsolationSession(prompt: string, flowId?: string): Promise<IsolationSessionSummary>;
+  upsertIsolationRemoteServer(server: IsolationRemoteServerInput): Promise<IsolationRemoteServerSettings>;
+  deleteIsolationRemoteServer(serverId: string): Promise<boolean>;
+  startIsolationSession(
+    prompt: string,
+    flowId?: string,
+    runner?: { provider?: 'docker-local' | 'remote-server'; runnerId?: string }
+  ): Promise<IsolationSessionSummary>;
   continueIsolationSession(sessionId: string, prompt: string, flowId?: string): Promise<IsolationSessionSummary>;
   stopIsolationSession(sessionId: string): Promise<IsolationSessionSummary | null>;
   destroyIsolationSession(sessionId: string): Promise<IsolationSessionSummary | null>;

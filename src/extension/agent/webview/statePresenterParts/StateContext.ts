@@ -33,4 +33,6 @@ export type StateContext = SendAgentStateParams & {
   performanceTelemetry: unknown;
   projectToolDiagnostics: unknown;
   providerProfiles: unknown;
+  isolationRunners: unknown;
+  isolationRemoteServers: unknown;
 };

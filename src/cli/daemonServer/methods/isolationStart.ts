@@ -7,12 +7,14 @@ export async function isolationStart(this: AistDaemonServer, params: unknown): P
   const prompt = typeof input.prompt === 'string' ? input.prompt : '';
   const flowId = typeof input.flowId === 'string' ? input.flowId : undefined;
   const baseRef = typeof input.baseRef === 'string' ? input.baseRef : undefined;
-  const provider = input.provider === 'docker-local' ? 'docker-local' : undefined;
+  const provider = input.provider === 'remote-server' || input.provider === 'docker-local' ? input.provider : undefined;
+  const runnerId = typeof input.runnerId === 'string' ? input.runnerId : undefined;
   const session = await this.isolationSessions.start({
     prompt,
     flowId,
     baseRef,
-    provider
+    provider,
+    runnerId
   } satisfies DaemonIsolationStartParams);
 
   return {

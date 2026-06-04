@@ -80,6 +80,60 @@
   min-width: 0;
 }
 
+.remoteGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 8px;
+  min-width: 0;
+  margin-top: 10px;
+}
+
+.remoteKeyField {
+  margin-top: 8px;
+}
+
+.remoteActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.remoteList {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 10px;
+}
+
+.remoteItem {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--agent-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--vscode-input-background) 42%, transparent);
+}
+
+.remoteItemMain {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.remoteItemMain > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .launchActions {
   display: flex;
   min-width: 0;
@@ -179,6 +233,8 @@
 
   .actions,
   .launchActions,
+  .remoteActions,
+  .remoteItem,
   .loadMoreRow,
   .sectionHeader,
   .sessionToolbar {

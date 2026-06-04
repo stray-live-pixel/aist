@@ -18,10 +18,15 @@ import type {
   DaemonIsolationStartParams,
   IsolationFlowSelection,
   IsolationProviderKind,
+  IsolationRemoteServerInput,
+  IsolationRemoteServerSettings,
+  IsolationRunnerSummary,
+  IsolationSessionStatus,
   IsolationSessionSummary
 } from '../../daemonProtocol';
 import { finalizeContainerWorkspace } from './container/finalizeContainerWorkspace';
 import { prepareContainerWorkspace } from './container/prepareContainerWorkspace';
+import type { IsolationExecutionProvider } from './IsolationExecutionProvider';
 import { LocalDockerIsolationProvider } from './LocalDockerIsolationProvider';
 import {
   ISOLATED_AGENT_ENGINE_ID,
@@ -29,6 +34,8 @@ import {
   createIsolatedAgentAutonomousEngine
 } from './flow/createIsolatedAgentAutonomousEngine';
 import { IsolationGitService } from './git/IsolationGitService';
+import { IsolationRemoteServerStore } from './remote/IsolationRemoteServerStore';
+import { RemoteSshIsolationProvider } from './remote/RemoteSshIsolationProvider';
 
 export type IsolationAgentRunInput = IsolatedAgentAutonomousEngineRunInput;
 
@@ -54,6 +61,7 @@ type IsolationSessionManagerOptions = {
 export class IsolationSessionManager {
   private readonly dockerProvider: LocalDockerIsolationProvider;
   private readonly gitService: IsolationGitService;
+  private readonly remoteServerStore: IsolationRemoteServerStore;
   private readonly sessionsFile: string;
   private readonly eventsDir: string;
 
@@ -70,6 +78,11 @@ export class IsolationSessionManager {
       worktreesRoot: path.join(root, 'legacy-worktrees'),
       env: options.env,
       auxiliaryModel: options.auxiliaryModel
+    });
+    this.remoteServerStore = new IsolationRemoteServerStore({
+      homeDir: options.homeDir,
+      now: options.now,
+      idFactory: options.idFactory
     });
     this.load();
   }
@@ -88,6 +101,17 @@ export class IsolationSessionManager {
       throw new Error('Isolation prompt must not be empty.');
     }
     const flow = await this.getFlow(params.flowId);
+    const provider = normalizeProvider(params.provider, params.runnerId);
+    const runnerId = params.runnerId?.trim() || undefined;
+    if (provider === 'remote-server') {
+      if (!runnerId) {
+        throw new Error('Remote runner must be selected.');
+      }
+      const activeSessionId = findActiveSessionForRunner({ sessions: this.sessions.values(), runnerId });
+      if (activeSessionId) {
+        throw new Error(`Remote runner is busy with isolated session ${activeSessionId}.`);
+      }
+    }
 
     const taskId = this.options.idFactory();
     const sessionId = this.options.idFactory();
@@ -102,7 +126,8 @@ export class IsolationSessionManager {
       flow: flow ? toInitialFlowSelection(flow) : undefined,
       branchName: `aist/task/${taskId.slice(0, 12)}`,
       baseRef: params.baseRef?.trim() || undefined,
-      provider: normalizeProvider(params.provider),
+      provider,
+      runnerId,
       status: 'queued',
       attempt: 1,
       createdAt: now,
@@ -175,6 +200,37 @@ export class IsolationSessionManager {
     return destroyed;
   }
 
+  async listRemoteServers(): Promise<readonly IsolationRemoteServerSettings[]> {
+    return this.remoteServerStore.list();
+  }
+
+  async upsertRemoteServer(input: IsolationRemoteServerInput): Promise<IsolationRemoteServerSettings> {
+    const server = await this.remoteServerStore.upsert(input);
+    await this.emit({
+      type: 'isolation.remoteServers.changed',
+      servers: await this.remoteServerStore.list(),
+      at: this.options.now()
+    });
+    return server;
+  }
+
+  async deleteRemoteServer(serverId: string): Promise<boolean> {
+    const deleted = await this.remoteServerStore.delete(serverId);
+    if (deleted) {
+      await this.emit({
+        type: 'isolation.remoteServers.changed',
+        servers: await this.remoteServerStore.list(),
+        at: this.options.now()
+      });
+    }
+    return deleted;
+  }
+
+  async listRunners(): Promise<readonly IsolationRunnerSummary[]> {
+    const servers = await this.remoteServerStore.list();
+    return [this.getDockerRunnerSummary(), ...servers.map((server) => this.getRemoteRunnerSummary(server))];
+  }
+
   async getEvents(sessionId: string): Promise<readonly DaemonIsolationEvent[]> {
     const filePath = this.getEventsFile(sessionId);
     if (!fs.existsSync(filePath)) {
@@ -234,28 +290,34 @@ export class IsolationSessionManager {
         return;
       }
 
-      await this.log(sessionId, 'info', 'Checking local Docker daemon.');
-      await this.dockerProvider.healthcheck();
+      const runner = await this.resolveRunner(session);
+      await this.log(sessionId, 'info', `Checking ${runner.label}.`);
+      await runner.provider.healthcheck();
       if (this.shouldAbortProvision(sessionId)) {
         return;
       }
-      await this.log(sessionId, 'info', 'Starting autonomous Docker container without host workspace mount.');
-      const container = await this.dockerProvider.start({ sessionId });
+      await this.log(sessionId, 'info', `Starting isolated runner: ${runner.label}.`);
+      const container = await runner.provider.start({ sessionId });
       if (this.shouldAbortProvision(sessionId)) {
-        await this.dockerProvider.destroy(container.containerName).catch(() => undefined);
+        await runner.provider.destroy(container.containerName).catch(() => undefined);
         return;
       }
+      const runnerWorkspacePath = container.workspacePath || '/workspace';
       currentSession = await this.updateSession(sessionId, {
         status: 'preparing',
-        stage: 'Cloning repository and installing AIST inside container.',
+        stage: `Cloning repository and installing AIST on ${runner.label}.`,
+        provider: runner.kind,
+        runnerId: runner.runnerId,
+        runnerLabel: runner.label,
         containerId: container.containerId,
         containerName: container.containerName,
-        worktreePath: '/workspace',
+        worktreePath: runnerWorkspacePath,
         startedAt: this.options.now()
       });
       const containerWorkspace = await prepareContainerWorkspace({
-        dockerProvider: this.dockerProvider,
+        dockerProvider: runner.provider,
         containerName: container.containerName,
+        workspacePath: runnerWorkspacePath,
         remoteUrl: cloneSource.remoteUrl,
         branchName: session.branchName,
         baseRef: currentSession.baseRef,
@@ -263,24 +325,26 @@ export class IsolationSessionManager {
       });
       currentSession = await this.updateSession(sessionId, {
         status: 'running_agent',
-        stage: 'Agent is working in autonomous container.',
+        stage: `Agent is working on ${runner.label}.`,
         baseSha: containerWorkspace.baseSha || currentSession.baseSha,
         remoteName: containerWorkspace.remoteName,
         worktreePath: containerWorkspace.workspacePath
       });
-      await this.log(sessionId, 'info', 'Container workspace is ready. Starting isolated agent runtime.');
+      await this.log(sessionId, 'info', 'Runner workspace is ready. Starting isolated agent runtime.');
       const flow = await this.getFlow(currentSession.flow?.flowId);
       const runResult = flow
         ? await this.runFlowInIsolation({
             session: currentSession,
             flow,
             worktreePath: containerWorkspace.workspacePath,
-            containerName: container.containerName
+            containerName: container.containerName,
+            executionProvider: runner.provider
           })
         : await this.runSingleAgentStep({
             session: currentSession,
             worktreePath: containerWorkspace.workspacePath,
-            containerName: container.containerName
+            containerName: container.containerName,
+            executionProvider: runner.provider
           });
       if (this.shouldAbortProvision(sessionId)) {
         return;
@@ -290,9 +354,9 @@ export class IsolationSessionManager {
         stage: 'Finalizing git changes.',
         lastRunId: runResult.runId
       });
-      await this.updateSession(sessionId, { status: 'committing', stage: 'Creating commit and PR inside container.' });
+      await this.updateSession(sessionId, { status: 'committing', stage: `Creating commit and PR on ${runner.label}.` });
       const finalized = await finalizeContainerWorkspace({
-        dockerProvider: this.dockerProvider,
+        dockerProvider: runner.provider,
         containerName: container.containerName,
         branchName: currentSession.branchName,
         prompt: currentSession.prompt,
@@ -358,11 +422,13 @@ export class IsolationSessionManager {
   private async runSingleAgentStep({
     session,
     worktreePath,
-    containerName
+    containerName,
+    executionProvider
   }: {
     session: IsolationSessionSummary;
     worktreePath: string;
     containerName: string;
+    executionProvider: IsolationExecutionProvider;
   }): Promise<{ runId?: string; answer?: string }> {
     try {
       return await this.options.runAgent({
@@ -370,7 +436,7 @@ export class IsolationSessionManager {
         runPrompt: session.prompt,
         worktreePath,
         containerName,
-        dockerProvider: this.dockerProvider,
+        dockerProvider: executionProvider,
         registerStopHandler: (handler) => this.stopHandlers.set(session.sessionId, handler)
       });
     } finally {
@@ -382,12 +448,14 @@ export class IsolationSessionManager {
     session,
     flow,
     worktreePath,
-    containerName
+    containerName,
+    executionProvider
   }: {
     session: IsolationSessionSummary;
     flow: AutonomousFlowDefinition;
     worktreePath: string;
     containerName: string;
+    executionProvider: IsolationExecutionProvider;
   }): Promise<{ runId?: string; answer?: string }> {
     const autonomousSessionId = createSessionId('isolation-flow');
     const abortController = new AbortController();
@@ -419,7 +487,7 @@ export class IsolationSessionManager {
       session,
       worktreePath,
       containerName,
-      dockerProvider: this.dockerProvider,
+      dockerProvider: executionProvider,
       registerStopHandler: (handler) => {
         activeStageStopHandler.current = handler;
       },
@@ -553,11 +621,64 @@ export class IsolationSessionManager {
     }
 
     try {
-      await this.log(session.sessionId, 'info', `Destroying container ${target}.`);
-      await this.dockerProvider.destroy(target);
+      const runner = await this.resolveRunner(session);
+      await this.log(session.sessionId, 'info', `Destroying isolated runner ${target}.`);
+      await runner.provider.destroy(target);
     } catch (error) {
       await this.log(session.sessionId, 'warn', formatError(error));
     }
+  }
+
+  private async resolveRunner(session: IsolationSessionSummary): Promise<ResolvedIsolationRunner> {
+    if (session.provider !== 'remote-server') {
+      return {
+        kind: 'docker-local',
+        runnerId: 'docker-local',
+        label: 'Local Docker',
+        provider: this.dockerProvider
+      };
+    }
+
+    const serverId = session.runnerId;
+    if (!serverId) {
+      throw new Error('Remote runner is not selected.');
+    }
+    const server = (await this.remoteServerStore.list()).find((candidate) => candidate.id === serverId);
+    if (!server) {
+      throw new Error(`Remote server not found: ${serverId}`);
+    }
+
+    return {
+      kind: 'remote-server',
+      runnerId: server.id,
+      label: server.name,
+      provider: new RemoteSshIsolationProvider({ server, env: this.options.env })
+    };
+  }
+
+  private getDockerRunnerSummary(): IsolationRunnerSummary {
+    const activeSessionId = findActiveSessionForRunner({ sessions: this.sessions.values(), runnerId: 'docker-local' });
+    return {
+      id: 'docker-local',
+      provider: 'docker-local',
+      label: 'Local Docker',
+      description: 'Run isolated agent in a local Docker container.',
+      availability: activeSessionId ? 'busy' : 'unknown',
+      activeSessionId
+    };
+  }
+
+  private getRemoteRunnerSummary(server: IsolationRemoteServerSettings): IsolationRunnerSummary {
+    const activeSessionId = findActiveSessionForRunner({ sessions: this.sessions.values(), runnerId: server.id });
+    return {
+      id: server.id,
+      provider: 'remote-server',
+      label: server.name,
+      description: `${server.username}@${server.host}:${server.port}`,
+      availability: activeSessionId ? 'busy' : 'unknown',
+      activeSessionId,
+      server
+    };
   }
 
   private async updateSession(
@@ -645,8 +766,18 @@ export class IsolationSessionManager {
   }
 }
 
-function normalizeProvider(provider: IsolationProviderKind | undefined): IsolationProviderKind {
-  return provider || 'docker-local';
+type ResolvedIsolationRunner = {
+  readonly kind: IsolationProviderKind;
+  readonly runnerId?: string;
+  readonly label: string;
+  readonly provider: IsolationExecutionProvider;
+};
+
+function normalizeProvider(provider: IsolationProviderKind | undefined, runnerId?: string): IsolationProviderKind {
+  if (provider) {
+    return provider;
+  }
+  return runnerId?.trim() && runnerId !== 'docker-local' ? 'remote-server' : 'docker-local';
 }
 
 type FlowSelectionSource = {
@@ -720,6 +851,36 @@ function autonomousEventLevelToIsolationLogLevel(level: AutonomousEvent['level']
   return 'info';
 }
 
+function findActiveSessionForRunner({
+  sessions,
+  runnerId
+}: {
+  sessions: Iterable<IsolationSessionSummary>;
+  runnerId: string;
+}): string | undefined {
+  for (const session of sessions) {
+    const sessionRunnerId = session.runnerId || (session.provider === 'docker-local' ? 'docker-local' : undefined);
+    if (sessionRunnerId === runnerId && isActiveIsolationSessionStatus(session.status)) {
+      return session.sessionId;
+    }
+  }
+  return undefined;
+}
+
+function isActiveIsolationSessionStatus(status: IsolationSessionStatus): boolean {
+  return (
+    status === 'queued' ||
+    status === 'preparing' ||
+    status === 'creating' ||
+    status === 'running_agent' ||
+    status === 'post_processing' ||
+    status === 'committing' ||
+    status === 'pushing' ||
+    status === 'creating_pr' ||
+    status === 'stopping'
+  );
+}
+
 function recoverSessionStatus(session: IsolationSessionSummary, now: number): IsolationSessionSummary {
   if (
     session.status === 'preparing' ||
@@ -744,7 +905,13 @@ function recoverSessionStatus(session: IsolationSessionSummary, now: number): Is
 }
 
 function getEventSessionId(event: DaemonIsolationEvent): string {
-  return event.type === 'isolation.session.log' ? event.sessionId : event.session.sessionId;
+  if (event.type === 'isolation.session.log') {
+    return event.sessionId;
+  }
+  if (event.type === 'isolation.remoteServers.changed') {
+    return 'remote-servers';
+  }
+  return event.session.sessionId;
 }
 
 function sanitizeFileName(value: string): string {

@@ -12,7 +12,51 @@ export type IsolationSessionStatus =
   | 'stopping'
   | 'destroyed';
 
-export type IsolationProviderKind = 'docker-local';
+export type IsolationProviderKind = 'docker-local' | 'remote-server';
+
+export type IsolationRunnerAvailability = 'available' | 'busy' | 'unavailable' | 'unknown';
+
+export type IsolationRemoteServerAuthMethod = 'ssh-agent' | 'ssh-key';
+
+export type IsolationRemoteServerGithubAuthMode = 'server-existing' | 'ssh-agent-forwarding';
+
+export type IsolationRemoteServerSettings = {
+  readonly id: string;
+  readonly name: string;
+  readonly host: string;
+  readonly port: number;
+  readonly username: string;
+  /** SSH авторизация без хранения пароля: ключ на диске или локальный ssh-agent. */
+  readonly authMethod: IsolationRemoteServerAuthMethod;
+  readonly privateKeyPath?: string;
+  /** GitHub доступ для clone/push: уже настроен на сервере или прокидывается локальный ssh-agent. */
+  readonly githubAuthMode: IsolationRemoteServerGithubAuthMode;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+};
+
+export type IsolationRemoteServerInput = {
+  readonly id?: string;
+  readonly name: string;
+  readonly host: string;
+  readonly port?: number;
+  readonly username: string;
+  readonly authMethod: IsolationRemoteServerAuthMethod;
+  readonly privateKeyPath?: string;
+  readonly githubAuthMode: IsolationRemoteServerGithubAuthMode;
+};
+
+export type IsolationRunnerSummary = {
+  readonly id: string;
+  readonly provider: IsolationProviderKind;
+  readonly label: string;
+  readonly description?: string;
+  readonly availability: IsolationRunnerAvailability;
+  readonly activeSessionId?: string;
+  readonly server?: IsolationRemoteServerSettings;
+  readonly lastCheckedAt?: number;
+  readonly error?: string;
+};
 
 export type IsolationFlowModeSummary = {
   readonly flowId: string;
@@ -54,9 +98,11 @@ export type IsolationSessionSummary = {
   readonly branchName: string;
   readonly baseRef?: string;
   readonly remoteName?: string;
-  /** Path to the repository inside the autonomous container; no host checkout is mounted. */
+  /** Path to the repository inside the autonomous runner; no host checkout is mounted. */
   readonly worktreePath?: string;
   readonly provider: IsolationProviderKind;
+  readonly runnerId?: string;
+  readonly runnerLabel?: string;
   readonly status: IsolationSessionStatus;
   readonly stage?: string;
   readonly containerId?: string;
@@ -100,13 +146,20 @@ export type IsolationSessionLifecycleEvent =
       readonly at: number;
     };
 
-export type DaemonIsolationEvent = IsolationSessionLifecycleEvent | IsolationSessionLogEvent;
+export type IsolationRemoteServersChangedEvent = {
+  readonly type: 'isolation.remoteServers.changed';
+  readonly servers: readonly IsolationRemoteServerSettings[];
+  readonly at: number;
+};
+
+export type DaemonIsolationEvent = IsolationSessionLifecycleEvent | IsolationSessionLogEvent | IsolationRemoteServersChangedEvent;
 
 export type DaemonIsolationStartParams = {
   readonly prompt: string;
   readonly flowId?: string;
   readonly baseRef?: string;
   readonly provider?: IsolationProviderKind;
+  readonly runnerId?: string;
 };
 
 export type DaemonIsolationContinueParams = {
@@ -148,4 +201,24 @@ export type DaemonIsolationDestroyResult = {
 export type DaemonIsolationEventsResult = {
   readonly operationId: string;
   readonly events: readonly DaemonIsolationEvent[];
+};
+
+export type DaemonIsolationRunnersResult = {
+  readonly operationId: string;
+  readonly runners: readonly IsolationRunnerSummary[];
+};
+
+export type DaemonIsolationRemoteServersResult = {
+  readonly operationId: string;
+  readonly servers: readonly IsolationRemoteServerSettings[];
+};
+
+export type DaemonIsolationRemoteServerUpsertResult = {
+  readonly operationId: string;
+  readonly server: IsolationRemoteServerSettings;
+};
+
+export type DaemonIsolationRemoteServerDeleteResult = {
+  readonly operationId: string;
+  readonly deleted: boolean;
 };
