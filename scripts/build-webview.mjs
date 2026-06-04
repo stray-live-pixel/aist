@@ -16,7 +16,7 @@ await buildWebview();
  */
 async function buildWebview() {
   await build({
-    entryPoints: ['src/webview/app/index.tsx'],
+    entryPoints: ['src/ui/vscode/index.tsx'],
     bundle: true,
     format: 'iife',
     minify: true,

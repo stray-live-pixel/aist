@@ -1,4 +1,4 @@
-import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
+import type { IsolationExecutionProvider } from '../IsolationExecutionProvider';
 
 /**
  * Что это: исполняет файловый инструмент через AIST CLI внутри контейнера.
@@ -11,7 +11,7 @@ export async function runContainerFilesystemTool({
   toolName,
   args
 }: {
-  dockerProvider: LocalDockerIsolationProvider;
+  dockerProvider: IsolationExecutionProvider;
   containerName: string;
   toolName: string;
   args: Record<string, unknown>;

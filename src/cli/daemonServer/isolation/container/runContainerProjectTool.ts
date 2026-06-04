@@ -1,6 +1,6 @@
-import { createToolError } from '../../../../core/shared/lib/toolErrors';
 import type { ProjectToolDefinition } from '../../../../core/features/project-tools/projectTools';
-import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
+import { createToolError } from '../../../../core/shared/lib/toolErrors';
+import type { IsolationExecutionProvider } from '../IsolationExecutionProvider';
 
 /**
  * Что это: запускает declarative project tool внутри автономного контейнера.
@@ -15,7 +15,7 @@ export async function runContainerProjectTool({
 }: {
   definition: ProjectToolDefinition;
   args: Record<string, unknown>;
-  dockerProvider: LocalDockerIsolationProvider;
+  dockerProvider: IsolationExecutionProvider;
   containerName: string;
 }): Promise<Record<string, unknown>> {
   assertProjectToolCall({ definition, args });

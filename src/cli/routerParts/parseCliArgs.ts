@@ -7,6 +7,7 @@ import { parseChatCommand } from './parseChatCommand';
 import { parseConfigCommand } from './parseConfigCommand';
 import { parseDaemonCommand } from './parseDaemonCommand';
 import { parseModelsCommand } from './parseModelsCommand';
+import { parseWebCommand } from './parseWebCommand';
 import { parseWorkspaceOptions } from './parseWorkspaceOptions';
 
 export function parseCliArgs(args: readonly string[]): CliCommand {
@@ -37,6 +38,10 @@ export function parseCliArgs(args: readonly string[]): CliCommand {
 
   if (command === 'daemon') {
     return parseDaemonCommand(rest);
+  }
+
+  if (command === 'web') {
+    return parseWebCommand(rest);
   }
 
   if (command === 'config') {

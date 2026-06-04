@@ -17,6 +17,7 @@ import { runConfigCommand } from './runConfigCommand';
 import { runDaemonCommand } from './runDaemonCommand';
 import { runDoctor } from './runDoctor';
 import { runModelsCommand } from './runModelsCommand';
+import { runWebCommand } from './runWebCommand';
 
 export async function runCli(args: readonly string[], options: RunCliOptions = {}): Promise<number> {
   const stdout = options.stdout || ((text: string) => process.stdout.write(text));
@@ -39,6 +40,7 @@ export async function runCli(args: readonly string[], options: RunCliOptions = {
           return { exitCode: result.ok ? 0 : 1, output: formatDoctorOutput(result) };
         },
         daemon: (command, stderr) => runDaemonCommand(command, options, stderr),
+        web: (command, stderr) => runWebCommand(command, options, stderr),
         chat: (command, stdout, stderr) => runChatCommand(command, options, stdout, stderr),
         config: (command, stdout) => runConfigCommand(command, options, stdout),
         auth: (command, stdout, stderr) => runAuthCommand(command, options, stdout, stderr),

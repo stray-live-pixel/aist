@@ -8,6 +8,7 @@ export type CliCommand =
   | { readonly kind: 'help' }
   | { readonly kind: 'version' }
   | { readonly kind: 'daemon'; readonly workspace?: string; readonly socket?: string }
+  | { readonly kind: 'web'; readonly workspace?: string; readonly host: string; readonly port: number }
   | { readonly kind: 'doctor'; readonly workspace?: string }
   | { readonly kind: 'paths'; readonly workspace?: string }
   | { readonly kind: 'chatNew'; readonly workspace?: string; readonly model?: string; readonly json: boolean }

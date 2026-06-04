@@ -6,10 +6,10 @@ import type { AuxiliaryModelInvoker } from '../../../../core/entities/model/auxi
 import type { AgentSkill } from '../../../../core/features/skills/skills';
 import type { ToolRegistry } from '../../../../core/features/tool-execution/toolRegistry';
 import { ToolRunner, type ToolRunnerAuxiliaryModelSettings } from '../../../../core/features/tool-execution/toolRunner';
+import type { IsolationExecutionProvider } from '../IsolationExecutionProvider';
 import { runContainerFilesystemTool } from '../container/runContainerFilesystemTool';
 import { runContainerProjectTool } from '../container/runContainerProjectTool';
 import { runContainerSkillTool } from '../container/runContainerSkillTool';
-import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
 
 export function createIsolatedToolCallHandler({
   registry,
@@ -25,7 +25,7 @@ export function createIsolatedToolCallHandler({
   registry: ToolRegistry;
   worktreePath: string;
   containerName: string;
-  dockerProvider: LocalDockerIsolationProvider;
+  dockerProvider: IsolationExecutionProvider;
   emitLog?: (level: 'info' | 'warn' | 'error', message: string) => Promise<void>;
   getSkills: () => Promise<readonly AgentSkill[]>;
   getAuxiliaryToolSettings: (toolName: string) => Promise<ToolRunnerAuxiliaryModelSettings>;
@@ -87,7 +87,7 @@ async function runBashInContainer({
   args,
   emitLog
 }: {
-  dockerProvider: LocalDockerIsolationProvider;
+  dockerProvider: IsolationExecutionProvider;
   containerName: string;
   args: Record<string, unknown>;
   emitLog?: (level: 'info' | 'warn' | 'error', message: string) => Promise<void>;
@@ -128,7 +128,7 @@ function formatContainerExecutionLog({
   result,
   timeoutMs
 }: {
-  result: Awaited<ReturnType<LocalDockerIsolationProvider['exec']>>;
+  result: Awaited<ReturnType<IsolationExecutionProvider['exec']>>;
   timeoutMs: number;
 }): string {
   const lines = [

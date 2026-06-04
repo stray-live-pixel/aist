@@ -196,6 +196,8 @@ function createState(): AgentState {
     subagentRuns: [],
     isolationFlowModes: [],
     isolationSessions: [],
+    isolationRunners: [],
+    isolationRemoteServers: [],
     isolationEventsBySessionId: {},
     instructionSources: [],
     customSkills: [],

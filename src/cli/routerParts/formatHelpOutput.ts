@@ -7,6 +7,7 @@ Usage:
   aist paths [--workspace <path>]
   aist doctor [--workspace <path>]
   aist daemon --workspace <path> [--socket <path>]
+  aist web [--workspace <path>] [--host <host>] [--port <port>]
   aist chat new [--workspace <path>] [--model <model>] [--json]
   aist chat list [--workspace <path>] [--json]
   aist chat get <chatId> [--workspace <path>] [--json]
@@ -30,6 +31,7 @@ Commands:
   paths     Print workspace and global AIST paths.
   doctor    Check workspace and global AIST storage paths.
   daemon    Start the local-socket JSON-RPC backend for one workspace.
+  web       Start the local browser UI and daemon gateway for one workspace.
   chat      Create, list, inspect and update file-backed chats.
   config    Read or write non-secret CLI/backend settings.
   auth      Manage model provider auth status and global secrets.
@@ -40,6 +42,8 @@ Commands:
 Options:
   --workspace <path>  Workspace root. Defaults to the current directory.
   --socket <path>     Override daemon local socket path.
+  --host <host>       Web UI bind host. Defaults to 127.0.0.1.
+  --port <port>       Web UI TCP port. Defaults to 4317.
   --model <model>     Model id for chat creation.
   --scope <scope>     Config write scope: global or workspace.
   --provider <name>   Model provider: openrouter, codex, or all.

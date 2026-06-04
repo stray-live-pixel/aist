@@ -1,0 +1,95 @@
+.uiButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ui-text);
+  background: var(--ui-surface-2);
+  cursor: pointer;
+}
+
+.uiButton:hover:not(:disabled) {
+  border-color: var(--ui-accent);
+}
+
+.uiButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.uiButton_primary {
+  border-color: color-mix(in srgb, var(--ui-accent) 70%, black);
+  color: white;
+  background: var(--ui-accent);
+}
+
+.uiButton_danger {
+  border-color: color-mix(in srgb, var(--ui-danger) 60%, black);
+  color: white;
+  background: var(--ui-danger);
+}
+
+.uiButton_ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.uiStatusPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.uiStatusPill_busy {
+  border-color: color-mix(in srgb, var(--ui-warning) 42%, var(--ui-border));
+  color: var(--ui-warning);
+}
+
+.uiStatusPill_success {
+  border-color: color-mix(in srgb, var(--ui-success) 42%, var(--ui-border));
+  color: var(--ui-success);
+}
+
+.uiStatusPill_warning {
+  border-color: color-mix(in srgb, var(--ui-warning) 42%, var(--ui-border));
+  color: var(--ui-warning);
+}
+
+.uiStatusPill_danger {
+  border-color: color-mix(in srgb, var(--ui-danger) 42%, var(--ui-border));
+  color: var(--ui-danger);
+}
+
+.uiToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.uiEmptyState {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+  color: var(--ui-muted);
+  text-align: center;
+}
+
+.uiEmptyState strong {
+  color: var(--ui-text);
+}
+
+.uiEmptyState p {
+  margin: 0;
+}

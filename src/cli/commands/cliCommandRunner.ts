@@ -14,6 +14,7 @@ export type CliCommandRunnerHandlers = {
     stderr: CliWriter
   ): Promise<{ exitCode: number; output: string }>;
   daemon(command: Extract<CliCommand, { kind: 'daemon' }>, stderr: CliWriter): Promise<number>;
+  web(command: Extract<CliCommand, { kind: 'web' }>, stderr: CliWriter): Promise<number>;
   chat(command: Extract<CliCommand, { kind: `chat${string}` }>, stdout: CliWriter, stderr: CliWriter): Promise<number>;
   config(command: Extract<CliCommand, { kind: `config${string}` }>, stdout: CliWriter): Promise<number>;
   auth(command: Extract<CliCommand, { kind: `auth${string}` }>, stdout: CliWriter, stderr: CliWriter): Promise<number>;
@@ -62,6 +63,8 @@ export function createCliCommandRunner({ handlers }: { handlers: CliCommandRunne
       }
       case 'daemon':
         return handlers.daemon(command, stderr);
+      case 'web':
+        return handlers.web(command, stderr);
       case 'chatNew':
       case 'chatList':
       case 'chatGet':

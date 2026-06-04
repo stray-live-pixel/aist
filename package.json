@@ -593,11 +593,13 @@
   "scripts": {
     "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js",
     "build:cli": "tsc --noEmit --project tsconfig.cli.json && esbuild src/cli/main.ts --bundle --platform=node --format=cjs --outfile=dist/cli/main.js",
+    "build:web": "node scripts/build-web.mjs",
     "build:webview": "node scripts/build-webview.mjs",
     "build:component-screenshots": "esbuild tests/component-screenshots/harness.tsx --bundle --format=iife --outfile=tests/component-screenshots/harness.js --loader:.css=css --loader:.scss=local-css",
     "build:e2e": "npm run build:cli && npm run build:extension && npm run build:webview",
-    "build": "npm run typecheck && npm run build:cli && npm run build:extension && npm run build:webview",
+    "build": "npm run typecheck && npm run build:cli && npm run build:extension && npm run build:webview && npm run build:web",
     "aist": "node dist/cli/main.js",
+    "web": "npm run build:cli && npm run build:web && node dist/cli/main.js web --workspace .",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "typecheck": "tsc --noEmit",
@@ -621,7 +623,7 @@
     "package": "npm run build && vsce package --no-dependencies",
     "install:extension": "node scripts/install-extension.mjs",
     "watch:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js --watch",
-    "watch:webview": "esbuild src/webview/app/index.tsx --bundle --format=iife --outfile=dist/webview.js --watch",
+    "watch:webview": "esbuild src/ui/vscode/index.tsx --bundle --format=iife --outfile=dist/webview.js --watch",
     "prepare": "husky",
     "docs:dev": "astro dev --root website",
     "docs:build": "astro build --root website",
@@ -666,6 +668,7 @@
     "*.{css,html,json,jsx,md,ts,tsx,yaml,yml}": "prettier --write"
   },
   "dependencies": {
+    "fastify": "^5.8.5",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

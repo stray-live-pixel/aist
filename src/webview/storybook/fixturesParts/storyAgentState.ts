@@ -97,6 +97,8 @@ export const storyAgentState: AgentState = {
   subagentRuns: [],
   isolationFlowModes: [],
   isolationSessions: [],
+  isolationRunners: [],
+  isolationRemoteServers: [],
   isolationEventsBySessionId: {},
   instructionSources: storyInstructionSources,
   customSkills: storyCustomSkills,

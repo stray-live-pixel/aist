@@ -1,5 +1,5 @@
 import type { AgentSkill } from '../../../../core/features/skills/skills';
-import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
+import type { IsolationExecutionProvider } from '../IsolationExecutionProvider';
 
 /**
  * Что это: запускает пользовательский skill внутри контейнера.
@@ -14,7 +14,7 @@ export async function runContainerSkillTool({
 }: {
   skills: readonly AgentSkill[];
   args: Record<string, unknown>;
-  dockerProvider: LocalDockerIsolationProvider;
+  dockerProvider: IsolationExecutionProvider;
   containerName: string;
 }): Promise<Record<string, unknown>> {
   const skillId = typeof args.skillId === 'string' ? args.skillId : '';
@@ -38,7 +38,12 @@ export async function runContainerSkillTool({
 
   return {
     ok: result.ok,
-    ...getProcessFailure({ ok: result.ok, timedOut: result.timedOut, exitCode: result.exitCode, signal: result.signal }),
+    ...getProcessFailure({
+      ok: result.ok,
+      timedOut: result.timedOut,
+      exitCode: result.exitCode,
+      signal: result.signal
+    }),
     skillId: skill.id,
     label: skill.label,
     cwd,
@@ -87,7 +92,17 @@ function quote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
-function clampNumber({ value, fallback, min, max }: { value: unknown; fallback: number; min: number; max: number }): number {
+function clampNumber({
+  value,
+  fallback,
+  min,
+  max
+}: {
+  value: unknown;
+  fallback: number;
+  min: number;
+  max: number;
+}): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
     return fallback;
