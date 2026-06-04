@@ -12,7 +12,12 @@ import type {
   ToolPermissionPresetId
 } from './agentConfig';
 import type { AgentAttachment } from './attachment';
-import type { AutonomousState, CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from './autonomous';
+import type {
+  AutonomousState,
+  CreateAutonomousFlowInput,
+  DeleteAutonomousFlowInput,
+  EditableAutonomousFlowDefinition
+} from './autonomous';
 import type { Chat, ChatMessage, ChatModelSettings, ChatSummary } from './chat';
 import type { IsolationFlowModeSummary, IsolationSessionEvent } from './isolation';
 import type {
@@ -198,7 +203,7 @@ export type WebviewToExtensionMessage =
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
   | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
-  | { type: 'autonomous.deleteFlow'; flowId: string }
+  | { type: 'autonomous.deleteFlow'; flow: DeleteAutonomousFlowInput }
   | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }

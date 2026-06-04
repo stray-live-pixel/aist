@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import type {
   DaemonAutonomousExportResult,
   DaemonAutonomousFlowCreateResult,
-  DaemonAutonomousFlowDeleteResult,
   DaemonAutonomousFlowSaveResult,
   DaemonAutonomousImportLegacyResult,
   DaemonAutonomousStateResult,
@@ -14,6 +13,7 @@ import {
   AutonomousBackend,
   type AutonomousExportFormat,
   type CreateAutonomousFlowInput,
+  type DeleteAutonomousFlowInput,
   type EditableAutonomousFlowDefinition
 } from '../../core/processes/autonomous';
 import type { VscodeDaemonRuntimeBridge } from '../agent/daemon/bridge';
@@ -21,6 +21,7 @@ import type { AistLogger } from '../shared/logger';
 import { getWebviewHtml } from '../shared/webviewHtml';
 import { getWorkspaceFolder, getWorkspaceName } from '../shared/workspace';
 import { confirmAutonomousFlowDelete } from './controller/confirmAutonomousFlowDelete';
+import { deleteAutonomousFlowDirectory } from './controller/deleteAutonomousFlowDirectory';
 import { openAutonomousSessionExportDocument } from './controller/openAutonomousSessionExportDocument';
 import { revealAutonomousSessionDirectory } from './controller/revealAutonomousSessionDirectory';
 import type { AutonomousWebviewToExtensionMessage } from './messages';
@@ -94,7 +95,7 @@ export class AutonomousController implements vscode.Disposable {
       } else if (message.type === 'autonomous.createFlow') {
         await this.createFlow(message.flow);
       } else if (message.type === 'autonomous.deleteFlow') {
-        await this.deleteFlow(message.flowId);
+        await this.deleteFlow(message.flow);
       } else if (message.type === 'autonomous.saveFlow') {
         await this.saveFlow(message.flow);
       } else if (message.type === 'autonomous.stopSession') {
@@ -153,25 +154,22 @@ export class AutonomousController implements vscode.Disposable {
     }
   }
 
-  private async deleteFlow(flowId: string): Promise<void> {
-    if (!(await confirmAutonomousFlowDelete({ flowId }))) {
-      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId, status: 'cancelled' });
+  private async deleteFlow(flow: DeleteAutonomousFlowInput): Promise<void> {
+    if (!(await confirmAutonomousFlowDelete({ flowId: flow.id }))) {
+      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId: flow.id, status: 'cancelled' });
       return;
     }
 
     try {
+      await deleteAutonomousFlowDirectory({ workspaceRoot: getWorkspaceFolder().uri.fsPath, flow });
       if (this.options.daemonRuntime) {
-        const client = await this.options.daemonRuntime.processManager.getClient();
-        await client.request<DaemonAutonomousFlowDeleteResult>('autonomous.flow.delete', { flowId });
         await this.options.daemonRuntime.refreshState();
-      } else {
-        await this.getBackend().deleteFlow(flowId);
       }
 
       await this.sendState();
-      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId, status: 'done' });
+      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId: flow.id, status: 'done' });
     } catch (error) {
-      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId, status: 'error' });
+      await this.postAutonomousOperation({ operation: 'deleteFlow', flowId: flow.id, status: 'error' });
       throw error;
     }
   }

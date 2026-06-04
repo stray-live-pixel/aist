@@ -2,6 +2,7 @@ import type {
   AutonomousEngineId,
   AutonomousState,
   CreateAutonomousFlowInput,
+  DeleteAutonomousFlowInput,
   EditableAutonomousFlowDefinition
 } from '../../core/processes/autonomous';
 
@@ -21,7 +22,7 @@ export type AutonomousWebviewToExtensionMessage =
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
   | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
-  | { type: 'autonomous.deleteFlow'; flowId: string }
+  | { type: 'autonomous.deleteFlow'; flow: DeleteAutonomousFlowInput }
   | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }

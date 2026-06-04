@@ -77,7 +77,7 @@ export function FlowsPage({
     }
 
     setDeletingFlowId(flow.id);
-    autonomousActions.deleteFlow(flow.id);
+    autonomousActions.deleteFlow({ id: flow.id, sourcePath: flow.sourcePath });
   };
   const duplicateFlow = (flow: AutonomousFlowDefinition) => {
     const copyId = createCopyFlowId(flow.id, flowIds);

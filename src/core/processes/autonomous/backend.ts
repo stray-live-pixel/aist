@@ -22,6 +22,7 @@ import { waitForAutonomousSession } from './backend/waitForAutonomousSession';
 import { importLegacyDefinitions } from './discovery';
 import {
   type CreateAutonomousFlowInput,
+  type DeleteAutonomousFlowInput,
   type EditableAutonomousFlowDefinition,
   createAutonomousFlowDefinition,
   deleteAutonomousFlowDefinition,
@@ -99,8 +100,8 @@ export class AutonomousBackend {
   }
 
   /** Удаляет flow definition. */
-  async deleteFlow(flowId: string): Promise<void> {
-    await deleteAutonomousFlowDefinition(this.workspaceRoot, flowId);
+  async deleteFlow(input: string | DeleteAutonomousFlowInput): Promise<void> {
+    await deleteAutonomousFlowDefinition(this.workspaceRoot, input);
     emitAutonomousStateChanged({ context: this.context, reason: 'autonomous.deleteFlow' });
   }
 
