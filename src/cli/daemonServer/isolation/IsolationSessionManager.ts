@@ -295,11 +295,13 @@ export class IsolationSessionManager {
       } else if (!currentSession.remoteName) {
         await this.log(sessionId, 'warn', 'No git remote is configured, so PR creation was skipped.');
       }
+      await this.cleanupFinalizedWorktree({ sessionId, worktreePath: worktree.worktreePath });
       await this.updateSession(sessionId, {
         status: 'ready_for_review',
         stage: 'Ready for review.',
         containerId: undefined,
         containerName: undefined,
+        worktreePath: undefined,
         commitSha: finalized.commitSha,
         headSha: finalized.headSha,
         prUrl: finalized.prUrl,
@@ -336,6 +338,17 @@ export class IsolationSessionManager {
     } catch (error) {
       await this.log(session.sessionId, 'warn', formatError(error));
     }
+  }
+
+  private async cleanupFinalizedWorktree({
+    sessionId,
+    worktreePath
+  }: {
+    sessionId: string;
+    worktreePath: string;
+  }): Promise<void> {
+    await this.log(sessionId, 'info', `Removing finalized isolated worktree ${worktreePath}.`);
+    await this.gitService.removeWorktree(worktreePath);
   }
 
   private async updateSession(
