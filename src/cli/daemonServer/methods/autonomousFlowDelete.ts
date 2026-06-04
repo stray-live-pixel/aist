@@ -18,7 +18,7 @@ import type { ToolRegistry } from '../../../core/features/tool-execution/toolReg
 // prettier-ignore
 import type { ToolExecutionPreview, ToolRunnerExecutionAdapter } from '../../../core/features/tool-execution/toolRunner';
 // prettier-ignore
-import type { AutonomousExportFormat, AutonomousLaunchOptions } from '../../../core/processes/autonomous';
+import type { AutonomousExportFormat, AutonomousLaunchOptions, DeleteAutonomousFlowInput } from '../../../core/processes/autonomous';
 // prettier-ignore
 import type { EditorContextInput } from '../../../core/shared/types/types';
 // prettier-ignore
@@ -41,9 +41,21 @@ export async function autonomousFlowDelete(
   params: unknown
 ): Promise<DaemonAutonomousFlowDeleteResult> {
   const input = requireRecord(params, 'autonomous.flow.delete params');
-  await this.autonomousBackend.deleteFlow(requireString(input, 'flowId'));
+  await this.autonomousBackend.deleteFlow(toDeleteFlowInput(input));
   return {
     operationId: this.idFactory(),
     state: await this.autonomousBackend.getState()
   };
+}
+
+function toDeleteFlowInput(input: Record<string, unknown>): DeleteAutonomousFlowInput {
+  if (input.flow && typeof input.flow === 'object' && !Array.isArray(input.flow)) {
+    const flow = requireRecord(input.flow, 'flow');
+    return {
+      id: requireString(flow, 'id'),
+      sourcePath: optionalString(flow, 'sourcePath')
+    };
+  }
+
+  return { id: requireString(input, 'flowId') };
 }

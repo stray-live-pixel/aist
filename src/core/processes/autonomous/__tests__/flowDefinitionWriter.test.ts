@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { saveAutonomousFlowDefinition } from '../flowDefinitionWriter';
+import { deleteAutonomousFlowDefinition, saveAutonomousFlowDefinition } from '../flowDefinitionWriter';
 
 const tempRoots: string[] = [];
 
@@ -54,6 +54,25 @@ describe('saveAutonomousFlowDefinition', () => {
         ]
       })
     ).rejects.toThrow('Stage files must be unique');
+  });
+
+  it('removes the whole workflow directory from the filesystem', async () => {
+    const workspaceRoot = await createTempWorkspace();
+
+    await saveAutonomousFlowDefinition(workspaceRoot, {
+      id: 'deleted-flow',
+      title: 'Deleted flow',
+      description: '',
+      body: '# Deleted flow',
+      stages: [{ file: '1-stage.md', title: 'Stage', body: '# Stage', contexts: [] }]
+    });
+
+    const flowRoot = path.join(workspaceRoot, '.aist-agent', 'autonomous', 'flows', 'deleted-flow');
+    await expect(fs.access(path.join(flowRoot, '.index.md'))).resolves.toBeUndefined();
+
+    await deleteAutonomousFlowDefinition(workspaceRoot, 'deleted-flow');
+
+    await expect(fs.access(flowRoot)).rejects.toThrow();
   });
 
   it('never removes the flow index during obsolete stage cleanup', async () => {

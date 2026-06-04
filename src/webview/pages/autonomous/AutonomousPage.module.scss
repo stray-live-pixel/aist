@@ -89,6 +89,16 @@
   gap: 6px;
 }
 
+.spinner {
+  animation: autonomous-page-spin 850ms linear infinite;
+}
+
+@keyframes autonomous-page-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .workflowDetails {
   display: grid;
   min-width: 0;
@@ -134,5 +144,12 @@
   .stageActions,
   .editorActions {
     justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
   }
 }

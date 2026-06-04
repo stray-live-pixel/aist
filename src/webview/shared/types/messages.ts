@@ -12,7 +12,12 @@ import type {
   ToolPermissionPresetId
 } from './agentConfig';
 import type { AgentAttachment } from './attachment';
-import type { AutonomousState, CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from './autonomous';
+import type {
+  AutonomousState,
+  CreateAutonomousFlowInput,
+  DeleteAutonomousFlowInput,
+  EditableAutonomousFlowDefinition
+} from './autonomous';
 import type { Chat, ChatMessage, ChatModelSettings, ChatSummary } from './chat';
 import type { IsolationFlowModeSummary, IsolationSessionEvent } from './isolation';
 import type {
@@ -70,6 +75,12 @@ export type ExtensionToWebviewMessage =
   | { type: 'autonomous.state'; state: AutonomousState }
   | { type: 'autonomous.error'; message: string }
   | { type: 'autonomous.route'; route: 'flows' }
+  | {
+      type: 'autonomous.operation';
+      operation: 'deleteFlow';
+      flowId: string;
+      status: 'done' | 'cancelled' | 'error';
+    }
   | { type: 'isolation.events'; sessionId: string; events: IsolationSessionEvent[] };
 
 export type WebviewRenderPerformanceMetric = {
@@ -192,7 +203,7 @@ export type WebviewToExtensionMessage =
   | { type: 'autonomous.refresh' }
   | { type: 'autonomous.importLegacy' }
   | { type: 'autonomous.createFlow'; flow: CreateAutonomousFlowInput }
-  | { type: 'autonomous.deleteFlow'; flowId: string }
+  | { type: 'autonomous.deleteFlow'; flow: DeleteAutonomousFlowInput }
   | { type: 'autonomous.saveFlow'; flow: EditableAutonomousFlowDefinition }
   | { type: 'autonomous.stopSession'; sessionId: string }
   | { type: 'autonomous.revealSession'; sessionId: string }

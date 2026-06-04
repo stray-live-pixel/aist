@@ -5,7 +5,7 @@ import { AutonomousRoute } from './AutonomousRoute';
 import { FlowEditorPage } from './FlowEditorPage';
 import { FlowsPage } from './FlowsPage';
 
-export function AutonomousPage({ state, error, routeRequest }: AutonomousPageProps) {
+export function AutonomousPage({ state, error, routeRequest, operation }: AutonomousPageProps) {
   const [route, setRoute] = useState<AutonomousRoute>({ page: 'flows' });
 
   useEffect(() => {
@@ -15,7 +15,14 @@ export function AutonomousPage({ state, error, routeRequest }: AutonomousPagePro
   }, [routeRequest]);
 
   if (route.page === 'flows') {
-    return <FlowsPage state={state} error={error} onOpenFlow={(flowId) => setRoute({ page: 'flow-edit', flowId })} />;
+    return (
+      <FlowsPage
+        state={state}
+        error={error}
+        operation={operation}
+        onOpenFlow={(flowId) => setRoute({ page: 'flow-edit', flowId })}
+      />
+    );
   }
 
   if (route.page === 'flow-edit') {

@@ -25,6 +25,12 @@ export function App() {
   const [page, setPage] = useState<'chat' | 'settings' | 'autonomous'>('chat');
   const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
   const [autonomousRouteRequest, setAutonomousRouteRequest] = useState<{ route: 'flows'; nonce: number } | null>(null);
+  const [autonomousOperation, setAutonomousOperation] = useState<{
+    operation: 'deleteFlow';
+    flowId: string;
+    status: 'done' | 'cancelled' | 'error';
+    nonce: number;
+  } | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [autonomousError, setAutonomousError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(() => translate('ru', 'app.loadingAgent'));
@@ -68,6 +74,13 @@ export function App() {
         setAutonomousError(message.message);
       } else if (message.type === 'autonomous.route') {
         setAutonomousRouteRequest({ route: message.route, nonce: Date.now() });
+      } else if (message.type === 'autonomous.operation') {
+        setAutonomousOperation({
+          operation: message.operation,
+          flowId: message.flowId,
+          status: message.status,
+          nonce: Date.now()
+        });
       } else if (message.type === 'isolation.events') {
         setState((current) =>
           current
@@ -94,7 +107,12 @@ export function App() {
   if (page === 'autonomous' && autonomousState) {
     return (
       <I18nProvider language={state?.agentLanguage || 'ru'}>
-        <AutonomousPage state={autonomousState} error={autonomousError} routeRequest={autonomousRouteRequest} />
+        <AutonomousPage
+          state={autonomousState}
+          error={autonomousError}
+          routeRequest={autonomousRouteRequest}
+          operation={autonomousOperation}
+        />
         {modal}
       </I18nProvider>
     );

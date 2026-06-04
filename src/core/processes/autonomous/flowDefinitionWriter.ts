@@ -31,6 +31,11 @@ export type CreateAutonomousFlowInput = {
   title?: string;
 };
 
+export type DeleteAutonomousFlowInput = {
+  id: string;
+  sourcePath?: string;
+};
+
 /**
  * Создаёт минимальный flow с одним стартовым stage.
  *
@@ -73,9 +78,18 @@ export async function createAutonomousFlowDefinition(
  * Удаляет native flow directory. Legacy flow удалить нельзя: сначала импортируем в
  * `.aist-agent/autonomous`, потом работаем только с native source of truth.
  */
-export async function deleteAutonomousFlowDefinition(workspaceRoot: string, flowId: string): Promise<void> {
-  const flowRoot = getNativeFlowRoot(workspaceRoot, normalizeFlowId(flowId));
-  await fs.rm(flowRoot, { recursive: true, force: true });
+export async function deleteAutonomousFlowDefinition(
+  workspaceRoot: string,
+  input: string | DeleteAutonomousFlowInput
+): Promise<void> {
+  const flowId = typeof input === 'string' ? input : input.id;
+  const expectedFlowRoot = getNativeFlowRoot(workspaceRoot, normalizeFlowId(flowId));
+  const requestedFlowRoot = typeof input === 'string' ? expectedFlowRoot : normalizeFlowSourcePath(workspaceRoot, input);
+  if (requestedFlowRoot !== expectedFlowRoot) {
+    throw new Error(`Flow source path does not match native flow id: ${flowId}`);
+  }
+
+  await fs.rm(expectedFlowRoot, { recursive: true, force: true });
 }
 
 /**
@@ -200,6 +214,19 @@ function getNativeFlowRoot(workspaceRoot: string, flowId: string): string {
     throw new Error(`Flow path escapes native flows root: ${flowId}`);
   }
   return flowRoot;
+}
+
+function normalizeFlowSourcePath(workspaceRoot: string, input: DeleteAutonomousFlowInput): string {
+  if (!input.sourcePath) {
+    return getNativeFlowRoot(workspaceRoot, normalizeFlowId(input.id));
+  }
+
+  const nativeFlowsRoot = path.resolve(workspaceRoot, AUTONOMOUS_ROOT_RELATIVE_PATH, 'flows');
+  const sourcePath = path.resolve(input.sourcePath);
+  if (!isInside(nativeFlowsRoot, sourcePath)) {
+    throw new Error(`Only native workflow directories can be deleted: ${input.id}`);
+  }
+  return sourcePath;
 }
 
 async function readPreviousStageFiles(flowRoot: string): Promise<Set<string>> {

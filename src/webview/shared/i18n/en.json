@@ -723,6 +723,7 @@
   "autonomous.workflows.import": "Import legacy",
   "autonomous.workflows.duplicate": "Duplicate",
   "autonomous.workflows.delete": "Delete workflow",
+  "autonomous.workflows.deleting": "Deleting…",
   "autonomous.workflows.deleteLegacyDisabled": "Legacy workflows cannot be deleted here. Duplicate or import them first.",
   "autonomous.workflows.copyTitle": "{{title}} copy",
   "autonomous.workflows.summary.total": "Workflows",

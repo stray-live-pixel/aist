@@ -40,6 +40,11 @@ export type AutonomousFlowDefinition = {
   diagnostics: AutonomousDefinitionDiagnostic[];
 };
 
+export type DeleteAutonomousFlowInput = {
+  id: string;
+  sourcePath: string;
+};
+
 export type AutonomousRunTaskDefinition = {
   index: number;
   taskPath: string;

@@ -1,4 +1,4 @@
-import type { CreateAutonomousFlowInput, EditableAutonomousFlowDefinition } from '../types';
+import type { CreateAutonomousFlowInput, DeleteAutonomousFlowInput, EditableAutonomousFlowDefinition } from '../types';
 import { vscode } from './vscode';
 
 /**
@@ -16,8 +16,8 @@ export const autonomousActions = {
   createFlow(flow: CreateAutonomousFlowInput) {
     vscode.postMessage({ type: 'autonomous.createFlow', flow });
   },
-  deleteFlow(flowId: string) {
-    vscode.postMessage({ type: 'autonomous.deleteFlow', flowId });
+  deleteFlow(flow: DeleteAutonomousFlowInput) {
+    vscode.postMessage({ type: 'autonomous.deleteFlow', flow });
   },
   saveFlow(flow: EditableAutonomousFlowDefinition) {
     vscode.postMessage({ type: 'autonomous.saveFlow', flow });

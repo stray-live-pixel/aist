@@ -5,6 +5,7 @@ import type {
   AutonomousState,
   AutonomousStopResult,
   CreateAutonomousFlowInput,
+  DeleteAutonomousFlowInput,
   EditableAutonomousFlowDefinition
 } from '../../core/processes/autonomous';
 
@@ -28,7 +29,8 @@ export type DaemonAutonomousFlowSaveParams = {
 export type DaemonAutonomousFlowSaveResult = DaemonAutonomousStateResult;
 
 export type DaemonAutonomousFlowDeleteParams = {
-  readonly flowId: string;
+  readonly flowId?: string;
+  readonly flow?: DeleteAutonomousFlowInput;
 };
 
 export type DaemonAutonomousFlowDeleteResult = DaemonAutonomousStateResult;
