@@ -142,13 +142,14 @@ Webview построен по Feature-Sliced Design:
 2. Webview отправляет `isolation.*` action через `src/webview/shared/lib/agentActions/**`, включая выбранный `flowId`, если нужен flow-based режим.
 3. Extension controller вызывает daemon bridge methods в `src/extension/agent/daemon/bridge/**`.
 4. Daemon JSON-RPC методы `isolation.*` управляют `src/cli/daemonServer/isolation/IsolationSessionManager.ts`; доступные flow modes берутся из autonomous definitions и попадают в daemon state.
-5. Session manager создаёт git worktree через `src/cli/daemonServer/isolation/git/IsolationGitService.ts` и запускает `docker-local` provider.
-6. Если выбран flow, manager запускает `src/core/processes/autonomous/flow/orchestrator.ts` через daemon-only adapter `src/cli/daemonServer/isolation/flow/createIsolatedAgentAutonomousEngine.ts`.
-7. Isolated adapter исполняет каждую stage через `src/cli/daemonServer/methods/runIsolationAgent.ts`: отдельный `AgentRuntimeService` работает в том же worktree/container, filesystem tools работают по worktree, а `run_bash_script` выполняется через `docker exec`.
-8. Autonomous flow state пишется в project/user autonomous session storage, а compact stage state попадает в `IsolationSessionSummary.flow`.
-9. После всего workflow manager уничтожает контейнер, делает commit/push/PR через git finalizer и пишет durable state/logs в user workspace storage.
-10. Daemon публикует `isolation.session.*` события, а extension после reconnect перечитывает `state.get`.
-11. Webview получает актуальные `isolationFlowModes` и `isolationSessions` в `AgentState`, поэтому закрытие/открытие VS Code не требует ручных terminal-команд.
+5. Session manager резолвит GitHub remote/base metadata через `src/cli/daemonServer/isolation/git/IsolationGitService.ts` и запускает `docker-local` provider без host worktree mount.
+6. Контейнер сам клонирует репозиторий в `/workspace`, устанавливает AIST CLI и создаёт рабочую ветку через helpers в `src/cli/daemonServer/isolation/container/**`.
+7. Если выбран flow, manager запускает `src/core/processes/autonomous/flow/orchestrator.ts` через daemon-only adapter `src/cli/daemonServer/isolation/flow/createIsolatedAgentAutonomousEngine.ts`.
+8. Isolated adapter исполняет каждую stage через `src/cli/daemonServer/methods/runIsolationAgent.ts`: live chat/runtime state остаётся в daemon, а filesystem tools, bash, project tools и skills выполняются внутри контейнера против `/workspace`.
+9. Autonomous flow state пишется в project/user autonomous session storage, а compact stage state попадает в `IsolationSessionSummary.flow`.
+10. После всего workflow manager делает commit/push/PR внутри контейнера, уничтожает контейнер и пишет durable state/logs в user workspace storage.
+11. Daemon публикует `isolation.session.*` события, а extension после reconnect перечитывает `state.get`.
+12. Webview получает актуальные `isolationFlowModes` и `isolationSessions` в `AgentState`, поэтому закрытие/открытие VS Code не требует ручных terminal-команд.
 
 ### Storage policy
 

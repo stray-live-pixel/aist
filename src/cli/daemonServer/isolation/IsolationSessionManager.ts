@@ -20,6 +20,8 @@ import type {
   IsolationProviderKind,
   IsolationSessionSummary
 } from '../../daemonProtocol';
+import { finalizeContainerWorkspace } from './container/finalizeContainerWorkspace';
+import { prepareContainerWorkspace } from './container/prepareContainerWorkspace';
 import { LocalDockerIsolationProvider } from './LocalDockerIsolationProvider';
 import {
   ISOLATED_AGENT_ENGINE_ID,
@@ -54,7 +56,7 @@ export class IsolationSessionManager {
   private readonly gitService: IsolationGitService;
   private readonly sessionsFile: string;
   private readonly eventsDir: string;
-  private readonly worktreesRoot: string;
+
   private readonly stopHandlers = new Map<string, () => void>();
   private sessions = new Map<string, IsolationSessionSummary>();
 
@@ -62,11 +64,10 @@ export class IsolationSessionManager {
     const root = path.join(globalWorkspaceRoot(options.workspaceRoot, options.homeDir), 'isolation');
     this.sessionsFile = path.join(root, 'sessions.json');
     this.eventsDir = path.join(root, 'events');
-    this.worktreesRoot = path.join(root, 'worktrees');
     this.dockerProvider = new LocalDockerIsolationProvider({ env: options.env });
     this.gitService = new IsolationGitService({
       workspaceRoot: options.workspaceRoot,
-      worktreesRoot: this.worktreesRoot,
+      worktreesRoot: path.join(root, 'legacy-worktrees'),
       env: options.env,
       auxiliaryModel: options.auxiliaryModel
     });
@@ -164,10 +165,6 @@ export class IsolationSessionManager {
     this.stopHandlers.get(sessionId)?.();
     await this.destroyContainer(session);
     this.stopHandlers.delete(sessionId);
-    if (session.worktreePath) {
-      await this.log(sessionId, 'info', `Removing isolated worktree ${session.worktreePath}.`);
-      await this.gitService.removeWorktree(session.worktreePath);
-    }
     const destroyed = await this.updateSession(sessionId, {
       status: 'destroyed',
       containerId: undefined,
@@ -220,20 +217,18 @@ export class IsolationSessionManager {
 
     try {
       await this.updateSession(sessionId, { status: 'creating', error: undefined });
-      await this.updateSession(sessionId, { status: 'preparing', stage: 'Preparing isolated git worktree.' });
-      await this.log(sessionId, 'info', `Preparing isolated worktree for ${session.branchName}.`);
-      const worktree = await this.gitService.prepareWorktree({
-        sessionId,
+      await this.updateSession(sessionId, { status: 'preparing', stage: 'Resolving GitHub repository source.' });
+      await this.log(sessionId, 'info', `Resolving clone source for ${session.branchName}.`);
+      const cloneSource = await this.gitService.resolveCloneSource({
         branchName: session.branchName,
         baseRef: session.baseRef,
         continueExisting: session.attempt > 1
       });
       let currentSession = await this.updateSession(sessionId, {
-        worktreePath: worktree.worktreePath,
-        baseRef: worktree.baseRef,
-        baseSha: worktree.baseSha,
-        remoteName: worktree.remoteName,
-        stage: 'Worktree ready.'
+        baseRef: cloneSource.baseRef,
+        baseSha: cloneSource.baseSha,
+        remoteName: cloneSource.remoteName,
+        stage: 'GitHub clone source resolved.'
       });
       if (this.shouldAbortProvision(sessionId)) {
         return;
@@ -244,34 +239,47 @@ export class IsolationSessionManager {
       if (this.shouldAbortProvision(sessionId)) {
         return;
       }
-      await this.log(sessionId, 'info', 'Starting isolated Docker container.');
-      const container = await this.dockerProvider.start({
-        sessionId,
-        worktreePath: worktree.worktreePath
-      });
+      await this.log(sessionId, 'info', 'Starting autonomous Docker container without host workspace mount.');
+      const container = await this.dockerProvider.start({ sessionId });
       if (this.shouldAbortProvision(sessionId)) {
         await this.dockerProvider.destroy(container.containerName).catch(() => undefined);
         return;
       }
       currentSession = await this.updateSession(sessionId, {
-        status: 'running_agent',
-        stage: 'Agent is working in isolated environment.',
+        status: 'preparing',
+        stage: 'Cloning repository and installing AIST inside container.',
         containerId: container.containerId,
         containerName: container.containerName,
+        worktreePath: '/workspace',
         startedAt: this.options.now()
       });
-      await this.log(sessionId, 'info', 'Container is running. Starting isolated agent runtime.');
+      const containerWorkspace = await prepareContainerWorkspace({
+        dockerProvider: this.dockerProvider,
+        containerName: container.containerName,
+        remoteUrl: cloneSource.remoteUrl,
+        branchName: session.branchName,
+        baseRef: currentSession.baseRef,
+        continueExisting: session.attempt > 1
+      });
+      currentSession = await this.updateSession(sessionId, {
+        status: 'running_agent',
+        stage: 'Agent is working in autonomous container.',
+        baseSha: containerWorkspace.baseSha || currentSession.baseSha,
+        remoteName: containerWorkspace.remoteName,
+        worktreePath: containerWorkspace.workspacePath
+      });
+      await this.log(sessionId, 'info', 'Container workspace is ready. Starting isolated agent runtime.');
       const flow = await this.getFlow(currentSession.flow?.flowId);
       const runResult = flow
         ? await this.runFlowInIsolation({
             session: currentSession,
             flow,
-            worktreePath: worktree.worktreePath,
+            worktreePath: containerWorkspace.workspacePath,
             containerName: container.containerName
           })
         : await this.runSingleAgentStep({
             session: currentSession,
-            worktreePath: worktree.worktreePath,
+            worktreePath: containerWorkspace.workspacePath,
             containerName: container.containerName
           });
       if (this.shouldAbortProvision(sessionId)) {
@@ -282,20 +290,21 @@ export class IsolationSessionManager {
         stage: 'Finalizing git changes.',
         lastRunId: runResult.runId
       });
-      await this.destroyContainer(currentSession);
-      await this.updateSession(sessionId, { status: 'committing', stage: 'Creating commit and PR.' });
-      const finalized = await this.gitService.finalize({
-        worktreePath: worktree.worktreePath,
+      await this.updateSession(sessionId, { status: 'committing', stage: 'Creating commit and PR inside container.' });
+      const finalized = await finalizeContainerWorkspace({
+        dockerProvider: this.dockerProvider,
+        containerName: container.containerName,
         branchName: currentSession.branchName,
-        remoteName: currentSession.remoteName,
         prompt: currentSession.prompt,
         fallbackAnswer: runResult.answer,
         sessionId,
+        auxiliaryModel: this.options.auxiliaryModel,
         onStage: async (status, stage) => {
           await this.updateSession(sessionId, { status, stage });
           await this.log(sessionId, 'info', stage);
         }
       });
+      await this.destroyContainer(currentSession);
       await this.log(
         sessionId,
         'info',
@@ -316,7 +325,6 @@ export class IsolationSessionManager {
       } else if (!currentSession.remoteName) {
         await this.log(sessionId, 'warn', 'No git remote is configured, so PR creation was skipped.');
       }
-      await this.cleanupFinalizedWorktree({ sessionId, worktreePath: worktree.worktreePath });
       await this.updateSession(sessionId, {
         status: 'ready_for_review',
         stage: 'Ready for review.',
@@ -550,17 +558,6 @@ export class IsolationSessionManager {
     } catch (error) {
       await this.log(session.sessionId, 'warn', formatError(error));
     }
-  }
-
-  private async cleanupFinalizedWorktree({
-    sessionId,
-    worktreePath
-  }: {
-    sessionId: string;
-    worktreePath: string;
-  }): Promise<void> {
-    await this.log(sessionId, 'info', `Removing finalized isolated worktree ${worktreePath}.`);
-    await this.gitService.removeWorktree(worktreePath);
   }
 
   private async updateSession(

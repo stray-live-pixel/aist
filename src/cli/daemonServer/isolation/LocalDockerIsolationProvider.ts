@@ -7,7 +7,7 @@ type ExecResult = {
 
 export type LocalDockerStartInput = {
   readonly sessionId: string;
-  readonly worktreePath: string;
+  readonly worktreePath?: string;
 };
 
 export type LocalDockerStartResult = {
@@ -59,10 +59,8 @@ export class LocalDockerIsolationProvider {
         'aist.isolated=true',
         '--label',
         `aist.sessionId=${input.sessionId}`,
-        '-v',
-        `${input.worktreePath}:/workspace`,
-        '-w',
-        '/workspace',
+        ...toWorkspaceMountArgs({ worktreePath: input.worktreePath }),
+        ...toWorkspaceWorkdirArgs({ worktreePath: input.worktreePath }),
         image,
         'sleep',
         '86400'
@@ -81,13 +79,15 @@ export class LocalDockerIsolationProvider {
     script,
     cwd = '.',
     timeoutMs = 120000,
-    maxOutputChars = 1000000
+    maxOutputChars = 1000000,
+    stdin
   }: {
     container: string;
     script: string;
     cwd?: string;
     timeoutMs?: number;
     maxOutputChars?: number;
+    stdin?: string;
   }): Promise<LocalDockerExecResult> {
     const startedAt = Date.now();
     const dockerCwd = toDockerCwd(cwd);
@@ -114,6 +114,11 @@ export class LocalDockerIsolationProvider {
       child.stderr.on('data', (chunk: Buffer) => {
         stderr = appendBounded(stderr, chunk.toString('utf8'), maxOutputChars);
       });
+      if (stdin !== undefined) {
+        child.stdin.end(stdin);
+      } else {
+        child.stdin.end();
+      }
       child.on('error', (error) => {
         clearTimeout(timeout);
         resolve({
@@ -176,8 +181,29 @@ function sanitizeContainerName(value: string): string {
   return value.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(0, 48);
 }
 
+/**
+ * Что это: добавляет bind mount только для legacy-сценария с host worktree.
+ * Зачем нужно: новый autonomous контейнер должен жить без привязки к файлам компьютера, но тесты и старый контракт start остаются совместимыми.
+ * Какую продуктовую проблему решает: локальный Docker становится транспортом, а не источником данных агента.
+ */
+function toWorkspaceMountArgs({ worktreePath }: { worktreePath?: string }): string[] {
+  return worktreePath ? ['-v', `${worktreePath}:/workspace`] : [];
+}
+
+/**
+ * Что это: выбирает стартовую рабочую папку контейнера.
+ * Зачем нужно: без bind mount `/workspace` появляется только после `git clone`, поэтому container должен стартовать из `/`.
+ * Какую продуктовую проблему решает: bootstrap может создать полностью автономный workspace внутри Docker filesystem.
+ */
+function toWorkspaceWorkdirArgs({ worktreePath }: { worktreePath?: string }): string[] {
+  return worktreePath ? ['-w', '/workspace'] : ['-w', '/'];
+}
+
 function toDockerCwd(cwd: string): string {
   const unix = cwd.replace(/\\/g, '/');
+  if (unix === '/') {
+    return '/';
+  }
   if (unix === '/workspace' || unix === '/workspace/') {
     return '/workspace';
   }

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AutonomousSessionStore } from '../../../core/processes/autonomous';
 import type { DaemonIsolationEvent, IsolationSessionStatus } from '../../daemonProtocol';
 import { IsolationSessionManager } from './IsolationSessionManager';
-import { LocalDockerIsolationProvider } from './LocalDockerIsolationProvider';
+import { LocalDockerIsolationProvider, type LocalDockerExecResult } from './LocalDockerIsolationProvider';
 import { IsolationGitService } from './git/IsolationGitService';
 
 const tempDirs: string[] = [];
@@ -19,33 +19,30 @@ afterEach(() => {
 });
 
 describe('IsolationSessionManager', () => {
-  it('removes the isolated worktree after creating the pull request', async () => {
+  it('runs the agent in a container-cloned repository without creating a host worktree', async () => {
     const workspaceRoot = createTempDir({ prefix: 'aist-isolation-workspace-' });
     const homeDir = createTempDir({ prefix: 'aist-isolation-home-' });
-    const worktreePath = path.join(homeDir, 'prepared-worktree');
     const events: DaemonIsolationEvent[] = [];
     let now = 1000;
 
-    const prepareWorktree = vi.spyOn(IsolationGitService.prototype, 'prepareWorktree').mockResolvedValue({
+    const resolveCloneSource = vi.spyOn(IsolationGitService.prototype, 'resolveCloneSource').mockResolvedValue({
       repoRoot: workspaceRoot,
-      worktreePath,
-      branchName: 'aist/task/task-id',
+      remoteName: 'origin',
+      remoteUrl: 'https://github.com/acme/project.git',
       baseRef: 'HEAD',
-      baseSha: 'base-sha',
-      remoteName: 'origin'
-    });
-    const finalize = vi.spyOn(IsolationGitService.prototype, 'finalize').mockResolvedValue({
-      changed: true,
-      commitSha: 'commit-sha',
-      headSha: 'commit-sha',
-      pushed: true,
-      prUrl: 'https://github.com/acme/project/pull/1'
+      baseSha: 'base-sha'
     });
     const removeWorktree = vi.spyOn(IsolationGitService.prototype, 'removeWorktree').mockResolvedValue(undefined);
     vi.spyOn(LocalDockerIsolationProvider.prototype, 'healthcheck').mockResolvedValue(undefined);
-    vi.spyOn(LocalDockerIsolationProvider.prototype, 'start').mockResolvedValue({
+    const startContainer = vi.spyOn(LocalDockerIsolationProvider.prototype, 'start').mockResolvedValue({
       containerId: 'container-id',
       containerName: 'container-name'
+    });
+    const execContainer = vi.spyOn(LocalDockerIsolationProvider.prototype, 'exec').mockImplementation(async ({ script }) => {
+      if (script.includes('git clone')) {
+        return containerExecResult({ stdout: 'remote=https://github.com/acme/project.git\nbaseSha=container-base-sha\nbranch=aist/task/task-id-1234\n' });
+      }
+      return containerExecResult({ stdout: 'changed=true\ncommitSha=commit-sha\nheadSha=commit-sha\npushed=true\nprUrl=https://github.com/acme/project/pull/1\n' });
     });
     vi.spyOn(LocalDockerIsolationProvider.prototype, 'destroy').mockResolvedValue(undefined);
 
@@ -63,14 +60,15 @@ describe('IsolationSessionManager', () => {
     const started = await manager.start({ prompt: 'Create a pull request.' });
     const session = await waitForSessionStatus({ manager, sessionId: started.sessionId, status: 'ready_for_review' });
 
-    expect(prepareWorktree).toHaveBeenCalledWith({
-      sessionId: started.sessionId,
+    expect(resolveCloneSource).toHaveBeenCalledWith({
       branchName: started.branchName,
       baseRef: undefined,
       continueExisting: false
     });
-    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({ worktreePath, remoteName: 'origin' }));
-    expect(removeWorktree).toHaveBeenCalledWith(worktreePath);
+    expect(startContainer).toHaveBeenCalledWith({ sessionId: started.sessionId });
+    expect(execContainer).toHaveBeenCalledWith(expect.objectContaining({ container: 'container-name', cwd: '/' }));
+    expect(execContainer).toHaveBeenCalledWith(expect.objectContaining({ container: 'container-name', cwd: '.' }));
+    expect(removeWorktree).not.toHaveBeenCalled();
     expect(session.worktreePath).toBeUndefined();
     expect(session.containerId).toBeUndefined();
     expect(session.containerName).toBeUndefined();
@@ -80,7 +78,7 @@ describe('IsolationSessionManager', () => {
       expect.objectContaining({
         type: 'isolation.session.log',
         sessionId: started.sessionId,
-        message: `Removing finalized isolated worktree ${worktreePath}.`
+        message: 'Container workspace is ready. Starting isolated agent runtime.'
       })
     );
   });
@@ -88,31 +86,29 @@ describe('IsolationSessionManager', () => {
   it('runs a selected autonomous flow through the isolated agent engine before finalizing git', async () => {
     const workspaceRoot = createTempDir({ prefix: 'aist-isolation-flow-workspace-' });
     const homeDir = createTempDir({ prefix: 'aist-isolation-flow-home-' });
-    const worktreePath = path.join(homeDir, 'prepared-flow-worktree');
+    const worktreePath = '/workspace';
     const events: DaemonIsolationEvent[] = [];
     let now = 2000;
     writeFlowDefinition({ workspaceRoot });
 
-    vi.spyOn(IsolationGitService.prototype, 'prepareWorktree').mockResolvedValue({
+    vi.spyOn(IsolationGitService.prototype, 'resolveCloneSource').mockResolvedValue({
       repoRoot: workspaceRoot,
-      worktreePath,
-      branchName: 'aist/task/task-id',
+      remoteName: 'origin',
+      remoteUrl: 'https://github.com/acme/project.git',
       baseRef: 'HEAD',
-      baseSha: 'base-sha',
-      remoteName: 'origin'
-    });
-    const finalize = vi.spyOn(IsolationGitService.prototype, 'finalize').mockResolvedValue({
-      changed: true,
-      commitSha: 'flow-commit-sha',
-      headSha: 'flow-commit-sha',
-      pushed: true,
-      prUrl: 'https://github.com/acme/project/pull/2'
+      baseSha: 'base-sha'
     });
     vi.spyOn(IsolationGitService.prototype, 'removeWorktree').mockResolvedValue(undefined);
     vi.spyOn(LocalDockerIsolationProvider.prototype, 'healthcheck').mockResolvedValue(undefined);
     vi.spyOn(LocalDockerIsolationProvider.prototype, 'start').mockResolvedValue({
       containerId: 'container-id',
       containerName: 'container-name'
+    });
+    vi.spyOn(LocalDockerIsolationProvider.prototype, 'exec').mockImplementation(async ({ script }) => {
+      if (script.includes('git clone')) {
+        return containerExecResult({ stdout: 'remote=https://github.com/acme/project.git\nbaseSha=container-base-sha\nbranch=aist/task/task-id-1234\n' });
+      }
+      return containerExecResult({ stdout: 'changed=true\ncommitSha=flow-commit-sha\nheadSha=flow-commit-sha\npushed=true\nprUrl=https://github.com/acme/project/pull/2\n' });
     });
     vi.spyOn(LocalDockerIsolationProvider.prototype, 'destroy').mockResolvedValue(undefined);
 
@@ -156,8 +152,7 @@ describe('IsolationSessionManager', () => {
     expect(secondStage?.runPrompt).toContain('## Previous stage context from stage 1');
     expect(secondStage?.runPrompt).toContain('stage-1-answer');
     expect(secondStage?.runPrompt).toContain('Build the implementation.');
-    expect(finalize).toHaveBeenCalledTimes(1);
-    expect(finalize).toHaveBeenCalledWith(expect.objectContaining({ fallbackAnswer: 'stage-2-answer' }));
+    expect(session).toMatchObject({ commitSha: 'flow-commit-sha', headSha: 'flow-commit-sha' });
     expect(session.flow).toMatchObject({
       flowId: 'review-ready',
       title: 'Review Ready',
@@ -204,6 +199,31 @@ function createTempDir({ prefix }: { prefix: string }): string {
 function createIdFactory({ ids }: { ids: string[] }): () => string {
   const queue = [...ids];
   return () => queue.shift() || 'fallback-id';
+}
+
+/**
+ * Что это: создаёт результат docker exec для тестов без реального Docker.
+ * Зачем нужно: lifecycle isolated sessions проверяется как чистая бизнес-логика.
+ * Какую продуктовую проблему решает: регресс автономного container-only сценария ловится быстро и детерминированно.
+ */
+function containerExecResult({
+  stdout = '',
+  stderr = '',
+  ok = true
+}: {
+  stdout?: string;
+  stderr?: string;
+  ok?: boolean;
+}): LocalDockerExecResult {
+  return {
+    ok,
+    exitCode: ok ? 0 : 1,
+    signal: null,
+    stdout,
+    stderr,
+    timedOut: false,
+    durationMs: 1
+  };
 }
 
 function writeFlowDefinition({ workspaceRoot }: { workspaceRoot: string }): void {
