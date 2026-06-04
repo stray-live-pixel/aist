@@ -12,6 +12,7 @@ import type { AgentControllerCallbacks } from './AgentControllerCallbacks';
 import type { AgentControllerState } from './AgentControllerState';
 import { getWebviewHostDeps } from './getWebviewHostDeps';
 import { postShowChats } from './postShowChats';
+import { postShowIsolation } from './postShowIsolation';
 import { postSidebarPage } from './postSidebarPage';
 
 /** Что это: открывает чат в sidebar; зачем нужно: команда фокусирует нужный chat/page; проблема: пользователь быстро возвращается к диалогу. */
@@ -63,6 +64,26 @@ export function openSettingsCommand({
   state.sidebarPage = 'settings';
   void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
   postSidebarPage({ state, callbacks });
+}
+
+/**
+ * Что это: открывает isolated agents из системного меню sidebar.
+ * Зачем нужно: view/title-команда фокусирует чат и отправляет React-событие открытия модалки.
+ * Какую продуктовую проблему решает: пользователь запускает изолированных агентов без лишней кнопки в Composer.
+ */
+export function openIsolationCommand({
+  state,
+  callbacks
+}: {
+  state: AgentControllerState;
+  callbacks: AgentControllerCallbacks;
+}): void {
+  state.logger.info('openIsolation command received');
+  state.sidebarPage = 'chat';
+  void vscode.commands.executeCommand('workbench.view.extension.openrouterAgent');
+  callbacks.sendState();
+  postSidebarPage({ state, callbacks });
+  postShowIsolation({ state });
 }
 
 /** Что это: открывает папку .aist-agent; зачем нужно: пользователь может посмотреть storage/debug файлы; проблема: диагностика доступна из команды. */

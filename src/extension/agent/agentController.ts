@@ -18,6 +18,7 @@ import {
   openChatInEditorCommand,
   openChatsCommand,
   openCreatingChatEditorCommand,
+  openIsolationCommand,
   openSettingsCommand,
   openStorageCommand,
   resolveWebviewViewCommand
@@ -98,6 +99,11 @@ export class AgentController {
   /** Открывает страницу настроек агента. */
   openSettings(): void {
     openSettingsCommand({ state: this.state, callbacks: this.callbacks });
+  }
+
+  /** Открывает модалку изолированных агентов из системного меню. */
+  openIsolation(): void {
+    openIsolationCommand({ state: this.state, callbacks: this.callbacks });
   }
 
   /** Открывает storage-директорию workspace. */
