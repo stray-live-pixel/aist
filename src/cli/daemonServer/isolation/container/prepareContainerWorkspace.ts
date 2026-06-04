@@ -22,7 +22,7 @@ export async function prepareContainerWorkspace(input: PrepareContainerWorkspace
   const metadata = parseContainerGitMetadata({ stdout: result.stdout });
   return {
     containerName: input.containerName,
-    workspacePath: '/workspace',
+    workspacePath: input.workspacePath || '/workspace',
     branchName: metadata.branch || input.branchName,
     baseRef: input.baseRef || 'HEAD',
     baseSha: metadata.baseSha || '',

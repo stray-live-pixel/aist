@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer';
 import type { AuxiliaryModelInvoker } from '../../../../core/entities/model/auxiliaryModel';
 import type { IsolationGitFinalizeResult, IsolationGitFinalizeStage } from '../git/IsolationGitService';
 import { createIsolationGitMetadata } from '../git/createIsolationGitMetadata';
-import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
+import type { IsolationExecutionProvider } from '../IsolationExecutionProvider';
 import { buildContainerFinalizeScript } from './buildContainerFinalizeScript';
 import { parseContainerGitMetadata } from './parseContainerGitMetadata';
 
@@ -22,7 +22,7 @@ export async function finalizeContainerWorkspace({
   onStage,
   auxiliaryModel
 }: {
-  dockerProvider: LocalDockerIsolationProvider;
+  dockerProvider: IsolationExecutionProvider;
   containerName: string;
   branchName: string;
   prompt: string;

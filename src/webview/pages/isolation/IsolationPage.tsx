@@ -8,14 +8,20 @@ import {
   GitCommit,
   GitPullRequest,
   Hash,
+  KeyRound,
   Layers3,
   ListChecks,
   MessageSquare,
+  Pencil,
   Play,
+  Plus,
   RefreshCw,
   Server,
+  ShieldCheck,
   Square,
   Trash2,
+  Wifi,
+  WifiOff,
   X
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,6 +32,12 @@ import { useAgentState } from '../../shared/lib/agentState';
 import { isIsolationSessionActive } from '../../shared/lib/isolation';
 import type {
   IsolationFlowModeSummary,
+  IsolationRemoteServerAuthMethod,
+  IsolationRemoteServerGithubAuthMode,
+  IsolationRemoteServerInput,
+  IsolationRemoteServerSettings,
+  IsolationRunnerAvailability,
+  IsolationRunnerSummary,
   IsolationSessionEvent,
   IsolationSessionStatus,
   IsolationSessionSummary
@@ -43,7 +55,8 @@ import {
   PipelineSteps,
   Select,
   Text,
-  TextArea
+  TextArea,
+  TextField
 } from '../../shared/ui';
 import type { BadgeTone, KeyValueItem, PipelineStep, SelectOption } from '../../shared/ui';
 import styles from './IsolationPage.module.scss';
@@ -52,17 +65,44 @@ import { shouldEnableIsolationStandardChat } from './shouldEnableIsolationStanda
 type Translate = ReturnType<typeof useI18n>['t'];
 const DEFAULT_VISIBLE_SESSION_COUNT = 20;
 const SESSION_LOAD_BATCH_SIZE = 20;
+const LOCAL_DOCKER_RUNNER_ID = 'docker-local';
+
+type RemoteServerForm = {
+  id?: string;
+  name: string;
+  host: string;
+  port: string;
+  username: string;
+  authMethod: IsolationRemoteServerAuthMethod;
+  privateKeyPath: string;
+  githubAuthMode: IsolationRemoteServerGithubAuthMode;
+};
+
+const EMPTY_REMOTE_SERVER_FORM: RemoteServerForm = {
+  name: '',
+  host: '',
+  port: '22',
+  username: '',
+  authMethod: 'ssh-agent',
+  privateKeyPath: '',
+  githubAuthMode: 'server-existing'
+};
 
 export function IsolationPage({ onClose }: { onClose(): void }) {
   const state = useAgentState();
   const { language, t } = useI18n();
   const [prompt, setPrompt] = useState('');
   const [selectedFlowId, setSelectedFlowId] = useState('');
+  const [selectedRunnerId, setSelectedRunnerId] = useState(LOCAL_DOCKER_RUNNER_ID);
+  const [remoteForm, setRemoteForm] = useState<RemoteServerForm>(EMPTY_REMOTE_SERVER_FORM);
+  const [editingRemoteServerId, setEditingRemoteServerId] = useState<string | null>(null);
   const [continueBySessionId, setContinueBySessionId] = useState<Record<string, string>>({});
   const [continueFlowBySessionId, setContinueFlowBySessionId] = useState<Record<string, string>>({});
   const [openLogSessionIds, setOpenLogSessionIds] = useState<readonly string[]>([]);
   const [visibleSessionCount, setVisibleSessionCount] = useState(DEFAULT_VISIBLE_SESSION_COUNT);
   const flowModes = state.isolationFlowModes;
+  const runners = state.isolationRunners.length ? state.isolationRunners : [createFallbackDockerRunner(t)];
+  const selectedRunner = runners.find((runner) => runner.id === selectedRunnerId) || runners[0];
   const locale = language === 'en' ? 'en-US' : 'ru-RU';
   const selectedFlow = useMemo(
     () => flowModes.find((flow) => flow.flowId === selectedFlowId),
@@ -76,7 +116,9 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
   const activeSessionCount = sessions.filter((session) => isIsolationSessionActive({ status: session.status })).length;
   const reviewSessionCount = sessions.filter((session) => session.status === 'ready_for_review').length;
   const flowOptions = useMemo(() => toFlowOptions(flowModes, t), [flowModes, t]);
+  const runnerOptions = useMemo(() => toRunnerOptions(runners, t), [runners, t]);
   const hasMoreSessions = visibleSessions.length < sessions.length;
+  const launchDisabled = !prompt.trim() || selectedRunner?.availability === 'busy' || selectedRunner?.availability === 'unavailable';
 
   useEffect(() => {
     if (!selectedFlowId || flowModes.some((flow) => flow.flowId === selectedFlowId)) {
@@ -84,6 +126,13 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
     }
     setSelectedFlowId('');
   }, [flowModes, selectedFlowId]);
+
+  useEffect(() => {
+    if (runners.some((runner) => runner.id === selectedRunnerId)) {
+      return;
+    }
+    setSelectedRunnerId(runners[0]?.id || LOCAL_DOCKER_RUNNER_ID);
+  }, [runners, selectedRunnerId]);
 
   useEffect(() => {
     const openSessions = sessions.filter((session) => openLogSessionIds.includes(session.sessionId));
@@ -106,8 +155,37 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
   function start() {
     const nextPrompt = prompt.trim();
     if (!nextPrompt) return;
-    agentActions.startIsolationSession(nextPrompt, selectedFlowId || undefined);
+    agentActions.startIsolationSession(nextPrompt, selectedFlowId || undefined, {
+      provider: selectedRunner?.provider || 'docker-local',
+      runnerId: selectedRunner?.id || LOCAL_DOCKER_RUNNER_ID
+    });
     setPrompt('');
+  }
+
+  function editRemoteServer(server: IsolationRemoteServerSettings) {
+    setEditingRemoteServerId(server.id);
+    setRemoteForm({
+      id: server.id,
+      name: server.name,
+      host: server.host,
+      port: String(server.port || 22),
+      username: server.username,
+      authMethod: server.authMethod,
+      privateKeyPath: server.privateKeyPath || '',
+      githubAuthMode: server.githubAuthMode
+    });
+  }
+
+  function resetRemoteServerForm() {
+    setEditingRemoteServerId(null);
+    setRemoteForm(EMPTY_REMOTE_SERVER_FORM);
+  }
+
+  function saveRemoteServer() {
+    const server = remoteFormToInput(remoteForm);
+    if (!server.name || !server.host || !server.username) return;
+    agentActions.upsertIsolationRemoteServer(server);
+    resetRemoteServerForm();
   }
 
   function continueSession(sessionId: string) {
@@ -213,6 +291,15 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
             />
             <div className={styles.flowColumn}>
               <Select
+                label={t('isolation.launch.runnerLabel')}
+                leadingIcon={<Server size={14} />}
+                value={selectedRunnerId}
+                options={runnerOptions}
+                searchable={runners.length > 5}
+                onValueChange={setSelectedRunnerId}
+              />
+              <RunnerPreview runner={selectedRunner} t={t} />
+              <Select
                 label={t('isolation.launch.flowLabel')}
                 leadingIcon={<Layers3 size={14} />}
                 value={selectedFlowId}
@@ -225,12 +312,24 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
             </div>
           </div>
           <div className={styles.launchActions}>
-            <Button variant="primary" leadingIcon={<Play size={14} />} disabled={!prompt.trim()} onClick={start}>
+            <Button variant="primary" leadingIcon={<Play size={14} />} disabled={launchDisabled} onClick={start}>
               {t('isolation.launch.start')}
             </Button>
             <Text variant="caption">{t('isolation.launch.note')}</Text>
           </div>
         </Card>
+
+        <RemoteServersSettings
+          editingRemoteServerId={editingRemoteServerId}
+          form={remoteForm}
+          servers={state.isolationRemoteServers}
+          t={t}
+          onDelete={(serverId) => agentActions.deleteIsolationRemoteServer(serverId)}
+          onEdit={editRemoteServer}
+          onFormChange={(patch) => setRemoteForm((current) => ({ ...current, ...patch }))}
+          onReset={resetRemoteServerForm}
+          onSave={saveRemoteServer}
+        />
 
         <section className={styles.sessionsSection}>
           <div className={styles.sectionHeader}>
@@ -303,6 +402,155 @@ export function IsolationPage({ onClose }: { onClose(): void }) {
         </section>
       </main>
     </div>
+  );
+}
+
+function RemoteServersSettings({
+  servers,
+  form,
+  editingRemoteServerId,
+  t,
+  onFormChange,
+  onSave,
+  onReset,
+  onEdit,
+  onDelete
+}: {
+  servers: readonly IsolationRemoteServerSettings[];
+  form: RemoteServerForm;
+  editingRemoteServerId: string | null;
+  t: Translate;
+  onFormChange(patch: Partial<RemoteServerForm>): void;
+  onSave(): void;
+  onReset(): void;
+  onEdit(server: IsolationRemoteServerSettings): void;
+  onDelete(serverId: string): void;
+}) {
+  const authOptions: SelectOption[] = [
+    { value: 'ssh-agent', label: t('isolation.remote.auth.sshAgent') },
+    { value: 'ssh-key', label: t('isolation.remote.auth.sshKey') }
+  ];
+  const githubOptions: SelectOption[] = [
+    { value: 'server-existing', label: t('isolation.remote.github.serverExisting') },
+    { value: 'ssh-agent-forwarding', label: t('isolation.remote.github.agentForwarding') }
+  ];
+  const canSave = Boolean(form.name.trim() && form.host.trim() && form.username.trim());
+
+  return (
+    <Card
+      title={t('isolation.remote.title')}
+      description={t('isolation.remote.description')}
+      actions={<Badge tone="accent">{t('isolation.remote.count', { count: servers.length })}</Badge>}
+    >
+      <Callout tone="neutral" icon={<ShieldCheck size={15} />} title={t('isolation.remote.securityTitle')}>
+        {t('isolation.remote.securityDescription')}
+      </Callout>
+      <div className={styles.remoteGrid}>
+        <TextField
+          label={t('isolation.remote.nameLabel')}
+          placeholder={t('isolation.remote.namePlaceholder')}
+          value={form.name}
+          onChange={(event) => onFormChange({ name: event.target.value })}
+        />
+        <TextField
+          label={t('isolation.remote.hostLabel')}
+          placeholder="203.0.113.10"
+          value={form.host}
+          onChange={(event) => onFormChange({ host: event.target.value })}
+        />
+        <TextField
+          label={t('isolation.remote.portLabel')}
+          type="number"
+          min={1}
+          max={65535}
+          value={form.port}
+          onChange={(event) => onFormChange({ port: event.target.value })}
+        />
+        <TextField
+          label={t('isolation.remote.usernameLabel')}
+          placeholder="ubuntu"
+          value={form.username}
+          onChange={(event) => onFormChange({ username: event.target.value })}
+        />
+        <Select
+          label={t('isolation.remote.authLabel')}
+          leadingIcon={<KeyRound size={14} />}
+          value={form.authMethod}
+          options={authOptions}
+          onValueChange={(value) => onFormChange({ authMethod: value as IsolationRemoteServerAuthMethod })}
+        />
+        <Select
+          label={t('isolation.remote.githubLabel')}
+          leadingIcon={<GitBranch size={14} />}
+          value={form.githubAuthMode}
+          options={githubOptions}
+          onValueChange={(value) => onFormChange({ githubAuthMode: value as IsolationRemoteServerGithubAuthMode })}
+        />
+      </div>
+      {form.authMethod === 'ssh-key' ? (
+        <TextField
+          className={styles.remoteKeyField}
+          label={t('isolation.remote.keyPathLabel')}
+          hint={t('isolation.remote.keyPathHint')}
+          placeholder="~/.ssh/id_ed25519"
+          value={form.privateKeyPath}
+          onChange={(event) => onFormChange({ privateKeyPath: event.target.value })}
+        />
+      ) : null}
+      <div className={styles.remoteActions}>
+        <Button size="sm" variant="primary" leadingIcon={<Plus size={13} />} disabled={!canSave} onClick={onSave}>
+          {editingRemoteServerId ? t('isolation.remote.saveEdit') : t('isolation.remote.add')}
+        </Button>
+        {editingRemoteServerId ? (
+          <Button size="sm" variant="ghost" onClick={onReset}>
+            {t('common.cancel')}
+          </Button>
+        ) : null}
+      </div>
+      {servers.length ? (
+        <div className={styles.remoteList}>
+          {servers.map((server) => (
+            <div key={server.id} className={styles.remoteItem}>
+              <div className={styles.remoteItemMain}>
+                <Text variant="bodyStrong">{server.name}</Text>
+                <Text variant="caption">
+                  {server.username}@{server.host}:{server.port} · {getRemoteAuthLabel(server, t)}
+                </Text>
+              </div>
+              <div className={styles.actions}>
+                <Button size="sm" variant="ghost" leadingIcon={<Pencil size={13} />} onClick={() => onEdit(server)}>
+                  {t('common.edit')}
+                </Button>
+                <Button size="sm" variant="ghost" leadingIcon={<Trash2 size={13} />} onClick={() => onDelete(server.id)}>
+                  {t('common.delete')}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Text variant="caption">{t('isolation.remote.empty')}</Text>
+      )}
+    </Card>
+  );
+}
+
+function RunnerPreview({ runner, t }: { runner: IsolationRunnerSummary | undefined; t: Translate }) {
+  if (!runner) {
+    return null;
+  }
+
+  return (
+    <Callout
+      tone={getAvailabilityTone(runner.availability)}
+      icon={runner.availability === 'unavailable' ? <WifiOff size={15} /> : <Wifi size={15} />}
+      title={runner.label}
+      actions={<Badge tone={getAvailabilityTone(runner.availability)}>{getAvailabilityLabel(runner.availability, t)}</Badge>}
+    >
+      {runner.activeSessionId
+        ? t('isolation.runner.busyDescription', { sessionId: runner.activeSessionId })
+        : runner.description || t('isolation.runner.localDescription')}
+    </Callout>
   );
 }
 
@@ -639,6 +887,37 @@ function FlowProgress({ flow, t }: { flow: NonNullable<IsolationSessionSummary['
   );
 }
 
+function toRunnerOptions(runners: readonly IsolationRunnerSummary[], t: Translate): SelectOption[] {
+  return runners.map((runner) => ({
+    value: runner.id,
+    label: `${runner.label} · ${getAvailabilityLabel(runner.availability, t)}`,
+    disabled: runner.availability === 'busy' || runner.availability === 'unavailable'
+  }));
+}
+
+function createFallbackDockerRunner(t: Translate): IsolationRunnerSummary {
+  return {
+    id: LOCAL_DOCKER_RUNNER_ID,
+    provider: 'docker-local',
+    label: t('isolation.runner.local'),
+    description: t('isolation.runner.localDescription'),
+    availability: 'unknown'
+  };
+}
+
+function remoteFormToInput(form: RemoteServerForm): IsolationRemoteServerInput {
+  return {
+    id: form.id,
+    name: form.name.trim(),
+    host: form.host.trim(),
+    port: Number(form.port) || 22,
+    username: form.username.trim(),
+    authMethod: form.authMethod,
+    privateKeyPath: form.privateKeyPath.trim() || undefined,
+    githubAuthMode: form.githubAuthMode
+  };
+}
+
 function toFlowOptions(flows: readonly IsolationFlowModeSummary[], t: Translate): SelectOption[] {
   return [
     { value: '', label: t('isolation.flow.default') },
@@ -661,7 +940,9 @@ function getSessionDetails(session: IsolationSessionSummary, locale: string, t: 
     ),
     textDetail('flow', t('isolation.detail.flow'), session.flow?.title || t('isolation.flow.default')),
     textDetail('chat', t('isolation.detail.chat'), session.chatId || t('isolation.value.creating')),
-    textDetail('provider', t('isolation.detail.provider'), session.provider),
+    textDetail('provider', t('isolation.detail.provider'), session.runnerLabel || session.provider),
+    textDetail('runner', t('isolation.detail.runner'), session.runnerId || t('common.notAvailable')),
+    textDetail('runnerType', t('isolation.detail.runnerType'), session.provider),
     textDetail(
       'container',
       t('isolation.detail.container'),
@@ -708,7 +989,7 @@ function formatEventLog(events: readonly IsolationSessionEvent[], locale: string
 
 function formatSessionSubtitle(session: IsolationSessionSummary, locale: string, t: Translate): string {
   return t('isolation.session.subtitle', {
-    provider: session.provider,
+    provider: session.runnerLabel || session.provider,
     flow: session.flow?.title || t('isolation.flow.default'),
     attempt: session.attempt,
     updated: formatDateTime(session.updatedAt, locale)
@@ -727,6 +1008,26 @@ function formatFlowPreview(flow: IsolationFlowModeSummary, t: Translate): string
     parts.push(flow.description);
   }
   return parts.join(' · ');
+}
+
+function getAvailabilityTone(availability: IsolationRunnerAvailability): BadgeTone {
+  if (availability === 'available') return 'success';
+  if (availability === 'busy') return 'warning';
+  if (availability === 'unavailable') return 'danger';
+  return 'neutral';
+}
+
+function getAvailabilityLabel(availability: IsolationRunnerAvailability, t: Translate): string {
+  return t(`isolation.runner.availability.${availability}` as TranslationKey);
+}
+
+function getRemoteAuthLabel(server: IsolationRemoteServerSettings, t: Translate): string {
+  const auth = server.authMethod === 'ssh-key' ? t('isolation.remote.auth.sshKey') : t('isolation.remote.auth.sshAgent');
+  const github =
+    server.githubAuthMode === 'ssh-agent-forwarding'
+      ? t('isolation.remote.github.agentForwarding')
+      : t('isolation.remote.github.serverExisting');
+  return `${auth} · ${github}`;
 }
 
 function getStatusTone(status: IsolationSessionStatus): BadgeTone {

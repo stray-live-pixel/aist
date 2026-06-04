@@ -1,4 +1,9 @@
-import type { IsolationFlowModeSummary, IsolationSessionSummary } from '../../../../cli/daemonProtocol';
+import type {
+  IsolationFlowModeSummary,
+  IsolationRemoteServerSettings,
+  IsolationRunnerSummary,
+  IsolationSessionSummary
+} from '../../../../cli/daemonProtocol';
 import { type SecretStore } from '../../../../core/app/config/config';
 import { type OpenRouterModelOption, type SubagentRun } from '../../../../core/shared/types/types';
 import { type AgentChatStore } from '../../../chats/chatDataStore';
@@ -17,5 +22,7 @@ export type SendAgentStateParams = {
   subagentRunsByChatId: Map<string, SubagentRun[]>;
   isolationFlowModes: readonly IsolationFlowModeSummary[];
   isolationSessions: readonly IsolationSessionSummary[];
+  isolationRunners: readonly IsolationRunnerSummary[];
+  isolationRemoteServers: readonly IsolationRemoteServerSettings[];
   getSystemPrompt(): string;
 };

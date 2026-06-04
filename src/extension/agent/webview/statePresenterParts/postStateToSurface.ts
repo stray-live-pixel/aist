@@ -59,6 +59,8 @@ export function postStateToSurface(surface: WebviewSurface, context: StateContex
     subagentRuns: context.subagentRunsByChatId.get(activeChat.id) || [],
     isolationFlowModes: context.isolationFlowModes,
     isolationSessions: context.isolationSessions,
+    isolationRunners: context.isolationRunners,
+    isolationRemoteServers: context.isolationRemoteServers,
     isolationEventsBySessionId: {},
     instructionSources: context.instructionSources,
     customSkills: context.customSkills,

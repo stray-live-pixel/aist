@@ -12,7 +12,49 @@ export type IsolationSessionStatus =
   | 'stopping'
   | 'destroyed';
 
-export type IsolationProviderKind = 'docker-local';
+export type IsolationProviderKind = 'docker-local' | 'remote-server';
+
+export type IsolationRunnerAvailability = 'available' | 'busy' | 'unavailable' | 'unknown';
+
+export type IsolationRemoteServerAuthMethod = 'ssh-agent' | 'ssh-key';
+
+export type IsolationRemoteServerGithubAuthMode = 'server-existing' | 'ssh-agent-forwarding';
+
+export type IsolationRemoteServerSettings = {
+  readonly id: string;
+  readonly name: string;
+  readonly host: string;
+  readonly port: number;
+  readonly username: string;
+  readonly authMethod: IsolationRemoteServerAuthMethod;
+  readonly privateKeyPath?: string;
+  readonly githubAuthMode: IsolationRemoteServerGithubAuthMode;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+};
+
+export type IsolationRemoteServerInput = {
+  readonly id?: string;
+  readonly name: string;
+  readonly host: string;
+  readonly port?: number;
+  readonly username: string;
+  readonly authMethod: IsolationRemoteServerAuthMethod;
+  readonly privateKeyPath?: string;
+  readonly githubAuthMode: IsolationRemoteServerGithubAuthMode;
+};
+
+export type IsolationRunnerSummary = {
+  readonly id: string;
+  readonly provider: IsolationProviderKind;
+  readonly label: string;
+  readonly description?: string;
+  readonly availability: IsolationRunnerAvailability;
+  readonly activeSessionId?: string;
+  readonly server?: IsolationRemoteServerSettings;
+  readonly lastCheckedAt?: number;
+  readonly error?: string;
+};
 
 export type IsolationFlowModeSummary = {
   readonly flowId: string;
@@ -56,6 +98,8 @@ export type IsolationSessionSummary = {
   readonly remoteName?: string;
   readonly worktreePath?: string;
   readonly provider: IsolationProviderKind;
+  readonly runnerId?: string;
+  readonly runnerLabel?: string;
   readonly status: IsolationSessionStatus;
   readonly stage?: string;
   readonly containerId?: string;
@@ -99,4 +143,11 @@ export type IsolationSessionLifecycleEvent =
       readonly at: number;
     };
 
+export type IsolationRemoteServersChangedEvent = {
+  readonly type: 'isolation.remoteServers.changed';
+  readonly servers: readonly IsolationRemoteServerSettings[];
+  readonly at: number;
+};
+
 export type IsolationSessionEvent = IsolationSessionLifecycleEvent | IsolationSessionLogEvent;
+export type IsolationEvent = IsolationSessionEvent | IsolationRemoteServersChangedEvent;

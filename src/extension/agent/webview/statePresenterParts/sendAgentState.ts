@@ -78,6 +78,8 @@ export function sendAgentState(params: SendAgentStateParams): void {
           memorySettings,
           isolationFlowModes: [...params.isolationFlowModes],
           isolationSessions: [...params.isolationSessions],
+          isolationRunners: [...params.isolationRunners],
+          isolationRemoteServers: [...params.isolationRemoteServers],
           instructionSources,
           auxiliaryModels,
           compactionSettings,

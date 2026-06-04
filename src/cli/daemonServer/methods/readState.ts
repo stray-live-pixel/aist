@@ -63,6 +63,8 @@ export async function readState(this: AistDaemonServer): Promise<DaemonState> {
         defaultModel: flow.defaultModel,
         defaultCodexModel: flow.defaultCodexModel
       })) || [],
-    isolationSessions: this.isolationSessions.list()
+    isolationSessions: this.isolationSessions.list(),
+    isolationRunners: await this.isolationSessions.listRunners(),
+    isolationRemoteServers: await this.isolationSessions.listRemoteServers()
   };
 }

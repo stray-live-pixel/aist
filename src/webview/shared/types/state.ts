@@ -16,7 +16,13 @@ import type {
   ToolPermissionPresetId
 } from './agentConfig';
 import type { Chat, ChatModelSettings, ChatSummary } from './chat';
-import type { IsolationFlowModeSummary, IsolationSessionEvent, IsolationSessionSummary } from './isolation';
+import type {
+  IsolationFlowModeSummary,
+  IsolationRemoteServerSettings,
+  IsolationRunnerSummary,
+  IsolationSessionEvent,
+  IsolationSessionSummary
+} from './isolation';
 import type {
   AgentLanguage,
   AuxiliaryModelsSettings,
@@ -68,6 +74,8 @@ export type AgentState = {
   subagentRuns: SubagentRun[];
   isolationFlowModes: IsolationFlowModeSummary[];
   isolationSessions: IsolationSessionSummary[];
+  isolationRunners: IsolationRunnerSummary[];
+  isolationRemoteServers: IsolationRemoteServerSettings[];
   isolationEventsBySessionId: Record<string, IsolationSessionEvent[]>;
   instructionSources: AgentInstructionSource[];
   customSkills: AgentSkill[];

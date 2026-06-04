@@ -10,6 +10,7 @@ import type {
   ReasoningEffort
 } from '../../core/shared/types/types';
 import type { ToolPermissionMode } from '../tools/permissions';
+import type { IsolationRemoteServerInput } from '../../cli/daemonProtocol';
 import type { AgentInstructionKind, AgentItemRef, AgentItemScope } from './config/agentConfigStore';
 import type { ProviderProfileInput } from './config/providerProfiles';
 import type { AgentModeId } from './config/settings';
@@ -178,7 +179,9 @@ export type WebviewMessage =
   | { type: 'vcs.isolateChat' }
   | { type: 'vcs.commitAndForcePush' }
   | { type: 'vcs.mergeToMain' }
-  | { type: 'isolation.start'; prompt: string; flowId?: string }
+  | { type: 'isolation.start'; prompt: string; flowId?: string; provider?: 'docker-local' | 'remote-server'; runnerId?: string }
+  | { type: 'isolation.remoteServer.upsert'; server: IsolationRemoteServerInput }
+  | { type: 'isolation.remoteServer.delete'; serverId: string }
   | { type: 'isolation.continue'; sessionId: string; prompt: string; flowId?: string }
   | { type: 'isolation.stop'; sessionId: string }
   | { type: 'isolation.destroy'; sessionId: string }

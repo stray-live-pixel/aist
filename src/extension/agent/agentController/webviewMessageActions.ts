@@ -203,7 +203,18 @@ async function handleDaemonWebviewMessage({
       callbacks.sendState();
       return true;
     case 'isolation.start':
-      await state.daemonRuntime.startIsolationSession(message.prompt, message.flowId);
+      await state.daemonRuntime.startIsolationSession(message.prompt, message.flowId, {
+        provider: message.provider,
+        runnerId: message.runnerId
+      });
+      callbacks.sendState(surface);
+      return true;
+    case 'isolation.remoteServer.upsert':
+      await state.daemonRuntime.upsertIsolationRemoteServer(message.server);
+      callbacks.sendState(surface);
+      return true;
+    case 'isolation.remoteServer.delete':
+      await state.daemonRuntime.deleteIsolationRemoteServer(message.serverId);
       callbacks.sendState(surface);
       return true;
     case 'isolation.continue':

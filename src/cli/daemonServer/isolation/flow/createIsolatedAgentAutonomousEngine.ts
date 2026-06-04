@@ -1,7 +1,7 @@
 import type { AutonomousEngine, AutonomousEngineRunRequest } from '../../../../core/processes/autonomous/engines/types';
 import { createAutonomousEvent } from '../../../../core/processes/autonomous/storage/sessionStore';
 import type { IsolationSessionSummary } from '../../../daemonProtocol';
-import type { LocalDockerIsolationProvider } from '../LocalDockerIsolationProvider';
+import type { IsolationExecutionProvider } from '../IsolationExecutionProvider';
 
 export const ISOLATED_AGENT_ENGINE_ID = 'aist-isolated-agent';
 
@@ -10,7 +10,7 @@ export type IsolatedAgentAutonomousEngineRunInput = {
   readonly runPrompt: string;
   readonly worktreePath: string;
   readonly containerName: string;
-  readonly dockerProvider: LocalDockerIsolationProvider;
+  readonly dockerProvider: IsolationExecutionProvider;
   readonly stageIndex?: number;
   readonly model?: string;
   readonly registerStopHandler?: (handler: () => void) => void;
@@ -20,7 +20,7 @@ export type CreateIsolatedAgentAutonomousEngineOptions = {
   readonly session: IsolationSessionSummary;
   readonly worktreePath: string;
   readonly containerName: string;
-  readonly dockerProvider: LocalDockerIsolationProvider;
+  readonly dockerProvider: IsolationExecutionProvider;
   readonly runAgent: (input: IsolatedAgentAutonomousEngineRunInput) => Promise<{ runId?: string; answer?: string }>;
   readonly registerStopHandler?: (handler: () => void) => void;
 };

@@ -11,6 +11,10 @@ export function handleIsolationRpcMethod({
 }): DaemonHandlerResult {
   const methodMap: Record<string, string> = {
     'isolation.list': 'isolationList',
+    'isolation.runners': 'isolationRunners',
+    'isolation.remoteServers.list': 'isolationRemoteServerList',
+    'isolation.remoteServers.upsert': 'isolationRemoteServerUpsert',
+    'isolation.remoteServers.delete': 'isolationRemoteServerDelete',
     'isolation.start': 'isolationStart',
     'isolation.continue': 'isolationContinue',
     'isolation.status': 'isolationStatus',
