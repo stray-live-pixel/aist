@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http';
 
-import type { AgentWebEventMessage } from '../../../../shared/agentWebTypes';
+import type { AgentWebEventMessage } from '../../../agentWebTypes';
 
 export function writeSse({
   response,

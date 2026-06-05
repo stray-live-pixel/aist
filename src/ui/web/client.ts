@@ -1,4 +1,4 @@
-import type { AgentWebEventMessage, AgentWebRpcRequest, AgentWebRpcResponse } from '../shared/agentWebTypes';
+import type { AgentWebEventMessage, AgentWebRpcRequest, AgentWebRpcResponse } from './agentWebTypes';
 
 export async function rpc<T>(method: string, params?: unknown): Promise<T> {
   const response = await fetch('/api/rpc', {

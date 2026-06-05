@@ -124,3 +124,26 @@ transient state, connection status, pending UI ops. Экшены вызываю�
   это механическая работа, выполняется инкрементально и не блокирует DoD по архитектуре.
 - **Browser ports в shared:** AudioContext/localStorage/clipboard доступны во всех webview-средах; постепенно
   выносятся в capability-порты adapter для desktop/headless.
+
+## 7. Статус (что сделано)
+
+Готово и проверено (tsc, build:webview, build:web, web e2e, unit-тесты):
+
+- Весь UI перенесён `src/webview` → `src/ui/shared` (один общий UI для всех оболочек).
+- Adapter contract `AgentHost` + singleton + mock; реализации web (`createWebAgentHost`, RPC+SSE) и
+  VS Code (`createVscodeAgentHost`, postMessage). Общий UI больше не импортирует vscode/web API.
+- Общий store на Zustand + devtools (projection, страницы, единый error surface, `ingest()`).
+- VS Code shell и web shell рендерят один и тот же общий App через свои адаптеры.
+- Web e2e на mock adapter (`tests/web-e2e`) для chat-flow; стабильные `data-test-id` у composer.
+- Удалён старый web MVP; `agentWebTypes` (web RPC contract) перенесён в `src/ui/web`.
+
+Осталось как механическая/серверная работа (не блокирует архитектуру):
+
+- **Convention pass:** привести легаси-компоненты к именам `Component.tsx/.types.ts/.storybook.tsx`
+  и убрать barrel `index.ts` (новый foundation-код уже следует конвенции). Существующие компоненты
+  уже разложены по per-folder FSD со своими `.module.scss`/`.stories.tsx`.
+- **Web data-паритет:** web server отдаёт только `DaemonState`; полная сборка `AgentState`
+  (модели/режимы/permissions/телеметрия) на стороне `src/ui/web/server` — отдельная задача. Сейчас
+  web adapter накладывает реальные chat-данные на безопасный baseline (`createDefaultAgentState`).
+- **Capability-порты:** clipboard/localStorage/AudioContext вынести в `AgentHost` для desktop/headless.
+- **Расширение web e2e и Storybook states** на settings/autonomous/isolation вертикали.

@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { AgentWebRpcRequest, AgentWebRpcResponse } from '../../../../../shared/agentWebTypes';
+import type { AgentWebRpcRequest, AgentWebRpcResponse } from '../../../../agentWebTypes';
 import type { CreateServerDeps } from '../../../createServer';
 import { mapRpcError } from './mapRpcError';
 

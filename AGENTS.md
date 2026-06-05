@@ -12,11 +12,11 @@
 Сначала прочитай AGENTS.md, README.md, package.json и src/core/README.md. Затем выбери нужный слой:
 - backend/runtime/инструменты/память/модели: src/core/** и src/cli/**;
 - VS Code adapter, команды, diff preview, bridge к daemon: src/extension.ts и src/extension/**;
-- webview UI: src/webview/**, docs/webview-design-system.md и Storybook stories рядом с компонентами;
-- e2e/screenshot tests: docs/e2e-testing-skill.md и tests/e2e/** или tests/component-screenshots/**;
+- общий UI (web + VS Code + desktop): src/ui/shared/**; оболочки и адаптеры: src/ui/web/** и src/ui/vscode/**; правила в src/ui/docs/*.md и Storybook stories рядом с компонентами;
+- e2e/screenshot tests: docs/e2e-testing-skill.md, web e2e на mock — tests/web-e2e/**, VS Code e2e — tests/e2e/**, screenshots — tests/component-screenshots/**;
 - пользовательская документация и сайт: docs/** и website/**.
 
-Перед изменениями найди ближайший тест (*.test.ts, *.test.tsx, *.spec.ts) и публичный фасад/index.ts. Сохраняй границы слоёв: src/core не импортирует vscode, webview не зависит от extension host, extension остаётся thin-client/adapters слоем, daemon/core — source of truth для agent backend. После структурных изменений обнови AGENTS.md, если карта или список ключевых файлов устарели.
+Перед изменениями найди ближайший тест (*.test.ts, *.test.tsx, *.spec.ts). Сохраняй границы слоёв: src/core не импортирует vscode; общий UI src/ui/shared не импортирует vscode/web/desktop API и ходит к хосту только через порт AgentHost (src/ui/shared/api/agentHost.ts); extension остаётся thin-client/adapters слоем; daemon/core — source of truth для agent backend. После структурных изменений обнови AGENTS.md, если карта или список ключевых файлов устарели.
 ```
 
 ## Что это за проект
@@ -41,8 +41,10 @@ npm run build
 npm run build:cli
 npm run build:extension
 npm run build:webview
+npm run build:web
 npm run storybook
 npm run test:e2e
+npm run test:web-e2e
 npm run test:components:screenshots
 ```
 
@@ -56,7 +58,7 @@ src/
   core/               Editor-agnostic runtime, доменная логика, tools, storage, models.
   cli/                CLI entrypoint, daemon server/client, JSON-RPC protocol.
   extension/          VS Code adapters: controller, daemon bridge, webview host, previews.
-  webview/            React-приложение webview по FSD.
+  ui/                 Общий UI: shared/ (React, store, adapter contracts), web/ и vscode/ (оболочки + адаптеры).
 
 tests/
   e2e/                Playwright e2e сценарии VS Code webview.
@@ -99,33 +101,52 @@ CLI предоставляет бинарь `aist` и daemon backend. Daemon —
 
 Важно: не переносить agent backend обратно в extension. Если логика должна работать headless/CLI — она должна жить в `src/core/**` или `src/cli/**`.
 
-### `src/webview/**` — React UI
+### `src/ui/**` — общий React UI и оболочки
 
-Webview построен по Feature-Sliced Design:
+Общий UI построен по Feature-Sliced Design и живёт в `src/ui/shared/**`. Он не зависит от среды
+запуска: к хосту обращается только через порт `AgentHost`. Web, VS Code и desktop — это оболочка
++ адаптер.
 
-- `app/` — root React app, global styles, bootstrap.
-- `pages/` — страницы: chat, settings/permissions, autonomous.
-- `widgets/` — крупные композиционные блоки, если есть.
-- `features/` — пользовательские действия: send-message, select-model, select-agent-mode, copy-message, permissions controls.
-- `entities/` — UI-представления доменных сущностей: message cards, tool results, workspace links.
-- `shared/` — i18n, types, agent actions/patches, shared UI-kit.
-- `storybook/` — fixtures и stories infrastructure.
+`src/ui/shared/**`:
 
-Перед UI-изменениями читай `docs/webview-design-system.md` и stories рядом с компонентом.
+- `app/` — root React `App` + `mountApp` (без авто-рендера; оболочка вызывает его сама).
+- `api/` — adapter contracts: `AgentHost` (postMessage/subscribe/persisted), host-neutral сообщения,
+  singleton `agentHost.ts`, `mock/createMockAgentHost.ts` для Storybook/e2e.
+- `store/` — общий store на Zustand + devtools: projection daemon-состояния, страницы, единый error
+  surface; `ingest()` проецирует входящие сообщения хоста (переиспользует `agentPatches`).
+- `pages/` — chat, permissions(settings), autonomous, isolation.
+- `widgets/` — message-list и другие крупные блоки.
+- `features/` — send-message, select-model, select-agent-mode, copy-message, permissions controls.
+- `entities/` — message cards, tool results, workspace links.
+- `ui/` — shared UI-kit (Button, Card, Select, Modal, ...).
+- `i18n/`, `types/`, `lib/` (agentActions/agentPatches и transport-agnostic helpers).
+
+Оболочки:
+
+- `src/ui/web/**` — web shell + `adapters/createWebAgentHost.ts` (HTTP RPC + SSE) + Fastify
+  `server/**`. Mock-вариант для e2e — `e2e/mountMockWebUi.tsx`.
+- `src/ui/vscode/**` — VS Code shell + `adapters/createVscodeAgentHost.ts` (postMessage); сборка
+  через `scripts/build-webview.mjs` → `dist/webview.js`.
+
+Правила UI: `src/ui/docs/client-development-style.md`, `development-style.md`, `tech-stack.md`,
+`docs/webview-design-system.md` и план переноса `src/ui/docs/ui-migration-plan.md`. Stories лежат
+рядом с компонентом.
 
 ## Потоки данных
 
 ### Chat request flow
 
-1. Пользователь вводит prompt в `src/webview/features/send-message/**`.
-2. Webview отправляет message через `src/webview/shared/lib/agentActions/**`.
+1. Пользователь вводит prompt в `src/ui/shared/features/send-message/**`.
+2. Общий UI отправляет действие через `agentActions` → `post()` → порт `AgentHost.postMessage`.
+   В VS Code это `createVscodeAgentHost` (postMessage), в web — `createWebAgentHost` (HTTP RPC).
 3. Extension host принимает его в `src/extension/agent/webview/messages/**`.
 4. `src/extension/agent/daemon/bridge/**` отправляет JSON-RPC запрос daemon.
 5. Daemon method в `src/cli/daemonServer/methods/chatAsk.ts` создаёт/ведёт run.
 6. Runtime `src/core/app/runtime/agentRuntime.ts` готовит prompt, вызывает model client, исполняет tools и пишет события.
 7. Daemon публикует events/state patches обратно в extension bridge.
-8. Extension мапит daemon events в webview patches через `src/extension/agent/webview/mapDaemonEventToChatPatch.ts`.
-9. Webview применяет patches в `src/webview/shared/lib/agentPatches/**`.
+8. Extension мапит daemon events в patches через `src/extension/agent/webview/mapDaemonEventToChatPatch.ts`.
+9. Оболочка доставляет сообщение в общий UI через `AgentHost.subscribe`; store `ingest()` применяет его
+   (chat.patch через `src/ui/shared/lib/agentPatches/**`).
 
 ### Tool/approval flow
 
@@ -139,7 +160,7 @@ Webview построен по Feature-Sliced Design:
 ### Isolated agent sessions flow
 
 1. Пользователь открывает UI изолированных агентов в webview, выбирает single-step режим или autonomous flow и запускает задачу.
-2. Webview отправляет `isolation.*` action через `src/webview/shared/lib/agentActions/**`, включая выбранный `flowId`, если нужен flow-based режим.
+2. Webview отправляет `isolation.*` action через `src/ui/shared/shared/lib/agentActions/**`, включая выбранный `flowId`, если нужен flow-based режим.
 3. Extension controller вызывает daemon bridge methods в `src/extension/agent/daemon/bridge/**`.
 4. Daemon JSON-RPC методы `isolation.*` управляют `src/cli/daemonServer/isolation/IsolationSessionManager.ts`; доступные flow modes берутся из autonomous definitions и попадают в daemon state.
 5. Session manager резолвит GitHub remote/base metadata через `src/cli/daemonServer/isolation/git/IsolationGitService.ts` и запускает `docker-local` provider без host worktree mount.
@@ -262,30 +283,27 @@ Webview построен по Feature-Sliced Design:
 - `src/extension/tools/permissions.ts` — extension tool permissions helpers.
 - `src/extension/shared/i18n/*.json` — extension host translations.
 
-### Webview UI
+### Общий UI (src/ui)
 
-- `src/webview/app/index.tsx` — React bootstrap.
-- `src/webview/app/App.tsx` — top-level app routing/state composition.
-- `src/webview/app/styles.css` — global webview styles and CSS variables.
-- `src/webview/pages/chat/ChatPage.tsx` — chat page facade.
-- `src/webview/pages/chat/ChatPageParts/ChatPage.tsx` — chat page implementation.
-- `src/webview/features/send-message/Composer.tsx` — composer facade.
-- `src/webview/features/send-message/Composer/useComposerController.ts` — composer controller hook.
-- `src/webview/features/select-model/ModelSelect.tsx` — provider/model selector.
-- `src/webview/features/select-agent-mode/AgentModeSelect.tsx` — mode selector.
-- `src/webview/entities/message/message-card/MessageCard.tsx` — user/assistant message card.
-- `src/webview/entities/message/tool-message-card/ToolMessageCard.tsx` — tool call card.
-- `src/webview/entities/message/tool-result-preview/ToolResultPreview.tsx` — tool result preview facade.
-- `src/webview/entities/message/tool-message-model/toolMessageModel.ts` — display model for tool messages.
-- `src/webview/pages/permissions/PermissionsPage.tsx` — settings/permissions page facade.
-- `src/webview/pages/permissions/permissions-page/PermissionsPage.tsx` — settings implementation shell.
-- `src/webview/pages/autonomous/AutonomousPage.tsx` — autonomous page facade.
-- `src/webview/pages/isolation/IsolationPage.tsx` — isolated agent sessions UI.
-- `src/webview/shared/lib/agentActions.ts` — webview-to-extension action facade.
-- `src/webview/shared/lib/agentPatches/applyAgentPatch.ts` — state patch application.
-- `src/webview/shared/types.ts` — shared webview type exports.
-- `src/webview/shared/ui/index.ts` — UI-kit public exports.
-- `src/webview/shared/i18n/*.json` — webview translations.
+- `src/ui/shared/app/App.tsx` — корневой компонент: подписка store на хост + выбор страницы.
+- `src/ui/shared/app/mountApp.tsx` — монтирование UI (вызывается оболочкой после setAgentHost).
+- `src/ui/shared/api/AgentHost.types.ts` — контракт порта хоста.
+- `src/ui/shared/api/agentHost.ts` — singleton setAgentHost/getAgentHost.
+- `src/ui/shared/api/mock/createMockAgentHost.ts` — in-memory хост для Storybook/web e2e.
+- `src/ui/shared/store/agentStore.ts` — Zustand store: projection, страницы, error surface, ingest().
+- `src/ui/shared/lib/agentActions.ts` — фасад действий UI → `post()` → `AgentHost.postMessage`.
+- `src/ui/shared/lib/agentPatches/applyAgentPatch.ts` — применение chat-патчей в store.
+- `src/ui/shared/app/styles.css` — global стили и CSS variables.
+- `src/ui/shared/pages/chat/ChatPage.tsx` (+ `ChatPageParts/ChatPage.tsx`) — chat page.
+- `src/ui/shared/features/send-message/Composer.tsx` (+ `Composer/useComposerController.ts`) — composer.
+- `src/ui/shared/features/select-model/ModelSelect.tsx`, `select-agent-mode/AgentModeSelect.tsx`.
+- `src/ui/shared/entities/message/**` — message/tool cards, tool-result preview, tool-message-model.
+- `src/ui/shared/pages/permissions/**` — settings/permissions.
+- `src/ui/shared/pages/autonomous/AutonomousPage.tsx`, `pages/isolation/IsolationPage.tsx`.
+- `src/ui/shared/types.ts` — barrel доменных projection-типов; `shared/i18n/*.json` — переводы ru/en.
+- `src/ui/web/index.tsx` + `adapters/createWebAgentHost.ts` + `agentWebTypes.ts` — web shell/adapter.
+- `src/ui/vscode/index.tsx` + `adapters/createVscodeAgentHost.ts` — VS Code shell/adapter.
+- `tests/web-e2e/**` + `playwright.web.config.ts` — web e2e на mock adapter.
 
 ### Тесты
 
@@ -294,7 +312,7 @@ Webview построен по Feature-Sliced Design:
 - `tests/e2e/features/**` — Playwright e2e user flows.
 - `tests/e2e/sources/**` — e2e helpers and OpenRouter mock.
 - `tests/component-screenshots/**` — component screenshot harness/tests.
-- `src/webview/**/*.stories.tsx` — Storybook stories for UI states.
+- `src/ui/shared/**/*.stories.tsx` — Storybook stories for UI states.
 
 ## Как быстро искать нужное место
 
@@ -303,13 +321,13 @@ Webview построен по Feature-Sliced Design:
 - Model request bugs: `src/core/entities/model/*Transport.ts`, `src/cli/daemonServer/methods/createModelClientForModel.ts`, `createRoutingModelClient.ts`.
 - Tool execution bugs: `src/core/features/tool-execution/**`, `src/core/tools/**`, `src/core/features/approval/**`.
 - File edit preview bugs: `src/extension/tools/editableDiffPreview.ts` and `src/core/features/approval/approvalProtocol.ts`.
-- Webview message bugs: `src/webview/shared/lib/agentActions/**` → `src/extension/agent/webview/messages/**`.
-- UI state patch bugs: `src/extension/agent/webview/mapDaemonEventToChatPatch.ts` → `src/webview/shared/lib/agentPatches/**`.
-- Chat list/state bugs: `src/core/entities/chat/chatRepository.ts`, `src/extension/agent/daemon/chatStore.ts`, `src/webview/pages/chat/**`.
-- Settings UI bugs: `src/webview/pages/permissions/**`, `src/extension/agent/config/**`, `package.json` configuration schema.
+- Webview message bugs: `src/ui/shared/shared/lib/agentActions/**` → `src/extension/agent/webview/messages/**`.
+- UI state patch bugs: `src/extension/agent/webview/mapDaemonEventToChatPatch.ts` → `src/ui/shared/shared/lib/agentPatches/**`.
+- Chat list/state bugs: `src/core/entities/chat/chatRepository.ts`, `src/extension/agent/daemon/chatStore.ts`, `src/ui/shared/pages/chat/**`.
+- Settings UI bugs: `src/ui/shared/pages/permissions/**`, `src/extension/agent/config/**`, `package.json` configuration schema.
 - Memory behavior: `src/core/entities/memory/**`, `src/core/features/memory-subagent/**`, related e2e in `tests/e2e/features/memory-subagent/**`.
-- Autonomous runner: `src/core/processes/autonomous/**`, `src/extension/autonomous/**`, `src/webview/pages/autonomous/**`.
-- Performance telemetry: `src/core/features/performanceTelemetry/**`, settings telemetry page in `src/webview/pages/permissions/**/telemetry-*`.
+- Autonomous runner: `src/core/processes/autonomous/**`, `src/extension/autonomous/**`, `src/ui/shared/pages/autonomous/**`.
+- Performance telemetry: `src/core/features/performanceTelemetry/**`, settings telemetry page in `src/ui/shared/pages/permissions/**/telemetry-*`.
 
 ## Правила изменений для агентов
 
