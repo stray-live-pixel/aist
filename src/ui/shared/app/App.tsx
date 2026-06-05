@@ -1,106 +1,45 @@
 import { AlertTriangle, Bot, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
+import { getAgentHost } from '../api/agentHost';
+import { I18nProvider } from '../i18n';
+import { agentActions } from '../lib/agentActions';
 import { AutonomousPage } from '../pages/autonomous/AutonomousPage';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
-import type { SettingsPageId } from '../pages/permissions/permissions-page/types';
-import { I18nProvider, translate } from '../i18n';
-import { agentActions } from '../lib/agentActions';
-import { applyAgentPatch } from '../lib/agentPatches';
-import { AgentStateProvider } from '../lib/agentState';
-import { getAgentHost } from '../api/agentHost';
-import type { AgentState, AutonomousState, ExtensionToWebviewMessage } from '../types';
+import { useAgentStore } from '../store/agentStore';
 import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../ui';
 import { IconButton } from '../ui/IconButton';
 import styles from './App.module.scss';
 
 /**
- * Что это: корневой React-компонент webview.
- * Зачем нужно: принимает состояние от extension через IPC и выбирает между чат-страницей, настройками и глобальной error-модалкой.
+ * Что это: корневой React-компонент общего UI.
+ * Зачем нужно: подписывает store на сообщения хоста и выбирает между чат-страницей, настройками,
+ * autonomous-редактором и глобальным error surface. Вся бизнес-логика живёт в store и страницах.
  */
 export function App() {
-  const [state, setState] = useState<AgentState | null>(null);
-  const [autonomousState, setAutonomousState] = useState<AutonomousState | null>(null);
-  const [page, setPage] = useState<'chat' | 'settings' | 'autonomous'>('chat');
-  const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPageId>('overview');
-  const [autonomousRouteRequest, setAutonomousRouteRequest] = useState<{ route: 'flows'; nonce: number } | null>(null);
-  const [autonomousOperation, setAutonomousOperation] = useState<{
-    operation: 'deleteFlow';
-    flowId: string;
-    status: 'done' | 'cancelled' | 'error';
-    nonce: number;
-  } | null>(null);
-  const [errorModal, setErrorModal] = useState<string | null>(null);
-  const [autonomousError, setAutonomousError] = useState<string | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState(() => translate('ru', 'app.loadingAgent'));
+  const state = useAgentStore((store) => store.state);
+  const autonomousState = useAgentStore((store) => store.autonomousState);
+  const page = useAgentStore((store) => store.page);
+  const settingsInitialPage = useAgentStore((store) => store.settingsInitialPage);
+  const autonomousRouteRequest = useAgentStore((store) => store.autonomousRouteRequest);
+  const autonomousOperation = useAgentStore((store) => store.autonomousOperation);
+  const errorModal = useAgentStore((store) => store.errorModal);
+  const autonomousError = useAgentStore((store) => store.autonomousError);
+  const loadingMessage = useAgentStore((store) => store.loadingMessage);
+  const ingest = useAgentStore((store) => store.ingest);
+  const openSettings = useAgentStore((store) => store.openSettings);
+  const closeSettings = useAgentStore((store) => store.closeSettings);
+  const dismissError = useAgentStore((store) => store.dismissError);
 
   useEffect(() => {
-    const listener = (message: ExtensionToWebviewMessage) => {
-      if (message.type === 'state') {
-        setState((current) => ({
-          ...message,
-          isolationEventsBySessionId: current?.isolationEventsBySessionId || message.isolationEventsBySessionId || {}
-        }));
-        setLoadingMessage(translate(message.agentLanguage, 'app.loadingAgent'));
-        if (message.viewKind === 'editor') {
-          getAgentHost().setPersistedState({ chatId: message.activeChat.id });
-        }
-      } else if (message.type === 'loading') {
-        setState(null);
-        setLoadingMessage(message.message);
-      } else if (message.type === 'chat.patch') {
-        setState((current) => applyAgentPatch(current, message));
-      } else if (message.type === 'page') {
-        setPage(message.page);
-      } else if (message.type === 'errorModal') {
-        setErrorModal(message.message);
-      } else if (message.type === 'showIsolation' && message.flowModes) {
-        const flowModes = message.flowModes;
-        setState((current) =>
-          current
-            ? {
-                ...current,
-                isolationFlowModes: [...flowModes]
-              }
-            : current
-        );
-      } else if (message.type === 'autonomous.state') {
-        setAutonomousState(message.state);
-        setAutonomousError(null);
-      } else if (message.type === 'autonomous.error') {
-        setAutonomousError(message.message);
-      } else if (message.type === 'autonomous.route') {
-        setAutonomousRouteRequest({ route: message.route, nonce: Date.now() });
-      } else if (message.type === 'autonomous.operation') {
-        setAutonomousOperation({
-          operation: message.operation,
-          flowId: message.flowId,
-          status: message.status,
-          nonce: Date.now()
-        });
-      } else if (message.type === 'isolation.events') {
-        setState((current) =>
-          current
-            ? {
-                ...current,
-                isolationEventsBySessionId: {
-                  ...current.isolationEventsBySessionId,
-                  [message.sessionId]: message.events
-                }
-              }
-            : current
-        );
-      }
-    };
-
-    const unsubscribe = getAgentHost().subscribe(listener);
+    const unsubscribe = getAgentHost().subscribe(ingest);
     agentActions.webviewReady();
 
     return unsubscribe;
-  }, []);
+  }, [ingest]);
 
-  const modal = errorModal ? <GlobalErrorModal message={errorModal} onClose={() => setErrorModal(null)} /> : null;
+  const modal = errorModal ? <GlobalErrorModal message={errorModal} onClose={dismissError} /> : null;
 
   if (page === 'autonomous' && autonomousState) {
     return (
@@ -133,25 +72,16 @@ export function App() {
   if (page === 'settings') {
     return (
       <I18nProvider language={state.agentLanguage}>
-        <AgentStateProvider state={state}>
-          <PermissionsPage onBack={() => setPage('chat')} initialPage={settingsInitialPage} />
-          {modal}
-        </AgentStateProvider>
+        <PermissionsPage onBack={closeSettings} initialPage={settingsInitialPage} />
+        {modal}
       </I18nProvider>
     );
   }
 
   return (
     <I18nProvider language={state.agentLanguage}>
-      <AgentStateProvider state={state}>
-        <ChatPage
-          onOpenSettingsPage={(initialPage = 'overview') => {
-            setSettingsInitialPage(initialPage);
-            setPage('settings');
-          }}
-        />
-        {modal}
-      </AgentStateProvider>
+      <ChatPage onOpenSettingsPage={openSettings} />
+      {modal}
     </I18nProvider>
   );
 }

@@ -1,28 +1,38 @@
-import { type ReactNode, createContext, useContext } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
+import { useAgentStore } from '../store/agentStore';
 import type { AgentState, Chat } from '../types';
 
-const AgentStateContext = createContext<AgentState | null>(null);
-
 /**
- * Что это: read-only provider последнего снапшота AgentState из extension.
- * Зачем нужно: source of truth остаётся в extension, а webview получает удобный доступ к данным без прокидывания
- * большого AgentState через каждый промежуточный компонент.
+ * Что это: совместимый provider, который засевает общий store снапшотом AgentState.
+ * Зачем нужно: Storybook, screenshot-харнесс и страницы могут отрендериться с фиксированным
+ * состоянием без реального хоста. В рантайме store наполняет App через ingest(), поэтому provider
+ * здесь — это удобная точка для статичных снапшотов.
  */
 export function AgentStateProvider({ state, children }: { state: AgentState; children: ReactNode }) {
-  return <AgentStateContext.Provider value={state}>{children}</AgentStateContext.Provider>;
+  // Засеваем синхронно один раз до рендера детей, чтобы их useAgentState() не падал до эффекта.
+  useState(() => {
+    useAgentStore.setState({ state });
+    return null;
+  });
+
+  useEffect(() => {
+    useAgentStore.setState({ state });
+  }, [state]);
+
+  return <>{children}</>;
 }
 
 /**
  * Что это: безопасный доступ к AgentState из React-дерева.
- * Зачем нужно: хук явно падает вне provider, чтобы stories/страницы сразу показывали ошибку интеграции,
- * а не рендерили частично пустой UI.
+ * Зачем нужно: хук явно падает, если состояние ещё не загружено, чтобы stories/страницы сразу
+ * показывали ошибку интеграции, а не рендерили частично пустой UI.
  */
 export function useAgentState(): AgentState {
-  const state = useContext(AgentStateContext);
+  const state = useAgentStore((store) => store.state);
 
   if (!state) {
-    throw new Error('useAgentState must be used inside AgentStateProvider');
+    throw new Error('useAgentState must be used after AgentState is loaded');
   }
 
   return state;
