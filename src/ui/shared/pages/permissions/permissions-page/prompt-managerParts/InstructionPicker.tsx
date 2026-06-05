@@ -1,8 +1,8 @@
 import { memo } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { type AgentInstructionItem, type AgentItemRef } from '../../../../shared/types';
-import { Checkbox } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { type AgentInstructionItem, type AgentItemRef } from '../../../../types';
+import { Checkbox } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { refKey, scopeLabel } from '../utils';
 

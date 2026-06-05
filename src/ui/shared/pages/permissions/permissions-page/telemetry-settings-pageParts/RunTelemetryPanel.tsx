@@ -1,9 +1,9 @@
 import { Copy, FileJson, FileText } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
-import type { AgentRunTelemetryRecord, AgentTelemetryDashboard } from '../../../../shared/types';
-import { Badge, Button, Card } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
+import type { AgentRunTelemetryRecord, AgentTelemetryDashboard } from '../../../../types';
+import { Badge, Button, Card } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { formatBytes } from './formatBytes';
 import { formatDuration } from './formatDuration';

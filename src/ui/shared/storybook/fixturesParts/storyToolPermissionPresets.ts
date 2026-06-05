@@ -1,4 +1,4 @@
-import { type ToolPermissionPreset } from '../../shared/types';
+import { type ToolPermissionPreset } from '../../types';
 
 export const storyToolPermissionPresets: ToolPermissionPreset[] = [
   {

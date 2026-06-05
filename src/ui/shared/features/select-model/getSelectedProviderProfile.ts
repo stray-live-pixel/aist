@@ -1,4 +1,4 @@
-import type { ProviderProfile } from '../../shared/types';
+import type { ProviderProfile } from '../../types';
 
 /**
  * Что это: выбирает профиль провайдера для первого dropdown-а с fallback на базовый provider.

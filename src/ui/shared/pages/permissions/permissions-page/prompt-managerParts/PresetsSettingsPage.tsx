@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { type AgentPromptConfig } from '../../../../shared/types';
+import { type AgentPromptConfig } from '../../../../types';
 import styles from '../../PermissionsPage.module.scss';
 import { BehaviorScopeTabs, type BehaviorTab } from '../behavior-scope-tabs';
 import { ActivePresetCard } from './ActivePresetCard';

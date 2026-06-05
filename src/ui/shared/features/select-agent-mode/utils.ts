@@ -1,4 +1,4 @@
-import type { AgentModeId } from '../../shared/types';
+import type { AgentModeId } from '../../types';
 
 /**
  * Что это: список встроенных режимов, которые нельзя удалить из UI.

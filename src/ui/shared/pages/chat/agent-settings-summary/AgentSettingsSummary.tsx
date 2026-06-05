@@ -1,9 +1,9 @@
 import { FileText } from 'lucide-react';
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import type { AgentState } from '../../../shared/types';
-import { CompactControlGroup, CompactNavigationButton } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import type { AgentState } from '../../../types';
+import { CompactControlGroup, CompactNavigationButton } from '../../../ui';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
 import styles from '../ChatPage.module.scss';
 import { ComposerContextControls } from './ComposerContextControls';

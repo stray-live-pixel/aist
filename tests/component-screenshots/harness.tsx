@@ -6,7 +6,7 @@ import {
   ToolMessageCard,
   ToolResultPreview,
   WorkspaceFileLink
-} from '../../src/webview/entities/message';
+} from '../../src/ui/shared/entities/message';
 import {
   AgentModeSelect,
   Composer,
@@ -14,9 +14,9 @@ import {
   ModelSelect,
   PermissionPresetSelect,
   ToolPermissionSelect
-} from '../../src/webview/features';
-import { I18nProvider } from '../../src/webview/shared/i18n';
-import type { ChatMessage } from '../../src/webview/shared/types';
+} from '../../src/ui/shared/features';
+import { I18nProvider } from '../../src/ui/shared/i18n';
+import type { ChatMessage } from '../../src/ui/shared/types';
 import {
   storyAgentModes,
   storyMessages,
@@ -26,14 +26,14 @@ import {
   storyToolPermissionPresets,
   storyToolPermissions,
   storyTools
-} from '../../src/webview/storybook/fixtures';
+} from '../../src/ui/shared/storybook/fixtures';
 import {
   AgentActivityStatus,
   EmptyState,
   MessageList,
   SystemInstructionLabel,
   ToolCallsCut
-} from '../../src/webview/widgets/message-list';
+} from '../../src/ui/shared/widgets/message-list';
 import './base.css';
 
 /**
@@ -156,7 +156,7 @@ function renderScenario(scenario: ScenarioId) {
     case 'workspace-file-link':
       return (
         <WorkspaceFileLink
-          file={{ path: 'src/webview/entities/message/MessageCard.tsx', line: 14, label: 'component' }}
+          file={{ path: 'src/ui/shared/entities/message/MessageCard.tsx', line: 14, label: 'component' }}
         />
       );
     case 'feature-agent-mode-select':

@@ -1,9 +1,9 @@
 import { FileText, HelpCircle, Settings2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import type { AgentInstructionSource } from '../../../../shared/types';
-import { Button, Card, EmptyState, Tooltip } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import type { AgentInstructionSource } from '../../../../types';
+import { Button, Card, EmptyState, Tooltip } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import type { SettingsPageId } from '../types';
 import { InstructionSourceCard } from './InstructionSourceCard';

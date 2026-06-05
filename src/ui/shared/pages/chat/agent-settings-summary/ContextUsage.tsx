@@ -1,8 +1,8 @@
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import type { ChatContextEstimate } from '../../../shared/types';
-import { ContextUsageIndicator } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import type { ChatContextEstimate } from '../../../types';
+import { ContextUsageIndicator } from '../../../ui';
 import { formatTokens } from './formatters';
 
 /**

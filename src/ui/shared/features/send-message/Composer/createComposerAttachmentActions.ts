@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 
-import type { AgentAttachment } from '../../../shared/types';
+import type { AgentAttachment } from '../../../types';
 import { prepareComposerAttachments } from '../prepareComposerAttachments';
 
 /**

@@ -1,7 +1,7 @@
 import { ChevronRight, ExternalLink } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { Badge, Button, Text } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { Badge, Button, Text } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import type { SettingsPageId } from '../types';
 import type { InstructionSourceViewModel } from './InstructionSourceViewModel';

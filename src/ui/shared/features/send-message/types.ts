@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { AgentAttachment } from '../../shared/types';
+import type { AgentAttachment } from '../../types';
 
 /**
  * Что это: публичные props composer ввода сообщения.

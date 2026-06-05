@@ -1,4 +1,4 @@
-import type { AgentMode, AgentModeId } from '../../shared/types';
+import type { AgentMode, AgentModeId } from '../../types';
 
 /**
  * Что это: публичные props выпадающего списка режимов агента.

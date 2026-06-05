@@ -1,10 +1,10 @@
 import { Gauge } from 'lucide-react';
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentLanguage, ComposerUiSettings } from '../../../shared/types';
-import { Card, Select, Switch, TextField } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import type { AgentLanguage, ComposerUiSettings } from '../../../types';
+import { Card, Select, Switch, TextField } from '../../../ui';
 import styles from '../PermissionsPage.module.scss';
 import { clampNumber } from './utils';
 

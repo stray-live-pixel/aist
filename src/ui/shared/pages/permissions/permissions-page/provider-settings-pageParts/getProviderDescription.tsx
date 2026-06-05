@@ -1,5 +1,5 @@
-import { useI18n } from '../../../../shared/i18n';
-import { type ProviderProfile } from '../../../../shared/types';
+import { useI18n } from '../../../../i18n';
+import { type ProviderProfile } from '../../../../types';
 
 export function getProviderDescription(
   provider: ProviderProfile['provider'],

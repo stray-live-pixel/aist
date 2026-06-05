@@ -1,9 +1,9 @@
 import { Server } from 'lucide-react';
 
-import { isIsolationSessionActive } from '../../../shared/lib/isolation';
-import type { AgentState, ChatMessage, IsolationSessionSummary } from '../../../shared/types';
-import { Badge, Text } from '../../../shared/ui';
-import type { BadgeTone } from '../../../shared/ui';
+import { isIsolationSessionActive } from '../../../lib/isolation';
+import type { AgentState, ChatMessage, IsolationSessionSummary } from '../../../types';
+import { Badge, Text } from '../../../ui';
+import type { BadgeTone } from '../../../ui';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
 import { ModelSettingsPanel } from '../AgentSettingsSummary';
 import { ApprovalPromptModal } from '../ApprovalPromptModal';

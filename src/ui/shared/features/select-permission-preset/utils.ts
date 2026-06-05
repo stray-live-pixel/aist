@@ -1,5 +1,5 @@
-import type { useI18n } from '../../shared/i18n';
-import type { ToolPermissionPreset, ToolPermissionPresetId } from '../../shared/types';
+import type { useI18n } from '../../i18n';
+import type { ToolPermissionPreset, ToolPermissionPresetId } from '../../types';
 
 /**
  * Что это: вычисление описания выбранного preset для title select.

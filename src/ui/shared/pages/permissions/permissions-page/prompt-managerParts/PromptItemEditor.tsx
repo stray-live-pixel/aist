@@ -1,15 +1,15 @@
 import { Save } from 'lucide-react';
 import { useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
 import {
   type AgentInstructionItem,
   type AgentInstructionKind,
   type AgentItemScope,
   type AgentModeItem
-} from '../../../../shared/types';
-import { Button, Card, TextArea, TextField } from '../../../../shared/ui';
+} from '../../../../types';
+import { Button, Card, TextArea, TextField } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { scopeLabel } from '../utils';
 

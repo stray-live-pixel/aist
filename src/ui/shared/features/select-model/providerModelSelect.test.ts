@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ModelOption, ProviderProfile } from '../../shared/types';
+import type { ModelOption, ProviderProfile } from '../../types';
 import { getActiveModelProvider } from './getActiveModelProvider';
 import { getProviderModelOptions } from './getProviderModelOptions';
 import { getProviderOptions } from './getProviderOptions';

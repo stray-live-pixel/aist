@@ -1,6 +1,6 @@
-import type { TranslationKey } from '../../shared/i18n';
-import type { ModelOption } from '../../shared/types';
-import type { SelectOption } from '../../shared/ui';
+import type { TranslationKey } from '../../i18n';
+import type { ModelOption } from '../../types';
+import type { SelectOption } from '../../ui';
 
 /**
  * Возвращает варианты усилия рассуждения для выбранной модели.

@@ -1,4 +1,4 @@
-import type { Chat } from '../../../shared/types';
+import type { Chat } from '../../../types';
 
 /**
  * Что это: входные данные строки активности агента.

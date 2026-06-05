@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import type { MouseEvent } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
+import { useI18n } from '../../../i18n';
 import styles from './ToolRawJsonModal.module.scss';
 import type { ToolRawJsonModalProps } from './types';
 

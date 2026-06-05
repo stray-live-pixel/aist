@@ -1,10 +1,10 @@
 import { Save, Trash2 } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentSkill, ToolPermissionMode } from '../../../shared/types';
-import { Button, Card, Select, TextArea, TextField } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import type { AgentSkill, ToolPermissionMode } from '../../../types';
+import { Button, Card, Select, TextArea, TextField } from '../../../ui';
 import styles from '../PermissionsPage.module.scss';
 import { BehaviorScopeTabs, type BehaviorTab } from './behavior-scope-tabs';
 import { getPermissionOptions } from './utils';

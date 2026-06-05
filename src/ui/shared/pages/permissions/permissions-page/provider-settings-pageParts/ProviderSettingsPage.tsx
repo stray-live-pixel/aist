@@ -1,10 +1,10 @@
 import { Copy, Trash2 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
-import { type AgentState, type ProviderProfile } from '../../../../shared/types';
-import { Badge, Button, Card, Select, Text, TextField } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
+import { type AgentState, type ProviderProfile } from '../../../../types';
+import { Badge, Button, Card, Select, Text, TextField } from '../../../../ui';
 import { RequestSettingsPanel } from '../../../chat/RequestSettingsPanel';
 import styles from '../../PermissionsPage.module.scss';
 import { CodexAuthRow } from './CodexAuthRow';

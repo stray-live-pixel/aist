@@ -1,4 +1,4 @@
-import type { AgentState } from '../../../shared/types';
+import type { AgentState } from '../../../types';
 
 /**
  * Что это: проверяет, отличаются ли настройки модели чата от настроек по умолчанию.

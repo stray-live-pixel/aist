@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IsolationSessionSummary, IsolationSessionStatus } from '../../shared/types';
+import type { IsolationSessionSummary, IsolationSessionStatus } from '../../types';
 import { shouldEnableIsolationStandardChat } from './shouldEnableIsolationStandardChat';
 
 /**

@@ -1,16 +1,16 @@
 import { Brain, Cpu, FileText, RadioTower, ShieldCheck } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
-import { type TranslationKey, useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
+import { type TranslationKey, useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
 import type {
   AgentState,
   ChatModelSettings,
   EditorContextMode,
   ModelOption,
   ReasoningEffort
-} from '../../shared/types';
-import { Card, Select, type SelectCategory, type SelectOption, Switch, Text } from '../../shared/ui';
+} from '../../types';
+import { Card, Select, type SelectCategory, type SelectOption, Switch, Text } from '../../ui';
 import styles from './RequestSettingsPanel.module.scss';
 import { getReasoningOptions } from './getReasoningOptions';
 

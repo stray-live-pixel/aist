@@ -1,7 +1,7 @@
 import { FileCode2 } from 'lucide-react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
 import styles from './WorkspaceFileLink.module.scss';
 import type { WorkspaceFileLinkProps } from './types';
 

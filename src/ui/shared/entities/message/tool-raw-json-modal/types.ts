@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 
-import type { ChatMessage } from '../../../shared/types';
+import type { ChatMessage } from '../../../types';
 
 /**
  * Что это: props модалки с сырым JSON tool-call.

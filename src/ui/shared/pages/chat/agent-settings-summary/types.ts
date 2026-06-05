@@ -1,4 +1,4 @@
-import type { useI18n } from '../../../shared/i18n';
+import type { useI18n } from '../../../i18n';
 
 /**
  * Что это: тип функции перевода webview.

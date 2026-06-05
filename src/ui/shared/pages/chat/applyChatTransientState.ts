@@ -1,4 +1,4 @@
-import type { AgentAttachment, Chat, ChatMessage } from '../../shared/types';
+import type { AgentAttachment, Chat, ChatMessage } from '../../types';
 import type { ChatTransientState, PendingUserMessage } from './chatTransientState';
 
 /**

@@ -1,5 +1,5 @@
-import { pluralKey, type useI18n } from '../../../shared/i18n';
-import type { ChatMessage } from '../../../shared/types';
+import { pluralKey, type useI18n } from '../../../i18n';
+import type { ChatMessage } from '../../../types';
 import type { FileReference } from '../tool-message-model/types';
 import { arrayValue, asRecord, asString } from '../tool-value';
 import type { BashFact } from './types';

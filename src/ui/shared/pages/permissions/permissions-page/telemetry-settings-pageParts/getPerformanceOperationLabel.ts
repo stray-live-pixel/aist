@@ -1,5 +1,5 @@
-import type { useI18n } from '../../../../shared/i18n';
-import type { PerformanceTelemetryOperation } from '../../../../shared/types';
+import type { useI18n } from '../../../../i18n';
+import type { PerformanceTelemetryOperation } from '../../../../types';
 
 /**
  * Что это: переводит технический код performance operation в пользовательскую подпись.

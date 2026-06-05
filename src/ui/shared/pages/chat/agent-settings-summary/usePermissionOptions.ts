@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
-import type { AgentState } from '../../../shared/types';
-import type { SelectOption } from '../../../shared/ui';
+import type { AgentState } from '../../../types';
+import type { SelectOption } from '../../../ui';
 import type { Translate } from './types';
 
 /**

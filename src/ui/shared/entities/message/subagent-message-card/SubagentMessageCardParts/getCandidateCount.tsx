@@ -1,4 +1,4 @@
-import { type AgentReflectionCandidate, type ChatMessage, type SubagentRun } from '../../../../shared/types';
+import { type AgentReflectionCandidate, type ChatMessage, type SubagentRun } from '../../../../types';
 
 export function getCandidateCount(input: {
   message: ChatMessage;

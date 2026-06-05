@@ -1,5 +1,5 @@
-import type { ModelOption } from '../../../shared/types';
-import type { SelectOption } from '../../../shared/ui';
+import type { ModelOption } from '../../../types';
+import type { SelectOption } from '../../../ui';
 
 /**
  * Что это: возвращает варианты ускорения только для Codex-моделей с объявленной поддержкой.

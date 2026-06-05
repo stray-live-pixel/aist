@@ -1,4 +1,4 @@
-import { useI18n } from '../../../../shared/i18n';
+import { useI18n } from '../../../../i18n';
 import styles from '../ToolResultPreview.module.scss';
 import { getUniqueSearchFiles } from '../utils';
 import { LIST_PREVIEW_LIMIT } from './LIST_PREVIEW_LIMIT';

@@ -1,8 +1,8 @@
 import { Database, Lightbulb, Save, Trash2, X } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
-import { type TranslationKey, useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
+import { type TranslationKey, useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
 import type {
   AgentMemoryItem,
   AgentMemoryScope,
@@ -11,8 +11,8 @@ import type {
   MemorySettings,
   ModelOption,
   ReasoningEffort
-} from '../../../shared/types';
-import { Badge, Button, Card, Checkbox, Select, Switch } from '../../../shared/ui';
+} from '../../../types';
+import { Badge, Button, Card, Checkbox, Select, Switch } from '../../../ui';
 import styles from '../PermissionsPage.module.scss';
 
 export const MemorySettingsPage = memo(function MemorySettingsPage({

@@ -1,7 +1,7 @@
 import { Bot, ExternalLink } from 'lucide-react';
 
-import { Badge, Button, Text } from '../../../../shared/ui';
-import { AistAnimatedLogo } from '../../../../shared/ui/AistLogo';
+import { Badge, Button, Text } from '../../../../ui';
+import { AistAnimatedLogo } from '../../../../ui/AistLogo';
 import styles from '../SubagentMessageCard.module.scss';
 import { type SubagentMessageCardProps } from '../types';
 import { MemoryCandidateList } from './MemoryCandidateList';

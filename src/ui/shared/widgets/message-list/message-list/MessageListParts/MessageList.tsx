@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { useRenderPerformanceMetric } from '../../../../shared/lib/useRenderPerformanceMetric';
+import { useRenderPerformanceMetric } from '../../../../lib/useRenderPerformanceMetric';
 import { ActivePlanWidget } from '../../active-plan';
 import { AgentActivityStatus } from '../../agent-activity-status';
 import { EmptyState } from '../../empty-state';

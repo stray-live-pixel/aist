@@ -1,4 +1,4 @@
-import type { AgentAttachment } from '../../shared/types';
+import type { AgentAttachment } from '../../types';
 
 const TEXT_FILE_LIMIT_BYTES = 128 * 1024;
 

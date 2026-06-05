@@ -1,4 +1,4 @@
-import { useI18n } from '../../../../shared/i18n';
+import { useI18n } from '../../../../i18n';
 import { arrayValue } from '../../tool-value';
 import styles from '../ToolResultPreview.module.scss';
 import { LIST_PREVIEW_LIMIT } from './LIST_PREVIEW_LIMIT';

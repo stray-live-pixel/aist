@@ -1,7 +1,7 @@
-import { useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
-import type { ToolPermissionMode } from '../../shared/types';
-import { ToolIcon } from '../../shared/ui/ToolIcon';
+import { useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
+import type { ToolPermissionMode } from '../../types';
+import { ToolIcon } from '../../ui/ToolIcon';
 import styles from './ToolPermissionSelect.module.scss';
 import type { ToolPermissionSelectProps } from './types';
 import { formatPermission } from './utils';

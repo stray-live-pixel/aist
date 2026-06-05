@@ -1,4 +1,4 @@
-import { type AutonomousFlowDefinition, type EditableAutonomousFlowDefinition } from '../../../shared/types';
+import { type AutonomousFlowDefinition, type EditableAutonomousFlowDefinition } from '../../../types';
 
 export function toEditableFlow(flow: AutonomousFlowDefinition): EditableAutonomousFlowDefinition {
   return {

@@ -1,4 +1,4 @@
-import { type AutonomousState } from '../../../shared/types';
+import { type AutonomousState } from '../../../types';
 
 export type AutonomousPageProps = {
   state: AutonomousState;

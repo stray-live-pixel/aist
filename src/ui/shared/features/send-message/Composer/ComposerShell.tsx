@@ -1,8 +1,8 @@
 import { ChevronUp } from 'lucide-react';
 import type { ChangeEvent, DragEvent, KeyboardEvent, ReactNode, Ref } from 'react';
 
-import type { AgentAttachment } from '../../../shared/types';
-import { ComposerFrame, TextArea } from '../../../shared/ui';
+import type { AgentAttachment } from '../../../types';
+import { ComposerFrame, TextArea } from '../../../ui';
 import styles from '../Composer.module.scss';
 import { AttachmentTray } from './AttachmentTray';
 import { ComposerAttachButton } from './ComposerAttachButton';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Chat, ChatMessage } from '../../shared/types';
+import type { Chat, ChatMessage } from '../../types';
 import { applyChatTransientState, clearConfirmedTransientState } from './applyChatTransientState';
 import type { ChatTransientState } from './chatTransientState';
 

@@ -26,10 +26,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { type TranslationKey, useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
-import { useAgentState } from '../../shared/lib/agentState';
-import { isIsolationSessionActive } from '../../shared/lib/isolation';
+import { type TranslationKey, useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
+import { useAgentState } from '../../lib/agentState';
+import { isIsolationSessionActive } from '../../lib/isolation';
 import type {
   IsolationFlowModeSummary,
   IsolationRemoteServerAuthMethod,
@@ -41,7 +41,7 @@ import type {
   IsolationSessionEvent,
   IsolationSessionStatus,
   IsolationSessionSummary
-} from '../../shared/types';
+} from '../../types';
 import {
   Badge,
   Button,
@@ -57,8 +57,8 @@ import {
   Text,
   TextArea,
   TextField
-} from '../../shared/ui';
-import type { BadgeTone, KeyValueItem, PipelineStep, SelectOption } from '../../shared/ui';
+} from '../../ui';
+import type { BadgeTone, KeyValueItem, PipelineStep, SelectOption } from '../../ui';
 import styles from './IsolationPage.module.scss';
 import { shouldEnableIsolationStandardChat } from './shouldEnableIsolationStandardChat';
 

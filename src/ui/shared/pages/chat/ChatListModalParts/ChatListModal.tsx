@@ -1,10 +1,10 @@
 import { Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import { Button, ModalBackdrop, ModalHeader, ModalSurface } from '../../../shared/ui';
-import { IconButton } from '../../../shared/ui/IconButton';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import { Button, ModalBackdrop, ModalHeader, ModalSurface } from '../../../ui';
+import { IconButton } from '../../../ui/IconButton';
 import styles from '../ChatPage.module.scss';
 import { ChatListModalProps } from './ChatListModalProps';
 import { ChatRow } from './ChatRow';

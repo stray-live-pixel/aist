@@ -1,9 +1,9 @@
 import { Check, Database, LoaderCircle, MessageSquareText, Play, Square } from 'lucide-react';
 import { useState } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import { Button } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import { Button } from '../../../ui';
 import styles from './ToolApprovalActions.module.scss';
 import type { ToolApprovalActionsProps } from './types';
 

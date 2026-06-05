@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type TranslationKey, translate } from '../../../shared/i18n';
+import { type TranslationKey, translate } from '../../../i18n';
 import { buildToolDisplayModel } from './toolMessageModel';
 
 const t = (key: TranslationKey, values?: Record<string, string | number>) => translate('en', key, values);

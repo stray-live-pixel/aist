@@ -1,9 +1,9 @@
 import { Copy, Download, GitBranch, LoaderCircle, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { autonomousActions } from '../../../shared/lib/autonomousActions';
-import { type AutonomousFlowDefinition, type AutonomousState } from '../../../shared/types';
+import { useI18n } from '../../../i18n';
+import { autonomousActions } from '../../../lib/autonomousActions';
+import { type AutonomousFlowDefinition, type AutonomousState } from '../../../types';
 import {
   Badge,
   Button,
@@ -15,8 +15,8 @@ import {
   KeyValueGrid,
   Text,
   TextField
-} from '../../../shared/ui';
-import type { KeyValueItem } from '../../../shared/ui';
+} from '../../../ui';
+import type { KeyValueItem } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 import { toEditableFlow } from './toEditableFlow';
 

@@ -1,8 +1,8 @@
 import { GitBranch } from 'lucide-react';
 import { memo } from 'react';
 
-import { type AgentState } from '../../../shared/types';
-import { CompactNavigationButton } from '../../../shared/ui';
+import { type AgentState } from '../../../types';
+import { CompactNavigationButton } from '../../../ui';
 
 export const VcsToggleButton = memo(function VcsToggleButton({
   state,

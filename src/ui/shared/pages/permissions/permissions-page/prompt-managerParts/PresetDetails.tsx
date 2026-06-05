@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { type AgentInstructionItem, type AgentPromptConfig, type AgentPromptPreset } from '../../../../shared/types';
+import { useI18n } from '../../../../i18n';
+import { type AgentInstructionItem, type AgentPromptConfig, type AgentPromptPreset } from '../../../../types';
 import styles from '../../PermissionsPage.module.scss';
 import { refKey } from '../utils';
 import { MarkdownPreview } from './MarkdownPreview';

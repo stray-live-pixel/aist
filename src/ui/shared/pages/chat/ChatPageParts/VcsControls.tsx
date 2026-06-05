@@ -1,9 +1,9 @@
 import { GitBranch, GitCommitHorizontal, GitMerge, GitPullRequestCreate, RefreshCw } from 'lucide-react';
 import { memo } from 'react';
 
-import { agentActions } from '../../../shared/lib/agentActions';
-import { type AgentState } from '../../../shared/types';
-import { CompactNavigationButton } from '../../../shared/ui';
+import { agentActions } from '../../../lib/agentActions';
+import { type AgentState } from '../../../types';
+import { CompactNavigationButton } from '../../../ui';
 import styles from '../ChatPage.module.scss';
 
 export const VcsControls = memo(function VcsControls({

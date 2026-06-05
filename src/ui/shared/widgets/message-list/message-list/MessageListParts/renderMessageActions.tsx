@@ -1,5 +1,5 @@
 import { AnalyzeMemoryButton, CopyMessageButton } from '../../../../features';
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import styles from '../MessageList.module.scss';
 
 export function renderMessageActions(input: {

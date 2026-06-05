@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ModelOption } from '../../shared/types';
+import type { ModelOption } from '../../types';
 import { getReasoningOptions } from './getReasoningOptions';
 
 const t = (key: string) => key;

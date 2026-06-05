@@ -5,14 +5,14 @@ import { AutonomousPage } from '../pages/autonomous/AutonomousPage';
 import { ChatPage } from '../pages/chat/ChatPage';
 import { PermissionsPage } from '../pages/permissions/PermissionsPage';
 import type { SettingsPageId } from '../pages/permissions/permissions-page/types';
-import { I18nProvider, translate } from '../shared/i18n';
-import { agentActions } from '../shared/lib/agentActions';
-import { applyAgentPatch } from '../shared/lib/agentPatches';
-import { AgentStateProvider } from '../shared/lib/agentState';
-import { vscode } from '../shared/lib/vscode';
-import type { AgentState, AutonomousState, ExtensionToWebviewMessage } from '../shared/types';
-import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../shared/ui';
-import { IconButton } from '../shared/ui/IconButton';
+import { I18nProvider, translate } from '../i18n';
+import { agentActions } from '../lib/agentActions';
+import { applyAgentPatch } from '../lib/agentPatches';
+import { AgentStateProvider } from '../lib/agentState';
+import { getAgentHost } from '../api/agentHost';
+import type { AgentState, AutonomousState, ExtensionToWebviewMessage } from '../types';
+import { ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../ui';
+import { IconButton } from '../ui/IconButton';
 import styles from './App.module.scss';
 
 /**
@@ -36,9 +36,7 @@ export function App() {
   const [loadingMessage, setLoadingMessage] = useState(() => translate('ru', 'app.loadingAgent'));
 
   useEffect(() => {
-    const listener = (event: MessageEvent<ExtensionToWebviewMessage>) => {
-      const message = event.data;
-
+    const listener = (message: ExtensionToWebviewMessage) => {
       if (message.type === 'state') {
         setState((current) => ({
           ...message,
@@ -46,7 +44,7 @@ export function App() {
         }));
         setLoadingMessage(translate(message.agentLanguage, 'app.loadingAgent'));
         if (message.viewKind === 'editor') {
-          vscode.setState({ chatId: message.activeChat.id });
+          getAgentHost().setPersistedState({ chatId: message.activeChat.id });
         }
       } else if (message.type === 'loading') {
         setState(null);
@@ -96,10 +94,10 @@ export function App() {
       }
     };
 
-    window.addEventListener('message', listener);
+    const unsubscribe = getAgentHost().subscribe(listener);
     agentActions.webviewReady();
 
-    return () => window.removeEventListener('message', listener);
+    return unsubscribe;
   }, []);
 
   const modal = errorModal ? <GlobalErrorModal message={errorModal} onClose={() => setErrorModal(null)} /> : null;

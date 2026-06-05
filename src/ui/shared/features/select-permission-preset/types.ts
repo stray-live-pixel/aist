@@ -1,4 +1,4 @@
-import type { ToolPermissionPreset, ToolPermissionPresetId } from '../../shared/types';
+import type { ToolPermissionPreset, ToolPermissionPresetId } from '../../types';
 
 /**
  * Что это: props выбора preset доступа к инструментам.

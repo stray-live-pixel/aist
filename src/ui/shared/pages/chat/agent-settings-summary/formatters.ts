@@ -1,5 +1,5 @@
-import type { ToolPermissionPresetId } from '../../../shared/types';
-import type { SelectOption } from '../../../shared/ui';
+import type { ToolPermissionPresetId } from '../../../types';
+import type { SelectOption } from '../../../ui';
 
 /**
  * Что это: строит короткие подписи моделей для compact Select.

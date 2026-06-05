@@ -1,4 +1,4 @@
-import { type ProviderProfile } from '../../../../shared/types';
+import { type ProviderProfile } from '../../../../types';
 
 export function getEndpointPlaceholder(provider: ProviderProfile['provider']): string {
   return provider === 'codex'

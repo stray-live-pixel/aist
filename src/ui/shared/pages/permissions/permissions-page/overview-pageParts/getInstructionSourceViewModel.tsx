@@ -1,5 +1,5 @@
-import type { useI18n } from '../../../../shared/i18n';
-import type { AgentInstructionSource } from '../../../../shared/types';
+import type { useI18n } from '../../../../i18n';
+import type { AgentInstructionSource } from '../../../../types';
 import type { SettingsPageId } from '../types';
 import type { InstructionSourceSkillViewModel, InstructionSourceViewModel } from './InstructionSourceViewModel';
 import { getInstructionSourceDescription } from './getInstructionSourceDescription';

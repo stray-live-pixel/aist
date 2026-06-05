@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import type { AuxiliaryModelsSettings, CompactionSettings, ModelOption } from '../../../../shared/types';
+import { useI18n } from '../../../../i18n';
+import type { AuxiliaryModelsSettings, CompactionSettings, ModelOption } from '../../../../types';
 import styles from '../../PermissionsPage.module.scss';
 import { CompactionSettingsCard } from './CompactionSettingsCard';
 import { ToolModelSettingsCard } from './ToolModelSettingsCard';

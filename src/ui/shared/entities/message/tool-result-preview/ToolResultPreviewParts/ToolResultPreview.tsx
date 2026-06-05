@@ -1,4 +1,4 @@
-import { useI18n } from '../../../../shared/i18n';
+import { useI18n } from '../../../../i18n';
 import { buildToolDisplayModel } from '../../tool-message-model';
 import { getToolPreview, getToolResult } from '../../tool-value';
 import styles from '../ToolResultPreview.module.scss';

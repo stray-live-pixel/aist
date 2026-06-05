@@ -1,4 +1,4 @@
-import { type AgentMode } from '../../shared/types';
+import { type AgentMode } from '../../types';
 
 export const storyAgentModes: AgentMode[] = [
   {

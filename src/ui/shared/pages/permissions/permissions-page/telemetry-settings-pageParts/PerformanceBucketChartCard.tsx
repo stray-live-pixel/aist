@@ -1,7 +1,7 @@
-import type { TranslationKey } from '../../../../shared/i18n';
-import { useI18n } from '../../../../shared/i18n';
-import type { PerformanceTelemetryBucket } from '../../../../shared/types';
-import { Badge, Card } from '../../../../shared/ui';
+import type { TranslationKey } from '../../../../i18n';
+import { useI18n } from '../../../../i18n';
+import type { PerformanceTelemetryBucket } from '../../../../types';
+import { Badge, Card } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { formatDuration } from './formatDuration';
 import { formatNumber } from './formatNumber';

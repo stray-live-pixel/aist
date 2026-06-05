@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../shared/types';
+import { type ChatMessage } from '../../types';
 import { storyNow } from './storyNow';
 
 export const storyMessages: ChatMessage[] = [

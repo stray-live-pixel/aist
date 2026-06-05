@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import { useAgentState } from '../../../shared/lib/agentState';
+import { useAgentState } from '../../../lib/agentState';
 import styles from '../PermissionsPage.module.scss';
 import { CompactionSettingsPage } from './compaction-settings-page';
 import { MemorySettingsPage } from './memory-settings-page';

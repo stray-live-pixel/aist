@@ -1,5 +1,5 @@
-import type { ModelOption, ProviderProfile } from '../../shared/types';
-import type { SelectOption } from '../../shared/ui';
+import type { ModelOption, ProviderProfile } from '../../types';
+import type { SelectOption } from '../../ui';
 
 /**
  * Что это: возвращает модели только базового провайдера выбранного профиля.

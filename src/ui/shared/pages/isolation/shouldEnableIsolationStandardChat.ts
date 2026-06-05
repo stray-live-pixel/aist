@@ -1,5 +1,5 @@
-import { isIsolationSessionActive } from '../../shared/lib/isolation';
-import type { IsolationSessionSummary } from '../../shared/types';
+import { isIsolationSessionActive } from '../../lib/isolation';
+import type { IsolationSessionSummary } from '../../types';
 
 /**
  * Что это: правило доступности кнопки открытия стандартного чата isolated-сессии.

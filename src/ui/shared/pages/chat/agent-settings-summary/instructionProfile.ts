@@ -1,4 +1,4 @@
-import type { AgentState } from '../../../shared/types';
+import type { AgentState } from '../../../types';
 
 /**
  * Что это: находит активную роль агента по ref из prompt config.

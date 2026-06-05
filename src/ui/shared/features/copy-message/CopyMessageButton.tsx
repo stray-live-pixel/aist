@@ -1,8 +1,8 @@
 import { Copy } from 'lucide-react';
 
-import { useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
-import { IconButton } from '../../shared/ui/IconButton';
+import { useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
+import { IconButton } from '../../ui/IconButton';
 import styles from './CopyMessageButton.module.scss';
 import type { CopyMessageButtonProps } from './types';
 

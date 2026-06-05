@@ -1,4 +1,4 @@
-import type { ToolPermissionMode } from '../../shared/types';
+import type { ToolPermissionMode } from '../../types';
 
 /**
  * Что это: локализованное имя режима доступа к tool.

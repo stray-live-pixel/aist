@@ -1,4 +1,4 @@
-import { type AgentInstructionKind, type AgentItemScope, type AgentPromptConfig } from '../../../../shared/types';
+import { type AgentInstructionKind, type AgentItemScope, type AgentPromptConfig } from '../../../../types';
 
 export function getLibraryItems(promptConfig: AgentPromptConfig, scope: AgentItemScope, kind: AgentInstructionKind) {
   if (kind === 'instruction') {

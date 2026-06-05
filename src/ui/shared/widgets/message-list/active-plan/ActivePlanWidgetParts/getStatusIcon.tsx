@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, CircleDot, PauseCircle } from 'lucide-react';
 
-import { type ChatPlanItemStatus } from '../../../../shared/types';
+import { type ChatPlanItemStatus } from '../../../../types';
 
 export function getStatusIcon(status: ChatPlanItemStatus) {
   if (status === 'done') {

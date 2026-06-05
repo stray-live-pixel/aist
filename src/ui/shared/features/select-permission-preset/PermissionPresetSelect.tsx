@@ -1,7 +1,7 @@
 import { ShieldCheck } from 'lucide-react';
 
-import { useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
+import { useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
 import styles from './PermissionPresetSelect.module.scss';
 import type { PermissionPresetSelectProps } from './types';
 import { getSelectedDescription } from './utils';

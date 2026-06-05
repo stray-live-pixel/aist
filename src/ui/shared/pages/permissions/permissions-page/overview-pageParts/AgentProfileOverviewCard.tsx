@@ -1,7 +1,7 @@
 import { BookOpenCheck, Brain, ShieldCheck, Wrench } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { Button, Card, InfoTile, Text } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { Button, Card, InfoTile, Text } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import type { OverviewPageProps } from './OverviewPageProps';
 import { getPermissionPresetDescription } from './getPermissionPresetDescription';

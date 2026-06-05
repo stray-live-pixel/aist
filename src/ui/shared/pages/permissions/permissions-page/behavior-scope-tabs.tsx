@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import type { AgentItemScope } from '../../../shared/types';
+import { useI18n } from '../../../i18n';
+import type { AgentItemScope } from '../../../types';
 import styles from '../PermissionsPage.module.scss';
 
 /**

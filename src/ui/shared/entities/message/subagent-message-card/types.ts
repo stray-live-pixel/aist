@@ -1,4 +1,4 @@
-import type { AgentReflectionCandidate, ChatMessage, SubagentRun } from '../../../shared/types';
+import type { AgentReflectionCandidate, ChatMessage, SubagentRun } from '../../../types';
 
 /**
  * Что это: props карточки persisted сообщения субагента в основном чате.

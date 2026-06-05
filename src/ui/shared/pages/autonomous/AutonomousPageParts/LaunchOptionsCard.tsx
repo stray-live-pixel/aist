@@ -1,7 +1,7 @@
 import { Rocket } from 'lucide-react';
 
-import { type AutonomousEngineId, type AutonomousState } from '../../../shared/types';
-import { Card, Select, Switch, TextArea } from '../../../shared/ui';
+import { type AutonomousEngineId, type AutonomousState } from '../../../types';
+import { Card, Select, Switch, TextArea } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 
 export function LaunchOptionsCard({

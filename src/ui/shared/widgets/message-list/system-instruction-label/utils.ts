@@ -1,5 +1,5 @@
-import { useI18n } from '../../../shared/i18n';
-import type { AgentInstructionSource, AgentItemRef, AgentMode, AgentPromptConfig } from '../../../shared/types';
+import { useI18n } from '../../../i18n';
+import type { AgentInstructionSource, AgentItemRef, AgentMode, AgentPromptConfig } from '../../../types';
 
 const CHIP_MAX_LENGTH = 16;
 

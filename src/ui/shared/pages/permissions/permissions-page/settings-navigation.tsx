@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
+import { useI18n } from '../../../i18n';
 import styles from '../PermissionsPage.module.scss';
 import { NAV_GROUPS, NAV_ITEMS } from './navItems';
 import type { SettingsPageId } from './types';

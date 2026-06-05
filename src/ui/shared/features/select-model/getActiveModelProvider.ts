@@ -1,4 +1,4 @@
-import type { ModelOption, ProviderProfile } from '../../shared/types';
+import type { ModelOption, ProviderProfile } from '../../types';
 
 /**
  * Что это: определяет активного провайдера по текущей модели и списку профилей.

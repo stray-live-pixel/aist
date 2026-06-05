@@ -1,4 +1,4 @@
-import { type AgentLanguage, type ChatSummary } from '../../../shared/types';
+import { type AgentLanguage, type ChatSummary } from '../../../types';
 
 export function getChatStatus(chat: ChatSummary, language: AgentLanguage): { label: string; className: string } {
   if (chat.activity === 'waitingForApproval') {

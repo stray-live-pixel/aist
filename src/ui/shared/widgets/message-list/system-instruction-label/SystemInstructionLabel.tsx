@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ModesSettingsPage } from '../../../pages/permissions/PermissionsPage';
-import { useI18n } from '../../../shared/i18n';
+import { useI18n } from '../../../i18n';
 import styles from './SystemInstructionLabel.module.scss';
 import type { SystemInstructionDialogProps, SystemInstructionLabelProps } from './types';
 import { getFallbackSources, getInstructionChips, truncateChip } from './utils';

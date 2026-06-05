@@ -6,8 +6,8 @@ import {
   getProviderOptions,
   getSelectedProviderProfile
 } from '../../../features/select-model';
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentState } from '../../../shared/types';
+import { agentActions } from '../../../lib/agentActions';
+import type { AgentState } from '../../../types';
 import { areModelSettingsEqual } from './areModelSettingsEqual';
 import { getModelDisplayLabels } from './formatters';
 import { getCodexServiceTierOptions } from './getCodexServiceTierOptions';

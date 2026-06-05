@@ -1,9 +1,9 @@
 import { BrainCircuit } from 'lucide-react';
 import { useState } from 'react';
 
-import { agentActions } from '../../shared/lib/agentActions';
-import { Button, ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
-import { IconButton } from '../../shared/ui/IconButton';
+import { agentActions } from '../../lib/agentActions';
+import { Button, ModalBackdrop, ModalHeader, ModalSurface } from '../../ui';
+import { IconButton } from '../../ui/IconButton';
 import styles from './AnalyzeMemoryButton.module.scss';
 import type { AnalyzeMemoryButtonProps } from './types';
 

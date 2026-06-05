@@ -1,4 +1,4 @@
-import { type ModelOption } from '../../shared/types';
+import { type ModelOption } from '../../types';
 
 export const storyModels: ModelOption[] = [
   {

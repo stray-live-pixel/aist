@@ -1,9 +1,9 @@
 import { Check, ChevronDown, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
-import type { AgentModeId } from '../../shared/types';
+import { useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
+import type { AgentModeId } from '../../types';
 import styles from './AgentModeSelect.module.scss';
 import type { AgentModeSelectProps } from './types';
 import { canDeleteAgentMode } from './utils';

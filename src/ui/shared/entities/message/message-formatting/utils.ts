@@ -1,4 +1,4 @@
-import type { ChatMessageUsageEstimate } from '../../../shared/types';
+import type { ChatMessageUsageEstimate } from '../../../types';
 
 /**
  * Что это: форматирование количества токенов в компактный вид.

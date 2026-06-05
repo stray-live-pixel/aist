@@ -1,5 +1,5 @@
 import { MessageCard, SubagentMessageCard } from '../../../../entities/message';
-import { type AgentReflectionCandidate, type ChatMessage, type SubagentRun } from '../../../../shared/types';
+import { type AgentReflectionCandidate, type ChatMessage, type SubagentRun } from '../../../../types';
 import { ToolCallsCut } from '../../tool-calls-cut';
 import { type MessageGroup } from '../types';
 import { isDefaultExpandedMessage } from '../utils';

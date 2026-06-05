@@ -2,7 +2,7 @@ import { ChevronRight, Wrench } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { MessageCard } from '../../../entities/message';
-import { useI18n } from '../../../shared/i18n';
+import { useI18n } from '../../../i18n';
 import styles from './ToolCallsCut.module.scss';
 import { getToolCallIdsSignature } from './getToolCallIdsSignature';
 import type { ToolCallsCutHeaderProps, ToolCallsCutProps } from './types';

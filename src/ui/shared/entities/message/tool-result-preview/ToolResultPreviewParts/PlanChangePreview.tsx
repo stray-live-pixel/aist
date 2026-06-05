@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import { arrayValue, asString } from '../../tool-value';
 import styles from '../ToolResultPreview.module.scss';
 

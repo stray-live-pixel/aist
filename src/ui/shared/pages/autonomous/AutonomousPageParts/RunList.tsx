@@ -1,7 +1,7 @@
 import { Play } from 'lucide-react';
 
-import { type AutonomousRunDefinition } from '../../../shared/types';
-import { Badge, Button, Card, Text } from '../../../shared/ui';
+import { type AutonomousRunDefinition } from '../../../types';
+import { Badge, Button, Card, Text } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 
 export function RunList({

@@ -1,4 +1,4 @@
-import { type ChatSummary } from '../../shared/types';
+import { type ChatSummary } from '../../types';
 import { createModelSettings } from './createModelSettings';
 import { storyMessages } from './storyMessages';
 import { storyNow } from './storyNow';

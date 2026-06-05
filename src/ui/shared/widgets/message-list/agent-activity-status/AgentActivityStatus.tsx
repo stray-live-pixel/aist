@@ -8,9 +8,9 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { useI18n } from '../../../shared/i18n';
-import { AistAnimatedLogo } from '../../../shared/ui/AistLogo';
-import { ModelRequestStatus } from '../../../shared/ui/model-request-status';
+import { useI18n } from '../../../i18n';
+import { AistAnimatedLogo } from '../../../ui/AistLogo';
+import { ModelRequestStatus } from '../../../ui/model-request-status';
 import styles from './AgentActivityStatus.module.scss';
 import type { AgentActivityStatusProps } from './types';
 import { formatActivity, getDefaultDetail } from './utils';

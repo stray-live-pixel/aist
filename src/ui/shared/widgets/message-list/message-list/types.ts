@@ -4,7 +4,7 @@ import type {
   ChatMessage,
   CompactPreviousChat,
   SubagentRun
-} from '../../../shared/types';
+} from '../../../types';
 
 /**
  * Что это: props списка сообщений чата.

@@ -1,15 +1,15 @@
 import { memo } from 'react';
 
 import { PermissionPresetSelect, ToolPermissionSelect } from '../../../features';
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
 import type {
   ProjectToolDiagnostic,
   ToolPermissionItem,
   ToolPermissionPreset,
   ToolPermissionPresetId
-} from '../../../shared/types';
-import { Badge, Button, Card } from '../../../shared/ui';
+} from '../../../types';
+import { Badge, Button, Card } from '../../../ui';
 import styles from '../PermissionsPage.module.scss';
 
 /**

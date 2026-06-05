@@ -1,8 +1,8 @@
 import { Bot, CircleStop, Loader2, User, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-import type { useI18n } from '../../../shared/i18n';
-import type { ChatMessage } from '../../../shared/types';
+import type { useI18n } from '../../../i18n';
+import type { ChatMessage } from '../../../types';
 
 /**
  * Что это: визуальный вариант карточки сообщения.

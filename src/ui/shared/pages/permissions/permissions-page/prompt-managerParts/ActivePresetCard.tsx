@@ -1,9 +1,9 @@
 import { memo, useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
-import { type AgentPromptConfig } from '../../../../shared/types';
-import { Badge, Button, Card, Select } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
+import { type AgentPromptConfig } from '../../../../types';
+import { Badge, Button, Card, Select } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { scopeLabel } from '../utils';
 import { PresetDetails } from './PresetDetails';

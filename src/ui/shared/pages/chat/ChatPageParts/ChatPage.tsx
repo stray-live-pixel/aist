@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { getAgentHost } from '../../../api/agentHost';
 import { Composer } from '../../../features';
-import { agentActions } from '../../../shared/lib/agentActions';
-import { useAgentState } from '../../../shared/lib/agentState';
-import { findIsolationSessionByChatId, isIsolationSessionActive } from '../../../shared/lib/isolation';
-import { useRenderPerformanceMetric } from '../../../shared/lib/useRenderPerformanceMetric';
-import type { AgentAttachment } from '../../../shared/types';
+import { agentActions } from '../../../lib/agentActions';
+import { useAgentState } from '../../../lib/agentState';
+import { findIsolationSessionByChatId, isIsolationSessionActive } from '../../../lib/isolation';
+import { useRenderPerformanceMetric } from '../../../lib/useRenderPerformanceMetric';
+import type { AgentAttachment } from '../../../types';
 import { MessageList } from '../../../widgets/message-list';
 import { IsolationPage } from '../../isolation';
 import type { SettingsPageId } from '../../permissions/permissions-page/types';
@@ -89,19 +90,16 @@ export function ChatPage({ onOpenSettingsPage }: { onOpenSettingsPage(page?: Set
   useEffect(() => {
     /**
      * Системные view/title-кнопки живут вне React-дерева, поэтому открытия модалок
-     * приходят отдельными IPC-событиями и переиспользуют локальное состояние ChatPage.
+     * приходят отдельными событиями хоста и переиспользуют локальное состояние ChatPage.
      */
-    const listener = (event: MessageEvent<{ type: string }>) => {
-      if (event.data.type === 'showChats') {
+    return getAgentHost().subscribe((message) => {
+      if (message.type === 'showChats') {
         setChatsOpen(true);
       }
-      if (event.data.type === 'showIsolation') {
+      if (message.type === 'showIsolation') {
         setIsolationOpen(true);
       }
-    };
-
-    window.addEventListener('message', listener);
-    return () => window.removeEventListener('message', listener);
+    });
   }, []);
 
   function toggleVcsPanel() {

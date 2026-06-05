@@ -1,5 +1,5 @@
-import type { useI18n } from '../../../../shared/i18n';
-import type { ReasoningEffort } from '../../../../shared/types';
+import type { useI18n } from '../../../../i18n';
+import type { ReasoningEffort } from '../../../../types';
 
 type Translate = ReturnType<typeof useI18n>['t'];
 

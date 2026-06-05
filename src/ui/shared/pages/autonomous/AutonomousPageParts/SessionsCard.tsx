@@ -1,8 +1,8 @@
 import { Rocket, Square } from 'lucide-react';
 
-import { autonomousActions } from '../../../shared/lib/autonomousActions';
-import { type AutonomousState } from '../../../shared/types';
-import { Badge, Button, Card, CodeBlock, EmptyState, Text } from '../../../shared/ui';
+import { autonomousActions } from '../../../lib/autonomousActions';
+import { type AutonomousState } from '../../../types';
+import { Badge, Button, Card, CodeBlock, EmptyState, Text } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 import { getStatusTone } from './getStatusTone';
 

@@ -1,6 +1,6 @@
-import { agentActions } from '../../../../shared/lib/agentActions';
-import type { AuxiliaryModelsSettings, ReasoningEffort } from '../../../../shared/types';
-import { Card, Select } from '../../../../shared/ui';
+import { agentActions } from '../../../../lib/agentActions';
+import type { AuxiliaryModelsSettings, ReasoningEffort } from '../../../../types';
+import { Card, Select } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import type { SelectOptionItem, TranslateFn } from './types';
 

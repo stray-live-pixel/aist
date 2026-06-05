@@ -1,8 +1,8 @@
 import { X } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { ModalBackdrop, ModalHeader, ModalSurface } from '../../../../shared/ui';
-import { IconButton } from '../../../../shared/ui/IconButton';
+import { useI18n } from '../../../../i18n';
+import { ModalBackdrop, ModalHeader, ModalSurface } from '../../../../ui';
+import { IconButton } from '../../../../ui/IconButton';
 import styles from '../../PermissionsPage.module.scss';
 
 export function PromptHelpDialog({ onClose }: { onClose(): void }) {

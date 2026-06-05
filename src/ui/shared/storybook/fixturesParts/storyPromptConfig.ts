@@ -1,4 +1,4 @@
-import { type AgentPromptConfig } from '../../shared/types';
+import { type AgentPromptConfig } from '../../types';
 
 export const storyPromptConfig: AgentPromptConfig = {
   globalInstructions: [

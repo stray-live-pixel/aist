@@ -1,4 +1,4 @@
-import { type AgentState } from '../../shared/types';
+import { type AgentState } from '../../types';
 import { createModelSettings } from './createModelSettings';
 import { storyActiveChat } from './storyActiveChat';
 import { storyAgentModes } from './storyAgentModes';

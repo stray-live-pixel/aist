@@ -1,9 +1,9 @@
 import { Cpu } from 'lucide-react';
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import type { AgentState } from '../../../shared/types';
-import { CompactNavigationButton } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import type { AgentState } from '../../../types';
+import { CompactNavigationButton } from '../../../ui';
 import styles from '../ChatPage.module.scss';
 import { getModelSettingsSummaryLabel, getModelSettingsTitle } from './modelSummary';
 

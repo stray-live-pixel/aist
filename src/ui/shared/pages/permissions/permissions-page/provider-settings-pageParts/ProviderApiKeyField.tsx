@@ -1,8 +1,8 @@
 import { Eye, EyeOff, KeyRound } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { type ProviderProfile } from '../../../../shared/types';
-import { Badge, Button, TextField } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { type ProviderProfile } from '../../../../types';
+import { Badge, Button, TextField } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 
 export function ProviderApiKeyField({

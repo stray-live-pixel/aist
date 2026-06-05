@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-import type { AgentTelemetryDashboard, PerformanceTelemetryDashboard } from '../../../../shared/types';
+import type { AgentTelemetryDashboard, PerformanceTelemetryDashboard } from '../../../../types';
 import styles from '../../PermissionsPage.module.scss';
 import { PerformanceTelemetryPanel } from './PerformanceTelemetryPanel';
 import { RunTelemetryPanel } from './RunTelemetryPanel';

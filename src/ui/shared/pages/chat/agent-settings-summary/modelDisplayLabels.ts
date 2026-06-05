@@ -1,4 +1,4 @@
-import type { CodexServiceTier, ReasoningEffort } from '../../../shared/types';
+import type { CodexServiceTier, ReasoningEffort } from '../../../types';
 
 /**
  * Что это: короткие подписи reasoning-режима для компактного composer UI.

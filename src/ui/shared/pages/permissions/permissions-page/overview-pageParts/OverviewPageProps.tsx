@@ -5,7 +5,7 @@ import type {
   AgentSkill,
   AgentState,
   ToolPermissionPresetId
-} from '../../../../shared/types';
+} from '../../../../types';
 import type { SettingsPageId } from '../types';
 
 /**

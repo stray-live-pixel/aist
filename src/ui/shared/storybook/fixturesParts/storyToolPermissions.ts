@@ -1,4 +1,4 @@
-import { type ToolPermissionItem } from '../../shared/types';
+import { type ToolPermissionItem } from '../../types';
 
 export const storyToolPermissions: ToolPermissionItem[] = [
   {

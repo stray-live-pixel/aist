@@ -1,4 +1,4 @@
-import { type AgentReflectionCandidate, type ChatMessage } from '../../../../shared/types';
+import { type AgentReflectionCandidate, type ChatMessage } from '../../../../types';
 
 export function filterRunCandidates(input: {
   message: ChatMessage;

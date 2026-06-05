@@ -1,4 +1,4 @@
-import { type ChatMessage, type SubagentRun } from '../../../../shared/types';
+import { type ChatMessage, type SubagentRun } from '../../../../types';
 import { formatModelLabel } from './formatModelLabel';
 
 export function getDetailText(input: {

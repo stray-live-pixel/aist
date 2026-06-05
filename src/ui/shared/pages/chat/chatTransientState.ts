@@ -1,4 +1,4 @@
-import type { AgentAttachment, ChatMessage } from '../../shared/types';
+import type { AgentAttachment, ChatMessage } from '../../types';
 
 /**
  * Локальное состояние пользовательского действия, которое ещё не подтверждено backend.

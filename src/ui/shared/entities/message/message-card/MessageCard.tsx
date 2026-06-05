@@ -4,8 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { formatAttachmentSize } from '../../../features/send-message';
-import { useI18n } from '../../../shared/i18n';
-import type { AgentAttachment, ChatMessage } from '../../../shared/types';
+import { useI18n } from '../../../i18n';
+import type { AgentAttachment, ChatMessage } from '../../../types';
 import { formatMessageDate, formatMessageUsage } from '../message-formatting';
 import { ToolMessageCard } from '../tool-message-card';
 import styles from './MessageCard.module.scss';

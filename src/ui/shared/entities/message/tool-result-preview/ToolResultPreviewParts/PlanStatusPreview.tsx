@@ -1,5 +1,5 @@
-import { useI18n } from '../../../../shared/i18n';
-import { type ChatMessage } from '../../../../shared/types';
+import { useI18n } from '../../../../i18n';
+import { type ChatMessage } from '../../../../types';
 import { asString } from '../../tool-value';
 import styles from '../ToolResultPreview.module.scss';
 import { getPlanStatusLabel } from './getPlanStatusLabel';

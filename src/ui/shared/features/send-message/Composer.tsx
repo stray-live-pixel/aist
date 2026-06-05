@@ -1,4 +1,4 @@
-import { useI18n } from '../../shared/i18n';
+import { useI18n } from '../../i18n';
 import styles from './Composer.module.scss';
 import { ComposerFooterActions } from './Composer/ComposerActions';
 import { ComposerShell } from './Composer/ComposerShell';

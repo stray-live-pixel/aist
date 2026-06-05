@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import { asString } from '../../tool-value';
 import { BashScriptResult } from './BashScriptResult';
 import { CodePreview } from './CodePreview';

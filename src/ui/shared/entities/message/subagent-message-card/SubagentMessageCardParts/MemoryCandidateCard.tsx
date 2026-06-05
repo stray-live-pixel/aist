@@ -1,9 +1,9 @@
 import { Lightbulb, Save, X } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
-import { type AgentReflectionCandidate } from '../../../../shared/types';
-import { Badge, Button } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
+import { type AgentReflectionCandidate } from '../../../../types';
+import { Badge, Button } from '../../../../ui';
 import styles from '../SubagentMessageCard.module.scss';
 import { getCandidateKindLabelKey } from './getCandidateKindLabelKey';
 

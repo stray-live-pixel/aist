@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import { arrayValue, asString, getToolResult } from '../../tool-value';
 import { Translator } from './Translator';
 import { getBashSummary } from './getBashSummary';

@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../../shared/types';
+import type { ChatMessage } from '../../../types';
 
 /**
  * Что это: компактная строка метаданных для группы tool-call.

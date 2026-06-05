@@ -1,9 +1,9 @@
 import { Copy } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
-import type { PerformanceTelemetryRecord } from '../../../../shared/types';
-import { Badge, Card } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
+import type { PerformanceTelemetryRecord } from '../../../../types';
+import { Badge, Card } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { formatDuration } from './formatDuration';
 import { getPerformanceOperationLabel } from './getPerformanceOperationLabel';

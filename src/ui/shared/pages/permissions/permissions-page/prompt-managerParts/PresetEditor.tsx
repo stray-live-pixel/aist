@@ -1,15 +1,15 @@
 import { Save, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
 import {
   type AgentItemRef,
   type AgentItemScope,
   type AgentPromptConfig,
   type AgentPromptPreset
-} from '../../../../shared/types';
-import { Button, Card, Select, TextField } from '../../../../shared/ui';
+} from '../../../../types';
+import { Button, Card, Select, TextField } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { parseRefKey, refKey, scopeLabel } from '../utils';
 import { InstructionPicker } from './InstructionPicker';

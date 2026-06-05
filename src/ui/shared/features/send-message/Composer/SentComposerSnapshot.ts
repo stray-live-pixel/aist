@@ -1,4 +1,4 @@
-import type { AgentAttachment } from '../../../shared/types';
+import type { AgentAttachment } from '../../../types';
 
 /**
  * Что это: snapshot отправленного composer для exit-анимации.

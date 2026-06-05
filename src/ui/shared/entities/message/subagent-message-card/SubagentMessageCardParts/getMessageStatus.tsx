@@ -1,4 +1,4 @@
-import { type ChatMessage, type SubagentRun } from '../../../../shared/types';
+import { type ChatMessage, type SubagentRun } from '../../../../types';
 
 export function getMessageStatus(input: {
   message: ChatMessage;

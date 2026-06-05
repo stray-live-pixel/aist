@@ -1,8 +1,8 @@
 import { Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useI18n } from '../../shared/i18n';
-import { Button, ModalBackdrop, ModalHeader, ModalSurface, TextField } from '../../shared/ui';
+import { useI18n } from '../../i18n';
+import { Button, ModalBackdrop, ModalHeader, ModalSurface, TextField } from '../../ui';
 import styles from './PromptHistoryModal.module.scss';
 import type { PromptHistoryItem } from './promptHistory';
 

@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
+import { useI18n } from '../../../../i18n';
 import { asString } from '../../tool-value';
 import styles from '../ToolResultPreview.module.scss';
 import { CODE_PREVIEW_LIMIT } from './CODE_PREVIEW_LIMIT';

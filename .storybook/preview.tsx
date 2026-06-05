@@ -1,7 +1,7 @@
 import type { Preview } from '@storybook/react-vite';
 import type { CSSProperties } from 'react';
 
-import '../src/webview/app/styles.css';
+import '../src/ui/shared/app/styles.css';
 
 const VSCODE_EDITOR_FONT_VARIABLE = '--vscode-editor-font-family';
 const VSCODE_EDITOR_FONT_FALLBACK = "Menlo, Monaco, 'Courier New', monospace";

@@ -1,7 +1,7 @@
 import { History, SendHorizontal, Square } from 'lucide-react';
 
-import { useI18n } from '../../../shared/i18n';
-import { Button, CompactNavigationButton, KeyboardShortcut } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { Button, CompactNavigationButton, KeyboardShortcut } from '../../../ui';
 import styles from '../Composer.module.scss';
 import { isMacLikePlatform } from '../utils';
 

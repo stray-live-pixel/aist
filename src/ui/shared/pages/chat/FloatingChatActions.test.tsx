@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { I18nProvider } from '../../shared/i18n';
+import { I18nProvider } from '../../i18n';
 
 beforeAll(() => {
   vi.stubGlobal('acquireVsCodeApi', () => ({

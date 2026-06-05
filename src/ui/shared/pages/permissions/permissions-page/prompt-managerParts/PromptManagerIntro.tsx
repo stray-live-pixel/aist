@@ -1,8 +1,8 @@
 import { HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { Button, Card } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { Button, Card } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { PromptHelpDialog } from './PromptHelpDialog';
 

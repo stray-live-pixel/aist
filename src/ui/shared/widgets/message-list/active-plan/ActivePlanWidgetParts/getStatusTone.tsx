@@ -1,4 +1,4 @@
-import { type ChatPlanItemStatus } from '../../../../shared/types';
+import { type ChatPlanItemStatus } from '../../../../types';
 
 export function getStatusTone(status: ChatPlanItemStatus): 'neutral' | 'accent' | 'success' | 'warning' | 'danger' {
   if (status === 'done') {

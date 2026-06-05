@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { type AgentState } from '../../../shared/types';
+import { type AgentState } from '../../../types';
 
 export function useSortedChats(state: AgentState) {
   return useMemo(

@@ -5,10 +5,10 @@
  */
 import { Sparkles } from 'lucide-react';
 
-import { useI18n } from '../../../shared/i18n';
-import { getWebviewAssetUri } from '../../../shared/lib/assets';
-import { AistBrand } from '../../../shared/ui/AistLogo';
-import { Text } from '../../../shared/ui/text';
+import { useI18n } from '../../../i18n';
+import { getWebviewAssetUri } from '../../../lib/assets';
+import { AistBrand } from '../../../ui/AistLogo';
+import { Text } from '../../../ui/text';
 import styles from './EmptyState.module.scss';
 import type { EmptyStateProps } from './types';
 

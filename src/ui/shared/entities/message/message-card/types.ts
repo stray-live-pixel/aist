@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { ChatMessage } from '../../../shared/types';
+import type { ChatMessage } from '../../../types';
 
 /**
  * Что это: props компонента MessageCard.

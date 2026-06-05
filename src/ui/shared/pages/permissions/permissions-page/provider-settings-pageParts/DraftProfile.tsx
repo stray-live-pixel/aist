@@ -1,3 +1,3 @@
-import { type ProviderProfile } from '../../../../shared/types';
+import { type ProviderProfile } from '../../../../types';
 
 export type DraftProfile = Pick<ProviderProfile, 'id' | 'name' | 'provider' | 'endpoint' | 'proxyHost' | 'builtIn'>;

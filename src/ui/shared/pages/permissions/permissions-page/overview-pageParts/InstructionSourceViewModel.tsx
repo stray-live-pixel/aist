@@ -1,5 +1,5 @@
-import type { AgentInstructionSource } from '../../../../shared/types';
-import type { BadgeTone } from '../../../../shared/ui';
+import type { AgentInstructionSource } from '../../../../types';
+import type { BadgeTone } from '../../../../ui';
 import type { SettingsPageId } from '../types';
 
 /**

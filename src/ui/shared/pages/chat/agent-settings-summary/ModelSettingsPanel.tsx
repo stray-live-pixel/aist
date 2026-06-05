@@ -1,10 +1,10 @@
 import { Brain, Cpu, RotateCcw, Settings2 } from 'lucide-react';
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentState, CodexServiceTier, ReasoningEffort } from '../../../shared/types';
-import { CompactNavigationButton, Select } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import type { AgentState, CodexServiceTier, ReasoningEffort } from '../../../types';
+import { CompactNavigationButton, Select } from '../../../ui';
 import styles from '../ChatPage.module.scss';
 import { getReasoningOptions } from './getReasoningOptions';
 import { CODEX_TIER_DISPLAY_LABELS, REASONING_DISPLAY_LABELS } from './modelDisplayLabels';

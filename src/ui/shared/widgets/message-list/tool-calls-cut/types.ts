@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../../shared/types';
+import type { ChatMessage } from '../../../types';
 
 /**
  * Что это: props сворачиваемого блока tool-call сообщений.

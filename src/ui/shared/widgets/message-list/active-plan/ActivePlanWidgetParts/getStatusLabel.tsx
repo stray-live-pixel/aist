@@ -1,5 +1,5 @@
-import { useI18n } from '../../../../shared/i18n';
-import { type ChatPlanItemStatus } from '../../../../shared/types';
+import { useI18n } from '../../../../i18n';
+import { type ChatPlanItemStatus } from '../../../../types';
 
 export function getStatusLabel(status: ChatPlanItemStatus, t: ReturnType<typeof useI18n>['t']): string {
   if (status === 'in_progress') {

@@ -2,10 +2,10 @@ import { BellRing, ChevronDown, ShieldAlert } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
 
 import { ToolApprovalActions, ToolResultPreview } from '../../entities/message';
-import { useI18n } from '../../shared/i18n';
-import type { AgentState, ChatMessage } from '../../shared/types';
-import { ModalBackdrop, ModalHeader, ModalSurface } from '../../shared/ui';
-import { IconButton } from '../../shared/ui/IconButton';
+import { useI18n } from '../../i18n';
+import type { AgentState, ChatMessage } from '../../types';
+import { ModalBackdrop, ModalHeader, ModalSurface } from '../../ui';
+import { IconButton } from '../../ui/IconButton';
 import styles from './ChatPage.module.scss';
 
 /**

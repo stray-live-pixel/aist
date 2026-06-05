@@ -1,13 +1,13 @@
 import { AlertTriangle, ArrowLeft, GitBranch, Layers3, Plus, Save, Settings } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { autonomousActions } from '../../../shared/lib/autonomousActions';
+import { useI18n } from '../../../i18n';
+import { autonomousActions } from '../../../lib/autonomousActions';
 import {
   type AutonomousFlowDefinition,
   type EditableAutonomousFlowDefinition,
   type EditableAutonomousStageDefinition
-} from '../../../shared/types';
+} from '../../../types';
 import {
   Badge,
   Button,
@@ -20,8 +20,8 @@ import {
   Text,
   TextArea,
   TextField
-} from '../../../shared/ui';
-import type { KeyValueItem, PipelineStep } from '../../../shared/ui';
+} from '../../../ui';
+import type { KeyValueItem, PipelineStep } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 import { StageEditorCard } from './StageEditorCard';
 import { emptyToUndefined } from './emptyToUndefined';

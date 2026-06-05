@@ -1,4 +1,4 @@
-import { type ProviderProfile } from '../../../../shared/types';
+import { type ProviderProfile } from '../../../../types';
 import { DraftProfile } from './DraftProfile';
 
 export function createDrafts(profiles: ProviderProfile[]): Record<string, DraftProfile> {

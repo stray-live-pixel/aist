@@ -1,4 +1,4 @@
-import type { ModelOption } from '../../shared/types';
+import type { ModelOption } from '../../types';
 import type { ModelProviderGroup } from './types';
 
 /**

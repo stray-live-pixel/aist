@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { Button, ModalBackdrop, ModalHeader, ModalSurface, Text } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { Button, ModalBackdrop, ModalHeader, ModalSurface, Text } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { stopPropagation } from './stopPropagation';
 

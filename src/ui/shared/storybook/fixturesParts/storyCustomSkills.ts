@@ -1,4 +1,4 @@
-import { type AgentSkill } from '../../shared/types';
+import { type AgentSkill } from '../../types';
 
 export const storyCustomSkills: AgentSkill[] = [
   {

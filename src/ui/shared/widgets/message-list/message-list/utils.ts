@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../../shared/types';
+import type { ChatMessage } from '../../../types';
 import type { MessageGroup } from './types';
 
 const STICKY_BOTTOM_THRESHOLD_PX = 50;

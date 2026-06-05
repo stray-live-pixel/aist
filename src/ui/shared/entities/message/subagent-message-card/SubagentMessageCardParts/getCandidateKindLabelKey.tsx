@@ -1,5 +1,5 @@
-import { type TranslationKey } from '../../../../shared/i18n';
-import { type AgentReflectionCandidate } from '../../../../shared/types';
+import { type TranslationKey } from '../../../../i18n';
+import { type AgentReflectionCandidate } from '../../../../types';
 
 export function getCandidateKindLabelKey(kind: AgentReflectionCandidate['kind']): TranslationKey {
   switch (kind) {

@@ -1,5 +1,5 @@
 import { MessageCard } from '../../../../entities/message';
-import { type SubagentRun } from '../../../../shared/types';
+import { type SubagentRun } from '../../../../types';
 import styles from '../MessageList.module.scss';
 
 export function SubagentDetailsModal({ run, onClose }: { run?: SubagentRun; onClose(): void }) {

@@ -1,7 +1,7 @@
 import { FileText, Image, X } from 'lucide-react';
 
-import { useI18n } from '../../../shared/i18n';
-import type { AgentAttachment } from '../../../shared/types';
+import { useI18n } from '../../../i18n';
+import type { AgentAttachment } from '../../../types';
 import styles from '../Composer.module.scss';
 import { formatAttachmentSize } from '../formatAttachmentSize';
 

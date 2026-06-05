@@ -1,5 +1,5 @@
-import type { useI18n } from '../../../../shared/i18n';
-import type { EditorContextMode } from '../../../../shared/types';
+import type { useI18n } from '../../../../i18n';
+import type { EditorContextMode } from '../../../../types';
 
 type Translate = ReturnType<typeof useI18n>['t'];
 

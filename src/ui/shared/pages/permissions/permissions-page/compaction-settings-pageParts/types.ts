@@ -1,4 +1,4 @@
-import type { useI18n } from '../../../../shared/i18n';
+import type { useI18n } from '../../../../i18n';
 
 /**
  * Что это: option item для shared Select на странице compaction settings.

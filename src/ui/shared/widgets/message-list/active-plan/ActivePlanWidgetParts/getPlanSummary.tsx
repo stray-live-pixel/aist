@@ -1,4 +1,4 @@
-import { type ChatPlan } from '../../../../shared/types';
+import { type ChatPlan } from '../../../../types';
 import { PlanSummary } from './PlanSummary';
 
 export function getPlanSummary(plan: ChatPlan): PlanSummary {

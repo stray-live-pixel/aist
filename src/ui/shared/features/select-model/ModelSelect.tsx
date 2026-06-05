@@ -1,8 +1,8 @@
 import { Check, ChevronDown, Cpu, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useI18n } from '../../shared/i18n';
-import { agentActions } from '../../shared/lib/agentActions';
+import { useI18n } from '../../i18n';
+import { agentActions } from '../../lib/agentActions';
 import styles from './ModelSelect.module.scss';
 import type { ModelSelectProps } from './types';
 import { filterModels, getSelectedModel, groupModelsByProvider } from './utils';

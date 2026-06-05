@@ -1,7 +1,7 @@
 import type { MutableRefObject, RefObject } from 'react';
 
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentAttachment } from '../../../shared/types';
+import { agentActions } from '../../../lib/agentActions';
+import type { AgentAttachment } from '../../../types';
 import { addPromptToHistory, loadPromptDraft, loadPromptHistory, savePromptDraft } from '../promptHistory';
 import type { ComposerProps } from '../types';
 import { DEFAULT_ATTACHMENT_ANALYSIS_PROMPT, DEFAULT_CONTINUE_PROMPT } from '../utils';

@@ -1,4 +1,4 @@
-import type { AgentInstructionSource, AgentMode, AgentPromptConfig } from '../../../shared/types';
+import type { AgentInstructionSource, AgentMode, AgentPromptConfig } from '../../../types';
 
 /**
  * Что это: props кнопки активных системных инструкций.

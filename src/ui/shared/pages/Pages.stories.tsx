@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { AgentStateProvider } from '../shared/lib/agentState';
+import { AgentStateProvider } from '../lib/agentState';
 import { storyAgentState } from '../storybook/fixtures';
 import { ChatPage } from './chat/ChatPage';
 import { PermissionsPage } from './permissions/PermissionsPage';

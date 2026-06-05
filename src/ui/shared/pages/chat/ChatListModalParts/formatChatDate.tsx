@@ -1,4 +1,4 @@
-import { type AgentLanguage } from '../../../shared/types';
+import { type AgentLanguage } from '../../../types';
 
 export function formatChatDate(timestamp: number, language: AgentLanguage): string {
   const date = new Date(timestamp);

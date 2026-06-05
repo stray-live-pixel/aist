@@ -1,4 +1,4 @@
-import type { PerformanceTelemetryDashboard } from '../../../../shared/types';
+import type { PerformanceTelemetryDashboard } from '../../../../types';
 import { PerformanceBucketChartCard } from './PerformanceBucketChartCard';
 import { PerformanceRecentRecordsCard } from './PerformanceRecentRecordsCard';
 import { PerformanceSummaryCard } from './PerformanceSummaryCard';

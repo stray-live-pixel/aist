@@ -1,6 +1,6 @@
-import { agentActions } from '../../../../shared/lib/agentActions';
-import type { CompactionSettings, ReasoningEffort } from '../../../../shared/types';
-import { Card, Select, TextField } from '../../../../shared/ui';
+import { agentActions } from '../../../../lib/agentActions';
+import type { CompactionSettings, ReasoningEffort } from '../../../../types';
+import { Card, Select, TextField } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { clampNumber } from '../utils';
 import type { SelectOptionItem, TranslateFn } from './types';

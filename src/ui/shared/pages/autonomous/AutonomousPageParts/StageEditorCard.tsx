@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, Link2, Plus, Trash2 } from 'lucide-react';
 
-import { useI18n } from '../../../shared/i18n';
-import { type EditableAutonomousStageDefinition } from '../../../shared/types';
-import { Badge, Button, CollapsibleSection, Select, Text, TextArea, TextField } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { type EditableAutonomousStageDefinition } from '../../../types';
+import { Badge, Button, CollapsibleSection, Select, Text, TextArea, TextField } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 import { emptyToUndefined } from './emptyToUndefined';
 

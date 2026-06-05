@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import type { AgentAttachment } from '../../../shared/types';
+import type { AgentAttachment } from '../../../types';
 import type { PromptHistoryItem } from '../promptHistory';
 import { loadPromptDraft, loadPromptHistory } from '../promptHistory';
 import { resizePromptField } from '../utils';

@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
+import { useI18n } from '../../../../i18n';
 import styles from '../ToolResultPreview.module.scss';
 import { getLineCountLabel } from '../utils';
 

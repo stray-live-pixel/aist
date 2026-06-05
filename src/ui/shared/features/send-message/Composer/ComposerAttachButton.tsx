@@ -1,7 +1,7 @@
 import { Paperclip } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
+import { useI18n } from '../../../i18n';
 import styles from '../Composer.module.scss';
 
 /**

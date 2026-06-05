@@ -1,5 +1,5 @@
-import type { ProviderProfile } from '../../shared/types';
-import type { SelectOption } from '../../shared/ui';
+import type { ProviderProfile } from '../../types';
+import type { SelectOption } from '../../ui';
 
 /**
  * Что это: строит компактные option-ы первого уровня выбора — профили провайдеров.

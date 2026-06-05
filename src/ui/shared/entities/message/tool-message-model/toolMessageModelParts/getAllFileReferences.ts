@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import { type FileReference } from '../types';
 import { getResultFileReferences } from './getResultFileReferences';
 

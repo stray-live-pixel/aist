@@ -1,8 +1,8 @@
 import { CheckCircle2, LogIn, LogOut } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { agentActions } from '../../../../shared/lib/agentActions';
-import { Badge, Button } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { agentActions } from '../../../../lib/agentActions';
+import { Badge, Button } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 
 export function CodexAuthRow({ authenticated }: { authenticated: boolean }) {

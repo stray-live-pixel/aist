@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { I18nProvider } from '../../shared/i18n';
+import { I18nProvider } from '../../i18n';
 import { ComposerShell } from './Composer/ComposerShell';
 
 /**

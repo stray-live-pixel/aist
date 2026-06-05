@@ -1,8 +1,8 @@
 import { memo, useMemo } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { type AgentPromptConfig, type AgentPromptPreset } from '../../../../shared/types';
-import { Badge } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { type AgentPromptConfig, type AgentPromptPreset } from '../../../../types';
+import { Badge } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { refKey } from '../utils';
 

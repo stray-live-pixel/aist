@@ -1,8 +1,8 @@
 import { CheckCircle2, ChevronDown, Circle, CircleDot, ListChecks, PauseCircle, X } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { Badge, Button, Card, CompactControlGroup, CompactControlItem, Text } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { Badge, Button, Card, CompactControlGroup, CompactControlItem, Text } from '../../../../ui';
 import styles from '../ActivePlanWidget.module.scss';
 import { ActivePlanWidgetProps } from './ActivePlanWidgetProps';
 import { getPlanSummary } from './getPlanSummary';

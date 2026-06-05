@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import { asString, getToolPreview, getToolResult } from '../../tool-value';
 import { type FileReference } from '../types';
 import { withChangedRange } from './withChangedRange';

@@ -1,4 +1,4 @@
-import { type AgentPromptConfig } from '../../../../shared/types';
+import { type AgentPromptConfig } from '../../../../types';
 import { InstructionsSettingsPage } from './InstructionsSettingsPage';
 import { RolesSettingsPage } from './RolesSettingsPage';
 

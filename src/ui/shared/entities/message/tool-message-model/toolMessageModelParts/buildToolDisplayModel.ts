@@ -1,4 +1,4 @@
-import { type ChatMessage } from '../../../../shared/types';
+import { type ChatMessage } from '../../../../types';
 import { type ToolDisplayModel } from '../types';
 import { Translator } from './Translator';
 import { getAllFileReferences } from './getAllFileReferences';

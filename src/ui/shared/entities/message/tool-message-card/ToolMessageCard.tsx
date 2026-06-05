@@ -1,9 +1,9 @@
 import { ChevronRight, Code2 } from 'lucide-react';
 import { type MouseEvent, memo, useEffect, useMemo, useState } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import type { ChatMessage } from '../../../shared/types';
-import { ToolIcon } from '../../../shared/ui/ToolIcon';
+import { useI18n } from '../../../i18n';
+import type { ChatMessage } from '../../../types';
+import { ToolIcon } from '../../../ui/ToolIcon';
 import {
   formatMessageDate,
   formatMessageUsagePill,

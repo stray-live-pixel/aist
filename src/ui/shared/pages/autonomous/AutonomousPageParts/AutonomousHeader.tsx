@@ -1,6 +1,6 @@
-import { useI18n } from '../../../shared/i18n';
-import { type AutonomousState } from '../../../shared/types';
-import { Badge, Text } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { type AutonomousState } from '../../../types';
+import { Badge, Text } from '../../../ui';
 import styles from '../AutonomousPage.module.scss';
 
 export function AutonomousHeader({

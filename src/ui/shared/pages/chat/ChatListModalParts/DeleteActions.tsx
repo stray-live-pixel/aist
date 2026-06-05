@@ -1,8 +1,8 @@
 import { Check, X } from 'lucide-react';
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { IconButton } from '../../../shared/ui/IconButton';
+import { useI18n } from '../../../i18n';
+import { IconButton } from '../../../ui/IconButton';
 
 export const DeleteActions = memo(function DeleteActions({
   onCancel,

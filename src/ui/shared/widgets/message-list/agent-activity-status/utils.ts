@@ -1,5 +1,5 @@
-import { useI18n } from '../../../shared/i18n';
-import type { Chat } from '../../../shared/types';
+import { useI18n } from '../../../i18n';
+import type { Chat } from '../../../types';
 
 /**
  * Что это: переводит внутренний статус выполнения в короткий текст для UI.

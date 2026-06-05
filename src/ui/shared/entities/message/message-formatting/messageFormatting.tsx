@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import type { useI18n } from '../../../shared/i18n';
-import type { ChatMessage, ChatMessageUsageEstimate } from '../../../shared/types';
+import type { useI18n } from '../../../i18n';
+import type { ChatMessage, ChatMessageUsageEstimate } from '../../../types';
 import styles from './MessageFormatting.module.scss';
 import { getUsageLabel, padTimePart } from './utils';
 

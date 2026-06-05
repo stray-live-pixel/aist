@@ -1,9 +1,9 @@
 import { memo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { ApprovalNotificationSettings } from '../../../shared/types';
-import { Card, Checkbox, Select, TextField } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import type { ApprovalNotificationSettings } from '../../../types';
+import { Card, Checkbox, Select, TextField } from '../../../ui';
 import styles from '../PermissionsPage.module.scss';
 import { clampNumber } from './utils';
 

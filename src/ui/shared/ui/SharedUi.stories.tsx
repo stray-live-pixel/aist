@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Info, ListChecks, Settings } from 'lucide-react';
 
-import { storyTools } from '../../storybook/fixtures';
+import { storyTools } from '../storybook/fixtures';
 import { AistAnimatedLogo, AistBrand, AistLogo } from './AistLogo';
 import { IconButton } from './IconButton';
 import styles from './SharedUi.stories.module.scss';

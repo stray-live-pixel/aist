@@ -1,7 +1,7 @@
 import { Lightbulb } from 'lucide-react';
 
-import { type AgentReflectionCandidate } from '../../../../shared/types';
-import { Badge } from '../../../../shared/ui';
+import { type AgentReflectionCandidate } from '../../../../types';
+import { Badge } from '../../../../ui';
 import styles from '../SubagentMessageCard.module.scss';
 import { MemoryCandidateCard } from './MemoryCandidateCard';
 

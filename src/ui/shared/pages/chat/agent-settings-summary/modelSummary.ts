@@ -1,5 +1,5 @@
 import { getActiveModelProvider } from '../../../features/select-model';
-import type { AgentState } from '../../../shared/types';
+import type { AgentState } from '../../../types';
 import { compactModelLabel } from './formatters';
 import { CODEX_TIER_DISPLAY_LABELS, REASONING_DISPLAY_LABELS } from './modelDisplayLabels';
 

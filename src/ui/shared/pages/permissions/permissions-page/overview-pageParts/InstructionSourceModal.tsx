@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { Badge, Button, ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { Badge, Button, ModalBackdrop, ModalCode, ModalHeader, ModalSurface } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import type { InstructionSourceViewModel } from './InstructionSourceViewModel';
 import { stopPropagation } from './stopPropagation';

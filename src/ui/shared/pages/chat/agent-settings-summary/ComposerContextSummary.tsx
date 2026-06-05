@@ -1,10 +1,10 @@
 import { Coins, ShieldCheck } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
-import { useI18n } from '../../../shared/i18n';
-import { agentActions } from '../../../shared/lib/agentActions';
-import type { AgentState } from '../../../shared/types';
-import { CompactControlGroup, CompactControlItem, Select } from '../../../shared/ui';
+import { useI18n } from '../../../i18n';
+import { agentActions } from '../../../lib/agentActions';
+import type { AgentState } from '../../../types';
+import { CompactControlGroup, CompactControlItem, Select } from '../../../ui';
 import styles from '../ChatPage.module.scss';
 import { formatCost, getPermissionDisplayLabels } from './formatters';
 import { usePermissionOptions } from './usePermissionOptions';

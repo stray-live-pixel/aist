@@ -1,9 +1,9 @@
 import { Plus } from 'lucide-react';
 import { memo, useState } from 'react';
 
-import { useI18n } from '../../../../shared/i18n';
-import { type AgentInstructionKind, type AgentItemScope, type AgentPromptConfig } from '../../../../shared/types';
-import { Button, Card } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import { type AgentInstructionKind, type AgentItemScope, type AgentPromptConfig } from '../../../../types';
+import { Button, Card } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import { PromptItemCard } from './PromptItemCard';
 import { PromptItemEditor } from './PromptItemEditor';

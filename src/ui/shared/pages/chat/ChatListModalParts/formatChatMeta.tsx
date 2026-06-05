@@ -1,4 +1,4 @@
-import { type AgentLanguage, type ChatSummary } from '../../../shared/types';
+import { type AgentLanguage, type ChatSummary } from '../../../types';
 import { formatChatDate } from './formatChatDate';
 import { translateChatMetaMessage } from './translateChatMetaMessage';
 

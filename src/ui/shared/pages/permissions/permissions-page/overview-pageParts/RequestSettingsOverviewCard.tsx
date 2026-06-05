@@ -2,9 +2,9 @@ import { Gauge, HelpCircle, MessageSquareText, Route, Settings2, TimerReset } fr
 import { useMemo, useState } from 'react';
 
 import { getActiveModelProvider } from '../../../../features/select-model';
-import { useI18n } from '../../../../shared/i18n';
-import type { AgentState } from '../../../../shared/types';
-import { Button, Card, InfoTile, Text, Tooltip } from '../../../../shared/ui';
+import { useI18n } from '../../../../i18n';
+import type { AgentState } from '../../../../types';
+import { Button, Card, InfoTile, Text, Tooltip } from '../../../../ui';
 import styles from '../../PermissionsPage.module.scss';
 import type { SettingsPageId } from '../types';
 import { OverviewInfoModal } from './OverviewInfoModal';
