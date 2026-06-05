@@ -1,6 +1,6 @@
 import { Copy } from 'lucide-react';
 
-import { Button } from '../button';
+import { Button } from '../button/Component';
 import styles from './CodeBlock.module.scss';
 
 export type CodeBlockProps = {

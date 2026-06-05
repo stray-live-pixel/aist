@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Settings } from 'lucide-react';
 
-import { Button } from '../button';
+import { Button } from '../button/Component';
 import { Switch } from '../switch';
 import { Card } from './Card';
 

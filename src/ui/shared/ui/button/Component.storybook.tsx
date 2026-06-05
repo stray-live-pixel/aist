@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Check, Plus, Trash2 } from 'lucide-react';
 
-import { Button } from './Button';
+import { Button } from './Component';
 
 const meta = {
   title: 'Shared/Design System/Button',

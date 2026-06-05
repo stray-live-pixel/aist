@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Eye, Search } from 'lucide-react';
 
-import { Button } from '../button';
+import { Button } from '../button/Component';
 import { TextField } from './TextField';
 
 const meta = {

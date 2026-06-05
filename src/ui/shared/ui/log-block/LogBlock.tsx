@@ -1,7 +1,7 @@
 import { Copy } from 'lucide-react';
 import { type ReactNode } from 'react';
 
-import { Button } from '../button';
+import { Button } from '../button/Component';
 import { classNames } from '../lib/classNames';
 import styles from './LogBlock.module.scss';
 

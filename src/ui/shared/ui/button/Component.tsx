@@ -1,25 +1,11 @@
-import { type ButtonHTMLAttributes, type ReactNode, forwardRef } from 'react';
+import { forwardRef } from 'react';
 
 import { classNames } from '../lib/classNames';
-import styles from './Button.module.scss';
-
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'tactile';
-export type ButtonSize = 'sm' | 'md' | 'lg';
-
-export type ButtonShape = 'default' | 'round';
-
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  shape?: ButtonShape;
-  leadingIcon?: ReactNode;
-  trailingIcon?: ReactNode;
-  iconOnly?: boolean;
-  fullWidth?: boolean;
-};
+import styles from './Component.module.scss';
+import type { ButtonProps } from './Component.types';
 
 /**
- * Что это: базовая кнопка дизайн-системы для действий в webview.
+ * Что это: базовая кнопка дизайн-системы для действий в UI.
  * Зачем нужно: единый macOS-like стиль, состояния и размеры вместо разрозненных классов.
  * Пример: <Button variant="primary" leadingIcon={<Plus />}>Create</Button>.
  */
