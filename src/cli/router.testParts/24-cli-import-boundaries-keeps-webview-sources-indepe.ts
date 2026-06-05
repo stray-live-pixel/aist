@@ -38,8 +38,10 @@ import {
 } from './helpers';
 
 describe('CLI import boundaries', () => {
-  it('keeps webview sources independent from CLI entrypoints', () => {
-    const violations = listSourceFiles(path.join(process.cwd(), 'src', 'webview')).flatMap((filePath) =>
+  it('keeps shared UI sources independent from CLI entrypoints', () => {
+    // Общий UI (src/ui/shared) обязан быть host- и transport-агностичным: он не импортирует CLI.
+    // Среды запуска src/ui/web/{server,adapters} легитимно мостят к daemon protocol и сюда не входят.
+    const violations = listSourceFiles(path.join(process.cwd(), 'src', 'ui', 'shared')).flatMap((filePath) =>
       collectCliImports(filePath)
     );
 
