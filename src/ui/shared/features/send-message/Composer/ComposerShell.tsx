@@ -79,6 +79,7 @@ export function ComposerShell({
                 placeholder={placeholder}
                 rows={1}
                 value={prompt}
+                data-test-id="composer-input"
                 readOnly={readOnly}
                 aria-hidden={readOnly || minimized}
                 tabIndex={readOnly || minimized ? -1 : undefined}

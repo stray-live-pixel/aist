@@ -1,7 +1,7 @@
-import { createRoot } from 'react-dom/client';
+import { setAgentHost } from '../shared/api/agentHost';
+import { mountApp } from '../shared/app/mountApp';
+import { createWebAgentHost } from './adapters/createWebAgentHost';
 
-import '../shared/styles.css';
-import { App } from './App';
-import './styles.css';
-
-createRoot(document.getElementById('root')!).render(<App />);
+// Web shell: регистрируем web-транспорт (HTTP RPC + SSE) и монтируем общий UI.
+setAgentHost(createWebAgentHost());
+mountApp();

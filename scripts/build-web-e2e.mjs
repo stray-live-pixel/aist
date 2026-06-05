@@ -6,15 +6,15 @@ import path from 'node:path';
 import { build } from 'esbuild';
 import { postcssModules, sassPlugin } from 'esbuild-sass-plugin';
 
-const outdir = 'dist/ui/web';
+// Собирает mock-вариант web shell (общий UI на in-memory AgentHost) для web e2e на моках.
+const outdir = 'dist/ui/web-e2e';
 
 await fs.mkdir(outdir, { recursive: true });
 
 await build({
-  entryPoints: ['src/ui/web/index.tsx'],
+  entryPoints: ['src/ui/web/e2e/mountMockWebUi.tsx'],
   bundle: true,
   format: 'iife',
-  minify: true,
   define: {
     'process.env.NODE_ENV': '"production"'
   },
@@ -40,7 +40,7 @@ await fs.writeFile(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AIST web</title>
+  <title>AIST web e2e</title>
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -51,10 +51,6 @@ await fs.writeFile(
 `
 );
 
-/**
- * Формирует имя CSS module класса в формате `Component_localClass_hash`, как в build-webview.mjs,
- * чтобы web и VS Code бандлы давали одинаковые scoped-имена для общего shared UI.
- */
 function createScopedClassName(localClassName, filePath) {
   const componentName = basename(filePath).replace(/\.module\.(s[ac]ss|css)$/u, '');
   const hash = createHash('sha256')

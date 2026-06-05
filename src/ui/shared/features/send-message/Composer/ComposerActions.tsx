@@ -40,6 +40,7 @@ export function ComposerFooterActions({
         leadingIcon={busy ? <Square size={12} /> : <SendHorizontal size={15} />}
         title={busy ? t('composer.stop') : t('composer.send')}
         aria-label={busy ? t('composer.stopGeneration') : t('composer.sendMessage')}
+        data-test-id={busy ? 'composer-stop' : 'composer-send'}
         onClick={busy ? onStop : onSend}
       />
     </>
